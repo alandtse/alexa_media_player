@@ -1,7 +1,7 @@
 """
 Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
-https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
+https://home-assistant.io/components/media_player.alexa/
 """
 import json
 import logging
@@ -19,7 +19,7 @@ from homeassistant.components.media_player import (
     SUPPORT_VOLUME_SET, MediaPlayerDevice, DOMAIN,
     MEDIA_PLAYER_SCHEMA)
 from homeassistant.const import (
-    STATE_UNKNOWN, STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING)
+    CONF_HOST, STATE_UNKNOWN, STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.event import track_utc_time_change
@@ -48,12 +48,20 @@ ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
 })
 
 
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
+    vol.Optional(CONF_HOST): cv.string,
+})
+
 def setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa platform."""
     if ALEXA_DATA not in hass.data:
         hass.data[ALEXA_DATA] = {}
 
-    setup_alexa('addon_9ff8aed5_alexaapi', hass, config, add_devices_callback)
+    host = 'addon_9ff8aed5_alexaapi'
+    if CONF_HOST in config:
+        host = config.get(CONF_HOST)
+    setup_alexa(host, hass, config, add_devices_callback)
+
 
 def setup_alexa(host, hass, config, add_devices_callback):
     """Set up a alexa api based on host parameter."""

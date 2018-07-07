@@ -1,7 +1,8 @@
 """
 Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
-https://home-assistant.io/components/media_player.alexa/
+https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
+VERSION 0.4
 """
 import json
 import logging
@@ -19,7 +20,8 @@ from homeassistant.components.media_player import (
     SUPPORT_VOLUME_SET, MediaPlayerDevice, DOMAIN,
     MEDIA_PLAYER_SCHEMA)
 from homeassistant.const import (
-    CONF_HOST, STATE_UNKNOWN, STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING)
+    CONF_HOST, STATE_UNKNOWN, STATE_IDLE, STATE_OFF, 
+    STATE_STANDBY, STATE_PAUSED, STATE_PLAYING)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.event import track_utc_time_change
@@ -140,16 +142,13 @@ class AlexaClient(MediaPlayerDevice):
         self._capabilities = []
         # Media
         self._session = None
-        self._media_content_type = None
         self._media_duration = None
         self._media_image_url = None
         self._media_title = None
         self._media_position = None
         self._media_album_name = None
         self._media_artist = None
-        self._song_queue_index = None
         self._player_state = None
-        self._song_queue_index = None
         self._media_is_muted = None
         self._media_volume_level = None
         self._previous_volume = None
@@ -158,14 +157,12 @@ class AlexaClient(MediaPlayerDevice):
     def _clear_media_details(self):
         """Set all Media Items to None."""
         # General
-        self._media_content_type = None
         self._media_duration = None
         self._media_image_url = None
         self._media_title = None
         self._media_position = None
         self._media_album_name = None
         self._media_artist = None
-        self._song_queue_index = None
         self._media_player_state = None
         self._media_is_muted = None
         self._media_volume_level = None
@@ -193,24 +190,23 @@ class AlexaClient(MediaPlayerDevice):
         self._clear_media_details()
         # update the session
         self._session = session
-        if 'currentState' in self._session:
-            self._media_player_state = self._session['currentState']
+        if 'playerInfo' in self._session:
+            if self._session['playerInfo']['state'] is not None:
+                self._media_player_state = self._session['playerInfo']['state']
 
-            if self._session['referenceId'] is not None:
-                self._song_queue_index = self._session['referenceId']
-                self._song_queue_index = self._song_queue_index.split(":")[1]
-                self._media_position = self._session['progressSeconds']
-                self._media_is_muted = self._session['muted']
-                self._media_volume_level = self._session['volume'] / 100
-                for song in self._session['queue']:
-                    if song['index'] == int(self._song_queue_index):
-                        self._media_title = song['title']
-                        self._media_artist = song['artist']
-                        self._media_album_name = song['album']
-                        self._media_image_url = song['imageURL']
-                        self._media_duration = song['durationSeconds']
-                        self._media_content_type = song['contentType']
+                self._media_position = self._session['playerInfo']['progress']['mediaProgress']
+                self._media_is_muted = self._session['playerInfo']['volume']['muted']
+                self._media_volume_level = self._session['playerInfo']['volume']['volume']/ 100
+                self._media_title = self._session['playerInfo']['infoText']['title']
+                self._media_artist = self._session['playerInfo']['infoText']['subText1']
+                self._media_album_name = self._session['playerInfo']['infoText']['subText2']
+                self._media_image_url = self._session['playerInfo']['mainArt']['url']
+                self._media_duration = self._session['playerInfo']['progress']['mediaLength']
 
+    @property
+    def available(self):
+        """Return the availability of the client."""
+        return self._available
     @property
     def unique_id(self):
         """Return the id of this Alexa client."""
@@ -245,7 +241,7 @@ class AlexaClient(MediaPlayerDevice):
             return STATE_PAUSED
         elif self._media_player_state == 'IDLE':
             return STATE_IDLE
-        return STATE_UNKNOWN
+        return STATE_STANDBY
 
     def update(self):
         """Get the latest details."""
@@ -256,7 +252,7 @@ class AlexaClient(MediaPlayerDevice):
         """Return the content type of current playing media."""
         if self.state in [STATE_PLAYING, STATE_PAUSED]:
             return MEDIA_TYPE_MUSIC
-        return STATE_UNKNOWN
+        return STATE_STANDBY
 
     @property
     def media_artist(self):
@@ -401,6 +397,4 @@ class AlexaClient(MediaPlayerDevice):
             'available': self._available,
         }
         return attr
-
-
 

@@ -18,7 +18,7 @@ from homeassistant.components.media_player import (
     SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
     SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_VOLUME_MUTE,
     SUPPORT_VOLUME_SET, MediaPlayerDevice, DOMAIN,
-    MEDIA_PLAYER_SCHEMA)
+    MEDIA_PLAYER_SCHEMA, SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
     CONF_HOST, STATE_UNKNOWN, STATE_IDLE, STATE_OFF, 
     STATE_STANDBY, STATE_PAUSED, STATE_PLAYING)
@@ -32,13 +32,12 @@ SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                     SUPPORT_NEXT_TRACK | SUPPORT_STOP |
                     SUPPORT_VOLUME_SET | SUPPORT_PLAY |
                     SUPPORT_TURN_OFF | SUPPORT_VOLUME_MUTE |
-                    SUPPORT_PAUSE)
+                    SUPPORT_PAUSE | SUPPORT_SELECT_SOURCE)
 _CONFIGURING = {}
 _LOGGER = logging.getLogger(__name__)
 
-MIN_TIME_BETWEEN_SCANS = timedelta(seconds=10)
+MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15)
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
-
 
 ALEXA_DATA = "alexa_media"
 
@@ -74,13 +73,8 @@ def setup_alexa(host, hass, config, add_devices_callback):
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
         """Update the devices objects."""
-        try:
-            req = requests.post('http://' + host + ':8091/alexa-getDevices')
-            devices = req.json()['devices']
-        except requests.exceptions.RequestException as ex:
-            _LOGGER.error("Could not connect to alexa server at http://%s (%s)",
-                          host, ex)
-            return
+
+        devices = AlexaAPI.get_devices(host).json()['devices']
 
         new_alexa_clients = []
         available_client_ids = []
@@ -128,6 +122,8 @@ class AlexaClient(MediaPlayerDevice):
     def __init__(self, config, host, device, update_devices):
         """Initialize the Alexa device."""
         # Class info
+        self.alexa_api = AlexaAPI(host, self)
+
         self.update_devices = update_devices
         self.host = host
         # Device info
@@ -178,30 +174,50 @@ class AlexaClient(MediaPlayerDevice):
         self._software_version = device['softwareVersion']
         self._available = device['online']
         self._capabilities = device['capabilities']
+        self._bluetooth = self.alexa_api.get_bluetooth()
 
-        try:
-            req = requests.post('http://' + self.host + ':8091/alexa-getState',
-                              data={'deviceSerialNumber': self.unique_id})
-            session = req.json()
-        except requests.exceptions.RequestException as ex:
-            _LOGGER.error("Could not connect to alexa server at http://%s (%s)",
-                          self.host , ex)
+        session = self.alexa_api.get_state().json()
 
         self._clear_media_details()
         # update the session
         self._session = session
         if 'playerInfo' in self._session:
-            if self._session['playerInfo']['state'] is not None:
-                self._media_player_state = self._session['playerInfo']['state']
+            self._session = self._session['playerInfo']
+            if self._session['state'] is not None:
+                self._media_player_state = self._session['state']
+                self._media_position = self._session['progress']['mediaProgress']
+                self._media_is_muted = self._session['volume']['muted']
+                self._media_volume_level = self._session['volume']['volume'] / 100
+                self._media_title = self._session['infoText']['title']
+                self._media_artist = self._session['infoText']['subText1']
+                self._media_album_name = self._session['infoText']['subText2']
+                self._media_image_url = self._session['mainArt']['url']
+                self._media_duration = self._session['progress']['mediaLength']
 
-                self._media_position = self._session['playerInfo']['progress']['mediaProgress']
-                self._media_is_muted = self._session['playerInfo']['volume']['muted']
-                self._media_volume_level = self._session['playerInfo']['volume']['volume']/ 100
-                self._media_title = self._session['playerInfo']['infoText']['title']
-                self._media_artist = self._session['playerInfo']['infoText']['subText1']
-                self._media_album_name = self._session['playerInfo']['infoText']['subText2']
-                self._media_image_url = self._session['playerInfo']['mainArt']['url']
-                self._media_duration = self._session['playerInfo']['progress']['mediaLength']
+    @property
+    def source(self):
+        """Return the current input source."""
+        source = 'Local Speaker'
+        if self._bluetooth['pairedDeviceList'] is not None:
+            for device in self._bluetooth['pairedDeviceList']:
+                if device['connected'] == True:
+                    return device['friendlyName']
+        return source
+    @property
+    def source_list(self):
+        """List of available input sources."""
+        sources = []
+        if self._bluetooth['pairedDeviceList'] is not None:
+            for devices in self._bluetooth['pairedDeviceList']:
+                sources.append(devices['friendlyName'])
+        return ['Local Speaker'] + sources
+
+    def select_source(self, source):
+        """Select input source."""
+        if self._bluetooth['pairedDeviceList'] is not None:
+            for devices in self._bluetooth['pairedDeviceList']:
+                if devices['friendlyName'] == source:
+                    self.alexa_api.set_bluetooth(devices['address'])
 
     @property
     def available(self):
@@ -294,10 +310,8 @@ class AlexaClient(MediaPlayerDevice):
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
                 and self.available):
             return
-
-        requests.post('http://' + self.host + ':8091/alexa-setMedia',
-                     data={'deviceSerialNumber': self.unique_id,
-                           'volume': volume*100})
+        self.alexa_api.set_volume(volume)
+        self._media_volume_level = volume
 
     @property
     def volume_level(self):
@@ -323,38 +337,26 @@ class AlexaClient(MediaPlayerDevice):
         self._media_is_muted = mute
         if mute:
             self._previous_volume = self.volume_level
-            requests.post('http://' + self.host + ':8091/alexa-setMedia',
-                          data={'deviceSerialNumber': self.unique_id,
-                                'volume': 0})
+            self.alexa_api.set_volume(0)
         else:
             if self._previous_volume is not None:
-                requests.post('http://' + self.host + ':8091/alexa-setMedia',
-                              data={'deviceSerialNumber': self.unique_id,
-                                    'volume': self._previous_volume})
+                self.alexa_api.set_volume(self._previous_volume)
             else:
-                requests.post('http://' + self.host + ':8091/alexa-setMedia',
-                              data={'deviceSerialNumber': self.unique_id,
-                                    'volume': 50})
-
+                self.alexa_api.set_volume(50)
 
     def media_play(self):
         """Send play command."""
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
                 and self.available):
             return
-
-        requests.post('http://' + self.host + ':8091/alexa-setMedia',
-                          data={'deviceSerialNumber': self.unique_id,
-                                'command': 'PlayCommand'})
+        self.alexa_api.play()
 
     def media_pause(self):
         """Send pause command."""
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
                 and self.available):
             return
-        requests.post('http://' + self.host + ':8091/alexa-setMedia',
-                          data={'deviceSerialNumber': self.unique_id,
-                                'command': 'PauseCommand'})
+        self.alexa_api.pause()
 
     def turn_off(self):
         """Turn the client off."""
@@ -366,18 +368,14 @@ class AlexaClient(MediaPlayerDevice):
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
                 and self.available):
             return
-        requests.post('http://' + self.host + ':8091/alexa-setMedia',
-                          data={'deviceSerialNumber': self.unique_id,
-                                'command': 'NextCommand'})
+        self.alexa_api.next()
 
     def media_previous_track(self):
         """Send previous track command."""
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
                 and self.available):
             return
-        requests.post('http://' + self.host + ':8091/alexa-setMedia',
-                          data={'deviceSerialNumber': self.unique_id,
-                                'command': 'PreviousCommand'})
+        self.alexa_api.previous()
 
     def play_media(self, media_type, media_id, **kwargs):
         """Play Media"""
@@ -386,9 +384,7 @@ class AlexaClient(MediaPlayerDevice):
 
     def send_tts(self, message):
         """Send TTS to Device NOTE: Does not work on WHA Groups"""
-        requests.post('http://' + self.host + ':8091/alexa-tts',
-                         data={'deviceSerialNumber': self.unique_id,
-                               'tts': message})
+        self.alexa_api.send_tts(message)
 
     @property
     def device_state_attributes(self):
@@ -397,4 +393,76 @@ class AlexaClient(MediaPlayerDevice):
             'available': self._available,
         }
         return attr
+
+class AlexaAPI():
+    def __init__(self, host, device):
+        self._host = host 
+        self._device = device
+
+    def _post_request(self, uri, data):
+        try:
+            requests.post('http://' + self._host + ':8091/' + uri, data = data)
+        except:
+            _LOGGER.error("An error occured accessing the API")
+
+    def _get_request(self, uri, data=None):
+        try:
+            return requests.post('http://' + self._host + ':8091/' + uri, data = data)
+        except:
+            _LOGGER.error("An error occured accessing the API")
+            return None
+
+    def send_tts(self, message):
+        self._post_request('alexa-tts',
+                           data={'deviceSerialNumber': self._device.unique_id, 
+                                'tts': message})
+
+    def previous(self):
+        self._post_request('alexa-setMedia',
+                           data={'deviceSerialNumber': self._device.unique_id, 
+                                'command': 'PreviousCommand'})
+    def next(self):
+        self._post_request('alexa-setMedia',
+                           data={'deviceSerialNumber': self._device.unique_id, 
+                                'command': 'NextCommand'})
+
+    def pause(self):
+        self._post_request('alexa-setMedia',
+                           data={'deviceSerialNumber': self._device.unique_id, 
+                                'command': 'PauseCommand'})
+
+    def play(self):
+        self._post_request('alexa-setMedia',
+                           data={'deviceSerialNumber': self._device.unique_id, 
+                                'command': 'PlayCommand'})
+
+    def set_volume(self, volume):
+        self._post_request('alexa-setMedia',
+                           data={'deviceSerialNumber': self._device.unique_id,
+                                 'volume': volume*100 })
+
+    def get_state(self):
+        response = self._get_request('alexa-getState',
+                        data={'deviceSerialNumber': self._device.unique_id})
+        return response
+
+    def get_bluetooth(self):
+        response = self._get_request('alexa-getBluetooth').json()
+        for bluetooth_state in response['bluetoothStates']:
+            if self._device.unique_id == bluetooth_state['deviceSerialNumber']:
+                return bluetooth_state
+
+    def set_bluetooth(self, mac):
+        self._post_request('alexa-setBluetooth',
+                           data={'deviceSerialNumber': self._device.unique_id,
+                                 'mac': mac})
+
+    @staticmethod
+    def get_devices(host):
+        try:
+            response = requests.post('http://' + host + ':8091/alexa-getDevices')
+            return response
+        except:
+            _LOGGER.error("An error occured accessing the API")
+            return None
 

@@ -2,7 +2,7 @@
 Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.4
+VERSION 0.5
 """
 import json
 import logging
@@ -20,7 +20,7 @@ from homeassistant.components.media_player import (
     SUPPORT_VOLUME_SET, MediaPlayerDevice, DOMAIN,
     MEDIA_PLAYER_SCHEMA, SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
-    CONF_HOST, STATE_UNKNOWN, STATE_IDLE, STATE_OFF, 
+    CONF_HOST, STATE_UNKNOWN, STATE_IDLE, STATE_OFF,
     STATE_STANDBY, STATE_PAUSED, STATE_PLAYING)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import extract_entity_ids
@@ -148,6 +148,8 @@ class AlexaClient(MediaPlayerDevice):
         self._media_is_muted = None
         self._media_volume_level = None
         self._previous_volume = None
+        self._source = None
+        self._source_list = []
         self.refresh(device)
 
     def _clear_media_details(self):
@@ -175,7 +177,8 @@ class AlexaClient(MediaPlayerDevice):
         self._available = device['online']
         self._capabilities = device['capabilities']
         self._bluetooth = self.alexa_api.get_bluetooth()
-
+        self._source = self._get_source()
+        self._source_list = self._get_source_list()
         session = self.alexa_api.get_state().json()
 
         self._clear_media_details()
@@ -197,27 +200,39 @@ class AlexaClient(MediaPlayerDevice):
     @property
     def source(self):
         """Return the current input source."""
+        return self._source
+
+    @property
+    def source_list(self):
+        """List of available input sources."""
+        return self._source_list
+
+    def select_source(self, source):
+        """Select input source."""
+        if source == 'Local Speaker':
+            self.alexa_api.disconnect_bluetooth()
+            self._source = 'Local Speaker'
+        elif self._bluetooth['pairedDeviceList'] is not None:
+            for devices in self._bluetooth['pairedDeviceList']:
+                if devices['friendlyName'] == source:
+                    self.alexa_api.set_bluetooth(devices['address'])
+                    self._source = source
+
+
+    def _get_source(self):
         source = 'Local Speaker'
         if self._bluetooth['pairedDeviceList'] is not None:
             for device in self._bluetooth['pairedDeviceList']:
                 if device['connected'] == True:
                     return device['friendlyName']
         return source
-    @property
-    def source_list(self):
-        """List of available input sources."""
+
+    def _get_source_list(self):
         sources = []
         if self._bluetooth['pairedDeviceList'] is not None:
             for devices in self._bluetooth['pairedDeviceList']:
                 sources.append(devices['friendlyName'])
         return ['Local Speaker'] + sources
-
-    def select_source(self, source):
-        """Select input source."""
-        if self._bluetooth['pairedDeviceList'] is not None:
-            for devices in self._bluetooth['pairedDeviceList']:
-                if devices['friendlyName'] == source:
-                    self.alexa_api.set_bluetooth(devices['address'])
 
     @property
     def available(self):
@@ -396,7 +411,7 @@ class AlexaClient(MediaPlayerDevice):
 
 class AlexaAPI():
     def __init__(self, host, device):
-        self._host = host 
+        self._host = host
         self._device = device
 
     def _post_request(self, uri, data):
@@ -414,26 +429,26 @@ class AlexaAPI():
 
     def send_tts(self, message):
         self._post_request('alexa-tts',
-                           data={'deviceSerialNumber': self._device.unique_id, 
+                           data={'deviceSerialNumber': self._device.unique_id,
                                 'tts': message})
 
     def previous(self):
         self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id, 
+                           data={'deviceSerialNumber': self._device.unique_id,
                                 'command': 'PreviousCommand'})
     def next(self):
         self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id, 
+                           data={'deviceSerialNumber': self._device.unique_id,
                                 'command': 'NextCommand'})
 
     def pause(self):
         self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id, 
+                           data={'deviceSerialNumber': self._device.unique_id,
                                 'command': 'PauseCommand'})
 
     def play(self):
         self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id, 
+                           data={'deviceSerialNumber': self._device.unique_id,
                                 'command': 'PlayCommand'})
 
     def set_volume(self, volume):
@@ -456,6 +471,10 @@ class AlexaAPI():
         self._post_request('alexa-setBluetooth',
                            data={'deviceSerialNumber': self._device.unique_id,
                                  'mac': mac})
+
+    def disconnect_bluetooth(self):
+        self._post_request('alexa-disconnectBluetooth',
+                           data={'deviceSerialNumber': self._device.unique_id})
 
     @staticmethod
     def get_devices(host):

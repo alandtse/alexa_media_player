@@ -2,7 +2,7 @@
 Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.5
+VERSION 0.6
 """
 import json
 import logging
@@ -11,6 +11,7 @@ from datetime import timedelta
 
 import requests
 import voluptuous as vol
+from bs4 import BeautifulSoup
 
 from homeassistant import util
 from homeassistant.components.media_player import (
@@ -20,8 +21,9 @@ from homeassistant.components.media_player import (
     SUPPORT_VOLUME_SET, MediaPlayerDevice, DOMAIN,
     MEDIA_PLAYER_SCHEMA, SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
-    CONF_HOST, STATE_UNKNOWN, STATE_IDLE, STATE_OFF,
-    STATE_STANDBY, STATE_PAUSED, STATE_PLAYING)
+    CONF_EMAIL, CONF_PASSWORD, CONF_URL, STATE_UNKNOWN, 
+    STATE_IDLE, STATE_OFF, STATE_STANDBY, STATE_PAUSED, 
+    STATE_PLAYING)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.event import track_utc_time_change
@@ -50,41 +52,92 @@ ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Optional(CONF_HOST): cv.string,
+    vol.Required(CONF_EMAIL): cv.string,
+    vol.Required(CONF_PASSWORD): cv.string,
+    vol.Required(CONF_URL): cv.string,
 })
 
-def setup_platform(hass, config, add_devices_callback, discovery_info=None):
+def request_configuration(hass, config, setup_platform_callback, 
+                          captcha_url=None):
+    """Request configuration steps from the user."""
+    configurator = hass.components.configurator
+
+    async def configuration_callback(callback_data):
+        """Handle the submitted configuration."""
+        def done():
+            configurator.request_done(instance)
+
+        hass.async_add_job(done)
+        hass.async_add_job(setup_platform_callback, callback_data)
+
+    instance = configurator.request_config(
+        "Alexa Media Player", configuration_callback,
+        description='Please enter the text for the above captcha.',
+        description_image=captcha_url,
+        submit_caption="Confirm",
+        fields=[{'id': 'captcha', 'name': 'Captca'}]
+    )
+
+def setup_platform(hass, config, add_devices_callback, 
+                   discovery_info=None):
     """Set up the Alexa platform."""
     if ALEXA_DATA not in hass.data:
         hass.data[ALEXA_DATA] = {}
 
-    host = 'addon_9ff8aed5_alexaapi'
-    if CONF_HOST in config:
-        host = config.get(CONF_HOST)
-    setup_alexa(host, hass, config, add_devices_callback)
+    email =  config.get(CONF_EMAIL)
+    password = config.get(CONF_PASSWORD)
+    url = config.get(CONF_URL)
+
+    login = AlexaLogin(url, email, password)
+
+    async def setup_platform_callback(callback_data):
+        login.login(captcha=callback_data.get('captcha'))
+
+        if 'login_successful' in login.status:
+            hass.async_add_job(setup_alexa, hass, config, 
+                               add_devices_callback, login)
+        else:
+            login.reset_login()
+            login.login()
+            hass.async_add_job(request_configuration, hass, config,
+                               setup_platform_callback,
+                               login.status['captcha_image_url'])
+
+    if 'captcha_required' in login.status:
+        hass.async_add_job(request_configuration, hass, config,
+                           setup_platform_callback,
+                           login.status['captcha_image_url'])
 
 
-def setup_alexa(host, hass, config, add_devices_callback):
+def setup_alexa(hass, config, add_devices_callback, login_obj):
     """Set up a alexa api based on host parameter."""
     alexa_clients = hass.data[ALEXA_DATA]
     alexa_sessions = {}
     track_utc_time_change(hass, lambda now: update_devices(), second=30)
 
+    url = config.get(CONF_URL)
+
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
         """Update the devices objects."""
 
-        devices = AlexaAPI.get_devices(host).json()['devices']
+        devices = AlexaAPI.get_devices(url, login_obj._session)
+        devices = devices.json()['devices']
+        bluetooth = AlexaAPI.get_bluetooth(url, login_obj._session).json()
 
         new_alexa_clients = []
         available_client_ids = []
         for device in devices:
 
+            for b_state in bluetooth['bluetoothStates']:
+                if device['serialNumber'] == b_state['deviceSerialNumber']:
+                    device['bluetooth_state'] = b_state
+
             available_client_ids.append(device['serialNumber'])
 
             if device['serialNumber'] not in alexa_clients:
-                new_client = AlexaClient(config, host, device,
-                                         update_devices)
+                new_client = AlexaClient(config, login_obj._session, device,
+                                         update_devices, url)
                 alexa_clients[device['serialNumber']] = new_client
                 new_alexa_clients.append(new_client)
             else:
@@ -119,13 +172,12 @@ def setup_alexa(host, hass, config, add_devices_callback):
 class AlexaClient(MediaPlayerDevice):
     """Representation of a Alexa device."""
 
-    def __init__(self, config, host, device, update_devices):
+    def __init__(self, config, session, device, update_devices, url):
         """Initialize the Alexa device."""
         # Class info
-        self.alexa_api = AlexaAPI(host, self)
+        self.alexa_api = AlexaAPI(self, session, url)
 
         self.update_devices = update_devices
-        self.host = host
         # Device info
         self._device = None
         self._device_name = None
@@ -141,12 +193,12 @@ class AlexaClient(MediaPlayerDevice):
         self._media_duration = None
         self._media_image_url = None
         self._media_title = None
-        self._media_position = None
+        self._media_pos = None
         self._media_album_name = None
         self._media_artist = None
         self._player_state = None
         self._media_is_muted = None
-        self._media_volume_level = None
+        self._media_vol_level = None
         self._previous_volume = None
         self._source = None
         self._source_list = []
@@ -158,12 +210,12 @@ class AlexaClient(MediaPlayerDevice):
         self._media_duration = None
         self._media_image_url = None
         self._media_title = None
-        self._media_position = None
+        self._media_pos = None
         self._media_album_name = None
         self._media_artist = None
         self._media_player_state = None
         self._media_is_muted = None
-        self._media_volume_level = None
+        self._media_vol_level = None
 
     def refresh(self, device):
         """Refresh key device data."""
@@ -176,7 +228,7 @@ class AlexaClient(MediaPlayerDevice):
         self._software_version = device['softwareVersion']
         self._available = device['online']
         self._capabilities = device['capabilities']
-        self._bluetooth = self.alexa_api.get_bluetooth()
+        self._bluetooth_state = device['bluetooth_state']
         self._source = self._get_source()
         self._source_list = self._get_source_list()
         session = self.alexa_api.get_state().json()
@@ -188,9 +240,9 @@ class AlexaClient(MediaPlayerDevice):
             self._session = self._session['playerInfo']
             if self._session['state'] is not None:
                 self._media_player_state = self._session['state']
-                self._media_position = self._session['progress']['mediaProgress']
+                self._media_pos = self._session['progress']['mediaProgress']
                 self._media_is_muted = self._session['volume']['muted']
-                self._media_volume_level = self._session['volume']['volume'] / 100
+                self._media_vol_level = self._session['volume']['volume'] / 100
                 self._media_title = self._session['infoText']['title']
                 self._media_artist = self._session['infoText']['subText1']
                 self._media_album_name = self._session['infoText']['subText2']
@@ -212,8 +264,8 @@ class AlexaClient(MediaPlayerDevice):
         if source == 'Local Speaker':
             self.alexa_api.disconnect_bluetooth()
             self._source = 'Local Speaker'
-        elif self._bluetooth['pairedDeviceList'] is not None:
-            for devices in self._bluetooth['pairedDeviceList']:
+        elif self._bluetooth_state['pairedDeviceList'] is not None:
+            for devices in self._bluetooth_state['pairedDeviceList']:
                 if devices['friendlyName'] == source:
                     self.alexa_api.set_bluetooth(devices['address'])
                     self._source = source
@@ -221,16 +273,16 @@ class AlexaClient(MediaPlayerDevice):
 
     def _get_source(self):
         source = 'Local Speaker'
-        if self._bluetooth['pairedDeviceList'] is not None:
-            for device in self._bluetooth['pairedDeviceList']:
+        if self._bluetooth_state['pairedDeviceList'] is not None:
+            for device in self._bluetooth_state['pairedDeviceList']:
                 if device['connected'] == True:
                     return device['friendlyName']
         return source
 
     def _get_source_list(self):
         sources = []
-        if self._bluetooth['pairedDeviceList'] is not None:
-            for devices in self._bluetooth['pairedDeviceList']:
+        if self._bluetooth_state['pairedDeviceList'] is not None:
+            for devices in self._bluetooth_state['pairedDeviceList']:
                 sources.append(devices['friendlyName'])
         return ['Local Speaker'] + sources
 
@@ -326,12 +378,12 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.set_volume(volume)
-        self._media_volume_level = volume
+        self._media_vol_level = volume
 
     @property
     def volume_level(self):
         """Return the volume level of the client (0..1)."""
-        return self._media_volume_level
+        return self._media_vol_level
 
     @property
     def is_volume_muted(self):
@@ -409,79 +461,183 @@ class AlexaClient(MediaPlayerDevice):
         }
         return attr
 
+
+class AlexaLogin():
+    def __init__(self, url, email, password):
+        self._url = 'https://www.' + url
+        self._email = email
+        self._password = password
+        self._session = None
+        self._data = None
+        self.status = None
+
+        self.login()
+
+    def reset_login(self):
+        self._session = None
+        self._data = None
+        self.status = None
+
+    def get_inputs(self, soup):
+        data = {}
+        form = soup.find('form', {'name': 'signIn'})
+        for field in form.find_all('input'):
+            try:
+                data[field['name']] = field['value']
+            except:
+                pass
+        return data
+
+    def login(self, cookies=None, captcha=None):
+
+        if self._session is None:
+            site = self._url + '/gp/sign-in.html'
+
+            '''initiate session'''
+            self._session = requests.Session()
+
+            '''define session headers'''
+            self._session.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) \
+            AppleWebKit/537.36 (KHTML, like Gecko) \
+            Chrome/44.0.2403.61 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml, \
+            application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': site
+            }
+
+        if self._data is None:
+            resp = self._session.get(site)
+            html = resp.text
+            '''get BeautifulSoup object of the html of the login page'''
+            soup = BeautifulSoup(html , 'lxml')
+            '''scrape login page to get all the needed inputs required for login'''
+            self._data = self.get_inputs(soup)
+
+        status = {}
+
+        '''add username and password to the data for post request'''
+        self._data[u'email'] = self._email
+        self._data[u'password'] = self._password
+
+        if captcha is not None:
+            self._data[u'guess'] = captcha
+
+        '''submit post request with username / password and other needed info'''
+        post_resp = self._session.post(self._url + 
+                    '/ap/signin', data = self._data)
+
+        post_soup = BeautifulSoup(post_resp.content , 'lxml')
+        captcha_tag = post_soup.find(id="auth-captcha-image")
+        if captcha_tag is not None:
+            status['captcha_required'] = True
+            status['captcha_image_url'] = captcha_tag.get('src')
+            self._data = self.get_inputs(post_soup)
+
+        if post_soup.find_all('title')[0].text == 'Your Account':
+            status['login_successful'] = True
+        else:
+            status['login_failed'] = True
+
+        self.status = status
+
+
 class AlexaAPI():
-    def __init__(self, host, device):
-        self._host = host
+    def __init__(self, device, session, url):
         self._device = device
+        self._session = session
+        self._url = 'https://alexa.' + url
+
+        csrf = self._session.cookies.get_dict()['csrf']
+        self._session.headers['csrf'] = csrf
 
     def _post_request(self, uri, data):
         try:
-            requests.post('http://' + self._host + ':8091/' + uri, data = data)
+            self._session.post(self._url + uri, json = data)
         except:
             _LOGGER.error("An error occured accessing the API")
 
     def _get_request(self, uri, data=None):
         try:
-            return requests.post('http://' + self._host + ':8091/' + uri, data = data)
+            return self._session.get(self._url + uri, json = data)
         except:
             _LOGGER.error("An error occured accessing the API")
             return None
 
     def send_tts(self, message):
-        self._post_request('alexa-tts',
-                           data={'deviceSerialNumber': self._device.unique_id,
-                                'tts': message})
+        data = {
+            "behaviorId":"PREVIEW",
+            "sequenceJson":"{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.Sequence\", \
+            \"startNode\":{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
+            \"type\":\"Alexa.Speak\",\"operationPayload\": \
+            {\"deviceType\":\"" + self._device._device_type + "\", \
+            \"deviceSerialNumber\":\"" + self._device.unique_id + 
+            "\",\"locale\":\"en-US\", \
+            \"customerId\":\"" + self._device._device_owner_customer_id + 
+            "\", \"textToSpeak\": \"" + message + "\"}}}",
+            "status":"ENABLED"
+        }
+        self._post_request('/api/behaviors/preview',
+                           data=data)
 
+
+    def set_media(self, data):
+        self._post_request('/api/np/command?deviceSerialNumber=' +
+                           self._device.unique_id + '&deviceType=' + 
+                           self._device._device_type, data=data)
     def previous(self):
-        self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id,
-                                'command': 'PreviousCommand'})
+        self.set_media({"type": "PreviousCommand"})
+
     def next(self):
-        self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id,
-                                'command': 'NextCommand'})
+        self.set_media({"type": "NextCommand"})
 
     def pause(self):
-        self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id,
-                                'command': 'PauseCommand'})
+        self.set_media({"type": "PauseCommand"})
 
     def play(self):
-        self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id,
-                                'command': 'PlayCommand'})
+        self.set_media({"type": "PlayCommand"})
 
     def set_volume(self, volume):
-        self._post_request('alexa-setMedia',
-                           data={'deviceSerialNumber': self._device.unique_id,
-                                 'volume': volume*100 })
+            self.set_media({"type":"VolumeLevelCommand", 
+                            "volumeLevel": volume*100})
 
     def get_state(self):
-        response = self._get_request('alexa-getState',
-                        data={'deviceSerialNumber': self._device.unique_id})
+        response = self._get_request('/api/np/player?deviceSerialNumber=' +
+            self._device.unique_id + '&deviceType=' +
+            self._device._device_type + '&screenWidth=2560')
         return response
 
-    def get_bluetooth(self):
-        response = self._get_request('alexa-getBluetooth').json()
-        for bluetooth_state in response['bluetoothStates']:
-            if self._device.unique_id == bluetooth_state['deviceSerialNumber']:
-                return bluetooth_state
-
-    def set_bluetooth(self, mac):
-        self._post_request('alexa-setBluetooth',
-                           data={'deviceSerialNumber': self._device.unique_id,
-                                 'mac': mac})
-
-    def disconnect_bluetooth(self):
-        self._post_request('alexa-disconnectBluetooth',
-                           data={'deviceSerialNumber': self._device.unique_id})
-
     @staticmethod
-    def get_devices(host):
+    def get_bluetooth(url, session):
         try:
-            response = requests.post('http://' + host + ':8091/alexa-getDevices')
+
+            response = session.get('https://alexa.' + url + 
+                                   '/api/bluetooth?cached=false')
             return response
         except:
             _LOGGER.error("An error occured accessing the API")
             return None
 
+    def set_bluetooth(self, mac):
+        self._post_request('/api/bluetooth/pair-sink/' +
+                            self._device._device_type + '/' +
+                            self._device.unique_id,
+                            data={"bluetoothDeviceAddress": mac})
+
+    def disconnect_bluetooth(self):
+        self._post_request('/api/bluetooth/disconnect-sink/' +
+                            self._device._device_type + '/' +
+                            self._device.unique_id, data=None)
+
+    @staticmethod
+    def get_devices(url, session):
+        try:
+            response = session.get('https://alexa.' + url +
+                                   '/api/devices-v2/device')
+            return response
+        except:
+            _LOGGER.error("An error occured accessing the API")
+            return None

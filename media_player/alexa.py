@@ -38,6 +38,8 @@ SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
 _CONFIGURING = {}
 _LOGGER = logging.getLogger(__name__)
 
+REQUIREMENTS = ['beautifulsoup4==4.6.0']
+
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15)
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 

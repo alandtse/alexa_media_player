@@ -2,7 +2,7 @@
 Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.6
+VERSION 0.6.1
 """
 import json
 import logging
@@ -37,6 +37,8 @@ SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                     SUPPORT_PAUSE | SUPPORT_SELECT_SOURCE)
 _CONFIGURING = {}
 _LOGGER = logging.getLogger(__name__)
+
+REQUIREMENTS = ['beautifulsoup4==4.6.0']
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15)
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)

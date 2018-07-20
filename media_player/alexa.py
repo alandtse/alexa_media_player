@@ -18,8 +18,9 @@ from homeassistant.components.media_player import (
     MEDIA_TYPE_MUSIC, PLATFORM_SCHEMA,SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
     SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_VOLUME_MUTE,
-    SUPPORT_VOLUME_SET, MediaPlayerDevice, DOMAIN,
-    MEDIA_PLAYER_SCHEMA, SUPPORT_SELECT_SOURCE)
+    SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET, 
+    MediaPlayerDevice, DOMAIN, MEDIA_PLAYER_SCHEMA, 
+    SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
     CONF_EMAIL, CONF_PASSWORD, CONF_URL, STATE_UNKNOWN, 
     STATE_IDLE, STATE_OFF, STATE_STANDBY, STATE_PAUSED, 
@@ -33,8 +34,9 @@ from homeassistant.util import dt as dt_util
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                     SUPPORT_NEXT_TRACK | SUPPORT_STOP |
                     SUPPORT_VOLUME_SET | SUPPORT_PLAY |
-                    SUPPORT_TURN_OFF | SUPPORT_VOLUME_MUTE |
-                    SUPPORT_PAUSE | SUPPORT_SELECT_SOURCE)
+                    SUPPORT_PLAY_MEDIA | SUPPORT_TURN_OFF | 
+                    SUPPORT_VOLUME_MUTE | SUPPORT_PAUSE | 
+                    SUPPORT_SELECT_SOURCE)
 _CONFIGURING = {}
 _LOGGER = logging.getLogger(__name__)
 
@@ -446,14 +448,18 @@ class AlexaClient(MediaPlayerDevice):
             return
         self.alexa_api.previous()
 
-    def play_media(self, media_type, media_id, **kwargs):
-        """Play Media"""
-        if media_type == 'TTS':
-            self.send_tts(media_id)
 
     def send_tts(self, message):
         """Send TTS to Device NOTE: Does not work on WHA Groups"""
         self.alexa_api.send_tts(message)
+
+    def play_media(self, media_type, media_id, **kwargs):
+        """Send the play_media command to the media player."""
+        if media_type == "music":
+            self.alexa_api.send_tts("Sorry, text to speech can only be called " +
+                                    " with the media player alexa tts service")
+        else:
+            self.alexa_api.play_music(media_type, media_id)
 
     @property
     def device_state_attributes(self):
@@ -567,6 +573,26 @@ class AlexaAPI():
             _LOGGER.error("An error occured accessing the API")
             return None
 
+    def play_music(self, provider_id, search_phrase):
+        data = {
+            "behaviorId":"PREVIEW",
+            "sequenceJson":"{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.Sequence\", \
+            \"startNode\":{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
+            \"type\":\"Alexa.Music.PlaySearchPhrase\",\"operationPayload\": \
+            {\"deviceType\":\"" + self._device._device_type + "\", \
+            \"deviceSerialNumber\":\"" + self._device.unique_id + 
+            "\",\"locale\":\"en-US\", \
+            \"customerId\":\"" + self._device._device_owner_customer_id + 
+            "\", \"searchPhrase\": \"" + search_phrase + "\", \
+             \"sanitizedSearchPhrase\": \"" + search_phrase + "\", \
+             \"musicProviderId\": \"" + provider_id + "\"}}}",
+            "status":"ENABLED"
+        }
+        self._post_request('/api/behaviors/preview',
+                           data=data)
+
     def send_tts(self, message):
         data = {
             "behaviorId":"PREVIEW",
@@ -584,7 +610,6 @@ class AlexaAPI():
         }
         self._post_request('/api/behaviors/preview',
                            data=data)
-
 
     def set_media(self, data):
         self._post_request('/api/np/command?deviceSerialNumber=' +
@@ -643,3 +668,4 @@ class AlexaAPI():
         except:
             _LOGGER.error("An error occured accessing the API")
             return None
+

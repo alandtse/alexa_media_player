@@ -2,7 +2,7 @@
 Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.7
+VERSION 0.7.1
 """
 import json
 import logging
@@ -472,7 +472,7 @@ class AlexaClient(MediaPlayerDevice):
 
 class AlexaLogin():
     def __init__(self, url, email, password):
-        self._url = 'https://www.' + url
+        self._url = url
         self._email = email
         self._password = password
         self._session = None
@@ -499,7 +499,7 @@ class AlexaLogin():
     def login(self, cookies=None, captcha=None):
 
         if self._session is None:
-            site = self._url + '/gp/sign-in.html'
+            site = 'https://www.' + self._url + '/gp/sign-in.html'
 
             '''initiate session'''
             self._session = requests.Session()
@@ -532,8 +532,8 @@ class AlexaLogin():
         if captcha is not None:
             self._data[u'guess'] = captcha
 
-        '''submit post request with username / password and other needed info'''
-        post_resp = self._session.post(self._url + 
+        '''submit post request with username/password and other needed info'''
+        post_resp = self._session.post('https://www.' + self._url +
                     '/ap/signin', data = self._data)
 
         post_soup = BeautifulSoup(post_resp.content , 'lxml')
@@ -543,10 +543,15 @@ class AlexaLogin():
             status['captcha_image_url'] = captcha_tag.get('src')
             self._data = self.get_inputs(post_soup)
 
-        if post_soup.find_all('title')[0].text == 'Your Account':
-            status['login_successful'] = True
         else:
-            status['login_failed'] = True
+            '''attempt to get device list, if unsuccessful login failed'''
+            post_resp = self._session.get('https://alexa.' + self._url +
+                        '/api/devices-v2/device')
+
+            if 'devices' in post_resp.text:
+                status['login_successful'] = True
+            else:
+                status['login_failed'] = True
 
         self.status = status
 

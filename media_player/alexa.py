@@ -79,7 +79,7 @@ def request_configuration(hass, config, setup_platform_callback,
         description='Please enter the text for the above captcha.',
         description_image=captcha_url,
         submit_caption="Confirm",
-        fields=[{'id': 'captcha', 'name': 'Captca'}]
+        fields=[{'id': 'captcha', 'name': 'Captcha'}]
     )
 
 def setup_platform(hass, config, add_devices_callback, 

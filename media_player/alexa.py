@@ -878,6 +878,8 @@ class AlexaAPI():
         try:
             response = session.get('https://alexa.' + url +
                                    '/api/devices-v2/device')
+            with open('/tmp/get_devices.txt', mode='wb') as localfile:
+                localfile.write(response.content)
             return response.json()['devices']
         except Exception as ex:
             template = ("An exception of type {0} occurred."

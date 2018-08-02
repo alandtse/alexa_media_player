@@ -250,7 +250,7 @@ class AlexaClient(MediaPlayerDevice):
                 self._media_title = self._session['infoText']['title']
                 self._media_artist = self._session['infoText']['subText1']
                 self._media_album_name = self._session['infoText']['subText2']
-                self._media_image_url = self._session['mainArt']['url']
+                self._media_image_url = self._session['mainArt']['url'] if 'url' in self._session['mainArt'] else None
                 self._media_duration = self._session['progress']['mediaLength']
 
     @property

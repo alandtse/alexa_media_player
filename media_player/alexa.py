@@ -126,7 +126,7 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
         """Update the devices objects."""
 
         devices = AlexaAPI.get_devices(url, login_obj._session)
-        devices = devices.json()['devices']
+        #devices = devices.json()['devices']
         bluetooth = AlexaAPI.get_bluetooth(url, login_obj._session).json()
 
         new_alexa_clients = []
@@ -528,6 +528,7 @@ class AlexaLogin():
         '''add username and password to the data for post request'''
         self._data[u'email'] = self._email
         self._data[u'password'] = self._password
+        self._data[u'rememberMe'] = "true"
 
         if captcha is not None:
             self._data[u'guess'] = captcha
@@ -548,10 +549,21 @@ class AlexaLogin():
             post_resp = self._session.get('https://alexa.' + self._url +
                         '/api/devices-v2/device')
 
-            if 'devices' in post_resp.text:
-                status['login_successful'] = True
-            else:
+            try:
+                from json.decoder import JSONDecodeError
+            except ImportError:
+                JSONDecodeError = ValueError
+            try:
+                post_resp_json = post_resp.json()['devices']
+            except JSONDecodeError:
                 status['login_failed'] = True
+
+            if ('login_failed' in status and status['login_failed']):
+                _LOGGER.debug("Log in failure.")
+            else:
+                status['login_failed'] = False
+                status['login_successful'] = True
+                _LOGGER.debug("Succesfully logged in.")
 
         self.status = status
 
@@ -669,8 +681,8 @@ class AlexaAPI():
         try:
             response = session.get('https://alexa.' + url +
                                    '/api/devices-v2/device')
-            return response
-        except:
-            _LOGGER.error("An error occured accessing the API")
+            return response.json()['devices']
+        except Exception as e:
+            _LOGGER.error("An error occured accessing the API", e)
             return None
 

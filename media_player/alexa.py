@@ -12,6 +12,9 @@ from datetime import timedelta
 import requests
 import voluptuous as vol
 from bs4 import BeautifulSoup
+import pickle
+from threading import Lock
+from os.path import exists
 
 from homeassistant import util
 from homeassistant.components.media_player import (
@@ -92,15 +95,18 @@ def setup_platform(hass, config, add_devices_callback,
     password = config.get(CONF_PASSWORD)
     url = config.get(CONF_URL)
 
-    login = AlexaLogin(url, email, password)
+    login = AlexaLogin(url, email, password, hass)
 
     async def setup_platform_callback(callback_data):
+        _LOGGER.debug("Trying captcha: {}".format(callback_data.get('captcha')))
         login.login(captcha=callback_data.get('captcha'))
 
-        if 'login_successful' in login.status:
-            hass.async_add_job(setup_alexa, hass, config, 
+        if 'login_successful' in login.status and login.status['login_successful']:
+            _LOGGER.debug("Captcha successful; setting up Alexa devices")
+            hass.async_add_job(setup_alexa, hass, config,
                                add_devices_callback, login)
         else:
+            _LOGGER.debug("Captcha failed; requesting new captcha")
             login.reset_login()
             login.login()
             hass.async_add_job(request_configuration, hass, config,
@@ -108,9 +114,15 @@ def setup_platform(hass, config, add_devices_callback,
                                login.status['captcha_image_url'])
 
     if 'captcha_required' in login.status:
+        _LOGGER.debug("Creating configurator to request captcha")
         hass.async_add_job(request_configuration, hass, config,
                            setup_platform_callback,
                            login.status['captcha_image_url'])
+
+    if 'login_successful' in login.status and login.status['login_successful']:
+        _LOGGER.debug("Setting up Alexa devices")
+        hass.async_add_job(setup_alexa, hass, config,
+                           add_devices_callback, login)
 
 
 def setup_alexa(hass, config, add_devices_callback, login_obj):
@@ -471,15 +483,27 @@ class AlexaClient(MediaPlayerDevice):
 
 
 class AlexaLogin():
-    def __init__(self, url, email, password):
+    def __init__(self, url, email, password, hass):
         self._url = url
         self._email = email
         self._password = password
         self._session = None
         self._data = None
         self.status = None
+        self._cookiefile = hass.config.path("{}.pickle".format(ALEXA_DATA))
+        self._lock = Lock()
+        cookies = None
+        if exists(self._cookiefile):
+            try:
+                _LOGGER.debug("Fetching cookie from file {}".format(self._cookiefile))
+                with self._lock, open(self._cookiefile, 'rb') as myfile:
+                    cookies = pickle.load(myfile)
+                    _LOGGER.debug("cookie loaded: {}".format(cookies))
+            except:  # noqa: E722 pylint: disable=bare-except
+                _LOGGER.error("Error loading cookie from pickled file {}".format(
+                              self._cookiefile))
 
-        self.login()
+        self.login(cookies=cookies)
 
     def reset_login(self):
         self._session = None
@@ -496,12 +520,55 @@ class AlexaLogin():
                 pass
         return data
 
-    def login(self, cookies=None, captcha=None):
-
+    def test_loggedin(self, cookies=None):
+        '''attempt to get device list, if unsuccessful login failed'''
         if self._session is None:
             site = 'https://www.' + self._url + '/gp/sign-in.html'
 
             '''initiate session'''
+            self._session = requests.Session()
+
+            '''define session headers'''
+            self._session.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) \
+            AppleWebKit/537.36 (KHTML, like Gecko) \
+            Chrome/44.0.2403.61 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml, \
+            application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': site
+            }
+            self._session.cookies = cookies
+        post_resp = self._session.get('https://alexa.' + self._url +
+                    '/api/devices-v2/device')
+
+        try:
+            from json.decoder import JSONDecodeError
+        except ImportError:
+            JSONDecodeError = ValueError
+        try:
+            post_resp.json()
+        except JSONDecodeError:
+            _LOGGER.debug("Not logged in.")
+            return False
+        _LOGGER.debug("Logged in.")
+        return True
+
+    def login(self, cookies=None, captcha=None):
+
+        if cookies is not None:
+            _LOGGER.debug("Using cookies to log in.")
+            if self.test_loggedin(cookies):
+                self.status = {}
+                self.status['login_successful'] = True
+                _LOGGER.debug("Log in successful with cookies")
+                return
+        else:
+            _LOGGER.debug("No cookies for log in; using credentials")
+        site = 'https://www.' + self._url + '/gp/sign-in.html'
+        if self._session is None:
+            '''initiate session'''
+
             self._session = requests.Session()
 
             '''define session headers'''
@@ -540,30 +607,27 @@ class AlexaLogin():
         post_soup = BeautifulSoup(post_resp.content , 'lxml')
         captcha_tag = post_soup.find(id="auth-captcha-image")
         if captcha_tag is not None:
+            _LOGGER.debug("Captcha requested")
             status['captcha_required'] = True
             status['captcha_image_url'] = captcha_tag.get('src')
             self._data = self.get_inputs(post_soup)
 
         else:
-            '''attempt to get device list, if unsuccessful login failed'''
-            post_resp = self._session.get('https://alexa.' + self._url +
-                        '/api/devices-v2/device')
-
-            try:
-                from json.decoder import JSONDecodeError
-            except ImportError:
-                JSONDecodeError = ValueError
-            try:
-                post_resp_json = post_resp.json()['devices']
-            except JSONDecodeError:
-                status['login_failed'] = True
-
-            if ('login_failed' in status and status['login_failed']):
-                _LOGGER.debug("Log in failure.")
-            else:
-                status['login_failed'] = False
+            _LOGGER.debug("Captcha not requested; confirming login.")
+            if self.test_loggedin():
+                _LOGGER.debug("Login confirmed; saving cookie to {}".format(
+                        self._cookiefile))
                 status['login_successful'] = True
-                _LOGGER.debug("Succesfully logged in.")
+                with self._lock, open(self._cookiefile, 'wb') as myfile:
+                    try:
+                        pickle.dump(self._session.cookies, myfile)
+                    except:  # noqa: E722 pylint: disable=bare-except
+                        _LOGGER.error(
+                            "Error saving pickled cookie to %s",
+                            self._cookiefile)
+            else:
+                _LOGGER.debug("Login failed; check credentials")
+                status['login_successful'] = False
 
         self.status = status
 
@@ -683,6 +747,6 @@ class AlexaAPI():
                                    '/api/devices-v2/device')
             return response.json()['devices']
         except Exception as e:
-            _LOGGER.error("An error occured accessing the API", e)
+            _LOGGER.error("An error occured accessing the API".format(e))
             return None
 

@@ -65,22 +65,31 @@ def request_configuration(hass, config, setup_platform_callback,
                           captcha_url=None):
     """Request configuration steps from the user."""
     configurator = hass.components.configurator
+    failed_login = False
+    if 'alexa' in _CONFIGURING:
+        failed_login = True
+        configurator.request_done(_CONFIGURING.pop('alexa'))
 
     async def configuration_callback(callback_data):
         """Handle the submitted configuration."""
         def done():
-            configurator.request_done(instance)
+            configurator.request_done(_CONFIGURING['alexa'])
 
         hass.async_add_job(done)
         hass.async_add_job(setup_platform_callback, callback_data)
 
-    instance = configurator.request_config(
+    _CONFIGURING['alexa']= configurator.request_config(
         "Alexa Media Player", configuration_callback,
-        description='Please enter the text for the above captcha.',
+        description=('Please enter the text for the above captcha or'
+        ' enter anything if the image is missing.'),
         description_image=captcha_url,
         submit_caption="Confirm",
         fields=[{'id': 'captcha', 'name': 'Captcha'}]
     )
+    if failed_login:
+        configurator.notify_errors(
+            _CONFIGURING['alexa'], "Failed to login, please try again.")
+
 
 def setup_platform(hass, config, add_devices_callback, 
                    discovery_info=None):
@@ -98,8 +107,9 @@ def setup_platform(hass, config, add_devices_callback,
         login.login(captcha=callback_data.get('captcha'))
 
         if 'login_successful' in login.status:
-            hass.async_add_job(setup_alexa, hass, config, 
+            hass.async_add_job(setup_alexa, hass, config,
                                add_devices_callback, login)
+            _CONFIGURING = {}
         else:
             login.reset_login()
             login.login()

@@ -13,7 +13,6 @@ import requests
 import voluptuous as vol
 from bs4 import BeautifulSoup
 import pickle
-from threading import Lock
 from os.path import exists
 
 from homeassistant import util
@@ -110,7 +109,8 @@ def setup_platform(hass, config, add_devices_callback,
         _LOGGER.debug("Trying captcha: {}".format(callback_data.get('captcha')))
         login.login(captcha=callback_data.get('captcha'))
 
-        if 'login_successful' in login.status and login.status['login_successful']:
+        if ('login_successful' in login.status and
+            login.status['login_successful']):
             _LOGGER.debug("Captcha successful; setting up Alexa devices")
             hass.async_add_job(setup_alexa, hass, config,
                                add_devices_callback, login)
@@ -148,7 +148,6 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
         """Update the devices objects."""
 
         devices = AlexaAPI.get_devices(url, login_obj._session)
-        #devices = devices.json()['devices']
         bluetooth = AlexaAPI.get_bluetooth(url, login_obj._session).json()
 
         new_alexa_clients = []
@@ -272,7 +271,8 @@ class AlexaClient(MediaPlayerDevice):
                 self._media_title = self._session['infoText']['title']
                 self._media_artist = self._session['infoText']['subText1']
                 self._media_album_name = self._session['infoText']['subText2']
-                self._media_image_url = self._session['mainArt']['url'] if 'url' in self._session['mainArt'] else None
+                self._media_image_url = (self._session['mainArt']['url']
+                        if 'url' in self._session['mainArt'] else None)
                 self._media_duration = self._session['progress']['mediaLength']
 
     @property
@@ -501,17 +501,18 @@ class AlexaLogin():
         self._data = None
         self.status = None
         self._cookiefile = hass.config.path("{}.pickle".format(ALEXA_DATA))
-        self._lock = Lock()
         cookies = None
         if exists(self._cookiefile):
             try:
-                _LOGGER.debug("Fetching cookie from file {}".format(self._cookiefile))
-                with self._lock, open(self._cookiefile, 'rb') as myfile:
+                _LOGGER.debug(
+                        "Fetching cookie from file {}".format(self._cookiefile))
+                with open(self._cookiefile, 'rb') as myfile:
                     cookies = pickle.load(myfile)
                     _LOGGER.debug("cookie loaded: {}".format(cookies))
             except:  # noqa: E722 pylint: disable=bare-except
-                _LOGGER.error("Error loading cookie from pickled file {}".format(
-                              self._cookiefile))
+                _LOGGER.error(
+                        "Error loading cookie from pickled file {}".format(
+                            self._cookiefile))
 
         self.login(cookies=cookies)
 
@@ -628,7 +629,7 @@ class AlexaLogin():
                 _LOGGER.debug("Login confirmed; saving cookie to {}".format(
                         self._cookiefile))
                 status['login_successful'] = True
-                with self._lock, open(self._cookiefile, 'wb') as myfile:
+                with open(self._cookiefile, 'wb') as myfile:
                     try:
                         pickle.dump(self._session.cookies, myfile)
                     except:  # noqa: E722 pylint: disable=bare-except

@@ -1,44 +1,41 @@
 """
 Support to interface with Alexa Devices.
+
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.7.1
+VERSION 0.8.0
 """
-import json
 import logging
 
 from datetime import timedelta
 
 import requests
 import voluptuous as vol
-from bs4 import BeautifulSoup
-import pickle
-from os.path import exists
 
 from homeassistant import util
 from homeassistant.components.media_player import (
-    MEDIA_TYPE_MUSIC, PLATFORM_SCHEMA,SUPPORT_NEXT_TRACK,
+    MEDIA_TYPE_MUSIC, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
     SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_VOLUME_MUTE,
-    SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET, 
-    MediaPlayerDevice, DOMAIN, MEDIA_PLAYER_SCHEMA, 
+    SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET,
+    MediaPlayerDevice, DOMAIN, MEDIA_PLAYER_SCHEMA,
     SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
-    CONF_EMAIL, CONF_PASSWORD, CONF_URL, STATE_UNKNOWN, 
-    STATE_IDLE, STATE_OFF, STATE_STANDBY, STATE_PAUSED, 
+    CONF_EMAIL, CONF_PASSWORD, CONF_URL,
+    STATE_IDLE, STATE_STANDBY, STATE_PAUSED,
     STATE_PLAYING)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.event import track_utc_time_change
-from homeassistant.util.json import load_json, save_json
-from homeassistant.util import dt as dt_util
+# from homeassistant.util.json import load_json, save_json
+# from homeassistant.util import dt as dt_util
 
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
-                    SUPPORT_NEXT_TRACK | SUPPORT_STOP |
-                    SUPPORT_VOLUME_SET | SUPPORT_PLAY |
-                    SUPPORT_PLAY_MEDIA | SUPPORT_TURN_OFF | 
-                    SUPPORT_VOLUME_MUTE | SUPPORT_PAUSE | 
-                    SUPPORT_SELECT_SOURCE)
+                 SUPPORT_NEXT_TRACK | SUPPORT_STOP |
+                 SUPPORT_VOLUME_SET | SUPPORT_PLAY |
+                 SUPPORT_PLAY_MEDIA | SUPPORT_TURN_OFF |
+                 SUPPORT_VOLUME_MUTE | SUPPORT_PAUSE |
+                 SUPPORT_SELECT_SOURCE)
 _CONFIGURING = {}
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,7 +60,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_URL): cv.string,
 })
 
-def request_configuration(hass, config, setup_platform_callback, 
+
+def request_configuration(hass, config, setup_platform_callback,
                           captcha_url=None):
     """Request configuration steps from the user."""
     configurator = hass.components.configurator
@@ -80,10 +78,10 @@ def request_configuration(hass, config, setup_platform_callback,
         hass.async_add_job(done)
         hass.async_add_job(setup_platform_callback, callback_data)
 
-    _CONFIGURING['alexa']= configurator.request_config(
+    _CONFIGURING['alexa'] = configurator.request_config(
         "Alexa Media Player", configuration_callback,
-        description=('Please enter the text for the above captcha or'
-        ' enter anything if the image is missing.'),
+        description=('Please enter the text for the captcha or'
+                     ' enter anything if the image is missing.'),
         description_image=captcha_url,
         submit_caption="Confirm",
         fields=[{'id': 'captcha', 'name': 'Captcha'}]
@@ -93,27 +91,29 @@ def request_configuration(hass, config, setup_platform_callback,
             _CONFIGURING['alexa'], "Failed to login, please try again.")
 
 
-def setup_platform(hass, config, add_devices_callback, 
+def setup_platform(hass, config, add_devices_callback,
                    discovery_info=None):
     """Set up the Alexa platform."""
     if ALEXA_DATA not in hass.data:
         hass.data[ALEXA_DATA] = {}
 
-    email =  config.get(CONF_EMAIL)
+    email = config.get(CONF_EMAIL)
     password = config.get(CONF_PASSWORD)
     url = config.get(CONF_URL)
 
     login = AlexaLogin(url, email, password, hass)
 
     async def setup_platform_callback(callback_data):
-        _LOGGER.debug("Trying captcha: {}".format(callback_data.get('captcha')))
+        _LOGGER.debug("Trying captcha: {}".format(
+            callback_data.get('captcha')))
         login.login(captcha=callback_data.get('captcha'))
 
         if ('login_successful' in login.status and
-            login.status['login_successful']):
+                login.status['login_successful']):
             _LOGGER.debug("Captcha successful; setting up Alexa devices")
             hass.async_add_job(setup_alexa, hass, config,
                                add_devices_callback, login)
+            global _CONFIGURING
             _CONFIGURING = {}
         else:
             _LOGGER.debug("Captcha failed; requesting new captcha")
@@ -138,7 +138,7 @@ def setup_platform(hass, config, add_devices_callback,
 def setup_alexa(hass, config, add_devices_callback, login_obj):
     """Set up a alexa api based on host parameter."""
     alexa_clients = hass.data[ALEXA_DATA]
-    alexa_sessions = {}
+    # alexa_sessions = {}
     track_utc_time_change(hass, lambda now: update_devices(), second=30)
 
     url = config.get(CONF_URL)
@@ -146,7 +146,6 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
         """Update the devices objects."""
-
         devices = AlexaAPI.get_devices(url, login_obj._session)
         bluetooth = AlexaAPI.get_bluetooth(url, login_obj._session).json()
 
@@ -168,7 +167,6 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
             else:
                 alexa_clients[device['serialNumber']].refresh(device)
 
-
         if new_alexa_clients:
             def tts_handler(call):
                 for alexa in service_to_entities(call):
@@ -183,7 +181,7 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
                     entities = [entity for entity in new_alexa_clients
                                 if entity.entity_id in entity_ids]
                 else:
-                    entities = rokus
+                    entities = None
 
                 return entities
 
@@ -272,7 +270,8 @@ class AlexaClient(MediaPlayerDevice):
                 self._media_artist = self._session['infoText']['subText1']
                 self._media_album_name = self._session['infoText']['subText2']
                 self._media_image_url = (self._session['mainArt']['url']
-                        if 'url' in self._session['mainArt'] else None)
+                                         if 'url' in self._session['mainArt']
+                                         else None)
                 self._media_duration = self._session['progress']['mediaLength']
 
     @property
@@ -296,12 +295,11 @@ class AlexaClient(MediaPlayerDevice):
                     self.alexa_api.set_bluetooth(devices['address'])
                     self._source = source
 
-
     def _get_source(self):
         source = 'Local Speaker'
         if self._bluetooth_state['pairedDeviceList'] is not None:
             for device in self._bluetooth_state['pairedDeviceList']:
-                if device['connected'] == True:
+                if device['connected'] is True:
                     return device['friendlyName']
         return source
 
@@ -316,6 +314,7 @@ class AlexaClient(MediaPlayerDevice):
     def available(self):
         """Return the availability of the client."""
         return self._available
+
     @property
     def unique_id(self):
         """Return the id of this Alexa client."""
@@ -420,6 +419,7 @@ class AlexaClient(MediaPlayerDevice):
 
     def mute_volume(self, mute):
         """Mute the volume.
+
         Since we can't actually mute, we'll:
         - On mute, store volume and set volume to 0
         - On unmute, set volume to previously stored volume
@@ -470,15 +470,14 @@ class AlexaClient(MediaPlayerDevice):
             return
         self.alexa_api.previous()
 
-
     def send_tts(self, message):
-        """Send TTS to Device NOTE: Does not work on WHA Groups"""
+        """Send TTS to Device NOTE: Does not work on WHA Groups."""
         self.alexa_api.send_tts(message)
 
     def play_media(self, media_type, media_id, **kwargs):
         """Send the play_media command to the media player."""
         if media_type == "music":
-            self.alexa_api.send_tts("Sorry, text to speech can only be called " +
+            self.alexa_api.send_tts("Sorry, text to speech can only be called "
                                     " with the media player alexa tts service")
         else:
             self.alexa_api.play_music(media_type, media_id)
@@ -493,7 +492,11 @@ class AlexaClient(MediaPlayerDevice):
 
 
 class AlexaLogin():
+    """Class to handle login connection to Alexa."""
+
     def __init__(self, url, email, password, hass):
+        """Set up initial connection and log in."""
+        import pickle
         self._url = url
         self._email = email
         self._password = password
@@ -502,37 +505,46 @@ class AlexaLogin():
         self.status = None
         self._cookiefile = hass.config.path("{}.pickle".format(ALEXA_DATA))
         cookies = None
-        if exists(self._cookiefile):
+        if (self._cookiefile):
             try:
                 _LOGGER.debug(
-                        "Fetching cookie from file {}".format(self._cookiefile))
+                    "Fetching cookie from file {}".format(
+                        self._cookiefile))
                 with open(self._cookiefile, 'rb') as myfile:
                     cookies = pickle.load(myfile)
                     _LOGGER.debug("cookie loaded: {}".format(cookies))
-            except:  # noqa: E722 pylint: disable=bare-except
+            except Exception as ex:
+                template = ("An exception of type {0} occurred."
+                            " Arguments:\n{1!r}")
+                message = template.format(type(ex).__name__, ex.args)
                 _LOGGER.error(
-                        "Error loading cookie from pickled file {}".format(
-                            self._cookiefile))
+                    "Error loading pickled cookie to {}: {}".format(
+                        self._cookiefile, message))
 
         self.login(cookies=cookies)
 
     def reset_login(self):
+        """Remove data related to existing login."""
         self._session = None
         self._data = None
         self.status = None
 
     def get_inputs(self, soup):
+        """Parse soup for signIn id."""
         data = {}
         form = soup.find('form', {'name': 'signIn'})
         for field in form.find_all('input'):
             try:
                 data[field['name']] = field['value']
-            except:
+            except:  # noqa: E722 pylint: disable=bare-except
                 pass
         return data
 
     def test_loggedin(self, cookies=None):
-        '''attempt to get device list, if unsuccessful login failed'''
+        """Function that will test the connection is logged in.
+
+        Attempts to get device list, and if unsuccessful login failed
+        """
         if self._session is None:
             site = 'https://www.' + self._url + '/gp/sign-in.html'
 
@@ -541,31 +553,37 @@ class AlexaLogin():
 
             '''define session headers'''
             self._session.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) \
-            AppleWebKit/537.36 (KHTML, like Gecko) \
-            Chrome/44.0.2403.61 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml, \
-            application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Referer': site
+                'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
+                               'AppleWebKit/537.36 (KHTML, like Gecko) '
+                               'Chrome/44.0.2403.61 Safari/537.36'),
+                'Accept': ('text/html,application/xhtml+xml, '
+                           'application/xml;q=0.9,*/*;q=0.8'),
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': site
             }
             self._session.cookies = cookies
         post_resp = self._session.get('https://alexa.' + self._url +
-                    '/api/devices-v2/device')
+                                      '/api/devices-v2/device')
 
         try:
             from json.decoder import JSONDecodeError
+            from simplejson import JSONDecodeError as SimpleJSONDecodeError
+            # Need to catch both as Python 3.5 appears to use simplejson
         except ImportError:
             JSONDecodeError = ValueError
         try:
             post_resp.json()
-        except JSONDecodeError:
+        except (JSONDecodeError, SimpleJSONDecodeError):
+            # ValueError is necessary for Python 3.5 for some reason
             _LOGGER.debug("Not logged in.")
             return False
         _LOGGER.debug("Logged in.")
         return True
 
     def login(self, cookies=None, captcha=None):
+        """Login to Amazon."""
+        from bs4 import BeautifulSoup
+        import pickle
 
         if cookies is not None:
             _LOGGER.debug("Using cookies to log in.")
@@ -584,21 +602,21 @@ class AlexaLogin():
 
             '''define session headers'''
             self._session.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) \
-            AppleWebKit/537.36 (KHTML, like Gecko) \
-            Chrome/44.0.2403.61 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml, \
-            application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Referer': site
+                'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
+                               'AppleWebKit/537.36 (KHTML, like Gecko) '
+                               'Chrome/44.0.2403.61 Safari/537.36'),
+                'Accept': ('text/html,application/xhtml+xml, '
+                           'application/xml;q=0.9,*/*;q=0.8'),
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': site
             }
 
         if self._data is None:
             resp = self._session.get(site)
             html = resp.text
             '''get BeautifulSoup object of the html of the login page'''
-            soup = BeautifulSoup(html , 'lxml')
-            '''scrape login page to get all the needed inputs required for login'''
+            soup = BeautifulSoup(html, 'lxml')
+            '''scrape login page to get all the inputs required for login'''
             self._data = self.get_inputs(soup)
 
         status = {}
@@ -613,9 +631,9 @@ class AlexaLogin():
 
         '''submit post request with username/password and other needed info'''
         post_resp = self._session.post('https://www.' + self._url +
-                    '/ap/signin', data = self._data)
+                                       '/ap/signin', data=self._data)
 
-        post_soup = BeautifulSoup(post_resp.content , 'lxml')
+        post_soup = BeautifulSoup(post_resp.content, 'lxml')
         captcha_tag = post_soup.find(id="auth-captcha-image")
         if captcha_tag is not None:
             _LOGGER.debug("Captcha requested")
@@ -632,10 +650,14 @@ class AlexaLogin():
                 with open(self._cookiefile, 'wb') as myfile:
                     try:
                         pickle.dump(self._session.cookies, myfile)
-                    except:  # noqa: E722 pylint: disable=bare-except
+                    except Exception as ex:
+                        template = ("An exception of type {0} occurred."
+                                    " Arguments:\n{1!r}")
+                        message = template.format(type(ex).__name__, ex.args)
                         _LOGGER.error(
-                            "Error saving pickled cookie to %s",
-                            self._cookiefile)
+                            "Error saving pickled cookie to {}: {}".format(
+                                self._cookiefile,
+                                message))
             else:
                 _LOGGER.debug("Login failed; check credentials")
                 status['login_successful'] = False
@@ -644,7 +666,10 @@ class AlexaLogin():
 
 
 class AlexaAPI():
+    """Class for accessing Alexa."""
+
     def __init__(self, device, session, url):
+        """Initialize Alexa device."""
         self._device = device
         self._session = session
         self._url = 'https://alexa.' + url
@@ -654,110 +679,138 @@ class AlexaAPI():
 
     def _post_request(self, uri, data):
         try:
-            self._session.post(self._url + uri, json = data)
-        except:
-            _LOGGER.error("An error occured accessing the API")
+            self._session.post(self._url + uri, json=data)
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
 
     def _get_request(self, uri, data=None):
         try:
-            return self._session.get(self._url + uri, json = data)
-        except:
-            _LOGGER.error("An error occured accessing the API")
+            return self._session.get(self._url + uri, json=data)
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
             return None
 
     def play_music(self, provider_id, search_phrase):
+        """Play Music based on search."""
         data = {
-            "behaviorId":"PREVIEW",
-            "sequenceJson":"{\"@type\": \
+            "behaviorId": "PREVIEW",
+            "sequenceJson": "{\"@type\": \
             \"com.amazon.alexa.behaviors.model.Sequence\", \
             \"startNode\":{\"@type\": \
             \"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
             \"type\":\"Alexa.Music.PlaySearchPhrase\",\"operationPayload\": \
             {\"deviceType\":\"" + self._device._device_type + "\", \
-            \"deviceSerialNumber\":\"" + self._device.unique_id + 
+            \"deviceSerialNumber\":\"" + self._device.unique_id +
             "\",\"locale\":\"en-US\", \
-            \"customerId\":\"" + self._device._device_owner_customer_id + 
+            \"customerId\":\"" + self._device._device_owner_customer_id +
             "\", \"searchPhrase\": \"" + search_phrase + "\", \
              \"sanitizedSearchPhrase\": \"" + search_phrase + "\", \
              \"musicProviderId\": \"" + provider_id + "\"}}}",
-            "status":"ENABLED"
+            "status": "ENABLED"
         }
         self._post_request('/api/behaviors/preview',
                            data=data)
 
     def send_tts(self, message):
+        """Send message for TTS at speaker."""
         data = {
-            "behaviorId":"PREVIEW",
-            "sequenceJson":"{\"@type\": \
+            "behaviorId": "PREVIEW",
+            "sequenceJson": "{\"@type\": \
             \"com.amazon.alexa.behaviors.model.Sequence\", \
             \"startNode\":{\"@type\": \
             \"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
             \"type\":\"Alexa.Speak\",\"operationPayload\": \
             {\"deviceType\":\"" + self._device._device_type + "\", \
-            \"deviceSerialNumber\":\"" + self._device.unique_id + 
+            \"deviceSerialNumber\":\"" + self._device.unique_id +
             "\",\"locale\":\"en-US\", \
-            \"customerId\":\"" + self._device._device_owner_customer_id + 
+            \"customerId\":\"" + self._device._device_owner_customer_id +
             "\", \"textToSpeak\": \"" + message + "\"}}}",
-            "status":"ENABLED"
+            "status": "ENABLED"
         }
         self._post_request('/api/behaviors/preview',
                            data=data)
 
     def set_media(self, data):
+        """Select the media player."""
         self._post_request('/api/np/command?deviceSerialNumber=' +
-                           self._device.unique_id + '&deviceType=' + 
+                           self._device.unique_id + '&deviceType=' +
                            self._device._device_type, data=data)
+
     def previous(self):
+        """Play previous."""
         self.set_media({"type": "PreviousCommand"})
 
     def next(self):
+        """Play next."""
         self.set_media({"type": "NextCommand"})
 
     def pause(self):
+        """Pause."""
         self.set_media({"type": "PauseCommand"})
 
     def play(self):
+        """Play."""
         self.set_media({"type": "PlayCommand"})
 
     def set_volume(self, volume):
-            self.set_media({"type":"VolumeLevelCommand", 
-                            "volumeLevel": volume*100})
+        """Set volume."""
+        self.set_media({"type": "VolumeLevelCommand",
+                        "volumeLevel": volume*100})
 
     def get_state(self):
+        """Get state."""
         response = self._get_request('/api/np/player?deviceSerialNumber=' +
-            self._device.unique_id + '&deviceType=' +
-            self._device._device_type + '&screenWidth=2560')
+                                     self._device.unique_id + '&deviceType=' +
+                                     self._device._device_type +
+                                     '&screenWidth=2560')
         return response
 
     @staticmethod
     def get_bluetooth(url, session):
+        """Get paired bluetooth devices."""
         try:
 
-            response = session.get('https://alexa.' + url + 
+            response = session.get('https://alexa.' + url +
                                    '/api/bluetooth?cached=false')
             return response
-        except:
-            _LOGGER.error("An error occured accessing the API")
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API".format(message))
             return None
 
     def set_bluetooth(self, mac):
+        """Pair with bluetooth device with mac address."""
         self._post_request('/api/bluetooth/pair-sink/' +
-                            self._device._device_type + '/' +
-                            self._device.unique_id,
-                            data={"bluetoothDeviceAddress": mac})
+                           self._device._device_type + '/' +
+                           self._device.unique_id,
+                           data={"bluetoothDeviceAddress": mac})
 
     def disconnect_bluetooth(self):
+        """Disconnect all bluetooth devices."""
         self._post_request('/api/bluetooth/disconnect-sink/' +
-                            self._device._device_type + '/' +
-                            self._device.unique_id, data=None)
+                           self._device._device_type + '/' +
+                           self._device.unique_id, data=None)
 
     @staticmethod
     def get_devices(url, session):
+        """Identify all Alexa devices."""
         try:
             response = session.get('https://alexa.' + url +
                                    '/api/devices-v2/device')
             return response.json()['devices']
-        except Exception as e:
-            _LOGGER.error("An error occured accessing the API".format(e))
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API".format(message))
             return None
-

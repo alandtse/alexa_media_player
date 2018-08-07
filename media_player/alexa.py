@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.8.0
+VERSION 0.8.1
 """
 import logging
 
@@ -39,7 +39,7 @@ SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
 _CONFIGURING = {}
 _LOGGER = logging.getLogger(__name__)
 
-REQUIREMENTS = ['beautifulsoup4==4.6.0', 'lxml==4.2.3']
+REQUIREMENTS = ['beautifulsoup4==4.6.0', 'simplejson==3.16.0']
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15)
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
@@ -615,7 +615,7 @@ class AlexaLogin():
             resp = self._session.get(site)
             html = resp.text
             '''get BeautifulSoup object of the html of the login page'''
-            soup = BeautifulSoup(html, 'lxml')
+            soup = BeautifulSoup(html, 'html.parser')
             '''scrape login page to get all the inputs required for login'''
             self._data = self.get_inputs(soup)
 
@@ -633,7 +633,7 @@ class AlexaLogin():
         post_resp = self._session.post('https://www.' + self._url +
                                        '/ap/signin', data=self._data)
 
-        post_soup = BeautifulSoup(post_resp.content, 'lxml')
+        post_soup = BeautifulSoup(post_resp.content, 'html.parser')
         captcha_tag = post_soup.find(id="auth-captcha-image")
         if captcha_tag is not None:
             _LOGGER.debug("Captcha requested")

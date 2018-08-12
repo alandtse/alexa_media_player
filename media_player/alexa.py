@@ -612,8 +612,8 @@ class AlexaLogin():
             self._session.cookies = cookies
         get_resp = self._session.get('https://alexa.' + self._url +
                                      '/api/devices-v2/device')
-        # with open(self._debugget, mode='wb') as localfile:
-        #         localfile.write(get_resp.content)
+        with open(self._debugget, mode='wb') as localfile:
+            localfile.write(get_resp.content)
 
         try:
             from json.decoder import JSONDecodeError
@@ -623,9 +623,12 @@ class AlexaLogin():
             JSONDecodeError = ValueError
         try:
             get_resp.json()
-        except (JSONDecodeError, SimpleJSONDecodeError):
+        except (JSONDecodeError, SimpleJSONDecodeError) as ex:
             # ValueError is necessary for Python 3.5 for some reason
-            _LOGGER.debug("Not logged in.")
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.debug("Not logged in: {}".format(message))
             return False
         _LOGGER.debug("Logged in.")
         return True
@@ -686,17 +689,17 @@ class AlexaLogin():
         if (captcha is not None and 'guess' in self._data):
             self._data[u'guess'] = captcha
         if (securitycode is not None and 'otpCode' in self._data):
-            self._data[u'otpCode'] = securitycode
-            self._data[u'rememberDevice'] = "true"
-            self._data[u'mfaSubmit'] = "true"
+                self._data[u'otpCode'] = securitycode
+                self._data[u'rememberDevice'] = "true"
+                self._data[u'mfaSubmit'] = "true"
 
-        # _LOGGER.debug("Submit Form Data: {}".format(self._data))
+            _LOGGER.debug("Submit Form Data: {}".format(self._data))
 
-        '''submit post request with username/password and other needed info'''
-        post_resp = self._session.post('https://www.' + self._url +
-                                       '/ap/signin', data=self._data)
-        # with open(self._debugpost, mode='wb') as localfile:
-        #         localfile.write(post_resp.content)
+            '''submit post request with username/password and other needed info'''
+            post_resp = self._session.post('https://www.' + self._url +
+                                           '/ap/signin', data=self._data)
+            with open(self._debugpost, mode='wb') as localfile:
+                localfile.write(post_resp.content)
 
         post_soup = BeautifulSoup(post_resp.content, 'html.parser')
         captcha_tag = post_soup.find(id="auth-captcha-image")
@@ -856,7 +859,8 @@ class AlexaAPI():
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.error("An error occured accessing the API".format(message))
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
             return None
 
     def set_bluetooth(self, mac):
@@ -885,5 +889,6 @@ class AlexaAPI():
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.error("An error occured accessing the API".format(message))
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
             return None

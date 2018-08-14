@@ -288,16 +288,35 @@ class AlexaClient(MediaPlayerDevice):
             self._session = self._session['playerInfo']
             if self._session['state'] is not None:
                 self._media_player_state = self._session['state']
-                self._media_pos = self._session['progress']['mediaProgress']
-                self._media_is_muted = self._session['volume']['muted']
-                self._media_vol_level = self._session['volume']['volume'] / 100
-                self._media_title = self._session['infoText']['title']
-                self._media_artist = self._session['infoText']['subText1']
-                self._media_album_name = self._session['infoText']['subText2']
+                self._media_pos = (self._session['progress']['mediaProgress']
+                                   if 'mediaProgress' in
+                                   self._session['progress'] else None)
+                self._media_is_muted = (self._session['volume']['muted']
+                                        if 'muted' in self._session['volume']
+                                        else None)
+                self._media_vol_level = (self._session['volume']
+                                                      ['volume'] / 100
+                                         if 'volume' in self._session['volume']
+                                         else None)
+                self._media_title = (self._session['infoText']['title']
+                                     if 'title' in self._session['infoText']
+                                     else None)
+                self._media_artist = (self._session['infoText']['subText1']
+                                      if 'subText1' in
+                                      self._session['infoText']
+                                      else None)
+                self._media_album_name = (self._session['infoText']['subText2']
+                                          if 'subText2' in
+                                          self._session['infoText']
+                                          else None)
                 self._media_image_url = (self._session['mainArt']['url']
                                          if 'url' in self._session['mainArt']
                                          else None)
-                self._media_duration = self._session['progress']['mediaLength']
+                self._media_duration = (self._session['progress']
+                                                     ['mediaLength']
+                                        if 'mediaLength' in
+                                        self._session['progress']
+                                        else None)
 
     @property
     def source(self):

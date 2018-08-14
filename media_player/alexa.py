@@ -648,6 +648,7 @@ class AlexaLogin():
         else:
             _LOGGER.debug("No cookies for log in; using credentials")
         site = 'https://www.' + self._url + '/gp/sign-in.html'
+        site = 'https://alexa.' + self._url + '/api/devices-v2/device'
         if self._session is None:
             '''initiate session'''
 
@@ -671,8 +672,9 @@ class AlexaLogin():
             soup = BeautifulSoup(html, 'html.parser')
             '''scrape login page to get all the inputs required for login'''
             self._data = self.get_inputs(soup)
+            site = soup.find('form', {'name': 'signIn'}).get('action')
 
-        # _LOGGER.debug("Init Form Data: {}".format(self._data))
+        _LOGGER.debug("Init Form Data: {}".format(self._data))
 
         '''add username and password to the data for post request'''
         '''check if there is an input field'''
@@ -693,17 +695,31 @@ class AlexaLogin():
                 self._data[u'rememberDevice'] = "true"
                 self._data[u'mfaSubmit'] = "true"
 
-            _LOGGER.debug("Submit Form Data: {}".format(self._data))
+        _LOGGER.debug("Submit Form Data: {}".format(self._data))
 
-            '''submit post request with username/password and other needed info'''
-            post_resp = self._session.post('https://www.' + self._url +
-                                           '/ap/signin', data=self._data)
-            with open(self._debugpost, mode='wb') as localfile:
-                localfile.write(post_resp.content)
+        '''submit post request with username/password and other needed info'''
+        post_resp = self._session.post(site, data=self._data)
+        with open(self._debugpost, mode='wb') as localfile:
+            localfile.write(post_resp.content)
 
         post_soup = BeautifulSoup(post_resp.content, 'html.parser')
+
         captcha_tag = post_soup.find(id="auth-captcha-image")
         securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
+        login_tag = post_soup.find('form', {'name': 'signIn'})
+
+        if login_tag is not None:
+            status['login_required'] = True
+            status['login_url'] = login_tag.get("action")
+            _LOGGER.debug("Login requested again; retrying once: {}".format(
+                status['login_url']))
+            post_resp = self._session.post(status['login_url'],
+                                           data=self._data)
+            with open(self._debugpost, mode='wb') as localfile:
+                localfile.write(post_resp.content)
+            post_soup = BeautifulSoup(post_resp.content, 'html.parser')
+            captcha_tag = post_soup.find(id="auth-captcha-image")
+            securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
 
         if captcha_tag is not None:
             _LOGGER.debug("Captcha requested")

@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.9.0
+VERSION 0.9.1
 """
 import logging
 
@@ -613,7 +613,7 @@ class AlexaLogin():
         get_resp = self._session.get('https://alexa.' + self._url +
                                      '/api/devices-v2/device')
         # with open(self._debugget, mode='wb') as localfile:
-        #         localfile.write(get_resp.content)
+        #     localfile.write(get_resp.content)
 
         try:
             from json.decoder import JSONDecodeError
@@ -623,9 +623,12 @@ class AlexaLogin():
             JSONDecodeError = ValueError
         try:
             get_resp.json()
-        except (JSONDecodeError, SimpleJSONDecodeError):
+        except (JSONDecodeError, SimpleJSONDecodeError) as ex:
             # ValueError is necessary for Python 3.5 for some reason
-            _LOGGER.debug("Not logged in.")
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.debug("Not logged in: {}".format(message))
             return False
         _LOGGER.debug("Logged in.")
         return True
@@ -644,7 +647,9 @@ class AlexaLogin():
                 return
         else:
             _LOGGER.debug("No cookies for log in; using credentials")
-        site = 'https://www.' + self._url + '/gp/sign-in.html'
+        #  site = 'https://www.' + self._url + '/gp/sign-in.html'
+        #  use alexa site instead
+        site = 'https://alexa.' + self._url + '/api/devices-v2/device'
         if self._session is None:
             '''initiate session'''
 
@@ -668,6 +673,7 @@ class AlexaLogin():
             soup = BeautifulSoup(html, 'html.parser')
             '''scrape login page to get all the inputs required for login'''
             self._data = self.get_inputs(soup)
+            site = soup.find('form', {'name': 'signIn'}).get('action')
 
         # _LOGGER.debug("Init Form Data: {}".format(self._data))
 
@@ -693,14 +699,30 @@ class AlexaLogin():
         # _LOGGER.debug("Submit Form Data: {}".format(self._data))
 
         '''submit post request with username/password and other needed info'''
-        post_resp = self._session.post('https://www.' + self._url +
-                                       '/ap/signin', data=self._data)
+        post_resp = self._session.post(site, data=self._data)
         # with open(self._debugpost, mode='wb') as localfile:
-        #         localfile.write(post_resp.content)
+        #     localfile.write(post_resp.content)
 
         post_soup = BeautifulSoup(post_resp.content, 'html.parser')
+
         captcha_tag = post_soup.find(id="auth-captcha-image")
         securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
+        login_tag = post_soup.find('form', {'name': 'signIn'})
+
+        '''another login required? try once more. This appears necessary as
+        the first login fails for alexa's login site for some reason
+        '''
+        if login_tag is not None:
+            login_url = login_tag.get("action")
+            _LOGGER.debug("Login requested again; retrying once: {}".format(
+                login_url))
+            post_resp = self._session.post(login_url,
+                                           data=self._data)
+            # with open(self._debugpost, mode='wb') as localfile:
+            #     localfile.write(post_resp.content)
+            post_soup = BeautifulSoup(post_resp.content, 'html.parser')
+            captcha_tag = post_soup.find(id="auth-captcha-image")
+            securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
 
         if captcha_tag is not None:
             _LOGGER.debug("Captcha requested")
@@ -856,7 +878,8 @@ class AlexaAPI():
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.error("An error occured accessing the API".format(message))
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
             return None
 
     def set_bluetooth(self, mac):
@@ -883,5 +906,6 @@ class AlexaAPI():
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.error("An error occured accessing the API".format(message))
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
             return None

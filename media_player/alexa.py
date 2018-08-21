@@ -39,7 +39,7 @@ SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
 _CONFIGURING = {}
 _LOGGER = logging.getLogger(__name__)
 
-REQUIREMENTS = ['alexapy==0.0.3']
+REQUIREMENTS = ['beautifulsoup4==4.6.0', 'simplejson==3.16.0']
 
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15)
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
@@ -112,8 +112,7 @@ def setup_platform(hass, config, add_devices_callback,
     password = config.get(CONF_PASSWORD)
     url = config.get(CONF_URL)
 
-    from alexapy import alexalogin
-    login = alexalogin.AlexaLogin(url, email, password, hass, ALEXA_DATA)
+    login = AlexaLogin(url, email, password, hass)
 
     async def setup_platform_callback(callback_data):
         _LOGGER.debug("Status: {} got captcha: {} securitycode: {}".format(
@@ -172,9 +171,8 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
         """Update the devices objects."""
-        from alexapy import alexaapi
-        devices = alexaapi.AlexaAPI.get_devices(url, login_obj._session)
-        bluetooth = alexaapi.AlexaAPI.get_bluetooth(url, login_obj._session).json()
+        devices = AlexaAPI.get_devices(url, login_obj._session)
+        bluetooth = AlexaAPI.get_bluetooth(url, login_obj._session).json()
 
         new_alexa_clients = []
         available_client_ids = []
@@ -225,8 +223,7 @@ class AlexaClient(MediaPlayerDevice):
     def __init__(self, config, session, device, update_devices, url):
         """Initialize the Alexa device."""
         # Class info
-        from alexapy import alexaapi
-        self.alexa_api = alexaapi.AlexaAPI(self, session, url)
+        self.alexa_api = AlexaAPI(self, session, url)
 
         self.update_devices = update_devices
         # Device info
@@ -537,3 +534,378 @@ class AlexaClient(MediaPlayerDevice):
         }
         return attr
 
+
+class AlexaLogin():
+    """Class to handle login connection to Alexa."""
+
+    def __init__(self, url, email, password, hass):
+        """Set up initial connection and log in."""
+        import pickle
+        self._url = url
+        self._email = email
+        self._password = password
+        self._session = None
+        self._data = None
+        self.status = {}
+        self._cookiefile = hass.config.path("{}.pickle".format(ALEXA_DATA))
+        self._debugpost = hass.config.path("{}post.html".format(ALEXA_DATA))
+        self._debugget = hass.config.path("{}get.html".format(ALEXA_DATA))
+
+        cookies = None
+        if (self._cookiefile):
+            try:
+                _LOGGER.debug(
+                    "Fetching cookie from file {}".format(
+                        self._cookiefile))
+                with open(self._cookiefile, 'rb') as myfile:
+                    cookies = pickle.load(myfile)
+                    _LOGGER.debug("cookie loaded: {}".format(cookies))
+            except Exception as ex:
+                template = ("An exception of type {0} occurred."
+                            " Arguments:\n{1!r}")
+                message = template.format(type(ex).__name__, ex.args)
+                _LOGGER.debug(
+                    "Error loading pickled cookie from {}: {}".format(
+                        self._cookiefile, message))
+
+        self.login(cookies=cookies)
+
+    def reset_login(self):
+        """Remove data related to existing login."""
+        self._session = None
+        self._data = None
+        self.status = {}
+
+    def get_inputs(self, soup, searchfield={'name': 'signIn'}):
+        """Parse soup for form with searchfield."""
+        data = {}
+        form = soup.find('form', searchfield)
+        for field in form.find_all('input'):
+            try:
+                data[field['name']] = ""
+                data[field['name']] = field['value']
+            except:  # noqa: E722 pylint: disable=bare-except
+                pass
+        return data
+
+    def test_loggedin(self, cookies=None):
+        """Function that will test the connection is logged in.
+
+        Attempts to get device list, and if unsuccessful login failed
+        """
+        if self._session is None:
+            site = 'https://www.' + self._url + '/gp/sign-in.html'
+
+            '''initiate session'''
+            self._session = requests.Session()
+
+            '''define session headers'''
+            self._session.headers = {
+                'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
+                               'AppleWebKit/537.36 (KHTML, like Gecko) '
+                               'Chrome/44.0.2403.61 Safari/537.36'),
+                'Accept': ('text/html,application/xhtml+xml, '
+                           'application/xml;q=0.9,*/*;q=0.8'),
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': site
+            }
+            self._session.cookies = cookies
+        get_resp = self._session.get('https://alexa.' + self._url +
+                                     '/api/devices-v2/device')
+        # with open(self._debugget, mode='wb') as localfile:
+        #     localfile.write(get_resp.content)
+
+        try:
+            from json.decoder import JSONDecodeError
+            from simplejson import JSONDecodeError as SimpleJSONDecodeError
+            # Need to catch both as Python 3.5 appears to use simplejson
+        except ImportError:
+            JSONDecodeError = ValueError
+        try:
+            get_resp.json()
+        except (JSONDecodeError, SimpleJSONDecodeError) as ex:
+            # ValueError is necessary for Python 3.5 for some reason
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.debug("Not logged in: {}".format(message))
+            return False
+        _LOGGER.debug("Logged in.")
+        return True
+
+    def login(self, cookies=None, captcha=None, securitycode=None):
+        """Login to Amazon."""
+        from bs4 import BeautifulSoup
+        import pickle
+
+        if cookies is not None:
+            _LOGGER.debug("Using cookies to log in")
+            if self.test_loggedin(cookies):
+                self.status = {}
+                self.status['login_successful'] = True
+                _LOGGER.debug("Log in successful with cookies")
+                return
+        else:
+            _LOGGER.debug("No cookies for log in; using credentials")
+        #  site = 'https://www.' + self._url + '/gp/sign-in.html'
+        #  use alexa site instead
+        site = 'https://alexa.' + self._url + '/api/devices-v2/device'
+        if self._session is None:
+            '''initiate session'''
+
+            self._session = requests.Session()
+
+            '''define session headers'''
+            self._session.headers = {
+                'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
+                               'AppleWebKit/537.36 (KHTML, like Gecko) '
+                               'Chrome/44.0.2403.61 Safari/537.36'),
+                'Accept': ('text/html,application/xhtml+xml, '
+                           'application/xml;q=0.9,*/*;q=0.8'),
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': site
+            }
+
+        if self._data is None:
+            resp = self._session.get(site)
+            html = resp.text
+            '''get BeautifulSoup object of the html of the login page'''
+            soup = BeautifulSoup(html, 'html.parser')
+            '''scrape login page to get all the inputs required for login'''
+            self._data = self.get_inputs(soup)
+            site = soup.find('form', {'name': 'signIn'}).get('action')
+
+        # _LOGGER.debug("Init Form Data: {}".format(self._data))
+
+        '''add username and password to the data for post request'''
+        '''check if there is an input field'''
+        if "email" in self._data:
+            self._data[u'email'] = self._email
+        if "password" in self._data:
+            self._data[u'password'] = self._password
+        if "rememberMe" in self._data:
+            self._data[u'rememberMe'] = "true"
+
+        status = {}
+        _LOGGER.debug("Captcha: {} SecurityCode: {}".format(captcha,
+                                                            securitycode))
+        if (captcha is not None and 'guess' in self._data):
+            self._data[u'guess'] = captcha
+        if (securitycode is not None and 'otpCode' in self._data):
+            self._data[u'otpCode'] = securitycode
+            self._data[u'rememberDevice'] = "true"
+            self._data[u'mfaSubmit'] = "true"
+
+        # _LOGGER.debug("Submit Form Data: {}".format(self._data))
+
+        '''submit post request with username/password and other needed info'''
+        post_resp = self._session.post(site, data=self._data)
+        # with open(self._debugpost, mode='wb') as localfile:
+        #     localfile.write(post_resp.content)
+
+        post_soup = BeautifulSoup(post_resp.content, 'html.parser')
+
+        captcha_tag = post_soup.find(id="auth-captcha-image")
+        securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
+        login_tag = post_soup.find('form', {'name': 'signIn'})
+
+        '''another login required? try once more. This appears necessary as
+        the first login fails for alexa's login site for some reason
+        '''
+        if login_tag is not None:
+            login_url = login_tag.get("action")
+            _LOGGER.debug("Login requested again; retrying once: {}".format(
+                login_url))
+            post_resp = self._session.post(login_url,
+                                           data=self._data)
+            # with open(self._debugpost, mode='wb') as localfile:
+            #     localfile.write(post_resp.content)
+            post_soup = BeautifulSoup(post_resp.content, 'html.parser')
+            captcha_tag = post_soup.find(id="auth-captcha-image")
+            securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
+
+        if captcha_tag is not None:
+            _LOGGER.debug("Captcha requested")
+            status['captcha_required'] = True
+            status['captcha_image_url'] = captcha_tag.get('src')
+            self._data = self.get_inputs(post_soup)
+
+        elif securitycode_tag is not None:
+            _LOGGER.debug("2FA requested")
+            status['securitycode_required'] = True
+            self._data = self.get_inputs(post_soup, {'id': 'auth-mfa-form'})
+
+        else:
+            _LOGGER.debug("Captcha/2FA not requested; confirming login.")
+            if self.test_loggedin():
+                _LOGGER.debug("Login confirmed; saving cookie to {}".format(
+                        self._cookiefile))
+                status['login_successful'] = True
+                with open(self._cookiefile, 'wb') as myfile:
+                    try:
+                        pickle.dump(self._session.cookies, myfile)
+                    except Exception as ex:
+                        template = ("An exception of type {0} occurred."
+                                    " Arguments:\n{1!r}")
+                        message = template.format(type(ex).__name__, ex.args)
+                        _LOGGER.debug(
+                            "Error saving pickled cookie to {}: {}".format(
+                                self._cookiefile,
+                                message))
+            else:
+                _LOGGER.debug("Login failed; check credentials")
+
+        self.status = status
+
+
+class AlexaAPI():
+    """Class for accessing Alexa."""
+
+    def __init__(self, device, session, url):
+        """Initialize Alexa device."""
+        self._device = device
+        self._session = session
+        self._url = 'https://alexa.' + url
+
+        csrf = self._session.cookies.get_dict()['csrf']
+        self._session.headers['csrf'] = csrf
+
+    def _post_request(self, uri, data):
+        try:
+            self._session.post(self._url + uri, json=data)
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
+
+    def _get_request(self, uri, data=None):
+        try:
+            return self._session.get(self._url + uri, json=data)
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
+            return None
+
+    def play_music(self, provider_id, search_phrase):
+        """Play Music based on search."""
+        data = {
+            "behaviorId": "PREVIEW",
+            "sequenceJson": "{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.Sequence\", \
+            \"startNode\":{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
+            \"type\":\"Alexa.Music.PlaySearchPhrase\",\"operationPayload\": \
+            {\"deviceType\":\"" + self._device._device_type + "\", \
+            \"deviceSerialNumber\":\"" + self._device.unique_id +
+            "\",\"locale\":\"en-US\", \
+            \"customerId\":\"" + self._device._device_owner_customer_id +
+            "\", \"searchPhrase\": \"" + search_phrase + "\", \
+             \"sanitizedSearchPhrase\": \"" + search_phrase + "\", \
+             \"musicProviderId\": \"" + provider_id + "\"}}}",
+            "status": "ENABLED"
+        }
+        self._post_request('/api/behaviors/preview',
+                           data=data)
+
+    def send_tts(self, message):
+        """Send message for TTS at speaker."""
+        data = {
+            "behaviorId": "PREVIEW",
+            "sequenceJson": "{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.Sequence\", \
+            \"startNode\":{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
+            \"type\":\"Alexa.Speak\",\"operationPayload\": \
+            {\"deviceType\":\"" + self._device._device_type + "\", \
+            \"deviceSerialNumber\":\"" + self._device.unique_id +
+            "\",\"locale\":\"en-US\", \
+            \"customerId\":\"" + self._device._device_owner_customer_id +
+            "\", \"textToSpeak\": \"" + message + "\"}}}",
+            "status": "ENABLED"
+        }
+        self._post_request('/api/behaviors/preview',
+                           data=data)
+
+    def set_media(self, data):
+        """Select the media player."""
+        self._post_request('/api/np/command?deviceSerialNumber=' +
+                           self._device.unique_id + '&deviceType=' +
+                           self._device._device_type, data=data)
+
+    def previous(self):
+        """Play previous."""
+        self.set_media({"type": "PreviousCommand"})
+
+    def next(self):
+        """Play next."""
+        self.set_media({"type": "NextCommand"})
+
+    def pause(self):
+        """Pause."""
+        self.set_media({"type": "PauseCommand"})
+
+    def play(self):
+        """Play."""
+        self.set_media({"type": "PlayCommand"})
+
+    def set_volume(self, volume):
+        """Set volume."""
+        self.set_media({"type": "VolumeLevelCommand",
+                        "volumeLevel": volume*100})
+
+    def get_state(self):
+        """Get state."""
+        response = self._get_request('/api/np/player?deviceSerialNumber=' +
+                                     self._device.unique_id + '&deviceType=' +
+                                     self._device._device_type +
+                                     '&screenWidth=2560')
+        return response
+
+    @staticmethod
+    def get_bluetooth(url, session):
+        """Get paired bluetooth devices."""
+        try:
+
+            response = session.get('https://alexa.' + url +
+                                   '/api/bluetooth?cached=false')
+            return response
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
+            return None
+
+    def set_bluetooth(self, mac):
+        """Pair with bluetooth device with mac address."""
+        self._post_request('/api/bluetooth/pair-sink/' +
+                           self._device._device_type + '/' +
+                           self._device.unique_id,
+                           data={"bluetoothDeviceAddress": mac})
+
+    def disconnect_bluetooth(self):
+        """Disconnect all bluetooth devices."""
+        self._post_request('/api/bluetooth/disconnect-sink/' +
+                           self._device._device_type + '/' +
+                           self._device.unique_id, data=None)
+
+    @staticmethod
+    def get_devices(url, session):
+        """Identify all Alexa devices."""
+        try:
+            response = session.get('https://alexa.' + url +
+                                   '/api/devices-v2/device')
+            return response.json()['devices']
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
+            return None

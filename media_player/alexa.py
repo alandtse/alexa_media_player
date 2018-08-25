@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.9.2
+VERSION 0.9.3
 """
 import logging
 
@@ -53,11 +53,13 @@ ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
     vol.Required(ATTR_MESSAGE): cv.string,
 })
 
+CONF_ONLINEONLY = 'onlineonly'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_EMAIL): cv.string,
     vol.Required(CONF_PASSWORD): cv.string,
     vol.Required(CONF_URL): cv.string,
+    vol.Optional(CONF_ONLINEONLY, default=True): cv.boolean,
 })
 
 
@@ -183,6 +185,7 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
     track_utc_time_change(hass, lambda now: update_devices(), second=30)
 
     url = config.get(CONF_URL)
+    onlineonly = config.get(CONF_ONLINEONLY)
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
@@ -193,6 +196,9 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
         new_alexa_clients = []
         available_client_ids = []
         for device in devices:
+
+            if onlineonly and not device['online']:
+                continue
 
             for b_state in bluetooth['bluetoothStates']:
                 if device['serialNumber'] == b_state['deviceSerialNumber']:

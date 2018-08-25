@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.9.1
+VERSION 0.9.2
 """
 import logging
 
@@ -305,33 +305,46 @@ class AlexaClient(MediaPlayerDevice):
             if self._session['state'] is not None:
                 self._media_player_state = self._session['state']
                 self._media_pos = (self._session['progress']['mediaProgress']
-                                   if 'mediaProgress' in
-                                   self._session['progress'] else None)
+                                   if (self._session['progress'] is not None
+                                       and 'mediaProgress' in
+                                       self._session['progress'])
+                                   else None)
                 self._media_is_muted = (self._session['volume']['muted']
-                                        if 'muted' in self._session['volume']
+                                        if (self._session['volume'] is not None
+                                            and 'muted' in
+                                            self._session['volume'])
                                         else None)
                 self._media_vol_level = (self._session['volume']
                                                       ['volume'] / 100
-                                         if 'volume' in self._session['volume']
+                                         if(self._session['volume'] is not None
+                                             and 'volume' in
+                                             self._session['volume'])
                                          else None)
                 self._media_title = (self._session['infoText']['title']
-                                     if 'title' in self._session['infoText']
+                                     if (self._session['infoText'] is not None
+                                         and 'title' in
+                                         self._session['infoText'])
                                      else None)
                 self._media_artist = (self._session['infoText']['subText1']
-                                      if 'subText1' in
-                                      self._session['infoText']
+                                      if (self._session['infoText'] is not None
+                                          and 'subText1' in
+                                          self._session['infoText'])
                                       else None)
                 self._media_album_name = (self._session['infoText']['subText2']
-                                          if 'subText2' in
-                                          self._session['infoText']
+                                          if (self._session['infoText'] is not
+                                              None and 'subText2' in
+                                              self._session['infoText'])
                                           else None)
                 self._media_image_url = (self._session['mainArt']['url']
-                                         if 'url' in self._session['mainArt']
+                                         if (self._session['mainArt'] is not
+                                             None and 'url' in
+                                             self._session['mainArt'])
                                          else None)
                 self._media_duration = (self._session['progress']
                                                      ['mediaLength']
-                                        if 'mediaLength' in
-                                        self._session['progress']
+                                        if (self._session['progress'] is not
+                                            None and 'mediaLength' in
+                                            self._session['progress'])
                                         else None)
 
     @property
@@ -696,8 +709,6 @@ class AlexaLogin():
             '''scrape login page to get all the inputs required for login'''
             self._data = self.get_inputs(soup)
             site = soup.find('form', {'name': 'signIn'}).get('action')
-            with open(self._debugget, mode='wb') as localfile:
-                localfile.write(resp.content)
 
         # _LOGGER.debug("Init Form Data: {}".format(self._data))
 
@@ -726,10 +737,9 @@ class AlexaLogin():
         # _LOGGER.debug("Header: {}".format(self._session.headers))
 
         '''submit post request with username/password and other needed info'''
-        post_resp = self._session.post(site,
-                                       data=self._data)
-        with open(self._debugget, mode='wb') as localfile:
-            localfile.write(post_resp.content)
+        post_resp = self._session.post(site, data=self._data)
+        # with open(self._debugpost, mode='wb') as localfile:
+        #     localfile.write(post_resp.content)
 
         post_soup = BeautifulSoup(post_resp.content, 'html.parser')
 
@@ -746,8 +756,8 @@ class AlexaLogin():
                 login_url))
             post_resp = self._session.post(login_url,
                                            data=self._data)
-            with open(self._debugpost, mode='wb') as localfile:
-                localfile.write(post_resp.content)
+            # with open(self._debugpost, mode='wb') as localfile:
+            #     localfile.write(post_resp.content)
             post_soup = BeautifulSoup(post_resp.content, 'html.parser')
             captcha_tag = post_soup.find(id="auth-captcha-image")
             securitycode_tag = post_soup.find(id="auth-mfa-otpcode")

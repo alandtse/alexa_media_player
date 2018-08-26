@@ -74,8 +74,8 @@ def request_configuration(hass, config, setup_platform_callback,
         def done():
             configurator.request_done(_CONFIGURING['alexa'])
 
-        hass.async_add_job(done)
-        hass.async_add_job(setup_platform_callback, callback_data)
+        hass.add_job(done)
+        hass.add_job(setup_platform_callback, callback_data)
 
     if 'alexa' in _CONFIGURING:
         failed_login = True
@@ -107,9 +107,9 @@ def request_configuration(hass, config, setup_platform_callback,
     else:  # Check login
         _CONFIGURING['alexa'] = configurator.request_config(
             "Alexa Media Player", configuration_callback,
-            description=('Please review your login below.'),
+            description=('Please hit confirm to make another attempt.'),
             submit_caption="Confirm",
-            fields=[{'id': 'email', 'name': 'password'}]
+            fields=[]
         )
 
 
@@ -132,28 +132,43 @@ def setup_platform(hass, config, add_devices_callback,
             callback_data.get('securitycode')))
         login.login(captcha=callback_data.get('captcha'),
                     securitycode=callback_data.get('securitycode'))
-        if ('login_successful' in login.status and
-                login.status['login_successful']):
-            _LOGGER.debug("Captcha/2FA successful; setting up Alexa devices")
-            hass.async_add_job(setup_alexa, hass, config,
-                               add_devices_callback, login)
-            global _CONFIGURING
-            _CONFIGURING = {}
-        elif ('securitycode_required' in login.status and
-              login.status['securitycode_required']):
-            _LOGGER.debug("2FA required; creating configurator")
-            hass.async_add_job(request_configuration, hass, config,
-                               setup_platform_callback,
-                               login.status)
+        testLoginStatus(hass, config, add_devices_callback, login,
+                        setup_platform_callback)
+        # if ('login_successful' in login.status and
+        #         login.status['login_successful']):
+        #     _LOGGER.debug("Captcha/2FA successful; setting up Alexa devices")
+        #     hass.async_add_job(setup_alexa, hass, config,
+        #                        add_devices_callback, login)
+        # elif ('securitycode_required' in login.status and
+        #       login.status['securitycode_required']):
+        #     _LOGGER.debug("2FA required; creating configurator")
+        #     hass.async_add_job(request_configuration, hass, config,
+        #                        setup_platform_callback,
+        #                        login.status)
+        # elif ('login_failed' in login.status and
+        #         login.status['login_failed']):
+        #     _LOGGER.debug("Login failed")
+        #     hass.async_add_job(request_configuration, hass, config,
+        #                        setup_platform_callback,
+        #                        login.status)
+        #
+        # else:
+        #     _LOGGER.debug("Captcha/2FA failed; requesting new captcha")
+        #     login.reset_login()
+        #     login.login()
+        #     hass.async_add_job(request_configuration, hass, config,
+        #                        setup_platform_callback,
+        #                        login.status)
+        global _CONFIGURING
+        _CONFIGURING = {}
 
-        else:
-            _LOGGER.debug("Captcha/2FA failed; requesting new captcha")
-            login.reset_login()
-            login.login()
-            hass.async_add_job(request_configuration, hass, config,
-                               setup_platform_callback,
-                               login.status)
+    testLoginStatus(hass, config, add_devices_callback, login,
+                    setup_platform_callback)
 
+
+def testLoginStatus(hass, config, add_devices_callback, login,
+                    setup_platform_callback):
+    """Test the login status."""
     if 'login_successful' in login.status and login.status['login_successful']:
         _LOGGER.debug("Setting up Alexa devices")
         hass.async_add_job(setup_alexa, hass, config,
@@ -585,6 +600,7 @@ class AlexaLogin():
         self._cookiefile = hass.config.path("{}.pickle".format(ALEXA_DATA))
         self._debugpost = hass.config.path("{}post.html".format(ALEXA_DATA))
         self._debugget = hass.config.path("{}get.html".format(ALEXA_DATA))
+        self._lastreq = None
 
         cookies = None
         if (self._cookiefile):
@@ -609,6 +625,7 @@ class AlexaLogin():
         """Remove data related to existing login."""
         self._session = None
         self._data = None
+        self._lastreq = None
         self.status = {}
 
     def get_inputs(self, soup, searchfield={'name': 'signIn'}):
@@ -629,22 +646,21 @@ class AlexaLogin():
         Attempts to get device list, and if unsuccessful login failed
         """
         if self._session is None:
-            site = 'https://www.' + self._url + '/gp/sign-in.html'
-
             '''initiate session'''
+
             self._session = requests.Session()
 
             '''define session headers'''
             self._session.headers = {
                 'User-Agent': ('Mozilla/5.0 (Windows NT 6.3; Win64; x64) '
                                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                               'Chrome/44.0.2403.61 Safari/537.36'),
+                               'Chrome/68.0.3440.106 Safari/537.36'),
                 'Accept': ('text/html,application/xhtml+xml, '
                            'application/xml;q=0.9,*/*;q=0.8'),
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Referer': site
+                'Accept-Language': '*'
             }
             self._session.cookies = cookies
+
         get_resp = self._session.get('https://alexa.' + self._url +
                                      '/api/devices-v2/device')
         # with open(self._debugget, mode='wb') as localfile:
@@ -700,17 +716,37 @@ class AlexaLogin():
                 'Accept-Language': '*'
             }
 
+        if self._lastreq is not None:
+            site = self._lastreq.url
+            _LOGGER.debug("Loaded last request to {} ".format(site))
+            html = self._lastreq.text
+            '''get BeautifulSoup object of the html of the login page'''
+            with open(self._debugget, mode='wb') as localfile:
+                localfile.write(self._lastreq.content)
+
+            soup = BeautifulSoup(html, 'html.parser')
+            site = soup.find('form').get('action')
+
         if self._data is None:
             resp = self._session.get(site)
+            self._lastreq = resp
             if resp.history:
-                _LOGGER.debug("Request to {} was redirected to {}".format(
+                _LOGGER.debug("Get to {} was redirected to {}".format(
                     site,
                     resp.url))
                 self._session.headers['Referer'] = resp.url
+                self._session.headers['Origin'] = "https://www.amazon.com"
             else:
-                _LOGGER.debug("Request to {} was not redirected".format(site))
+                _LOGGER.debug("Get to {} was not redirected".format(site))
+                self._session.headers['Referer'] = site
+                self._session.headers['Origin'] = "https://www.amazon.com"
+
+
             html = resp.text
             '''get BeautifulSoup object of the html of the login page'''
+            with open(self._debugget, mode='wb') as localfile:
+                localfile.write(resp.content)
+
             soup = BeautifulSoup(html, 'html.parser')
             '''scrape login page to get all the inputs required for login'''
             self._data = self.get_inputs(soup)
@@ -721,49 +757,70 @@ class AlexaLogin():
         '''add username and password to the data for post request'''
         '''check if there is an input field'''
         if "email" in self._data:
-            self._data[u'email'] = self._email
+            self._data['email'] = self._email
         if "password" in self._data:
-            self._data[u'password'] = self._password
+            self._data['password'] = self._password
         if "rememberMe" in self._data:
-            self._data[u'rememberMe'] = "true"
+            self._data['rememberMe'] = "true"
 
         status = {}
-        _LOGGER.debug("Captcha: {} SecurityCode: {} Site: {}".format(
+        _LOGGER.debug(("Preparing post to {} Captcha: {}"
+                       " SecurityCode: {}").format(
+            site,
             captcha,
-            securitycode,
-            site))
+            securitycode
+            ))
         if (captcha is not None and 'guess' in self._data):
-            self._data[u'guess'] = captcha
+            self._data['guess'] = captcha
         if (securitycode is not None and 'otpCode' in self._data):
-            self._data[u'otpCode'] = securitycode
-            self._data[u'rememberDevice'] = "true"
-            self._data[u'mfaSubmit'] = "true"
+            self._data['otpCode'] = securitycode
+            self._data['rememberDevice'] = ""
+            # self._data[u'mfaSubmit'] = "true"
 
-        # _LOGGER.debug("Submit Form Data: {}".format(self._data))
-        # _LOGGER.debug("Header: {}".format(self._session.headers))
+        # self._session.headers['upgrade-insecure-requests'] = "1"
+        # self._session.headers['dnt'] = "1"
+        # self._session.headers['cache-control'] = "max-age=0"
+        # self._session.headers['Content-Type'] = ("application/"
+        #                                         "x-www-form-urlencoded; charset=utf-8")
+        self._data.pop('', None)
+
+        _LOGGER.debug("Cookies: {}".format(self._session.cookies))
+        _LOGGER.debug("Submit Form Data: {}".format(self._data))
+        _LOGGER.debug("Header: {}".format(self._session.headers))
 
         '''submit post request with username/password and other needed info'''
         post_resp = self._session.post(site, data=self._data)
-        # with open(self._debugpost, mode='wb') as localfile:
-        #     localfile.write(post_resp.content)
+        self._session.headers['Referer'] = site
+
+        self._lastreq = post_resp
+        with open(self._debugpost, mode='wb') as localfile:
+            localfile.write(post_resp.content)
 
         post_soup = BeautifulSoup(post_resp.content, 'html.parser')
 
         captcha_tag = post_soup.find(id="auth-captcha-image")
         securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
         login_tag = post_soup.find('form', {'name': 'signIn'})
+        errorbox = (post_soup.find(id="auth-error-message-box")
+                    if post_soup.find(id="auth-error-message-box") else
+                    post_soup.find(id="auth-warning-message-box"))
+        if errorbox:
+            error_message = errorbox.find('h4').contents
+            for li in errorbox.findAll('li'):
+                error_message += li.find('span').contents
+            _LOGGER.debug("Error message: {}".format(error_message))
 
         '''another login required? try once more. This appears necessary as
         the first login fails for alexa's login site for some reason
         '''
         if login_tag is not None:
             login_url = login_tag.get("action")
-            _LOGGER.debug("Login requested again; retrying once: {}".format(
+            _LOGGER.debug("Performing second login to: {}".format(
                 login_url))
             post_resp = self._session.post(login_url,
                                            data=self._data)
-            # with open(self._debugpost, mode='wb') as localfile:
-            #     localfile.write(post_resp.content)
+            with open(self._debugpost, mode='wb') as localfile:
+                localfile.write(post_resp.content)
             post_soup = BeautifulSoup(post_resp.content, 'html.parser')
             captcha_tag = post_soup.find(id="auth-captcha-image")
             securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
@@ -778,6 +835,19 @@ class AlexaLogin():
             _LOGGER.debug("2FA requested")
             status['securitycode_required'] = True
             self._data = self.get_inputs(post_soup, {'id': 'auth-mfa-form'})
+
+        elif login_tag is not None:
+            login_url = login_tag.get("action")
+            _LOGGER.debug("Another login requested to: {}".format(
+                login_url))
+            # post_resp = self._session.post(login_url,
+            #                                data=self._data)
+            # # with open(self._debugpost, mode='wb') as localfile:
+            # #     localfile.write(post_resp.content)
+            # post_soup = BeautifulSoup(post_resp.content, 'html.parser')
+            # captcha_tag = post_soup.find(id="auth-captcha-image")
+            # securitycode_tag = post_soup.find(id="auth-mfa-otpcode")
+            status['login_failed'] = True
 
         else:
             _LOGGER.debug("Captcha/2FA not requested; confirming login.")

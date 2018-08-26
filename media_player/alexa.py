@@ -757,11 +757,11 @@ class AlexaLogin():
         '''add username and password to the data for post request'''
         '''check if there is an input field'''
         if "email" in self._data:
-            self._data['email'] = self._email
+            self._data['email'] = self._email.encode('utf-8')
         if "password" in self._data:
-            self._data['password'] = self._password
+            self._data['password'] = self._password.encode('utf-8')
         if "rememberMe" in self._data:
-            self._data['rememberMe'] = "true"
+            self._data['rememberMe'] = "true".encode('utf-8')
 
         status = {}
         _LOGGER.debug(("Preparing post to {} Captcha: {}"
@@ -771,17 +771,17 @@ class AlexaLogin():
             securitycode
             ))
         if (captcha is not None and 'guess' in self._data):
-            self._data['guess'] = captcha
+            self._data['guess'] = captcha.encode('utf-8')
         if (securitycode is not None and 'otpCode' in self._data):
-            self._data['otpCode'] = securitycode
+            self._data['otpCode'] = securitycode.encode('utf-8')
             self._data['rememberDevice'] = ""
             # self._data[u'mfaSubmit'] = "true"
 
         # self._session.headers['upgrade-insecure-requests'] = "1"
         # self._session.headers['dnt'] = "1"
         # self._session.headers['cache-control'] = "max-age=0"
-        # self._session.headers['Content-Type'] = ("application/"
-        #                                         "x-www-form-urlencoded; charset=utf-8")
+        self._session.headers['Content-Type'] = ("application/"
+                                                "x-www-form-urlencoded; charset=utf-8")
         self._data.pop('', None)
 
         _LOGGER.debug("Cookies: {}".format(self._session.cookies))

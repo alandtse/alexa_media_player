@@ -722,6 +722,10 @@ class AlexaLogin():
 
             soup = BeautifulSoup(html, 'html.parser')
             site = soup.find('form').get('action')
+            if site is None:
+                site = self._lastreq.url
+            elif site == 'verify':
+                site = self._lastreq.url + "/verify"
 
         if self._data is None:
             resp = self._session.get(site)

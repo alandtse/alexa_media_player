@@ -725,7 +725,9 @@ class AlexaLogin():
             if site is None:
                 site = self._lastreq.url
             elif site == 'verify':
-                site = self._lastreq.url + "/verify"
+                import re
+                site = re.search(r'(.+)/(.*)',
+                                 self._lastreq.url).groups()[0] + "/verify"
 
         if self._data is None:
             resp = self._session.get(site)

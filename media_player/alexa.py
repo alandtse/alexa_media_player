@@ -176,21 +176,22 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
 
         new_alexa_clients = []
         available_client_ids = []
-        for device in devices:
+        if devices is not None:
+            for device in devices:
 
-            for b_state in bluetooth['bluetoothStates']:
-                if device['serialNumber'] == b_state['deviceSerialNumber']:
-                    device['bluetooth_state'] = b_state
+                for b_state in bluetooth['bluetoothStates']:
+                    if device['serialNumber'] == b_state['deviceSerialNumber']:
+                        device['bluetooth_state'] = b_state
 
-            available_client_ids.append(device['serialNumber'])
+                available_client_ids.append(device['serialNumber'])
 
-            if device['serialNumber'] not in alexa_clients:
-                new_client = AlexaClient(config, login_obj._session, device,
-                                         update_devices, url)
-                alexa_clients[device['serialNumber']] = new_client
-                new_alexa_clients.append(new_client)
-            else:
-                alexa_clients[device['serialNumber']].refresh(device)
+                if device['serialNumber'] not in alexa_clients:
+                    new_client = AlexaClient(config, login_obj._session, device,
+                                             update_devices, url)
+                    alexa_clients[device['serialNumber']] = new_client
+                    new_alexa_clients.append(new_client)
+                else:
+                    alexa_clients[device['serialNumber']].refresh(device)
 
         if new_alexa_clients:
             def tts_handler(call):

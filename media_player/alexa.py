@@ -138,12 +138,14 @@ def setup_platform(hass, config, add_devices_callback,
     login = AlexaLogin(url, email, password, hass)
 
     async def setup_platform_callback(callback_data):
-        _LOGGER.debug("Status: {} got captcha: {} securitycode: {}".format(
+        _LOGGER.debug("Status: {} got captcha: {} securitycode: {} verificationcode: {}".format(
             login.status,
             callback_data.get('captcha'),
-            callback_data.get('securitycode')))
+            callback_data.get('securitycode'),
+            callback_data.get('verificationcode')))
         login.login(captcha=callback_data.get('captcha'),
-                    securitycode=callback_data.get('securitycode'))
+                    securitycode=callback_data.get('securitycode'),
+                    verificationcode=callback_data.get('verificationcode'))
         testLoginStatus(hass, config, add_devices_callback, login,
                         setup_platform_callback)
         global _CONFIGURING
@@ -677,7 +679,8 @@ class AlexaLogin():
         _LOGGER.debug("Logged in.")
         return True
 
-    def login(self, cookies=None, captcha=None, securitycode=None):
+    def login(self, cookies=None, captcha=None, securitycode=None,
+              verificationcode=None):
         """Login to Amazon."""
         from bs4 import BeautifulSoup
         import pickle
@@ -757,10 +760,11 @@ class AlexaLogin():
 
         status = {}
         _LOGGER.debug(("Preparing post to {} Captcha: {}"
-                       " SecurityCode: {}").format(
+                       " SecurityCode: {} VerificationCode: {}").format(
             site,
             captcha,
-            securitycode
+            securitycode,
+            verificationcode
             ))
         if (captcha is not None and 'guess' in self._data):
             self._data['guess'] = captcha.encode('utf-8')
@@ -768,6 +772,8 @@ class AlexaLogin():
             self._data['otpCode'] = securitycode.encode('utf-8')
             self._data['rememberDevice'] = ""
             # self._data[u'mfaSubmit'] = "true"
+        if (verificationcode is not None and 'option' in self._data):
+            self._data['option'] = verificationcode.encode('utf-8')
 
         # self._session.headers['upgrade-insecure-requests'] = "1"
         # self._session.headers['dnt'] = "1"

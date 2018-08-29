@@ -104,9 +104,9 @@ def request_configuration(hass, config, setup_platform_callback,
             submit_caption="Confirm",
             fields=[{'id': 'securitycode', 'name': 'Security Code'}]
         )
-    elif (status and 'verificationcode_required' in status and
-            status['verificationcode_required']):  # Get verification code
-        options = status['verificationcode_message']
+    elif (status and 'claimspicker_required' in status and
+            status['claimspicker_required']):  # Get picker method
+        options = status['claimspicker_message']
         _CONFIGURING['alexa'] = configurator.request_config(
             "Alexa Media Player", configuration_callback,
             description=('Please select the verification option. '
@@ -114,7 +114,15 @@ def request_configuration(hass, config, setup_platform_callback,
                          options
                          ),
             submit_caption="Confirm",
-            fields=[{'id': 'verificationcode', 'name': 'Option'}]
+            fields=[{'id': 'claimsoption', 'name': 'Option'}]
+        )
+    elif (status and 'verificationcode_required' in status and
+            status['verificationcode_required']):  # Get picker method
+        _CONFIGURING['alexa'] = configurator.request_config(
+            "Alexa Media Player", configuration_callback,
+            description=('Please enter received verification code'),
+            submit_caption="Confirm",
+            fields=[{'id': 'verificationcode', 'name': 'Verification Code'}]
         )
     else:  # Check login
         _CONFIGURING['alexa'] = configurator.request_config(
@@ -138,13 +146,16 @@ def setup_platform(hass, config, add_devices_callback,
     login = AlexaLogin(url, email, password, hass)
 
     async def setup_platform_callback(callback_data):
-        _LOGGER.debug("Status: {} got captcha: {} securitycode: {} verificationcode: {}".format(
+        _LOGGER.debug(("Status: {} got captcha: {} securitycode: {}"
+                      " Claimsoption: {} VerificationCode: {}").format(
             login.status,
             callback_data.get('captcha'),
             callback_data.get('securitycode'),
+            callback_data.get('claimsoption'),
             callback_data.get('verificationcode')))
         login.login(captcha=callback_data.get('captcha'),
                     securitycode=callback_data.get('securitycode'),
+                    claimsoption=callback_data.get('claimsoption'),
                     verificationcode=callback_data.get('verificationcode'))
         testLoginStatus(hass, config, add_devices_callback, login,
                         setup_platform_callback)
@@ -174,9 +185,15 @@ def testLoginStatus(hass, config, add_devices_callback, login,
         hass.async_add_job(request_configuration, hass, config,
                            setup_platform_callback,
                            login.status)
+    elif ('claimspicker_required' in login.status and
+            login.status['claimspicker_required']):
+        _LOGGER.debug("Creating configurator to select verification option")
+        hass.async_add_job(request_configuration, hass, config,
+                           setup_platform_callback,
+                           login.status)
     elif ('verificationcode_required' in login.status and
             login.status['verificationcode_required']):
-        _LOGGER.debug("Creating configurator to select verification")
+        _LOGGER.debug("Creating configurator to enter verification code")
         hass.async_add_job(request_configuration, hass, config,
                            setup_platform_callback,
                            login.status)
@@ -680,7 +697,7 @@ class AlexaLogin():
         return True
 
     def login(self, cookies=None, captcha=None, securitycode=None,
-              verificationcode=None):
+              claimsoption=None, verificationcode=None):
         """Login to Amazon."""
         from bs4 import BeautifulSoup
         import pickle
@@ -766,10 +783,12 @@ class AlexaLogin():
 
         status = {}
         _LOGGER.debug(("Preparing post to {} Captcha: {}"
-                       " SecurityCode: {} VerificationCode: {}").format(
+                       " SecurityCode: {} Claimsoption: {} "
+                       "VerificationCode: {}").format(
             site,
             captcha,
             securitycode,
+            claimsoption,
             verificationcode
             ))
         if (captcha is not None and 'guess' in self._data):
@@ -777,10 +796,10 @@ class AlexaLogin():
         if (securitycode is not None and 'otpCode' in self._data):
             self._data['otpCode'] = securitycode.encode('utf-8')
             self._data['rememberDevice'] = ""
-            # self._data[u'mfaSubmit'] = "true"
-        if (verificationcode is not None and 'option' in self._data):
-            self._data['option'] = verificationcode.encode('utf-8')
-
+        if (claimsoption is not None and 'option' in self._data):
+            self._data['option'] = claimsoption.encode('utf-8')
+        if (verificationcode is not None and 'code' in self._data):
+            self._data['code'] = verificationcode.encode('utf-8')
         # self._session.headers['upgrade-insecure-requests'] = "1"
         # self._session.headers['dnt'] = "1"
         # self._session.headers['cache-control'] = "max-age=0"
@@ -810,6 +829,7 @@ class AlexaLogin():
                     if post_soup.find(id="auth-error-message-box") else
                     post_soup.find(id="auth-warning-message-box"))
         claimspicker_tag = post_soup.find('form', {'name': 'claimspicker'})
+        verificationcode_tag = post_soup.find('form', {'action': 'verify'})
 
         if errorbox:
             error_message = errorbox.find('h4').string
@@ -858,10 +878,13 @@ class AlexaLogin():
                 options_message += valuemessage
             _LOGGER.debug("Verification code requested: {}".format(
                 claims_message, options_message))
-            status['verificationcode_required'] = True
-            status['verificationcode_message'] = options_message
+            status['claimspicker_required'] = True
+            status['claimspicker_message'] = options_message
             self._data = self.get_inputs(post_soup, {'name': 'claimspicker'})
-
+        elif verificationcode_tag is not None:
+            _LOGGER.debug("Verification code requested:")
+            status['verificationcode_required'] = True
+            self._data = self.get_inputs(post_soup, {'action': 'verify'})
         elif login_tag is not None:
             login_url = login_tag.get("action")
             _LOGGER.debug("Another login requested to: {}".format(

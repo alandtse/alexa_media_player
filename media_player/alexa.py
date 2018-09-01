@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.9.3
+VERSION 0.9.4
 """
 import logging
 
@@ -698,15 +698,14 @@ class AlexaLogin():
         from bs4 import BeautifulSoup
         import pickle
 
-        if cookies is not None:
+        if (cookies is not None and self.test_loggedin(cookies)):
             _LOGGER.debug("Using cookies to log in")
-            if self.test_loggedin(cookies):
-                self.status = {}
-                self.status['login_successful'] = True
-                _LOGGER.debug("Log in successful with cookies")
-                return
+            self.status = {}
+            self.status['login_successful'] = True
+            _LOGGER.debug("Log in successful with cookies")
+            return
         else:
-            _LOGGER.debug("No cookies for log in; using credentials")
+            _LOGGER.debug("No valid cookies for log in; using credentials")
         #  site = 'https://www.' + self._url + '/gp/sign-in.html'
         #  use alexa site instead
         site = 'https://alexa.' + self._url + '/api/devices-v2/device'

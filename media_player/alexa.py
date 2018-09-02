@@ -318,11 +318,12 @@ class AlexaClient(MediaPlayerDevice):
         self._bluetooth_state = device['bluetooth_state']
         self._source = self._get_source()
         self._source_list = self._get_source_list()
-        session = self.alexa_api.get_state().json()
+        session = self.alexa_api.get_state()
 
         self._clear_media_details()
-        # update the session
-        self._session = session
+        # update the session if it exists; not doing relogin here
+        if session is not None:
+            self._session = session
         if 'playerInfo' in self._session:
             self._session = self._session['playerInfo']
             if self._session['state'] is not None:
@@ -1016,11 +1017,20 @@ class AlexaAPI():
 
     def get_state(self):
         """Get state."""
-        response = self._get_request('/api/np/player?deviceSerialNumber=' +
-                                     self._device.unique_id + '&deviceType=' +
-                                     self._device._device_type +
-                                     '&screenWidth=2560')
-        return response
+        try:
+            response = self._get_request('/api/np/player?deviceSerialNumber=' +
+                                         self._device.unique_id +
+                                         '&deviceType=' +
+                                         self._device._device_type +
+                                         '&screenWidth=2560')
+            return response.json()
+        except Exception as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.error("An error occured accessing the API: {}".format(
+                message))
+            return None
 
     @staticmethod
     def get_bluetooth(url, session):

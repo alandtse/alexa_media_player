@@ -222,7 +222,7 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
                                          update_devices, url)
                 alexa_clients[device['serialNumber']] = new_client
                 new_alexa_clients.append(new_client)
-            else:
+            elif device['online']:
                 alexa_clients[device['serialNumber']].refresh(device)
 
         if new_alexa_clients:

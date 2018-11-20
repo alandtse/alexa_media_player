@@ -54,12 +54,16 @@ ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
 })
 
 CONF_DEBUG = 'debug'
+CONF_INCLUDE_DEVICES = 'include_devices'
+CONF_EXCLUDE_DEVICES = 'exclude_devices'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_EMAIL): cv.string,
     vol.Required(CONF_PASSWORD): cv.string,
     vol.Required(CONF_URL): cv.string,
     vol.Optional(CONF_DEBUG, default=False): cv.boolean,
+    vol.Optional(CONF_INCLUDE_DEVICES, default=[]): vol.All(cv.ensure_list, [cv.string]),
+    vol.Optional(CONF_EXCLUDE_DEVICES, default=[]): vol.All(cv.ensure_list, [cv.string]),
 })
 
 
@@ -195,6 +199,8 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
     track_utc_time_change(hass, lambda now: update_devices(), second=30)
 
     url = config.get(CONF_URL)
+    include = config.get(CONF_INCLUDE_DEVICES)
+    exclude = config.get(CONF_EXCLUDE_DEVICES)
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
@@ -210,7 +216,11 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
         new_alexa_clients = []
         available_client_ids = []
         for device in devices:
-
+            if include and device['accountName'] not in include:
+                continue
+            elif exclude and device['accountName'] in exclude:
+                continue
+                        
             for b_state in bluetooth['bluetoothStates']:
                 if device['serialNumber'] == b_state['deviceSerialNumber']:
                     device['bluetooth_state'] = b_state

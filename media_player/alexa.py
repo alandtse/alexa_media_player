@@ -4,6 +4,7 @@ Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 VERSION 0.9.6
+
 """
 import logging
 
@@ -47,10 +48,30 @@ MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 ALEXA_DATA = "alexa_media"
 
 SERVICE_ALEXA_TTS = 'alexa_tts'
+SERVICE_ALEXA_SEQUENCE = 'alexa_sequence'
+
+# Alexa.Weather.Play
+# Alexa.Traffic.Play
+# Alexa.FlashBriefing.Play
+# Alexa.GoodMorning.Play
+# Alexa.GoodNight.Play
+# Alexa.SingASong.Play
+# Alexa.TellStory.Play
+# Alexa.FunFact.Play
+# Alexa.Joke.Play
+# Alexa.Music.PlaySearchPhrase
+# Alexa.Calendar.PlayTomorrow
+# Alexa.Calendar.PlayToday
+# Alexa.Calendar.PlayNext
 
 ATTR_MESSAGE = 'message'
 ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
     vol.Required(ATTR_MESSAGE): cv.string,
+})
+
+ATTR_SEQUENCE = 'sequence'
+ALEXA_SEQUENCE_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
+    vol.Required(ATTR_SEQUENCE): cv.string,
 })
 
 CONF_DEBUG = 'debug'
@@ -65,7 +86,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_INCLUDE_DEVICES, default=[]): vol.All(cv.ensure_list, [cv.string]),
     vol.Optional(CONF_EXCLUDE_DEVICES, default=[]): vol.All(cv.ensure_list, [cv.string]),
 })
-
 
 def request_configuration(hass, config, setup_platform_callback,
                           status=None):
@@ -241,6 +261,13 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
                     if call.service == SERVICE_ALEXA_TTS:
                         message = call.data.get(ATTR_MESSAGE)
                         alexa.send_tts(message)
+            
+            def sequence_handler(call):
+                for alexa in service_to_entities(call):
+                    if call.service == SERVICE_ALEXA_SEQUENCE:
+                        sequence = call.data.get(ATTR_SEQUENCE)
+                        _LOGGER.info("seqhandler "+ sequence)
+                        alexa.send_sequence(sequence)
 
             def service_to_entities(call):
                 """Return the known devices that a service call mentions."""
@@ -255,6 +282,8 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
 
             hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
                                    schema=ALEXA_TTS_SCHEMA)
+            hass.services.register(DOMAIN, SERVICE_ALEXA_SEQUENCE, sequence_handler,
+                                   schema=ALEXA_SEQUENCE_SCHEMA)
             add_devices_callback(new_alexa_clients)
 
     update_devices()
@@ -580,6 +609,12 @@ class AlexaClient(MediaPlayerDevice):
     def send_tts(self, message):
         """Send TTS to Device NOTE: Does not work on WHA Groups."""
         self.alexa_api.send_tts(message)
+
+    
+    def send_sequence(self, sequence):
+        """Send sequence."""
+        _LOGGER.info("send_sequence")
+        self.alexa_api.send_sequence(sequence)
 
     def play_media(self, media_type, media_id, **kwargs):
         """Send the play_media command to the media player."""
@@ -993,6 +1028,29 @@ class AlexaAPI():
             "\",\"locale\":\"en-US\", \
             \"customerId\":\"" + self._device._device_owner_customer_id +
             "\", \"textToSpeak\": \"" + message + "\"}}}",
+            "status": "ENABLED"
+        }
+        self._post_request('/api/behaviors/preview',
+                           data=data)
+
+    def send_sequence(self, sequence):
+        """Send message for Sequence echo."""
+        """COMMAND="{\"behaviorId\":\"PREVIEW\",\"sequenceJson\":\"{\\\"@type\\\":\\\"com.amazon.alexa.behaviors.model.Sequence\\\",\\\"startNode\\\":{\\\"@type\\\":\\\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\\\",\\\"type\\\":\\\"${SEQUENCECMD}\\\",\\\"operationPayload\\\":{\\\"deviceType\\\":\\\"${DEVICETYPE}\\\",\\\"deviceSerialNumber\\\":\\\"${DEVICESERIALNUMBER}\\\",\\\"locale\\\":\\\"${LANGUAGE}\\\",\\\"customerId\\\":\\\"${MEDIAOWNERCUSTOMERID}\\\"${TTS}}}}\",\"status\":\"ENABLED\"}" """
+        """ {"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\"
+        ,\"type\":\"${SEQUENCECMD}\",\"operationPayload\":{\"deviceType\":\"${DEVICETYPE}\",\"deviceSerialNumber\":\"${DEVICESERIALNUMBER}\",
+         \"locale\":\"${LANGUAGE}\",\"customerId\":\"${MEDIAOWNERCUSTOMERID}\"${TTS}}}}","status":"ENABLED"}"""
+        data = {
+            "behaviorId": "PREVIEW",
+            "sequenceJson": "{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.Sequence\", \
+            \"startNode\":{\"@type\": \
+            \"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\", \
+            \"type\":\"" + sequence + "\",\"operationPayload\": \
+            {\"deviceType\":\"" + self._device._device_type + "\", \
+            \"deviceSerialNumber\":\"" + self._device.unique_id +
+            "\",\"locale\":\"en-US\", \
+            \"customerId\":\"" + self._device._device_owner_customer_id +
+            "\"}}}",
             "status": "ENABLED"
         }
         self._post_request('/api/behaviors/preview',

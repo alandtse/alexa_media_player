@@ -50,20 +50,6 @@ ALEXA_DATA = "alexa_media"
 SERVICE_ALEXA_TTS = 'alexa_tts'
 SERVICE_ALEXA_SEQUENCE = 'alexa_sequence'
 
-# Alexa.Weather.Play
-# Alexa.Traffic.Play
-# Alexa.FlashBriefing.Play
-# Alexa.GoodMorning.Play
-# Alexa.GoodNight.Play
-# Alexa.SingASong.Play
-# Alexa.TellStory.Play
-# Alexa.FunFact.Play
-# Alexa.Joke.Play
-# Alexa.Music.PlaySearchPhrase
-# Alexa.Calendar.PlayTomorrow
-# Alexa.Calendar.PlayToday
-# Alexa.Calendar.PlayNext
-
 ATTR_MESSAGE = 'message'
 ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
     vol.Required(ATTR_MESSAGE): cv.string,

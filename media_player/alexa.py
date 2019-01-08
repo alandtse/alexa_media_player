@@ -220,7 +220,7 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
                 continue
             elif exclude and device['accountName'] in exclude:
                 continue
-                        
+
             for b_state in bluetooth['bluetoothStates']:
                 if device['serialNumber'] == b_state['deviceSerialNumber']:
                     device['bluetooth_state'] = b_state
@@ -506,9 +506,11 @@ class AlexaClient(MediaPlayerDevice):
 
     def set_volume_level(self, volume):
         """Set volume level, range 0..1."""
+        if not self.available:
+            return
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
                 and self.available):
-            return
+            self.alexa_api.send_tts("..............")
         self.alexa_api.set_volume(volume)
         self._media_vol_level = volume
 

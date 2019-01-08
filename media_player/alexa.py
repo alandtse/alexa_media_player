@@ -22,7 +22,7 @@ from homeassistant.components.media_player import (
     MediaPlayerDevice, DOMAIN, MEDIA_PLAYER_SCHEMA,
     SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
-    CONF_EMAIL, CONF_PASSWORD, CONF_URL,
+    ATTR_ENTITY_ID, CONF_EMAIL, CONF_PASSWORD, CONF_URL,
     STATE_IDLE, STATE_STANDBY, STATE_PAUSED,
     STATE_PLAYING)
 from homeassistant.helpers import config_validation as cv
@@ -52,11 +52,13 @@ SERVICE_ALEXA_SEQUENCE = 'alexa_sequence'
 
 ATTR_MESSAGE = 'message'
 ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
+    vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
     vol.Required(ATTR_MESSAGE): cv.string,
 })
 
 ATTR_SEQUENCE = 'sequence'
 ALEXA_SEQUENCE_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
+    vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
     vol.Required(ATTR_SEQUENCE): cv.string,
 })
 
@@ -72,6 +74,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_INCLUDE_DEVICES, default=[]): vol.All(cv.ensure_list, [cv.string]),
     vol.Optional(CONF_EXCLUDE_DEVICES, default=[]): vol.All(cv.ensure_list, [cv.string]),
 })
+
 
 def request_configuration(hass, config, setup_platform_callback,
                           status=None):
@@ -226,7 +229,7 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
                 continue
             elif exclude and device['accountName'] in exclude:
                 continue
-                        
+
             for b_state in bluetooth['bluetoothStates']:
                 if device['serialNumber'] == b_state['deviceSerialNumber']:
                     device['bluetooth_state'] = b_state
@@ -247,7 +250,7 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
                     if call.service == SERVICE_ALEXA_TTS:
                         message = call.data.get(ATTR_MESSAGE)
                         alexa.send_tts(message)
-            
+
             def sequence_handler(call):
                 for alexa in service_to_entities(call):
                     if call.service == SERVICE_ALEXA_SEQUENCE:
@@ -596,7 +599,6 @@ class AlexaClient(MediaPlayerDevice):
         """Send TTS to Device NOTE: Does not work on WHA Groups."""
         self.alexa_api.send_tts(message)
 
-    
     def send_sequence(self, sequence):
         """Send sequence."""
         _LOGGER.info("send_sequence")
@@ -1021,10 +1023,6 @@ class AlexaAPI():
 
     def send_sequence(self, sequence):
         """Send message for Sequence echo."""
-        """COMMAND="{\"behaviorId\":\"PREVIEW\",\"sequenceJson\":\"{\\\"@type\\\":\\\"com.amazon.alexa.behaviors.model.Sequence\\\",\\\"startNode\\\":{\\\"@type\\\":\\\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\\\",\\\"type\\\":\\\"${SEQUENCECMD}\\\",\\\"operationPayload\\\":{\\\"deviceType\\\":\\\"${DEVICETYPE}\\\",\\\"deviceSerialNumber\\\":\\\"${DEVICESERIALNUMBER}\\\",\\\"locale\\\":\\\"${LANGUAGE}\\\",\\\"customerId\\\":\\\"${MEDIAOWNERCUSTOMERID}\\\"${TTS}}}}\",\"status\":\"ENABLED\"}" """
-        """ {"behaviorId":"PREVIEW","sequenceJson":"{\"@type\":\"com.amazon.alexa.behaviors.model.Sequence\",\"startNode\":{\"@type\":\"com.amazon.alexa.behaviors.model.OpaquePayloadOperationNode\"
-        ,\"type\":\"${SEQUENCECMD}\",\"operationPayload\":{\"deviceType\":\"${DEVICETYPE}\",\"deviceSerialNumber\":\"${DEVICESERIALNUMBER}\",
-         \"locale\":\"${LANGUAGE}\",\"customerId\":\"${MEDIAOWNERCUSTOMERID}\"${TTS}}}}","status":"ENABLED"}"""
         data = {
             "behaviorId": "PREVIEW",
             "sequenceJson": "{\"@type\": \

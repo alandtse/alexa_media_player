@@ -1017,7 +1017,12 @@ class AlexaAPI():
             message = template.format(type(ex).__name__, ex.args)
             _LOGGER.debug("An error occured accessing the API: {}".format(message))
             return None
-        return response.json()['activities'][0]['sourceDeviceIds'][0]['serialNumber']
+        
+        # Ignore discarded activity records
+        if response.json()['activities'][0]['activityStatus'](0) != 'DISCARDED_NON_DEVICE_DIRECTED_INTENT':
+            return response.json()['activities'][0]['sourceDeviceIds'][0]['serialNumber']
+        else:
+            return None
 
     def play_music(self, provider_id, search_phrase, customer_id=None):
         """Play Music based on search."""

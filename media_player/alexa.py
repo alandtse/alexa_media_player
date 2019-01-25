@@ -996,15 +996,6 @@ class AlexaAPI():
         """Identify the last device's serial number."""
         try:
             response = self._get_request('/api/activities?startTime=&size=1&offset=1')
-        except Exception as ex:
-            template = ("An exception of type {0} occurred."
-                        " Arguments:\n{1!r}")
-            message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.error("An error occured accessing the API: {}".format(
-                message))
-            return None
-
-        try:
             last_activity = response.json()['activities'][0]
         except Exception as ex:
             template = ("An exception of type {0} occurred."

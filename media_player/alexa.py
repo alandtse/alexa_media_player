@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.10.0
+VERSION 0.10.1
 """
 import logging
 
@@ -1005,7 +1005,7 @@ class AlexaAPI():
             return None
 
         # Ignore discarded activity records
-        if last_activity['activityStatus'](0) != 'DISCARDED_NON_DEVICE_DIRECTED_INTENT':
+        if last_activity['activityStatus'][0] != 'DISCARDED_NON_DEVICE_DIRECTED_INTENT':
             return last_activity['sourceDeviceIds'][0]['serialNumber']
         else:
             return None

@@ -256,7 +256,8 @@ class AlexaClient(MediaPlayerDevice):
         return ['Local Speaker'] + sources
 
     def _get_last_called(self):
-        if self._device_serial_number == self.alexa_api.get_last_device_serial():
+        if (self._device_serial_number ==
+                self.alexa_api.get_last_device_serial()):
             return True
         return False
 
@@ -303,7 +304,7 @@ class AlexaClient(MediaPlayerDevice):
 
     def update(self):
         """Get the latest details."""
-        # self.update_devices(no_throttle=True)
+        self.update_devices(no_throttle=True)
         self.refresh()
 
     @property

@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.10.1
+VERSION 1.0.0
 """
 import logging
 
@@ -13,29 +13,12 @@ import requests
 import voluptuous as vol
 
 from homeassistant import util
-from homeassistant.components.media_player import (
-    MEDIA_TYPE_MUSIC, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK,
-    SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
-    SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_VOLUME_MUTE,
-    SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET,
-    MediaPlayerDevice, DOMAIN, MEDIA_PLAYER_SCHEMA,
-    SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
-    CONF_EMAIL, CONF_PASSWORD, CONF_URL,
-    STATE_IDLE, STATE_STANDBY, STATE_PAUSED,
-    STATE_PLAYING)
+    CONF_EMAIL, CONF_PASSWORD, CONF_URL)
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.event import track_utc_time_change
-# from homeassistant.util.json import load_json, save_json
-# from homeassistant.util import dt as dt_util
+from homeassistant.helpers.discovery import load_platform
 
-SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
-                 SUPPORT_NEXT_TRACK | SUPPORT_STOP |
-                 SUPPORT_VOLUME_SET | SUPPORT_PLAY |
-                 SUPPORT_PLAY_MEDIA | SUPPORT_TURN_OFF |
-                 SUPPORT_VOLUME_MUTE | SUPPORT_PAUSE |
-                 SUPPORT_SELECT_SOURCE)
 _CONFIGURING = []
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,34 +27,69 @@ REQUIREMENTS = ['beautifulsoup4==4.6.0', 'simplejson==3.16.0']
 MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15)
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 
-ALEXA_DATA = "alexa_media"
+DOMAIN = "alexa_media"
 
-SERVICE_ALEXA_TTS = 'alexa_tts'
-
-ATTR_MESSAGE = 'message'
-ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
-    vol.Required(ATTR_MESSAGE): cv.string,
-})
+ALEXA_COMPONENTS = [
+    'media_player'
+]
 
 CONF_DEBUG = 'debug'
 CONF_INCLUDE_DEVICES = 'include_devices'
 CONF_EXCLUDE_DEVICES = 'exclude_devices'
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_EMAIL): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string,
-    vol.Required(CONF_URL): cv.string,
-    vol.Optional(CONF_DEBUG, default=False): cv.boolean,
-    vol.Optional(CONF_INCLUDE_DEVICES, default=[]):
-        vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional(CONF_EXCLUDE_DEVICES, default=[]):
-        vol.All(cv.ensure_list, [cv.string]),
-})
+CONFIG_SCHEMA = vol.Schema({
+    DOMAIN: vol.Schema({
+        vol.Required(CONF_EMAIL): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CONF_URL): cv.string,
+        vol.Optional(CONF_DEBUG, default=False): cv.boolean,
+        vol.Optional(CONF_INCLUDE_DEVICES, default=[]):
+            vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(CONF_EXCLUDE_DEVICES, default=[]):
+            vol.All(cv.ensure_list, [cv.string]),
+    }),
+}, extra=vol.ALLOW_EXTRA)
+
+
+def setup(hass, config, discovery_info=None):
+    """Set up the Alexa domain."""
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+        hass.data[DOMAIN]['login'] = {}
+        hass.data[DOMAIN]['devices'] = {}
+        hass.data[DOMAIN]['devices']['media_player'] = {}
+
+    config = config.get(DOMAIN)
+    email = config.get(CONF_EMAIL)
+    password = config.get(CONF_PASSWORD)
+    url = config.get(CONF_URL)
+
+    login = AlexaLogin(url, email, password, hass.config.path,
+                       config.get(CONF_DEBUG))
+
+    async def setup_platform_callback(callback_data):
+        _LOGGER.debug(("Status: {} got captcha: {} securitycode: {}"
+                      " Claimsoption: {} VerificationCode: {}").format(
+            login.status,
+            callback_data.get('captcha'),
+            callback_data.get('securitycode'),
+            callback_data.get('claimsoption'),
+            callback_data.get('verificationcode')))
+        login.login(captcha=callback_data.get('captcha'),
+                    securitycode=callback_data.get('securitycode'),
+                    claimsoption=callback_data.get('claimsoption'),
+                    verificationcode=callback_data.get('verificationcode'))
+        testLoginStatus(hass, config, login,
+                        setup_platform_callback)
+
+    testLoginStatus(hass, config, login,
+                    setup_platform_callback)
+    return True
 
 
 def request_configuration(hass, config, setup_platform_callback,
                           status=None):
-    """Request configuration steps from the user."""
+    """Request configuration steps from the user using the configurator."""
     configurator = hass.components.configurator
 
     async def configuration_callback(callback_data):
@@ -134,45 +152,14 @@ def request_configuration(hass, config, setup_platform_callback,
         configurator.async_request_done(_CONFIGURING.pop(0))
 
 
-def setup_platform(hass, config, add_devices_callback,
-                   discovery_info=None):
-    """Set up the Alexa platform."""
-    if ALEXA_DATA not in hass.data:
-        hass.data[ALEXA_DATA] = {}
-
-    email = config.get(CONF_EMAIL)
-    password = config.get(CONF_PASSWORD)
-    url = config.get(CONF_URL)
-
-    login = AlexaLogin(url, email, password, hass.config.path,
-                       config.get(CONF_DEBUG))
-
-    async def setup_platform_callback(callback_data):
-        _LOGGER.debug(("Status: {} got captcha: {} securitycode: {}"
-                      " Claimsoption: {} VerificationCode: {}").format(
-            login.status,
-            callback_data.get('captcha'),
-            callback_data.get('securitycode'),
-            callback_data.get('claimsoption'),
-            callback_data.get('verificationcode')))
-        login.login(captcha=callback_data.get('captcha'),
-                    securitycode=callback_data.get('securitycode'),
-                    claimsoption=callback_data.get('claimsoption'),
-                    verificationcode=callback_data.get('verificationcode'))
-        testLoginStatus(hass, config, add_devices_callback, login,
-                        setup_platform_callback)
-
-    testLoginStatus(hass, config, add_devices_callback, login,
-                    setup_platform_callback)
-
-
-def testLoginStatus(hass, config, add_devices_callback, login,
+def testLoginStatus(hass, config, login,
                     setup_platform_callback):
-    """Test the login status."""
+    """Test the login status and spawn requests for info."""
     if 'login_successful' in login.status and login.status['login_successful']:
         _LOGGER.debug("Setting up Alexa devices")
+        hass.data[DOMAIN]['login'] = login
         hass.async_add_job(setup_alexa, hass, config,
-                           add_devices_callback, login)
+                           login)
         return
     elif ('captcha_required' in login.status and
           login.status['captcha_required']):
@@ -194,30 +181,29 @@ def testLoginStatus(hass, config, add_devices_callback, login,
                        login.status)
 
 
-def setup_alexa(hass, config, add_devices_callback, login_obj):
+def setup_alexa(hass, config, login_obj):
     """Set up a alexa api based on host parameter."""
-    alexa_clients = hass.data[ALEXA_DATA]
+    alexa_clients = hass.data[DOMAIN]['devices']['media_player']
+
     # alexa_sessions = {}
     track_utc_time_change(hass, lambda now: update_devices(), second=30)
 
-    url = config.get(CONF_URL)
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
         """Update the devices objects."""
-        devices = AlexaAPI.get_devices(url, login_obj._session)
-        bluetooth = AlexaAPI.get_bluetooth(url, login_obj._session)
-        authentication = AlexaAPI.get_authentication(url, login_obj._session)
+        devices = AlexaAPI.get_devices(login_obj)
+        bluetooth = AlexaAPI.get_bluetooth(login_obj)
 
         if ((devices is None or bluetooth is None)
                 and len(_CONFIGURING) == 0):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
 
-        new_alexa_clients = []
-        available_client_ids = []
+        new_alexa_clients = []  # list of newly discovered device jsons
+        available_client_ids = []  # list of known serial numbers
         for device in devices:
             if include and device['accountName'] not in include:
                 continue
@@ -229,38 +215,22 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
                     device['bluetooth_state'] = b_state
 
             available_client_ids.append(device['serialNumber'])
+            (hass.data[DOMAIN]
+                      ['devices']
+                      ['media_player']
+                      [device['serialNumber']]) = device
 
             if device['serialNumber'] not in alexa_clients:
-                new_client = AlexaClient(config, login_obj._session, device,
-                                         update_devices, url, authentication)
-                alexa_clients[device['serialNumber']] = new_client
-                new_alexa_clients.append(new_client)
-            elif device['online']:
-                alexa_clients[device['serialNumber']].refresh(device)
+                new_alexa_clients.append(device)
 
         if new_alexa_clients:
-            def tts_handler(call):
-                for alexa in service_to_entities(call):
-                    if call.service == SERVICE_ALEXA_TTS:
-                        message = call.data.get(ATTR_MESSAGE)
-                        alexa.send_tts(message)
-
-            def service_to_entities(call):
-                """Return the known devices that a service call mentions."""
-                entity_ids = extract_entity_ids(hass, call)
-                if entity_ids:
-                    entities = [entity for entity in new_alexa_clients
-                                if entity.entity_id in entity_ids]
-                else:
-                    entities = None
-
-                return entities
-
-            hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
-                                   schema=ALEXA_TTS_SCHEMA)
-            add_devices_callback(new_alexa_clients)
+            for component in ALEXA_COMPONENTS:
+                load_platform(hass, component, DOMAIN, {}, config)
 
     update_devices()
+    hass.data[DOMAIN]['update_devices'] = update_devices
+    for component in ALEXA_COMPONENTS:
+        load_platform(hass, component, DOMAIN, {}, config)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
     global _CONFIGURING
@@ -268,384 +238,32 @@ def setup_alexa(hass, config, add_devices_callback, login_obj):
         configurator = hass.components.configurator
         configurator.async_request_done(config_id)
     _CONFIGURING = []
-
-
-class AlexaClient(MediaPlayerDevice):
-    """Representation of a Alexa device."""
-
-    def __init__(self, config, session, device, update_devices, url,
-                 authentication):
-        """Initialize the Alexa device."""
-        # Class info
-        self.alexa_api = AlexaAPI(self, session, url)
-        self.auth = authentication
-        self.alexa_api_session = session
-        self.alexa_api_url = url
-        
-        # Logged in info
-        self._authenticated = None
-        self._can_access_prime_music = None
-        self._customer_email = None
-        self._customer_id = None
-        self._customer_name = None
-        self._set_authentication_details(self.auth)
-
-        self.update_devices = update_devices
-        # Device info
-        self._device = None
-        self._device_name = None
-        self._device_serial_number = None
-        self._device_type = None
-        self._device_family = None
-        self._device_owner_customer_id = None
-        self._software_version = None
-        self._available = None
-        self._capabilities = []
-        # Media
-        self._session = None
-        self._media_duration = None
-        self._media_image_url = None
-        self._media_title = None
-        self._media_pos = None
-        self._media_album_name = None
-        self._media_artist = None
-        self._player_state = None
-        self._media_is_muted = None
-        self._media_vol_level = None
-        self._previous_volume = None
-        self._source = None
-        self._source_list = []
-        self.refresh(device)
-        # Last Device
-        self._last_called = None
-
-    def _clear_media_details(self):
-        """Set all Media Items to None."""
-        # General
-        self._media_duration = None
-        self._media_image_url = None
-        self._media_title = None
-        self._media_pos = None
-        self._media_album_name = None
-        self._media_artist = None
-        self._media_player_state = None
-        self._media_is_muted = None
-        self._media_vol_level = None
-
-    def _set_authentication_details(self, auth):
-        """Set Authentication based off auth."""
-        self._authenticated = auth['authenticated']
-        self._can_access_prime_music = auth['canAccessPrimeMusicContent']
-        self._customer_email = auth['customerEmail']
-        self._customer_id = auth['customerId']
-        self._customer_name = auth['customerName']
-
-    def refresh(self, device):
-        """Refresh key device data."""
-        self._device = device
-        self._device_name = device['accountName']
-        self._device_family = device['deviceFamily']
-        self._device_type = device['deviceType']
-        self._device_serial_number = device['serialNumber']
-        self._device_owner_customer_id = device['deviceOwnerCustomerId']
-        self._software_version = device['softwareVersion']
-        self._available = device['online']
-        self._capabilities = device['capabilities']
-        self._bluetooth_state = device['bluetooth_state']
-        self._source = self._get_source()
-        self._source_list = self._get_source_list()
-        session = self.alexa_api.get_state()
-        self._last_called = self._get_last_called()
-
-        self._clear_media_details()
-        # update the session if it exists; not doing relogin here
-        if session is not None:
-            self._session = session
-        if 'playerInfo' in self._session:
-            self._session = self._session['playerInfo']
-            if self._session['state'] is not None:
-                self._media_player_state = self._session['state']
-                self._media_pos = (self._session['progress']['mediaProgress']
-                                   if (self._session['progress'] is not None
-                                       and 'mediaProgress' in
-                                       self._session['progress'])
-                                   else None)
-                self._media_is_muted = (self._session['volume']['muted']
-                                        if (self._session['volume'] is not None
-                                            and 'muted' in
-                                            self._session['volume'])
-                                        else None)
-                self._media_vol_level = (self._session['volume']
-                                                      ['volume'] / 100
-                                         if(self._session['volume'] is not None
-                                             and 'volume' in
-                                             self._session['volume'])
-                                         else None)
-                self._media_title = (self._session['infoText']['title']
-                                     if (self._session['infoText'] is not None
-                                         and 'title' in
-                                         self._session['infoText'])
-                                     else None)
-                self._media_artist = (self._session['infoText']['subText1']
-                                      if (self._session['infoText'] is not None
-                                          and 'subText1' in
-                                          self._session['infoText'])
-                                      else None)
-                self._media_album_name = (self._session['infoText']['subText2']
-                                          if (self._session['infoText'] is not
-                                              None and 'subText2' in
-                                              self._session['infoText'])
-                                          else None)
-                self._media_image_url = (self._session['mainArt']['url']
-                                         if (self._session['mainArt'] is not
-                                             None and 'url' in
-                                             self._session['mainArt'])
-                                         else None)
-                self._media_duration = (self._session['progress']
-                                                     ['mediaLength']
-                                        if (self._session['progress'] is not
-                                            None and 'mediaLength' in
-                                            self._session['progress'])
-                                        else None)
-
-    @property
-    def source(self):
-        """Return the current input source."""
-        return self._source
-
-    @property
-    def source_list(self):
-        """List of available input sources."""
-        return self._source_list
-
-    def select_source(self, source):
-        """Select input source."""
-        if source == 'Local Speaker':
-            self.alexa_api.disconnect_bluetooth()
-            self._source = 'Local Speaker'
-        elif self._bluetooth_state['pairedDeviceList'] is not None:
-            for devices in self._bluetooth_state['pairedDeviceList']:
-                if devices['friendlyName'] == source:
-                    self.alexa_api.set_bluetooth(devices['address'])
-                    self._source = source
-
-    def _get_source(self):
-        source = 'Local Speaker'
-        if self._bluetooth_state['pairedDeviceList'] is not None:
-            for device in self._bluetooth_state['pairedDeviceList']:
-                if device['connected'] is True:
-                    return device['friendlyName']
-        return source
-
-    def _get_source_list(self):
-        sources = []
-        if self._bluetooth_state['pairedDeviceList'] is not None:
-            for devices in self._bluetooth_state['pairedDeviceList']:
-                sources.append(devices['friendlyName'])
-        return ['Local Speaker'] + sources
-
-    def _get_last_called(self):
-        if self._device_serial_number == self.alexa_api.get_last_device_serial():
-            return True
-        return False
-
-    @property
-    def available(self):
-        """Return the availability of the client."""
-        return self._available
-
-    @property
-    def unique_id(self):
-        """Return the id of this Alexa client."""
-        return self.device_serial_number
-
-    @property
-    def name(self):
-        """Return the name of the device."""
-        return self._device_name
-
-    @property
-    def device_serial_number(self):
-        """Return the machine identifier of the device."""
-        return self._device_serial_number
-
-    @property
-    def device(self):
-        """Return the device, if any."""
-        return self._device
-
-    @property
-    def session(self):
-        """Return the session, if any."""
-        return self._session
-
-    @property
-    def state(self):
-        """Return the state of the device."""
-        if self._media_player_state == 'PLAYING':
-            return STATE_PLAYING
-        elif self._media_player_state == 'PAUSED':
-            return STATE_PAUSED
-        elif self._media_player_state == 'IDLE':
-            return STATE_IDLE
-        return STATE_STANDBY
-
-    def update(self):
-        """Get the latest details."""
-        self.update_devices(no_throttle=True)
-
-    @property
-    def media_content_type(self):
-        """Return the content type of current playing media."""
-        if self.state in [STATE_PLAYING, STATE_PAUSED]:
-            return MEDIA_TYPE_MUSIC
-        return STATE_STANDBY
-
-    @property
-    def media_artist(self):
-        """Return the artist of current playing media, music track only."""
-        return self._media_artist
-
-    @property
-    def media_album_name(self):
-        """Return the album name of current playing media, music track only."""
-        return self._media_album_name
-
-    @property
-    def media_duration(self):
-        """Return the duration of current playing media in seconds."""
-        return self._media_duration
-
-    @property
-    def media_image_url(self):
-        """Return the image URL of current playing media."""
-        return self._media_image_url
-
-    @property
-    def media_title(self):
-        """Return the title of current playing media."""
-        return self._media_title
-
-    @property
-    def device_family(self):
-        """Return the make of the device (ex. Echo, Other)."""
-        return self._device_family
-
-    @property
-    def supported_features(self):
-        """Flag media player features that are supported."""
-        return SUPPORT_ALEXA
-
-    def set_volume_level(self, volume):
-        """Set volume level, range 0..1."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED]
-                and self.available):
-            return
-        self.alexa_api.set_volume(volume)
-        self._media_vol_level = volume
-
-    @property
-    def volume_level(self):
-        """Return the volume level of the client (0..1)."""
-        return self._media_vol_level
-
-    @property
-    def is_volume_muted(self):
-        """Return boolean if volume is currently muted."""
-        if self.volume_level == 0:
-            return True
-        return False
-
-    def mute_volume(self, mute):
-        """Mute the volume.
-
-        Since we can't actually mute, we'll:
-        - On mute, store volume and set volume to 0
-        - On unmute, set volume to previously stored volume
-        """
-        if not (self.state == STATE_PLAYING and self.available):
-            return
-
-        self._media_is_muted = mute
-        if mute:
-            self._previous_volume = self.volume_level
-            self.alexa_api.set_volume(0)
-        else:
-            if self._previous_volume is not None:
-                self.alexa_api.set_volume(self._previous_volume)
-            else:
-                self.alexa_api.set_volume(50)
-
-    def media_play(self):
-        """Send play command."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED]
-                and self.available):
-            return
-        self.alexa_api.play()
-
-    def media_pause(self):
-        """Send pause command."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED]
-                and self.available):
-            return
-        self.alexa_api.pause()
-
-    def turn_off(self):
-        """Turn the client off."""
-        # Fake it since we can't turn the client off
-        self.media_pause()
-
-    def media_next_track(self):
-        """Send next track command."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED]
-                and self.available):
-            return
-        self.alexa_api.next()
-
-    def media_previous_track(self):
-        """Send previous track command."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED]
-                and self.available):
-            return
-        self.alexa_api.previous()
-
-    def send_tts(self, message):
-        """Send TTS to Device NOTE: Does not work on WHA Groups."""
-        self.alexa_api.send_tts(message, customer_id=self._customer_id)
-
-    def play_media(self, media_type, media_id, **kwargs):
-        """Send the play_media command to the media player."""
-        if media_type == "music":
-            self.alexa_api.send_tts("Sorry, text to speech can only be called "
-                                    " with the media player alexa tts service")
-        else:
-            self.alexa_api.play_music(media_type, media_id,
-                                      customer_id=self._customer_id)
-
-    @property
-    def device_state_attributes(self):
-        """Return the scene state attributes."""
-        attr = {
-            'available': self._available,
-            'last_called': self._last_called
-        }
-        return attr
+    return True
 
 
 class AlexaLogin():
-    """Class to handle login connection to Alexa."""
+    """Class to handle login connection to Alexa. This class will not reconnect.
 
-    def __init__(self, url, email, password, configpath, debug=False):
+    Args:
+    url (string): Localized Amazon domain (e.g., amazon.com)
+    email (string): Amazon login account
+    password (string): Password for Amazon login account
+    outputpath (string): Local path with write access for storing files
+    debug (boolean): Enable additional debugging including debug file creation
+    """
+
+    def __init__(self, url, email, password, outputpath, debug=False):
         """Set up initial connection and log in."""
+        ALEXA_DATA = "alexa_media"
         self._url = url
         self._email = email
         self._password = password
         self._session = None
         self._data = None
         self.status = {}
-        self._cookiefile = configpath("{}.pickle".format(ALEXA_DATA))
-        self._debugpost = configpath("{}post.html".format(ALEXA_DATA))
-        self._debugget = configpath("{}get.html".format(ALEXA_DATA))
+        self._cookiefile = outputpath("{}.pickle".format(ALEXA_DATA))
+        self._debugpost = outputpath("{}post.html".format(ALEXA_DATA))
+        self._debugget = outputpath("{}get.html".format(ALEXA_DATA))
         self._lastreq = None
         self._debug = debug
 
@@ -696,7 +314,7 @@ class AlexaLogin():
     def test_loggedin(self, cookies=None):
         """Function that will test the connection is logged in.
 
-        Attempts to get device list, and if unsuccessful login failed
+        Attempts to get device list, and if unsuccessful returns false
         """
         if self._session is None:
             '''initiate session'''
@@ -849,7 +467,7 @@ class AlexaLogin():
             _LOGGER.debug("Submit Form Data: {}".format(self._data))
             _LOGGER.debug("Header: {}".format(self._session.headers))
 
-        '''submit post request with username/password and other needed info'''
+        # submit post request with username/password and other needed info
         post_resp = self._session.post(site, data=self._data)
         self._session.headers['Referer'] = site
 
@@ -863,10 +481,10 @@ class AlexaLogin():
         login_tag = post_soup.find('form', {'name': 'signIn'})
         captcha_tag = post_soup.find(id="auth-captcha-image")
 
-        '''another login required and no captcha request? try once more.
-        This is a necessary hack as the first attempt always fails.
-        TODO: Figure out how to remove this hack
-        '''
+        # another login required and no captcha request? try once more.
+        # This is a necessary hack as the first attempt always fails.
+        # TODO: Figure out how to remove this hack
+
         if (login_tag is not None and captcha_tag is None):
             login_url = login_tag.get("action")
             _LOGGER.debug("Performing second login to: {}".format(
@@ -887,7 +505,7 @@ class AlexaLogin():
         claimspicker_tag = post_soup.find('form', {'name': 'claimspicker'})
         verificationcode_tag = post_soup.find('form', {'action': 'verify'})
 
-        '''pull out Amazon error message'''
+        # pull out Amazon error message
 
         if errorbox:
             error_message = errorbox.find('h4').string
@@ -960,13 +578,18 @@ class AlexaLogin():
 
 
 class AlexaAPI():
-    """Class for accessing Alexa."""
+    """Class for accessing specific Alexa device using API.
 
-    def __init__(self, device, session, url):
+    Args:
+    device (AlexaClient): Instance of an AlexaClient
+    login (AlexaLogin): Successfully logged in AlexaLogin
+    """
+
+    def __init__(self, device, login):
         """Initialize Alexa device."""
         self._device = device
-        self._session = session
-        self._url = 'https://alexa.' + url
+        self._session = login._session
+        self._url = 'https://alexa.' + login._url
 
         csrf = self._session.cookies.get_dict()['csrf']
         self._session.headers['csrf'] = csrf
@@ -995,17 +618,19 @@ class AlexaAPI():
     def get_last_device_serial(self):
         """Identify the last device's serial number."""
         try:
-            response = self._get_request('/api/activities?startTime=&size=1&offset=1')
+            response = self._get_request('/api/activities?'
+                                         'startTime=&size=1&offset=1')
             last_activity = response.json()['activities'][0]
         except Exception as ex:
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.debug("An error occured accessing the API: {}".format(message))
+            _LOGGER.debug("An error occured accessing the API:", message)
             return None
 
         # Ignore discarded activity records
-        if last_activity['activityStatus'][0] != 'DISCARDED_NON_DEVICE_DIRECTED_INTENT':
+        if (last_activity['activityStatus'][0]
+                != 'DISCARDED_NON_DEVICE_DIRECTED_INTENT'):
             return last_activity['sourceDeviceIds'][0]['serialNumber']
         else:
             return None
@@ -1083,7 +708,7 @@ class AlexaAPI():
                         "volumeLevel": volume*100})
 
     def get_state(self):
-        """Get state."""
+        """Get playing state."""
         try:
             response = self._get_request('/api/np/player?deviceSerialNumber=' +
                                          self._device.unique_id +
@@ -1100,8 +725,10 @@ class AlexaAPI():
             return None
 
     @staticmethod
-    def get_bluetooth(url, session):
+    def get_bluetooth(login):
         """Get paired bluetooth devices."""
+        session = login._session
+        url = login._url
         try:
 
             response = session.get('https://alexa.' + url +
@@ -1129,8 +756,10 @@ class AlexaAPI():
                            self._device.unique_id, data=None)
 
     @staticmethod
-    def get_devices(url, session):
+    def get_devices(login):
         """Identify all Alexa devices."""
+        session = login._session
+        url = login._url
         try:
             response = session.get('https://alexa.' + url +
                                    '/api/devices-v2/device')
@@ -1144,8 +773,10 @@ class AlexaAPI():
             return None
 
     @staticmethod
-    def get_authentication(url, session):
+    def get_authentication(login):
         """Get authentication json."""
+        session = login._session
+        url = login._url
         try:
             response = session.get('https://alexa.' + url +
                                    '/api/bootstrap')
@@ -1157,4 +788,3 @@ class AlexaAPI():
             _LOGGER.error("An error occured accessing the API: {}".format(
                 message))
             return None
-            

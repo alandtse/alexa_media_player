@@ -703,7 +703,8 @@ class AlexaLogin():
     def test_loggedin(self, cookies=None):
         """Function that will test the connection is logged in.
 
-        Attempts to get device list, and if unsuccessful returns false
+        Attempts to get authenticaton and compares to expected login email
+        Returns false if unsuccesful getting json or the emails don't match
         """
         if self._session is None:
             '''initiate session'''
@@ -722,7 +723,7 @@ class AlexaLogin():
             self._session.cookies = cookies
 
         get_resp = self._session.get('https://alexa.' + self._url +
-                                     '/api/devices-v2/device')
+                                     '/api/bootstrap')
         # with open(self._debugget, mode='wb') as localfile:
         #     localfile.write(get_resp.content)
 
@@ -733,16 +734,21 @@ class AlexaLogin():
         except ImportError:
             JSONDecodeError = ValueError
         try:
-            get_resp.json()
+            email = get_resp.json()['authentication']['customerEmail']
         except (JSONDecodeError, SimpleJSONDecodeError) as ex:
             # ValueError is necessary for Python 3.5 for some reason
             template = ("An exception of type {0} occurred."
                         " Arguments:\n{1!r}")
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.debug("Not logged in: {}".format(message))
+            _LOGGER.debug("Not logged in: ", message)
             return False
-        _LOGGER.debug("Logged in.")
-        return True
+        if email.lower() == self._email.lower():
+            _LOGGER.debug("Logged in.")
+            return True
+        else:
+            _LOGGER.debug("Not logged in due to email mismatch")
+            self.reset_login()
+            return False
 
     def login(self, cookies=None, captcha=None, securitycode=None,
               claimsoption=None, verificationcode=None):

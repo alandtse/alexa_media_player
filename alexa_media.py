@@ -609,6 +609,9 @@ class AlexaAPI():
         self._session.headers['csrf'] = csrf
 
     def _catchAllExceptions(func):
+        import functools
+
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)

@@ -83,35 +83,42 @@ def setup(hass, config, discovery_info=None):
     login = AlexaLogin(url, email, password, hass.config.path,
                        config.get(CONF_DEBUG))
 
-    async def setup_platform_callback(callback_data):
-        _LOGGER.debug(("Status: {} got captcha: {} securitycode: {}"
-                      " Claimsoption: {} VerificationCode: {}").format(
-            login.status,
-            callback_data.get('captcha'),
-            callback_data.get('securitycode'),
-            callback_data.get('claimsoption'),
-            callback_data.get('verificationcode')))
-        login.login(captcha=callback_data.get('captcha'),
-                    securitycode=callback_data.get('securitycode'),
-                    claimsoption=callback_data.get('claimsoption'),
-                    verificationcode=callback_data.get('verificationcode'))
-        testLoginStatus(hass, config, login,
-                        setup_platform_callback)
-
     testLoginStatus(hass, config, login,
                     setup_platform_callback)
     return True
 
 
-def request_configuration(hass, config, setup_platform_callback,
-                          status=None):
+async def setup_platform_callback(hass, config, login, callback_data):
+    """Handle response from configurator.
+
+    Args:
+    callback_data (json): Returned data from configurator passed through
+                          request_configuration and configuration_callback
+    """
+    _LOGGER.debug(("Status: {} got captcha: {} securitycode: {}"
+                  " Claimsoption: {} VerificationCode: {}").format(
+        login.status,
+        callback_data.get('captcha'),
+        callback_data.get('securitycode'),
+        callback_data.get('claimsoption'),
+        callback_data.get('verificationcode')))
+    login.login(captcha=callback_data.get('captcha'),
+                securitycode=callback_data.get('securitycode'),
+                claimsoption=callback_data.get('claimsoption'),
+                verificationcode=callback_data.get('verificationcode'))
+    testLoginStatus(hass, config, login,
+                    setup_platform_callback)
+
+
+def request_configuration(hass, config, login, setup_platform_callback):
     """Request configuration steps from the user using the configurator."""
     configurator = hass.components.configurator
 
     async def configuration_callback(callback_data):
         """Handle the submitted configuration."""
-        hass.async_add_job(setup_platform_callback, callback_data)
-
+        hass.async_add_job(setup_platform_callback, hass, config,
+                           login, callback_data)
+    status = login.status
     # Get Captcha
     if (status and 'captcha_image_url' in status and
             status['captcha_image_url'] is not None):
@@ -192,9 +199,9 @@ def testLoginStatus(hass, config, login,
     elif ('login_failed' in login.status and
             login.status['login_failed']):
         _LOGGER.debug("Creating configurator to start new login attempt")
-    hass.async_add_job(request_configuration, hass, config,
-                       setup_platform_callback,
-                       login.status)
+    hass.async_add_job(request_configuration, hass, config, login,
+                       setup_platform_callback
+                       )
 
 
 def setup_alexa(hass, config, login_obj):
@@ -217,6 +224,7 @@ def setup_alexa(hass, config, login_obj):
                 and len(_CONFIGURING) == 0):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
+            testLoginStatus(hass, config, login_obj, setup_platform_callback)
 
         new_alexa_clients = []  # list of newly discovered device jsons
         available_client_ids = []  # list of known serial numbers

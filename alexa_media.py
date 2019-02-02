@@ -34,6 +34,7 @@ from homeassistant.const import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import track_utc_time_change
 from homeassistant.helpers.discovery import load_platform
+# from .config_flow import configured_instances
 
 _CONFIGURING = []
 _LOGGER = logging.getLogger(__name__)
@@ -49,20 +50,26 @@ ALEXA_COMPONENTS = [
     'media_player'
 ]
 
+CONF_ACCOUNTS = 'accounts'
 CONF_DEBUG = 'debug'
 CONF_INCLUDE_DEVICES = 'include_devices'
 CONF_EXCLUDE_DEVICES = 'exclude_devices'
 
+ACCOUNT_CONFIG_SCHEMA = vol.Schema({
+    vol.Required(CONF_EMAIL): cv.string,
+    vol.Required(CONF_PASSWORD): cv.string,
+    vol.Required(CONF_URL): cv.string,
+    vol.Optional(CONF_DEBUG, default=False): cv.boolean,
+    vol.Optional(CONF_INCLUDE_DEVICES, default=[]):
+        vol.All(cv.ensure_list, [cv.string]),
+    vol.Optional(CONF_EXCLUDE_DEVICES, default=[]):
+        vol.All(cv.ensure_list, [cv.string]),
+})
+
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
-        vol.Required(CONF_EMAIL): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Required(CONF_URL): cv.string,
-        vol.Optional(CONF_DEBUG, default=False): cv.boolean,
-        vol.Optional(CONF_INCLUDE_DEVICES, default=[]):
-            vol.All(cv.ensure_list, [cv.string]),
-        vol.Optional(CONF_EXCLUDE_DEVICES, default=[]):
-            vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(CONF_ACCOUNTS):
+            vol.All(cv.ensure_list, [ACCOUNT_CONFIG_SCHEMA]),
     }),
 }, extra=vol.ALLOW_EXTRA)
 
@@ -71,20 +78,22 @@ def setup(hass, config, discovery_info=None):
     """Set up the Alexa domain."""
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
-        hass.data[DOMAIN]['login'] = {}
-        hass.data[DOMAIN]['devices'] = {}
-        hass.data[DOMAIN]['devices']['media_player'] = {}
+        hass.data[DOMAIN]['accounts'] = {}
 
     config = config.get(DOMAIN)
-    email = config.get(CONF_EMAIL)
-    password = config.get(CONF_PASSWORD)
-    url = config.get(CONF_URL)
+    for account in config[CONF_ACCOUNTS]:
+        # if account[CONF_EMAIL] in configured_instances(hass):
+        #     continue
 
-    login = AlexaLogin(url, email, password, hass.config.path,
-                       config.get(CONF_DEBUG))
+        email = account.get(CONF_EMAIL)
+        password = account.get(CONF_PASSWORD)
+        url = account.get(CONF_URL)
 
-    testLoginStatus(hass, config, login,
-                    setup_platform_callback)
+        login = AlexaLogin(url, email, password, hass.config.path,
+                           account.get(CONF_DEBUG))
+
+        testLoginStatus(hass, account, login,
+                        setup_platform_callback)
     return True
 
 
@@ -119,11 +128,13 @@ def request_configuration(hass, config, login, setup_platform_callback):
         hass.async_add_job(setup_platform_callback, hass, config,
                            login, callback_data)
     status = login.status
+    email = login.get_email()
     # Get Captcha
     if (status and 'captcha_image_url' in status and
             status['captcha_image_url'] is not None):
         config_id = configurator.request_config(
-            "Alexa Media Player - Captcha", configuration_callback,
+            "Alexa Media Player - Captcha - {}".format(email),
+            configuration_callback,
             description=('Please enter the text for the captcha.'
                          ' Please enter anything if the image is missing.'
                          ),
@@ -134,7 +145,8 @@ def request_configuration(hass, config, login, setup_platform_callback):
     elif (status and 'securitycode_required' in status and
             status['securitycode_required']):  # Get 2FA code
         config_id = configurator.request_config(
-            "Alexa Media Player - 2FA", configuration_callback,
+            "Alexa Media Player - 2FA - {}".format(email),
+            configuration_callback,
             description=('Please enter your Two-Factor Security code.'),
             submit_caption="Confirm",
             fields=[{'id': 'securitycode', 'name': 'Security Code'}]
@@ -143,7 +155,8 @@ def request_configuration(hass, config, login, setup_platform_callback):
             status['claimspicker_required']):  # Get picker method
         options = status['claimspicker_message']
         config_id = configurator.request_config(
-            "Alexa Media Player - Verification Method", configuration_callback,
+            "Alexa Media Player - Verification Method - {}".format(email),
+            configuration_callback,
             description=('Please select the verification method. '
                          '(e.g., sms or email).<br />{}').format(
                          options
@@ -154,14 +167,16 @@ def request_configuration(hass, config, login, setup_platform_callback):
     elif (status and 'verificationcode_required' in status and
             status['verificationcode_required']):  # Get picker method
         config_id = configurator.request_config(
-            "Alexa Media Player - Verification Code", configuration_callback,
+            "Alexa Media Player - Verification Code - {}".format(email),
+            configuration_callback,
             description=('Please enter received verification code.'),
             submit_caption="Confirm",
             fields=[{'id': 'verificationcode', 'name': 'Verification Code'}]
         )
     else:  # Check login
         config_id = configurator.request_config(
-            "Alexa Media Player - Begin", configuration_callback,
+            "Alexa Media Player - Begin - {}".format(email),
+            configuration_callback,
             description=('Please hit confirm to begin login attempt.'),
             submit_caption="Confirm",
             fields=[]
@@ -180,7 +195,14 @@ def testLoginStatus(hass, config, login,
     """Test the login status and spawn requests for info."""
     if 'login_successful' in login.status and login.status['login_successful']:
         _LOGGER.debug("Setting up Alexa devices")
-        hass.data[DOMAIN]['login'] = login
+        (hass.data[DOMAIN]
+                  ['accounts']
+                  [login.get_email()]) = {
+                    'login_obj': login,
+                    'devices': {
+                                'media_player': {}
+                               }
+                    }
         hass.async_add_job(setup_alexa, hass, config,
                            login)
         return
@@ -206,11 +228,13 @@ def testLoginStatus(hass, config, login,
 
 def setup_alexa(hass, config, login_obj):
     """Set up a alexa api based on host parameter."""
-    alexa_clients = hass.data[DOMAIN]['devices']['media_player']
+    alexa_clients = (hass.data[DOMAIN]
+                              ['accounts']
+                              [login_obj.get_email()]
+                              ['devices']['media_player'])
 
     # alexa_sessions = {}
     track_utc_time_change(hass, lambda now: update_devices(), second=30)
-
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
 
@@ -240,6 +264,8 @@ def setup_alexa(hass, config, login_obj):
 
             available_client_ids.append(device['serialNumber'])
             (hass.data[DOMAIN]
+                      ['accounts']
+                      [login_obj.get_email()]
                       ['devices']
                       ['media_player']
                       [device['serialNumber']]) = device
@@ -650,13 +676,17 @@ class AlexaLogin():
         self._session = None
         self._data = None
         self.status = {}
-        self._cookiefile = outputpath("{}.pickle".format(ALEXA_DATA))
-        self._debugpost = outputpath("{}post.html".format(ALEXA_DATA))
-        self._debugget = outputpath("{}get.html".format(ALEXA_DATA))
+        self._cookiefile = outputpath("{}.{}.pickle".format(ALEXA_DATA, email))
+        self._debugpost = outputpath("{}{}post.html".format(ALEXA_DATA, email))
+        self._debugget = outputpath("{}{}get.html".format(ALEXA_DATA, email))
         self._lastreq = None
         self._debug = debug
 
         self.login_with_cookie()
+
+    def get_email(self):
+        """Return email for this Login."""
+        return self._email
 
     def login_with_cookie(self):
         """Attempt to login after loading cookie."""
@@ -687,6 +717,20 @@ class AlexaLogin():
         self._data = None
         self._lastreq = None
         self.status = {}
+        import os
+        if ((self._cookiefile) and os.path.exists(self._cookiefile)):
+            try:
+                _LOGGER.debug(
+                    "Trying to delete cookie file {}".format(
+                        self._cookiefile))
+                os.remove(self._cookiefile)
+            except Exception as ex:
+                template = ("An exception of type {0} occurred."
+                            " Arguments:\n{1!r}")
+                message = template.format(type(ex).__name__, ex.args)
+                _LOGGER.debug(
+                    "Error deleting cookie {}: {}".format(
+                        self._cookiefile, message))
 
     def get_inputs(self, soup, searchfield={'name': 'signIn'}):
         """Parse soup for form with searchfield."""
@@ -743,7 +787,7 @@ class AlexaLogin():
             _LOGGER.debug("Not logged in: ", message)
             return False
         if email.lower() == self._email.lower():
-            _LOGGER.debug("Logged in.")
+            _LOGGER.debug("Logged in as {}".format(email))
             return True
         else:
             _LOGGER.debug("Not logged in due to email mismatch")

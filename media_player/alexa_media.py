@@ -304,7 +304,7 @@ class AlexaClient(MediaPlayerDevice):
 
     def update(self):
         """Get the latest details."""
-        self.update_devices(no_throttle=True)
+        self.update_devices(no_throttle=False)
         self.refresh()
 
     @property

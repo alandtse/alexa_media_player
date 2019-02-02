@@ -61,16 +61,15 @@ def setup_platform(hass, config, add_devices_callback,
             entities = None
 
         return entities
-
-    devices = [
-        AlexaClient(
-            device,
-            hass.data[ALEXA_DOMAIN]['login'],
-            hass.data[ALEXA_DOMAIN]['update_devices'])
-        for key, device in
-        hass.data[ALEXA_DOMAIN]['devices']['media_player'].items()]
-
-    add_devices_callback(devices, True)
+    for account, account_dict in hass.data[ALEXA_DOMAIN]['accounts'].items():
+        devices = [
+            AlexaClient(
+                device,
+                account_dict['login_obj'],
+                hass.data[ALEXA_DOMAIN]['update_devices'])
+            for key, device in
+            account_dict['devices']['media_player'].items()]
+        add_devices_callback(devices, True)
 
     hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
                            schema=ALEXA_TTS_SCHEMA)

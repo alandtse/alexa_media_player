@@ -167,10 +167,14 @@ class AlexaClient(MediaPlayerDevice):
             self._source_list = self._get_source_list()
             session = self.alexa_api.get_state()
             self._last_called = self._get_last_called()
+        else:
+            session = None
         self._clear_media_details()
         # update the session if it exists; not doing relogin here
         if session is not None:
             self._session = session
+        if self._session is None:
+            return
         if 'playerInfo' in self._session:
             self._session = self._session['playerInfo']
             if self._session['state'] is not None:

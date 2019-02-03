@@ -19,14 +19,20 @@ from homeassistant.components.media_player import (
 from homeassistant.const import (
     STATE_IDLE, STATE_STANDBY, STATE_PAUSED,
     STATE_PLAYING)
-from homeassistant.components.alexa_media import (
-    DOMAIN as ALEXA_DOMAIN,
-    DATA_ALEXAMEDIA,
-    MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
 from homeassistant import util
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import call_later
 from homeassistant.helpers.service import extract_entity_ids
+try:  # This is only necessary prior to official inclusion
+    from homeassistant.components.alexa_media import (
+        DOMAIN as ALEXA_DOMAIN,
+        DATA_ALEXAMEDIA,
+        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+except ImportError:
+    from custom_components.alexa_media import (
+        DOMAIN as ALEXA_DOMAIN,
+        DATA_ALEXAMEDIA,
+        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
 
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_NEXT_TRACK | SUPPORT_STOP |

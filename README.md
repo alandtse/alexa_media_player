@@ -36,11 +36,11 @@ Additional attribute to tell you if the Alexa device is online (extremely useful
 ## Last called device
 Each device will report whether it is the `last_called` or not. This allows us to identify the device that was called according to the Alexa Activities API.
 
-#Further Documentation
+# Further Documentation
 Please see the [wiki](https://github.com/keatontaylor/custom_components/wiki)
 
-#Changelog
+# Changelog
 Use the commit history but we try to maintain this [wiki](https://github.com/keatontaylor/custom_components/wiki/Changelog).
 
-#License
+# License
 [Apache-2.0](LICENSE). By providing a contribution, you agree the contribution is licensed under Apache-2.0. This is required for Home Assistant contributions.

@@ -17,7 +17,6 @@ from homeassistant.const import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import track_utc_time_change
 from homeassistant.helpers.discovery import load_platform
-from alexapy import AlexaAPI, AlexaLogin
 # from .config_flow import configured_instances
 
 REQUIREMENTS = ['alexapy==0.1.0']
@@ -63,6 +62,7 @@ def setup(hass, config, discovery_info=None):
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
         hass.data[DOMAIN]['accounts'] = {}
+    from alexapy import AlexaLogin
 
     config = config.get(DOMAIN)
     for account in config[CONF_ACCOUNTS]:
@@ -225,6 +225,7 @@ def setup_alexa(hass, config, login_obj):
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
         """Update the devices objects."""
+        from alexapy import AlexaAPI
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
 

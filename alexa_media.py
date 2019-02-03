@@ -13,9 +13,9 @@ import voluptuous as vol
 
 from homeassistant import util
 from homeassistant.const import (
-    CONF_EMAIL, CONF_PASSWORD, CONF_URL)
+    CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_URL)
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.event import track_utc_time_change
+from homeassistant.helpers.event import track_time_interval
 from homeassistant.helpers.discovery import load_platform
 # from .config_flow import configured_instances
 
@@ -24,10 +24,12 @@ REQUIREMENTS = ['alexapy==0.1.0']
 _CONFIGURING = []
 _LOGGER = logging.getLogger(__name__)
 
-MIN_TIME_BETWEEN_SCANS = timedelta(seconds=15)
+SCAN_INTERVAL = timedelta(seconds=60)
+MIN_TIME_BETWEEN_SCANS = SCAN_INTERVAL
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 
-DOMAIN = "alexa_media"
+DOMAIN = 'alexa_media'
+DATA_ALEXAMEDIA = 'alexa_media'
 
 ALEXA_COMPONENTS = [
     'media_player'
@@ -47,6 +49,8 @@ ACCOUNT_CONFIG_SCHEMA = vol.Schema({
         vol.All(cv.ensure_list, [cv.string]),
     vol.Optional(CONF_EXCLUDE_DEVICES, default=[]):
         vol.All(cv.ensure_list, [cv.string]),
+    vol.Optional(CONF_SCAN_INTERVAL, default=SCAN_INTERVAL):
+    cv.time_period,
 })
 
 CONFIG_SCHEMA = vol.Schema({
@@ -59,9 +63,9 @@ CONFIG_SCHEMA = vol.Schema({
 
 def setup(hass, config, discovery_info=None):
     """Set up the Alexa domain."""
-    if DOMAIN not in hass.data:
-        hass.data[DOMAIN] = {}
-        hass.data[DOMAIN]['accounts'] = {}
+    if DATA_ALEXAMEDIA not in hass.data:
+        hass.data[DATA_ALEXAMEDIA] = {}
+        hass.data[DATA_ALEXAMEDIA]['accounts'] = {}
     from alexapy import AlexaLogin
 
     config = config.get(DOMAIN)
@@ -212,23 +216,37 @@ def testLoginStatus(hass, config, login,
 
 def setup_alexa(hass, config, login_obj):
     """Set up a alexa api based on host parameter."""
-    alexa_clients = (hass.data[DOMAIN]
+    alexa_clients = (hass.data[DATA_ALEXAMEDIA]
                               ['accounts']
                               [login_obj.get_email()]
                               ['devices']['media_player'])
 
     # alexa_sessions = {}
-    track_utc_time_change(hass, lambda now: update_devices(), second=30)
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
+    scan_interval = config.get(CONF_SCAN_INTERVAL)
+    track_time_interval(hass, lambda now: update_devices(), scan_interval)
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
-        """Update the devices objects."""
+        """Ping Alexa API to identify all devices, bluetooth, and last called device.
+
+        This will add new devices and services when discovered. By default this
+        runs every SCAN_INTERVAL seconds unless another method calls it. While
+        throttled at MIN_TIME_BETWEEN_SCANS, care should be taken to reduce the
+        number of runs to avoid flooding. Slow changing states should be
+        checked here instead of in spawned components like media_player since
+        this object is one per account.
+        Each AlexaAPI call generally results in one webpage request.
+        """
         from alexapy import AlexaAPI
+        _LOGGER.debug("Updating devices for %s", login_obj.get_email())
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
-
+        (hass.data[DATA_ALEXAMEDIA]
+                  ['accounts']
+                  [login_obj.get_email()]
+                  ['last_called']) = AlexaAPI.get_last_device_serial(login_obj)
         if ((devices is None or bluetooth is None)
                 and len(_CONFIGURING) == 0):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
@@ -248,7 +266,7 @@ def setup_alexa(hass, config, login_obj):
                     device['bluetooth_state'] = b_state
 
             available_client_ids.append(device['serialNumber'])
-            (hass.data[DOMAIN]
+            (hass.data[DATA_ALEXAMEDIA]
                       ['accounts']
                       [login_obj.get_email()]
                       ['devices']
@@ -263,7 +281,7 @@ def setup_alexa(hass, config, login_obj):
                 load_platform(hass, component, DOMAIN, {}, config)
 
     update_devices()
-    hass.data[DOMAIN]['update_devices'] = update_devices
+    hass.data[DATA_ALEXAMEDIA]['update_devices'] = update_devices
     for component in ALEXA_COMPONENTS:
         load_platform(hass, component, DOMAIN, {}, config)
 

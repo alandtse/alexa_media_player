@@ -20,7 +20,6 @@ from homeassistant.const import (
     STATE_IDLE, STATE_STANDBY, STATE_PAUSED,
     STATE_PLAYING)
 from homeassistant.components.alexa_media import DOMAIN as ALEXA_DOMAIN
-from homeassistant.components.alexa_media import AlexaAPI as AlexaAPI
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import extract_entity_ids
 
@@ -80,6 +79,8 @@ class AlexaClient(MediaPlayerDevice):
 
     def __init__(self, device, login, update_devices):
         """Initialize the Alexa device."""
+        from alexapy import AlexaAPI
+
         # Class info
         self.alexa_api = AlexaAPI(self, login)
         self.auth = AlexaAPI.get_authentication(login)

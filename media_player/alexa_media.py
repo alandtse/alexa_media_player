@@ -12,8 +12,8 @@ import voluptuous as vol
 from homeassistant.components.media_player import (
     MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
-    SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_VOLUME_MUTE,
-    SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET, DOMAIN,
+    SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
+    SUPPORT_VOLUME_MUTE, SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET, DOMAIN,
     MediaPlayerDevice, MEDIA_PLAYER_SCHEMA,
     SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
@@ -37,7 +37,7 @@ except ImportError:
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_NEXT_TRACK | SUPPORT_STOP |
                  SUPPORT_VOLUME_SET | SUPPORT_PLAY |
-                 SUPPORT_PLAY_MEDIA | SUPPORT_TURN_OFF |
+                 SUPPORT_PLAY_MEDIA | SUPPORT_TURN_OFF | SUPPORT_TURN_ON |
                  SUPPORT_VOLUME_MUTE | SUPPORT_PAUSE |
                  SUPPORT_SELECT_SOURCE)
 _LOGGER = logging.getLogger(__name__)
@@ -70,17 +70,18 @@ def setup_platform(hass, config, add_devices_callback,
             entities = None
 
         return entities
+
     for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
                                            ['accounts'].items()):
         devices = [
             AlexaClient(
                 device,
                 account_dict['login_obj'],
-                hass.data[DATA_ALEXAMEDIA]['update_devices'])
+                hass.data[DATA_ALEXAMEDIA]['update_devices'],
+                hass)
             for key, device in
             account_dict['devices']['media_player'].items()]
         add_devices_callback(devices, True)
-
     hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
                            schema=ALEXA_TTS_SCHEMA)
 
@@ -88,7 +89,7 @@ def setup_platform(hass, config, add_devices_callback,
 class AlexaClient(MediaPlayerDevice):
     """Representation of a Alexa device."""
 
-    def __init__(self, device, login, update_devices):
+    def __init__(self, device, login, update_devices, hass):
         """Initialize the Alexa device."""
         from alexapy import AlexaAPI
 
@@ -136,6 +137,22 @@ class AlexaClient(MediaPlayerDevice):
         # Polling state
         self._should_poll = True
         self.refresh(device)
+        # Register event handler on bus
+        hass.bus.listen('{}_{}'.format(ALEXA_DOMAIN,
+                                       login.get_email()),
+                        self._handle_event)
+
+    def _handle_event(self, event):
+        """Handle events.
+
+        Each MediaClient checks to see if it's the last_called MediaClient and
+        if it is, schedules an update. Last_called events are only sent if it's
+        a new device.
+        """
+        if (event.data['last_called_change'] == self.device_serial_number):
+            _LOGGER.debug("%s is last_called; updating device", self.name)
+            self.update()
+        return None
 
     def _clear_media_details(self):
         """Set all Media Items to None."""
@@ -453,8 +470,21 @@ class AlexaClient(MediaPlayerDevice):
         self.update()
 
     def turn_off(self):
-        """Turn the client off."""
-        # Fake it since we can't turn the client off
+        """Turn the client off.
+
+        While Alexa's do not have on/off capability, we can use this as another
+        trigger to do updates. For turning off, we can clear media_details.
+        """
+        self.media_pause()
+        self.update()
+        self._clear_media_details()
+
+    def turn_on(self):
+        """Turn the client on.
+
+        While Alexa's do not have on/off capability, we can use this as another
+        trigger to do updates.
+        """
         self.media_pause()
         self.update()
 

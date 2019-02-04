@@ -240,13 +240,15 @@ def setup_alexa(hass, config, login_obj):
         Each AlexaAPI call generally results in one webpage request.
         """
         from alexapy import AlexaAPI
-        _LOGGER.debug("Updating devices for %s", login_obj.get_email())
+        email = login_obj.get_email()
+        _LOGGER.debug("Updating devices for %s", email)
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
-        (hass.data[DATA_ALEXAMEDIA]
-                  ['accounts']
-                  [login_obj.get_email()]
-                  ['last_called']) = AlexaAPI.get_last_device_serial(login_obj)
+        last_called = AlexaAPI.get_last_device_serial(login_obj)
+        _LOGGER.debug("Found %s devices, %s bluetooth, last_called: %s",
+                      len(devices),
+                      len(bluetooth),
+                      last_called)
         if ((devices is None or bluetooth is None)
                 and len(_CONFIGURING) == 0):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
@@ -268,7 +270,7 @@ def setup_alexa(hass, config, login_obj):
             available_client_ids.append(device['serialNumber'])
             (hass.data[DATA_ALEXAMEDIA]
                       ['accounts']
-                      [login_obj.get_email()]
+                      [email]
                       ['devices']
                       ['media_player']
                       [device['serialNumber']]) = device
@@ -279,6 +281,18 @@ def setup_alexa(hass, config, login_obj):
         if new_alexa_clients:
             for component in ALEXA_COMPONENTS:
                 load_platform(hass, component, DOMAIN, {}, config)
+        # Process last_called data to fire events
+        stored_data = hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+        if (('last_called' in stored_data and
+            last_called != stored_data['last_called']) or
+            ('last_called' not in stored_data and
+             last_called is not None)):
+            hass.bus.fire('{}_{}'.format(DOMAIN, email),
+                          {'last_called_change': last_called})
+        (hass.data[DATA_ALEXAMEDIA]
+                  ['accounts']
+                  [email]
+                  ['last_called']) = AlexaAPI.get_last_device_serial(login_obj)
 
     update_devices()
     hass.data[DATA_ALEXAMEDIA]['update_devices'] = update_devices

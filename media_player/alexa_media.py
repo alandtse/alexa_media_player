@@ -302,7 +302,8 @@ class AlexaClient(MediaPlayerDevice):
                               (self.hass.data[DATA_ALEXAMEDIA]
                                              ['accounts']
                                              [self._login.get_email()]
-                                             ['last_called']))
+                                             ['last_called']
+                                             ['serialNumber']))
         if (last_called_serial is not None and
                 self._device_serial_number == last_called_serial):
             return True

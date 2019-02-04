@@ -147,9 +147,10 @@ class AlexaClient(MediaPlayerDevice):
 
         Each MediaClient checks to see if it's the last_called MediaClient and
         if it is, schedules an update. Last_called events are only sent if it's
-        a new device.
+        a new device or timestamp.
         """
-        if (event.data['last_called_change'] == self.device_serial_number):
+        if (event.data['last_called_change']['serialNumber'] ==
+                self.device_serial_number):
             _LOGGER.debug("%s is last_called; updating device", self.name)
             self.update()
         return None

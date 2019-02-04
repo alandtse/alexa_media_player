@@ -61,6 +61,12 @@ CONFIG_SCHEMA = vol.Schema({
 }, extra=vol.ALLOW_EXTRA)
 
 
+def hide_email(email):
+    """Helper file to obfuscate emails."""
+    m = email.split('@')
+    return "{}{}{}@{}".format(m[0][0], "*"*(len(m[0])-2), m[0][-1], m[1])
+
+
 def setup(hass, config, discovery_info=None):
     """Set up the Alexa domain."""
     if DATA_ALEXAMEDIA not in hass.data:
@@ -241,7 +247,7 @@ def setup_alexa(hass, config, login_obj):
         """
         from alexapy import AlexaAPI
         email = login_obj.get_email()
-        _LOGGER.debug("Updating devices for %s", email)
+        _LOGGER.debug("Updating devices for %s", hide_email(email))
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         last_called = AlexaAPI.get_last_device_serial(login_obj)

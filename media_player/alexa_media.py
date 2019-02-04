@@ -517,10 +517,14 @@ class AlexaClient(MediaPlayerDevice):
         if media_type == "music":
             self.alexa_api.send_tts("Sorry, text to speech can only be called "
                                     " with the media player alexa tts service")
+        elif media_type == "sequence":
+            self.alexa_api.send_sequence(media_id,
+                                         customer_id=self._customer_id,
+                                         **kwargs)
         else:
             self.alexa_api.play_music(media_type, media_id,
                                       customer_id=self._customer_id, **kwargs)
-            self.update()
+        self.update()
 
     @property
     def device_state_attributes(self):

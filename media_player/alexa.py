@@ -14,12 +14,13 @@ import voluptuous as vol
 
 from homeassistant import util
 from homeassistant.components.media_player import (
-    MEDIA_TYPE_MUSIC, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK,
+    MediaPlayerDevice, PLATFORM_SCHEMA, MEDIA_PLAYER_SCHEMA)
+from homeassistant.components.media_player.const import (
+    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
     SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_VOLUME_MUTE,
     SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET,
-    MediaPlayerDevice, DOMAIN, MEDIA_PLAYER_SCHEMA,
-    SUPPORT_SELECT_SOURCE)
+    DOMAIN, SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
     CONF_EMAIL, CONF_PASSWORD, CONF_URL,
     STATE_IDLE, STATE_STANDBY, STATE_PAUSED,

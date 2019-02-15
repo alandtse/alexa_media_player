@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 0.10.1
+VERSION 0.10.2
 """
 import logging
 
@@ -14,11 +14,13 @@ import voluptuous as vol
 
 from homeassistant import util
 from homeassistant.components.media_player import (
-    MEDIA_TYPE_MUSIC, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK,
+    MediaPlayerDevice, MEDIA_PLAYER_SCHEMA, PLATFORM_SCHEMA)
+from homeassistant.components.media_player.const import (
+    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK,
     SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
     SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_VOLUME_MUTE,
     SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET,
-    MediaPlayerDevice, DOMAIN, MEDIA_PLAYER_SCHEMA,
+    DOMAIN,
     SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
     CONF_EMAIL, CONF_PASSWORD, CONF_URL,
@@ -281,7 +283,7 @@ class AlexaClient(MediaPlayerDevice):
         self.auth = authentication
         self.alexa_api_session = session
         self.alexa_api_url = url
-        
+
         # Logged in info
         self._authenticated = None
         self._can_access_prime_music = None
@@ -1157,4 +1159,3 @@ class AlexaAPI():
             _LOGGER.error("An error occured accessing the API: {}".format(
                 message))
             return None
-            

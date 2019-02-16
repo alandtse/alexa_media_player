@@ -6,7 +6,6 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 VERSION 1.0.0
 """
 import logging
-
 import voluptuous as vol
 
 from homeassistant.components.media_player import (
@@ -35,7 +34,9 @@ except ImportError:
         DOMAIN as ALEXA_DOMAIN,
         DATA_ALEXAMEDIA,
         MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
-
+from .const import (
+    ATTR_MESSAGE, SERVICE_ALEXA_TTS, PLAY_SCAN_INTERVAL
+)
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_NEXT_TRACK | SUPPORT_STOP |
                  SUPPORT_VOLUME_SET | SUPPORT_PLAY |
@@ -44,10 +45,8 @@ SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_SELECT_SOURCE)
 _LOGGER = logging.getLogger(__name__)
 
-DEPENDENCIES = ['alexa_media']
+DEPENDENCIES = [ALEXA_DOMAIN]
 
-SERVICE_ALEXA_TTS = 'alexa_tts'
-ATTR_MESSAGE = 'message'
 ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
     vol.Required(ATTR_MESSAGE): cv.string,
 })

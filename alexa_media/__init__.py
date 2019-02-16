@@ -7,8 +7,6 @@ VERSION 1.0.0
 """
 import logging
 
-from datetime import timedelta
-
 import voluptuous as vol
 
 from homeassistant import util
@@ -17,6 +15,11 @@ from homeassistant.const import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant.helpers.discovery import load_platform
+from .const import (
+    ALEXA_COMPONENTS, CONF_DEBUG, CONF_ACCOUNTS, CONF_INCLUDE_DEVICES,
+    CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
+    MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL
+)
 # from .config_flow import configured_instances
 
 REQUIREMENTS = ['alexapy==0.1.0']
@@ -24,21 +27,6 @@ REQUIREMENTS = ['alexapy==0.1.0']
 _CONFIGURING = []
 _LOGGER = logging.getLogger(__name__)
 
-SCAN_INTERVAL = timedelta(seconds=60)
-MIN_TIME_BETWEEN_SCANS = SCAN_INTERVAL
-MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
-
-DOMAIN = 'alexa_media'
-DATA_ALEXAMEDIA = 'alexa_media'
-
-ALEXA_COMPONENTS = [
-    'media_player'
-]
-
-CONF_ACCOUNTS = 'accounts'
-CONF_DEBUG = 'debug'
-CONF_INCLUDE_DEVICES = 'include_devices'
-CONF_EXCLUDE_DEVICES = 'exclude_devices'
 
 ACCOUNT_CONFIG_SCHEMA = vol.Schema({
     vol.Required(CONF_EMAIL): cv.string,

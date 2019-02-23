@@ -1,0 +1,3 @@
+[submodule "alexapy"]
+	path = alexapy
+	url = https://gitlab.com/alandtse/alexapy.git

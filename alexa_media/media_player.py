@@ -405,6 +405,16 @@ class AlexaClient(MediaPlayerDevice):
         return self._media_duration
 
     @property
+    def media_position(self):
+        """Return the duration of current playing media in seconds."""
+        return self._media_pos
+
+    @property
+    def media_position_updated_at(self):
+        """When was the position of the current playing media valid."""
+        return self._last_update
+
+    @property
     def media_image_url(self):
         """Return the image URL of current playing media."""
         return self._media_image_url

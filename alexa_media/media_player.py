@@ -380,7 +380,7 @@ class AlexaClient(MediaPlayerDevice):
                           self.name)
             call_later(self.hass, 300, lambda _:
                        self.schedule_update_ha_state(force_refresh=True))
-        self._last_poll = time.time()
+        self._last_update = time.time()
 
     @property
     def media_content_type(self):

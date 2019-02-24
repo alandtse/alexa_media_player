@@ -487,8 +487,8 @@ class AlexaClient(MediaPlayerDevice):
         While Alexa's do not have on/off capability, we can use this as another
         trigger to do updates. For turning off, we can clear media_details.
         """
+        self._should_poll = False
         self.media_pause()
-        self.update()
         self._clear_media_details()
 
     def turn_on(self):
@@ -497,8 +497,8 @@ class AlexaClient(MediaPlayerDevice):
         While Alexa's do not have on/off capability, we can use this as another
         trigger to do updates.
         """
+        self._should_poll = True
         self.media_pause()
-        self.update()
 
     def media_next_track(self):
         """Send next track command."""

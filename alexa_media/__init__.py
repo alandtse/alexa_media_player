@@ -50,7 +50,7 @@ CONFIG_SCHEMA = vol.Schema({
 
 
 def hide_email(email):
-    """Helper file to obfuscate emails."""
+    """Obfuscate email."""
     m = email.split('@')
     return "{}{}{}@{}".format(m[0][0], "*"*(len(m[0])-2), m[0][-1], m[1])
 
@@ -281,7 +281,7 @@ def setup_alexa(hass, config, login_obj):
             last_called != stored_data['last_called']) or
             ('last_called' not in stored_data and
              last_called is not None)):
-            hass.bus.fire('{}_{}'.format(DOMAIN, email),
+            hass.bus.fire(('{}_{}'.format(DOMAIN, hide_email(email)))[0:32],
                           {'last_called_change': last_called})
         (hass.data[DATA_ALEXAMEDIA]
                   ['accounts']

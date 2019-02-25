@@ -3,7 +3,7 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 1.0.0
+SPDX-License-Identifier: Apache-2.0
 """
 import logging
 
@@ -20,6 +20,8 @@ from .const import (
     CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
     MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL
 )
+from .const import (__version__)  # noqa: F401; pylint: disable=unused-variable
+
 # from .config_flow import configured_instances
 
 REQUIREMENTS = ['alexapy==0.1.0']

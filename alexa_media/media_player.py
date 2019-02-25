@@ -141,8 +141,8 @@ class AlexaClient(MediaPlayerDevice):
         self.refresh(device)
         # Register event handler on bus
         hass.bus.listen('{}_{}'.format(ALEXA_DOMAIN,
-                                       login.get_email()),
-                        self._handle_event)
+                                       login.get_email),
+                                       self._handle_event)
 
     def _handle_event(self, event):
         """Handle events.
@@ -303,7 +303,7 @@ class AlexaClient(MediaPlayerDevice):
         last_called_serial = (None if self.hass is None else
                               (self.hass.data[DATA_ALEXAMEDIA]
                                              ['accounts']
-                                             [self._login.get_email()]
+                                             [self._login.get_email]
                                              ['last_called']
                                              ['serialNumber']))
         if (last_called_serial is not None and

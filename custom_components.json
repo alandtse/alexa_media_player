@@ -1,5 +1,5 @@
 {
-    "alexa_media (manual update only)": {
+    "alexa_media -manual update only-": {
         "version": "1.0.1",
         "local_location": "/custom_components/alexa_media/const.py",
         "remote_location": "https://raw.githubusercontent.com/alandtse/custom_components/custom_updater/alexa_media/const.py",

@@ -521,7 +521,7 @@ class AlexaClient(MediaPlayerDevice):
 
         NOTE: Does not work on WHA Groups.
         """
-        self.alexa_api.send_tts(message, customerId=self._customer_id)
+        self.alexa_api.send_tts(message, customer_id=self._customer_id)
 
     def play_media(self, media_type, media_id, enqueue=None, **kwargs):
         """Send the play_media command to the media player."""
@@ -530,13 +530,13 @@ class AlexaClient(MediaPlayerDevice):
                                     " with the media player alexa tts service")
         elif media_type == "sequence":
             self.alexa_api.send_sequence(media_id,
-                                         customerId=self._customer_id,
+                                         customer_id=self._customer_id,
                                          **kwargs)
         elif media_type == "routine":
             self.alexa_api.run_routine(media_id)
         else:
             self.alexa_api.play_music(media_type, media_id,
-                                      customerId=self._customer_id, **kwargs)
+                                      customer_id=self._customer_id, **kwargs)
         self.update()
 
     @property

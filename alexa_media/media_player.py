@@ -28,12 +28,12 @@ try:  # This is only necessary prior to official inclusion
     from homeassistant.components.alexa_media import (
         DOMAIN as ALEXA_DOMAIN,
         DATA_ALEXAMEDIA,
-        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS, hide_email)
 except ImportError:
     from custom_components.alexa_media import (
         DOMAIN as ALEXA_DOMAIN,
         DATA_ALEXAMEDIA,
-        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS, hide_email)
 from .const import (
     ATTR_MESSAGE, SERVICE_ALEXA_TTS, PLAY_SCAN_INTERVAL
 )
@@ -140,8 +140,8 @@ class AlexaClient(MediaPlayerDevice):
         self._last_update = 0
         self.refresh(device)
         # Register event handler on bus
-        hass.bus.listen('{}_{}'.format(ALEXA_DOMAIN,
-                                       login.get_email()),
+        hass.bus.listen(('{}_{}'.format(ALEXA_DOMAIN,
+                                        hide_email(login.get_email())))[0:32],
                         self._handle_event)
 
     def _handle_event(self, event):

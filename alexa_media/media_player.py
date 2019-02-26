@@ -380,7 +380,7 @@ class AlexaClient(MediaPlayerDevice):
                           self.name)
             call_later(self.hass, 300, lambda _:
                        self.schedule_update_ha_state(force_refresh=True))
-        self._last_poll = time.time()
+        self._last_update = time.time()
 
     @property
     def media_content_type(self):
@@ -403,6 +403,16 @@ class AlexaClient(MediaPlayerDevice):
     def media_duration(self):
         """Return the duration of current playing media in seconds."""
         return self._media_duration
+
+    @property
+    def media_position(self):
+        """Return the duration of current playing media in seconds."""
+        return self._media_pos
+
+    @property
+    def media_position_updated_at(self):
+        """When was the position of the current playing media valid."""
+        return self._last_update
 
     @property
     def media_image_url(self):
@@ -487,8 +497,8 @@ class AlexaClient(MediaPlayerDevice):
         While Alexa's do not have on/off capability, we can use this as another
         trigger to do updates. For turning off, we can clear media_details.
         """
+        self._should_poll = False
         self.media_pause()
-        self.update()
         self._clear_media_details()
 
     def turn_on(self):
@@ -497,8 +507,8 @@ class AlexaClient(MediaPlayerDevice):
         While Alexa's do not have on/off capability, we can use this as another
         trigger to do updates.
         """
+        self._should_poll = True
         self.media_pause()
-        self.update()
 
     def media_next_track(self):
         """Send next track command."""

@@ -1,12 +1,12 @@
 {
     "alexa_media": {
         "version": "1.0.2",
-        "local_location": "/custom_components/alexa_media/const.py",
-        "remote_location": "https://raw.githubusercontent.com/alandtse/custom_components/custom_updater/alexa_media/const.py",
+        "local_location": "/custom_components/alexa_media/__init__.py",
+        "remote_location": "https://raw.githubusercontent.com/alandtse/custom_components/custom_updater/alexa_media/__init__.py",
         "visit_repo": "https://github.com/keatontaylor/custom_components",
         "changelog": "https://github.com/keatontaylor/custom_components/wiki/Changelog",
         "resources": [
-            "https://raw.githubusercontent.com/alandtse/custom_components/custom_updater/alexa_media/__init__.py",
+            "https://raw.githubusercontent.com/alandtse/custom_components/custom_updater/alexa_media/const.py",
             "https://raw.githubusercontent.com/alandtse/custom_components/custom_updater/alexa_media/media_player.py"
         ]
     }

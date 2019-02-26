@@ -7,8 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 """
 from datetime import timedelta
 
-__version__ = '1.0.1'
-
 DOMAIN = 'alexa_media'
 DATA_ALEXAMEDIA = 'alexa_media'
 

@@ -33,7 +33,6 @@ from homeassistant.helpers.service import extract_entity_ids
 
 from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL, SERVICE_ALEXA_TTS
 
-from .const import (__version__)  # noqa: F401; pylint: disable=unused-variable
 try:  # This is only necessary prior to official inclusion
     from homeassistant.components.alexa_media import (
         DOMAIN as ALEXA_DOMAIN,

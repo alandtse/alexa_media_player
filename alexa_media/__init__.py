@@ -20,11 +20,12 @@ from .const import (
     CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
     MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL
 )
-from .const import (__version__)  # noqa: F401; pylint: disable=unused-variable
 
 # from .config_flow import configured_instances
 
 REQUIREMENTS = ['alexapy==0.1.0']
+
+__version__ = '1.0.1'
 
 _CONFIGURING = []
 _LOGGER = logging.getLogger(__name__)

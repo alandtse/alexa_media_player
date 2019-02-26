@@ -110,7 +110,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
         hass.async_add_job(setup_platform_callback, hass, config,
                            login, callback_data)
     status = login.status
-    email = login.get_email
+    email = login.email
     # Get Captcha
     if (status and 'captcha_image_url' in status and
             status['captcha_image_url'] is not None):
@@ -179,7 +179,7 @@ def testLoginStatus(hass, config, login,
         _LOGGER.debug("Setting up Alexa devices")
         (hass.data[DOMAIN]
                   ['accounts']
-                  [login.get_email]) = {
+                  [login.email]) = {
                     'login_obj': login,
                     'devices': {
                                 'media_player': {}
@@ -212,7 +212,7 @@ def setup_alexa(hass, config, login_obj):
     """Set up a alexa api based on host parameter."""
     alexa_clients = (hass.data[DATA_ALEXAMEDIA]
                               ['accounts']
-                              [login_obj.get_email]
+                              [login_obj.email]
                               ['devices']['media_player'])
 
     # alexa_sessions = {}
@@ -234,7 +234,7 @@ def setup_alexa(hass, config, login_obj):
         Each AlexaAPI call generally results in one webpage request.
         """
         from alexapy import AlexaAPI
-        email = login_obj.get_email
+        email = login_obj.email
         _LOGGER.debug("Updating devices for %s", hide_email(email))
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)

@@ -58,6 +58,17 @@ def hide_email(email):
     return "{}{}{}@{}".format(m[0][0], "*"*(len(m[0])-2), m[0][-1], m[1])
 
 
+def hide_serial(item):
+    """Obfuscate serial."""
+    if item is None:
+        return ""
+    serial = item['serialNumber']
+    item['serialNumber'] = "{}{}{}".format(serial[0],
+                                           "*"*(len(serial)-4),
+                                           serial[-3:])
+    return item
+
+
 def setup(hass, config, discovery_info=None):
     """Set up the Alexa domain."""
     if DATA_ALEXAMEDIA not in hass.data:
@@ -186,7 +197,11 @@ def testLoginStatus(hass, config, login,
                     'login_obj': login,
                     'devices': {
                                 'media_player': {}
-                               }
+                               },
+                    'entities': {
+                                'media_player': []
+                               },
+
                     }
         hass.async_add_job(setup_alexa, hass, config,
                            login)
@@ -238,14 +253,14 @@ def setup_alexa(hass, config, login_obj):
         """
         from alexapy import AlexaAPI
         email = login_obj.get_email()
-        _LOGGER.debug("Updating devices for %s", hide_email(email))
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         last_called = AlexaAPI.get_last_device_serial(login_obj)
-        _LOGGER.debug("Found %s devices, %s bluetooth, last_called: %s",
-                      len(devices),
-                      len(bluetooth),
-                      last_called)
+        _LOGGER.debug("%s: Found %s devices, %s bluetooth, last_called: %s",
+                      hide_email(email),
+                      len(devices) if devices is not None else '',
+                      len(bluetooth) if bluetooth is not None else '',
+                      hide_serial(last_called))
         if ((devices is None or bluetooth is None)
                 and len(_CONFIGURING) == 0):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
@@ -254,10 +269,14 @@ def setup_alexa(hass, config, login_obj):
 
         new_alexa_clients = []  # list of newly discovered device jsons
         available_client_ids = []  # list of known serial numbers
+        excluded = []
+        included = []
         for device in devices:
             if include and device['accountName'] not in include:
+                included.append(device['accountName'])
                 continue
             elif exclude and device['accountName'] in exclude:
+                excluded.append(device['accountName'])
                 continue
 
             for b_state in bluetooth['bluetoothStates']:
@@ -274,10 +293,16 @@ def setup_alexa(hass, config, login_obj):
 
             if device['serialNumber'] not in alexa_clients:
                 new_alexa_clients.append(device)
+        _LOGGER.debug("%s: Adding %s items; forced inc: %s exc: %s",
+                      hide_email(email),
+                      len(new_alexa_clients),
+                      included,
+                      excluded)
 
         if new_alexa_clients:
             for component in ALEXA_COMPONENTS:
                 load_platform(hass, component, DOMAIN, {}, config)
+
         # Process last_called data to fire events
         stored_data = hass.data[DATA_ALEXAMEDIA]['accounts'][email]
         if (('last_called' in stored_data and

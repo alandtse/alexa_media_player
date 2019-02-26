@@ -65,6 +65,14 @@ def setup_platform(hass, config, add_devices_callback,
         """Return the known devices that a service call mentions."""
         entity_ids = extract_entity_ids(hass, call)
         if entity_ids:
+            devices = []
+            for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
+                                          ['accounts'].items()):
+                devices = devices + (account_dict
+                                     ['entities']
+                                     ['media_player'])
+                _LOGGER.debug("Account: %s Devices: %s", hide_email(account),
+                              devices)
             entities = [entity for entity in devices
                         if entity.entity_id in entity_ids]
         else:
@@ -83,6 +91,11 @@ def setup_platform(hass, config, add_devices_callback,
             for key, device in
             account_dict['devices']['media_player'].items()]
         add_devices_callback(devices, True)
+        (hass.data[DATA_ALEXAMEDIA]
+         ['accounts']
+         [account]
+         ['entities']
+         ['media_player']) = devices
     hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
                            schema=ALEXA_TTS_SCHEMA)
 
@@ -99,6 +112,7 @@ class AlexaClient(MediaPlayerDevice):
         self.alexa_api = AlexaAPI(self, login)
         self.auth = AlexaAPI.get_authentication(login)
         self.alexa_api_session = login._session
+        self.account = hide_email(login.get_email())
 
         # Logged in info
         self._authenticated = None
@@ -203,7 +217,7 @@ class AlexaClient(MediaPlayerDevice):
             self._capabilities = device['capabilities']
             self._bluetooth_state = device['bluetooth_state']
         if self._available is True:
-            _LOGGER.debug("Refreshing %s", self.name)
+            _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             self._source = self._get_source()
             self._source_list = self._get_source_list()
             session = self.alexa_api.get_state()

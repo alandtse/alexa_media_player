@@ -63,11 +63,12 @@ def hide_serial(item):
     """Obfuscate serial."""
     if item is None:
         return ""
+    response = item.copy()
     serial = item['serialNumber']
-    item['serialNumber'] = "{}{}{}".format(serial[0],
-                                           "*"*(len(serial)-4),
-                                           serial[-3:])
-    return item
+    response['serialNumber'] = "{}{}{}".format(serial[0],
+                                               "*"*(len(serial)-4),
+                                               serial[-3:])
+    return response
 
 
 def setup(hass, config, discovery_info=None):
@@ -304,6 +305,11 @@ def setup_alexa(hass, config, login_obj):
              last_called != stored_data['last_called']) or
                 ('last_called' not in stored_data and
                  last_called is not None)):
+            _LOGGER.debug("%s: last_called changed: %s to %s",
+                          hide_email(email),
+                          hide_serial(stored_data['last_called'] if
+                                      'last_called' in stored_data else None),
+                          hide_serial(last_called))
             hass.bus.fire('{}_{}'.format(DOMAIN, email),
                           {'last_called_change': last_called})
         (hass.data[DATA_ALEXAMEDIA]

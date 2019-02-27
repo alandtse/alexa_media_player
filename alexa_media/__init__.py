@@ -356,6 +356,10 @@ def setup_alexa(hass, config, login_obj):
     hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
                            last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
 
+    hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
+                           last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
+    track_time_interval(hass, lambda now: update_devices(), scan_interval)
+
     # Clear configurator. We delay till here to avoid leaving a modal orphan
     for config_id in hass.data[DOMAIN]['accounts'][email]['config']:
         configurator = hass.components.configurator

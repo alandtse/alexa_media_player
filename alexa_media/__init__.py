@@ -24,7 +24,6 @@ from .const import (
 
 REQUIREMENTS = ['alexapy==0.1.0']
 
-_CONFIGURING = []
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -81,7 +80,7 @@ def setup(hass, config, discovery_info=None):
         email = account.get(CONF_EMAIL)
         password = account.get(CONF_PASSWORD)
         url = account.get(CONF_URL)
-
+        hass.data[DOMAIN]['accounts'][email] = {"config": []}
         login = AlexaLogin(url, email, password, hass.config.path,
                            account.get(CONF_DEBUG))
 
@@ -174,13 +173,14 @@ def request_configuration(hass, config, login, setup_platform_callback):
             submit_caption="Confirm",
             fields=[]
         )
-    _CONFIGURING.append(config_id)
-    if (len(_CONFIGURING) > 0 and 'error_message' in status
-            and status['error_message']):
+    hass.data[DOMAIN]['accounts'][email]['config'].append(config_id)
+    if 'error_message' in status and status['error_message']:
         configurator.notify_errors(  # use sync to delay next pop
-            _CONFIGURING[len(_CONFIGURING)-1], status['error_message'])
-    if (len(_CONFIGURING) > 1):
-        configurator.async_request_done(_CONFIGURING.pop(0))
+            config_id,
+            status['error_message'])
+    if len(hass.data[DOMAIN]['accounts'][email]['config']) > 1:
+        configurator.async_request_done((hass.data[DOMAIN]
+                                         ['accounts'][email]['config']).pop(0))
 
 
 def testLoginStatus(hass, config, login,
@@ -188,18 +188,6 @@ def testLoginStatus(hass, config, login,
     """Test the login status and spawn requests for info."""
     if 'login_successful' in login.status and login.status['login_successful']:
         _LOGGER.debug("Setting up Alexa devices")
-        (hass.data[DOMAIN]
-                  ['accounts']
-                  [login.get_email()]) = {
-                    'login_obj': login,
-                    'devices': {
-                                'media_player': {}
-                               },
-                    'entities': {
-                                'media_player': []
-                               },
-
-                    }
         hass.async_add_job(setup_alexa, hass, config,
                            login)
         return
@@ -225,15 +213,14 @@ def testLoginStatus(hass, config, login,
 
 def setup_alexa(hass, config, login_obj):
     """Set up a alexa api based on host parameter."""
-    alexa_clients = (hass.data[DATA_ALEXAMEDIA]
-                              ['accounts']
-                              [login_obj.get_email()]
-                              ['devices']['media_player'])
-
-    # alexa_sessions = {}
+    email = login_obj.get_email()
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
     scan_interval = config.get(CONF_SCAN_INTERVAL)
+    (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
+    (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
+    (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': []}
+
     track_time_interval(hass, lambda now: update_devices(), scan_interval)
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
@@ -249,7 +236,11 @@ def setup_alexa(hass, config, login_obj):
         Each AlexaAPI call generally results in one webpage request.
         """
         from alexapy import AlexaAPI
-        email = login_obj.get_email()
+        alexa_clients = (hass.data[DATA_ALEXAMEDIA]
+                         ['accounts']
+                         [email]
+                         ['devices']
+                         ['media_player'])
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         last_called = AlexaAPI.get_last_device_serial(login_obj)
@@ -259,7 +250,7 @@ def setup_alexa(hass, config, login_obj):
                       len(bluetooth) if bluetooth is not None else '',
                       hide_serial(last_called))
         if ((devices is None or bluetooth is None)
-                and len(_CONFIGURING) == 0):
+                and not hass.data[DOMAIN]['accounts'][email]['config']):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
             testLoginStatus(hass, config, login_obj, setup_platform_callback)
@@ -319,9 +310,8 @@ def setup_alexa(hass, config, login_obj):
         load_platform(hass, component, DOMAIN, {}, config)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
-    global _CONFIGURING
-    for config_id in _CONFIGURING:
+    for config_id in hass.data[DOMAIN]['accounts'][email]['config']:
         configurator = hass.components.configurator
         configurator.async_request_done(config_id)
-    _CONFIGURING = []
+    hass.data[DOMAIN]['accounts'][email]['config'] = []
     return True

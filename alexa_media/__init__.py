@@ -18,7 +18,8 @@ from homeassistant.helpers.discovery import load_platform
 from .const import (
     ALEXA_COMPONENTS, CONF_DEBUG, CONF_ACCOUNTS, CONF_INCLUDE_DEVICES,
     CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
-    MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL
+    MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL, SERVICE_UPDATE_LAST_CALLED,
+    ATTR_EMAIL
 )
 # from .config_flow import configured_instances
 
@@ -47,6 +48,10 @@ CONFIG_SCHEMA = vol.Schema({
     }),
 }, extra=vol.ALLOW_EXTRA)
 
+LAST_CALL_UPDATE_SCHEMA = vol.Schema({
+    vol.Optional(ATTR_EMAIL, default=[]):
+        vol.All(cv.ensure_list, [cv.string]),
+})
 
 def hide_email(email):
     """Helper file to obfuscate emails."""
@@ -213,16 +218,6 @@ def testLoginStatus(hass, config, login,
 
 def setup_alexa(hass, config, login_obj):
     """Set up a alexa api based on host parameter."""
-    email = login_obj.get_email()
-    include = config.get(CONF_INCLUDE_DEVICES)
-    exclude = config.get(CONF_EXCLUDE_DEVICES)
-    scan_interval = config.get(CONF_SCAN_INTERVAL)
-    (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
-    (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
-    (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': []}
-
-    track_time_interval(hass, lambda now: update_devices(), scan_interval)
-
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
         """Ping Alexa API to identify all devices, bluetooth, and last called device.
@@ -243,17 +238,16 @@ def setup_alexa(hass, config, login_obj):
                          ['media_player'])
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
-        last_called = AlexaAPI.get_last_device_serial(login_obj)
-        _LOGGER.debug("%s: Found %s devices, %s bluetooth, last_called: %s",
+        _LOGGER.debug("%s: Found %s devices, %s bluetooth",
                       hide_email(email),
                       len(devices) if devices is not None else '',
-                      len(bluetooth) if bluetooth is not None else '',
-                      hide_serial(last_called))
+                      len(bluetooth) if bluetooth is not None else '')
         if ((devices is None or bluetooth is None)
                 and not hass.data[DOMAIN]['accounts'][email]['config']):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
             testLoginStatus(hass, config, login_obj, setup_platform_callback)
+            return
 
         new_alexa_clients = []  # list of newly discovered device jsons
         available_client_ids = []  # list of known serial numbers
@@ -292,22 +286,59 @@ def setup_alexa(hass, config, login_obj):
                 load_platform(hass, component, DOMAIN, {}, config)
 
         # Process last_called data to fire events
+        update_last_called(login_obj)
+
+    def update_last_called(login_obj):
+        """Update the last called device for the login_obj.
+
+        This will store the last_called in hass.data and also fire an event
+        to notify listeners.
+        """
+        from alexapy import AlexaAPI
+        last_called = AlexaAPI.get_last_device_serial(login_obj)
+        _LOGGER.debug("%s: Updated last_called: %s",
+                      hide_email(email),
+                      hide_serial(last_called))
         stored_data = hass.data[DATA_ALEXAMEDIA]['accounts'][email]
         if (('last_called' in stored_data and
-            last_called != stored_data['last_called']) or
-            ('last_called' not in stored_data and
-             last_called is not None)):
+             last_called != stored_data['last_called']) or
+                ('last_called' not in stored_data and
+                 last_called is not None)):
             hass.bus.fire('{}_{}'.format(DOMAIN, email),
                           {'last_called_change': last_called})
         (hass.data[DATA_ALEXAMEDIA]
                   ['accounts']
                   [email]
-                  ['last_called']) = AlexaAPI.get_last_device_serial(login_obj)
+                  ['last_called']) = last_called
 
+    def last_call_handler(call):
+        """Handle last call service request.
+
+        """
+        requested_emails = call.data.get(ATTR_EMAIL)
+        _LOGGER.debug("Service update_last_called for: %s", requested_emails)
+        for email, account_dict in (hass.data
+                                    [DATA_ALEXAMEDIA]['accounts'].items()):
+            if requested_emails and email not in requested_emails:
+                continue
+            login_obj = account_dict['login_obj']
+            update_last_called(login_obj)
+
+    include = config.get(CONF_INCLUDE_DEVICES)
+    exclude = config.get(CONF_EXCLUDE_DEVICES)
+    scan_interval = config.get(CONF_SCAN_INTERVAL)
+    email = login_obj.get_email()
+    (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
+    (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
+    (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': []}
     update_devices()
     hass.data[DATA_ALEXAMEDIA]['update_devices'] = update_devices
     for component in ALEXA_COMPONENTS:
         load_platform(hass, component, DOMAIN, {}, config)
+
+    hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
+                           last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
+    track_time_interval(hass, lambda now: update_devices(), scan_interval)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
     for config_id in hass.data[DOMAIN]['accounts'][email]['config']:

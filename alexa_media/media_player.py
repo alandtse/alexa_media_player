@@ -3,27 +3,36 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 1.0.0
+SPDX-License-Identifier: Apache-2.0
 """
 import logging
-import voluptuous as vol
 
-from homeassistant.components.media_player import (
-    MediaPlayerDevice, MEDIA_PLAYER_SCHEMA)
-from homeassistant.components.media_player.const import (
-    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK,
-    SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
-    SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_MUTE, SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET,
-    DOMAIN,
-    SUPPORT_SELECT_SOURCE)
-from homeassistant.const import (
-    STATE_IDLE, STATE_STANDBY, STATE_PAUSED,
-    STATE_PLAYING)
+import voluptuous as vol
 from homeassistant import util
+from homeassistant.components.media_player import (MEDIA_PLAYER_SCHEMA,
+                                                   MediaPlayerDevice)
+from homeassistant.components.media_player.const import (
+    DOMAIN,
+    MEDIA_TYPE_MUSIC,
+    SUPPORT_NEXT_TRACK,
+    SUPPORT_PAUSE,
+    SUPPORT_PLAY,
+    SUPPORT_PLAY_MEDIA,
+    SUPPORT_PREVIOUS_TRACK,
+    SUPPORT_SELECT_SOURCE,
+    SUPPORT_STOP,
+    SUPPORT_TURN_OFF,
+    SUPPORT_TURN_ON,
+    SUPPORT_VOLUME_MUTE,
+    SUPPORT_VOLUME_SET)
+from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
+                                 STATE_STANDBY)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import call_later
 from homeassistant.helpers.service import extract_entity_ids
+
+from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL, SERVICE_ALEXA_TTS
+
 try:  # This is only necessary prior to official inclusion
     from homeassistant.components.alexa_media import (
         DOMAIN as ALEXA_DOMAIN,

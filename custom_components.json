@@ -1,0 +1,14 @@
+{
+    "alexa_media": {
+        "version": "1.1.0",
+        "local_location": "/custom_components/alexa_media/__init__.py",
+        "remote_location": "https://raw.githubusercontent.com/keatontaylor/custom_components/master/alexa_media/__init__.py",
+        "visit_repo": "https://github.com/keatontaylor/custom_components",
+        "changelog": "https://github.com/keatontaylor/custom_components/wiki/Changelog",
+        "resources": [
+            "https://raw.githubusercontent.com/alandtse/custom_components/master/alexa_media/const.py",
+            "https://raw.githubusercontent.com/alandtse/custom_components/master/alexa_media/media_player.py"
+        ]
+    }
+
+}

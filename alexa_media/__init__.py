@@ -18,7 +18,8 @@ from homeassistant.helpers.discovery import load_platform
 from .const import (
     ALEXA_COMPONENTS, CONF_DEBUG, CONF_ACCOUNTS, CONF_INCLUDE_DEVICES,
     CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
-    MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL
+    MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL, SERVICE_UPDATE_LAST_CALLED,
+    ATTR_EMAIL
 )
 
 # from .config_flow import configured_instances
@@ -27,7 +28,6 @@ REQUIREMENTS = ['alexapy==0.1.0']
 
 __version__ = '1.1.0'
 
-_CONFIGURING = []
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -51,11 +51,30 @@ CONFIG_SCHEMA = vol.Schema({
     }),
 }, extra=vol.ALLOW_EXTRA)
 
+LAST_CALL_UPDATE_SCHEMA = vol.Schema({
+    vol.Optional(ATTR_EMAIL, default=[]):
+        vol.All(cv.ensure_list, [cv.string]),
+})
 
 def hide_email(email):
     """Obfuscate email."""
     m = email.split('@')
     return "{}{}{}@{}".format(m[0][0], "*"*(len(m[0])-2), m[0][-1], m[1])
+
+
+def hide_serial(item):
+    """Obfuscate serial."""
+    if item is None:
+        return ""
+    if type(item) == dict:
+        response = item.copy()
+        serial = item['serialNumber']
+        response['serialNumber'] = hide_serial(serial)
+    elif type(item) == str:
+        response = "{}{}{}".format(item[0],
+                                   "*"*(len(item)-4),
+                                   item[-3:])
+    return response
 
 
 def setup(hass, config, discovery_info=None):
@@ -73,7 +92,7 @@ def setup(hass, config, discovery_info=None):
         email = account.get(CONF_EMAIL)
         password = account.get(CONF_PASSWORD)
         url = account.get(CONF_URL)
-
+        hass.data[DOMAIN]['accounts'][email] = {"config": []}
         login = AlexaLogin(url, email, password, hass.config.path,
                            account.get(CONF_DEBUG))
 
@@ -166,13 +185,14 @@ def request_configuration(hass, config, login, setup_platform_callback):
             submit_caption="Confirm",
             fields=[]
         )
-    _CONFIGURING.append(config_id)
-    if (len(_CONFIGURING) > 0 and 'error_message' in status
-            and status['error_message']):
+    hass.data[DOMAIN]['accounts'][email]['config'].append(config_id)
+    if 'error_message' in status and status['error_message']:
         configurator.notify_errors(  # use sync to delay next pop
-            _CONFIGURING[len(_CONFIGURING)-1], status['error_message'])
-    if (len(_CONFIGURING) > 1):
-        configurator.async_request_done(_CONFIGURING.pop(0))
+            config_id,
+            status['error_message'])
+    if len(hass.data[DOMAIN]['accounts'][email]['config']) > 1:
+        configurator.async_request_done((hass.data[DOMAIN]
+                                         ['accounts'][email]['config']).pop(0))
 
 
 def testLoginStatus(hass, config, login,
@@ -180,14 +200,6 @@ def testLoginStatus(hass, config, login,
     """Test the login status and spawn requests for info."""
     if 'login_successful' in login.status and login.status['login_successful']:
         _LOGGER.debug("Setting up Alexa devices")
-        (hass.data[DOMAIN]
-                  ['accounts']
-                  [login.get_email()]) = {
-                    'login_obj': login,
-                    'devices': {
-                                'media_player': {}
-                               }
-                    }
         hass.async_add_job(setup_alexa, hass, config,
                            login)
         return
@@ -213,17 +225,6 @@ def testLoginStatus(hass, config, login,
 
 def setup_alexa(hass, config, login_obj):
     """Set up a alexa api based on host parameter."""
-    alexa_clients = (hass.data[DATA_ALEXAMEDIA]
-                              ['accounts']
-                              [login_obj.get_email()]
-                              ['devices']['media_player'])
-
-    # alexa_sessions = {}
-    include = config.get(CONF_INCLUDE_DEVICES)
-    exclude = config.get(CONF_EXCLUDE_DEVICES)
-    scan_interval = config.get(CONF_SCAN_INTERVAL)
-    track_time_interval(hass, lambda now: update_devices(), scan_interval)
-
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def update_devices():
         """Ping Alexa API to identify all devices, bluetooth, and last called device.
@@ -237,69 +238,127 @@ def setup_alexa(hass, config, login_obj):
         Each AlexaAPI call generally results in one webpage request.
         """
         from alexapy import AlexaAPI
-        email = login_obj.get_email()
-        _LOGGER.debug("Updating devices for %s", hide_email(email))
+        existing_serials = (hass.data[DATA_ALEXAMEDIA]
+                            ['accounts']
+                            [email]
+                            ['entities']
+                            ['media_player'].keys())
+        existing_entities = (hass.data[DATA_ALEXAMEDIA]
+                             ['accounts']
+                             [email]
+                             ['entities']
+                             ['media_player'].values())
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
-        last_called = AlexaAPI.get_last_device_serial(login_obj)
-        _LOGGER.debug("Found %s devices, %s bluetooth, last_called: %s",
-                      len(devices),
-                      len(bluetooth),
-                      last_called)
+        _LOGGER.debug("%s: Found %s devices, %s bluetooth",
+                      hide_email(email),
+                      len(devices) if devices is not None else '',
+                      len(bluetooth) if bluetooth is not None else '')
         if ((devices is None or bluetooth is None)
-                and len(_CONFIGURING) == 0):
+                and not hass.data[DOMAIN]['accounts'][email]['config']):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
             testLoginStatus(hass, config, login_obj, setup_platform_callback)
+            return
 
-        new_alexa_clients = []  # list of newly discovered device jsons
-        available_client_ids = []  # list of known serial numbers
+        new_alexa_clients = []  # list of newly discovered device names
+        excluded = []
+        included = []
         for device in devices:
             if include and device['accountName'] not in include:
+                included.append(device['accountName'])
                 continue
             elif exclude and device['accountName'] in exclude:
+                excluded.append(device['accountName'])
                 continue
 
             for b_state in bluetooth['bluetoothStates']:
                 if device['serialNumber'] == b_state['deviceSerialNumber']:
                     device['bluetooth_state'] = b_state
 
-            available_client_ids.append(device['serialNumber'])
             (hass.data[DATA_ALEXAMEDIA]
-                      ['accounts']
-                      [email]
-                      ['devices']
-                      ['media_player']
-                      [device['serialNumber']]) = device
+             ['accounts']
+             [email]
+             ['devices']
+             ['media_player']
+             [device['serialNumber']]) = device
 
-            if device['serialNumber'] not in alexa_clients:
-                new_alexa_clients.append(device)
+            if device['serialNumber'] not in existing_serials:
+                new_alexa_clients.append(device['accountName'])
+        _LOGGER.debug("%s: Existing: %s New: %s;"
+                      " Filtered by: include_devices: %s exclude_devices:%s",
+                      hide_email(email),
+                      list(existing_entities),
+                      new_alexa_clients,
+                      included,
+                      excluded)
 
         if new_alexa_clients:
             for component in ALEXA_COMPONENTS:
                 load_platform(hass, component, DOMAIN, {}, config)
+
         # Process last_called data to fire events
+        update_last_called(login_obj)
+
+    def update_last_called(login_obj):
+        """Update the last called device for the login_obj.
+
+        This will store the last_called in hass.data and also fire an event
+        to notify listeners.
+        """
+        from alexapy import AlexaAPI
+        last_called = AlexaAPI.get_last_device_serial(login_obj)
+        _LOGGER.debug("%s: Updated last_called: %s",
+                      hide_email(email),
+                      hide_serial(last_called))
         stored_data = hass.data[DATA_ALEXAMEDIA]['accounts'][email]
         if (('last_called' in stored_data and
-            last_called != stored_data['last_called']) or
-            ('last_called' not in stored_data and
-             last_called is not None)):
+             last_called != stored_data['last_called']) or
+                ('last_called' not in stored_data and
+                 last_called is not None)):
+            _LOGGER.debug("%s: last_called changed: %s to %s",
+                          hide_email(email),
+                          hide_serial(stored_data['last_called'] if
+                                      'last_called' in stored_data else None),
+                          hide_serial(last_called))
             hass.bus.fire(('{}_{}'.format(DOMAIN, hide_email(email)))[0:32],
                           {'last_called_change': last_called})
         (hass.data[DATA_ALEXAMEDIA]
                   ['accounts']
                   [email]
-                  ['last_called']) = AlexaAPI.get_last_device_serial(login_obj)
+                  ['last_called']) = last_called
 
+    def last_call_handler(call):
+        """Handle last call service request.
+
+        Args:
+        call.ATTR_EMAIL: List of case-sensitive Alexa email addresses. If None
+                         all accounts are updated.
+        """
+        requested_emails = call.data.get(ATTR_EMAIL)
+        _LOGGER.debug("Service update_last_called for: %s", requested_emails)
+        for email, account_dict in (hass.data
+                                    [DATA_ALEXAMEDIA]['accounts'].items()):
+            if requested_emails and email not in requested_emails:
+                continue
+            login_obj = account_dict['login_obj']
+            update_last_called(login_obj)
+
+    include = config.get(CONF_INCLUDE_DEVICES)
+    exclude = config.get(CONF_EXCLUDE_DEVICES)
+    scan_interval = config.get(CONF_SCAN_INTERVAL)
+    email = login_obj.get_email()
+    (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
+    (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
+    (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': {}}
     update_devices()
-    hass.data[DATA_ALEXAMEDIA]['update_devices'] = update_devices
-    for component in ALEXA_COMPONENTS:
-        load_platform(hass, component, DOMAIN, {}, config)
+    track_time_interval(hass, lambda now: update_devices(), scan_interval)
+    hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
+                           last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
-    global _CONFIGURING
-    for config_id in _CONFIGURING:
+    for config_id in hass.data[DOMAIN]['accounts'][email]['config']:
         configurator = hass.components.configurator
         configurator.async_request_done(config_id)
-    _CONFIGURING = []
+    hass.data[DOMAIN]['accounts'][email]['config'] = []
     return True

@@ -3,37 +3,48 @@ Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 1.0.0
+SPDX-License-Identifier: Apache-2.0
 """
 import logging
-import voluptuous as vol
 
-from homeassistant.components.media_player import (
-    MediaPlayerDevice, MEDIA_PLAYER_SCHEMA)
-from homeassistant.components.media_player.const import (
-    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK,
-    SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK,
-    SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_MUTE, SUPPORT_PLAY_MEDIA, SUPPORT_VOLUME_SET,
-    DOMAIN,
-    SUPPORT_SELECT_SOURCE)
-from homeassistant.const import (
-    STATE_IDLE, STATE_STANDBY, STATE_PAUSED,
-    STATE_PLAYING)
+import voluptuous as vol
 from homeassistant import util
+from homeassistant.components.media_player import (MEDIA_PLAYER_SCHEMA,
+                                                   MediaPlayerDevice)
+from homeassistant.components.media_player.const import (
+    DOMAIN,
+    MEDIA_TYPE_MUSIC,
+    SUPPORT_NEXT_TRACK,
+    SUPPORT_PAUSE,
+    SUPPORT_PLAY,
+    SUPPORT_PLAY_MEDIA,
+    SUPPORT_PREVIOUS_TRACK,
+    SUPPORT_SELECT_SOURCE,
+    SUPPORT_STOP,
+    SUPPORT_TURN_OFF,
+    SUPPORT_TURN_ON,
+    SUPPORT_VOLUME_MUTE,
+    SUPPORT_VOLUME_SET)
+from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
+                                 STATE_STANDBY)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import call_later
 from homeassistant.helpers.service import extract_entity_ids
+
+from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL, SERVICE_ALEXA_TTS
+
 try:  # This is only necessary prior to official inclusion
     from homeassistant.components.alexa_media import (
         DOMAIN as ALEXA_DOMAIN,
         DATA_ALEXAMEDIA,
-        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
+        hide_email, hide_serial)
 except ImportError:
     from custom_components.alexa_media import (
         DOMAIN as ALEXA_DOMAIN,
         DATA_ALEXAMEDIA,
-        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
+        hide_email, hide_serial)
 from .const import (
     ATTR_MESSAGE, SERVICE_ALEXA_TTS, PLAY_SCAN_INTERVAL
 )
@@ -65,6 +76,14 @@ def setup_platform(hass, config, add_devices_callback,
         """Return the known devices that a service call mentions."""
         entity_ids = extract_entity_ids(hass, call)
         if entity_ids:
+            devices = []
+            for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
+                                          ['accounts'].items()):
+                devices = devices + list(account_dict
+                                         ['entities']['media_player'].values())
+                _LOGGER.debug("Account: %s Devices: %s",
+                              hide_email(account),
+                              devices)
             entities = [entity for entity in devices
                         if entity.entity_id in entity_ids]
         else:
@@ -72,17 +91,22 @@ def setup_platform(hass, config, add_devices_callback,
 
         return entities
 
+    devices = []
     for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
-                                           ['accounts'].items()):
-        devices = [
-            AlexaClient(
-                device,
-                account_dict['login_obj'],
-                hass.data[DATA_ALEXAMEDIA]['update_devices'],
-                hass)
-            for key, device in
-            account_dict['devices']['media_player'].items()]
-        add_devices_callback(devices, True)
+                                  ['accounts'].items()):
+        for key, device in account_dict['devices']['media_player'].items():
+            if key not in account_dict['entities']['media_player']:
+                alexa_client = AlexaClient(device,
+                                           account_dict['login_obj'],
+                                           hass)
+                devices.append(alexa_client)
+                (hass.data[DATA_ALEXAMEDIA]
+                 ['accounts']
+                 [account]
+                 ['entities']
+                 ['media_player'][key]) = alexa_client
+    _LOGGER.debug("Adding %s", devices)
+    add_devices_callback(devices, True)
     hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
                            schema=ALEXA_TTS_SCHEMA)
 
@@ -90,7 +114,7 @@ def setup_platform(hass, config, add_devices_callback,
 class AlexaClient(MediaPlayerDevice):
     """Representation of a Alexa device."""
 
-    def __init__(self, device, login, update_devices, hass):
+    def __init__(self, device, login, hass):
         """Initialize the Alexa device."""
         from alexapy import AlexaAPI
 
@@ -99,6 +123,7 @@ class AlexaClient(MediaPlayerDevice):
         self.alexa_api = AlexaAPI(self, login)
         self.auth = AlexaAPI.get_authentication(login)
         self.alexa_api_session = login._session
+        self.account = hide_email(login.get_email())
 
         # Logged in info
         self._authenticated = None
@@ -108,7 +133,6 @@ class AlexaClient(MediaPlayerDevice):
         self._customer_name = None
         self._set_authentication_details(self.auth)
 
-        self.update_devices = update_devices
         # Device info
         self._device = None
         self._device_name = None
@@ -140,21 +164,22 @@ class AlexaClient(MediaPlayerDevice):
         self._last_update = 0
         self.refresh(device)
         # Register event handler on bus
-        hass.bus.listen('{}_{}'.format(ALEXA_DOMAIN,
-                                       login.email),
-                                       self._handle_event)
+        hass.bus.listen(('{}_{}'.format(ALEXA_DOMAIN,
+                                        hide_email(login.get_email())))[0:32],
+                        self._handle_event)
 
     def _handle_event(self, event):
         """Handle events.
 
-        Each MediaClient checks to see if it's the last_called MediaClient and
-        if it is, schedules an update. Last_called events are only sent if it's
-        a new device or timestamp.
+        Each MediaClient reports if it's the last_called MediaClient. All
+        devices on account update to handle starting music with other Alexas.
+        Last_called events are only sent if it's a new device or timestamp.
         """
         if (event.data['last_called_change']['serialNumber'] ==
                 self.device_serial_number):
-            _LOGGER.debug("%s is last_called; updating device", self.name)
-            self.update()
+            _LOGGER.debug("%s is last_called: %s", self.name,
+                          hide_serial(self.device_serial_number))
+        self.update()
         return None
 
     def _clear_media_details(self):
@@ -203,7 +228,7 @@ class AlexaClient(MediaPlayerDevice):
             self._capabilities = device['capabilities']
             self._bluetooth_state = device['bluetooth_state']
         if self._available is True:
-            _LOGGER.debug("Refreshing %s", self.name)
+            _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             self._source = self._get_source()
             self._source_list = self._get_source_list()
             session = self.alexa_api.get_state()
@@ -380,7 +405,7 @@ class AlexaClient(MediaPlayerDevice):
                           self.name)
             call_later(self.hass, 300, lambda _:
                        self.schedule_update_ha_state(force_refresh=True))
-        self._last_poll = time.time()
+        self._last_update = time.time()
 
     @property
     def media_content_type(self):
@@ -403,6 +428,16 @@ class AlexaClient(MediaPlayerDevice):
     def media_duration(self):
         """Return the duration of current playing media in seconds."""
         return self._media_duration
+
+    @property
+    def media_position(self):
+        """Return the duration of current playing media in seconds."""
+        return self._media_pos
+
+    @property
+    def media_position_updated_at(self):
+        """When was the position of the current playing media valid."""
+        return self._last_update
 
     @property
     def media_image_url(self):
@@ -487,8 +522,8 @@ class AlexaClient(MediaPlayerDevice):
         While Alexa's do not have on/off capability, we can use this as another
         trigger to do updates. For turning off, we can clear media_details.
         """
+        self._should_poll = False
         self.media_pause()
-        self.update()
         self._clear_media_details()
 
     def turn_on(self):
@@ -497,8 +532,8 @@ class AlexaClient(MediaPlayerDevice):
         While Alexa's do not have on/off capability, we can use this as another
         trigger to do updates.
         """
+        self._should_poll = True
         self.media_pause()
-        self.update()
 
     def media_next_track(self):
         """Send next track command."""

@@ -69,9 +69,7 @@ def hide_serial(item):
     if type(item) == dict:
         response = item.copy()
         serial = item['serialNumber']
-        response['serialNumber'] = "{}{}{}".format(serial[0],
-                                                   "*"*(len(serial)-4),
-                                                   serial[-3:])
+        response['serialNumber'] = hide_serial(serial)
     elif type(item) == str:
         response = "{}{}{}".format(item[0],
                                    "*"*(len(item)-4),
@@ -240,11 +238,16 @@ def setup_alexa(hass, config, login_obj):
         Each AlexaAPI call generally results in one webpage request.
         """
         from alexapy import AlexaAPI
-        alexa_clients = (hass.data[DATA_ALEXAMEDIA]
-                         ['accounts']
-                         [email]
-                         ['devices']
-                         ['media_player'])
+        existing_serials = (hass.data[DATA_ALEXAMEDIA]
+                            ['accounts']
+                            [email]
+                            ['entities']
+                            ['media_player'].keys())
+        existing_entities = (hass.data[DATA_ALEXAMEDIA]
+                             ['accounts']
+                             [email]
+                             ['entities']
+                             ['media_player'].values())
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         _LOGGER.debug("%s: Found %s devices, %s bluetooth",
@@ -258,8 +261,7 @@ def setup_alexa(hass, config, login_obj):
             testLoginStatus(hass, config, login_obj, setup_platform_callback)
             return
 
-        new_alexa_clients = []  # list of newly discovered device jsons
-        available_client_ids = []  # list of known serial numbers
+        new_alexa_clients = []  # list of newly discovered device names
         excluded = []
         included = []
         for device in devices:
@@ -274,19 +276,20 @@ def setup_alexa(hass, config, login_obj):
                 if device['serialNumber'] == b_state['deviceSerialNumber']:
                     device['bluetooth_state'] = b_state
 
-            available_client_ids.append(device['serialNumber'])
             (hass.data[DATA_ALEXAMEDIA]
-                      ['accounts']
-                      [email]
-                      ['devices']
-                      ['media_player']
-                      [device['serialNumber']]) = device
+             ['accounts']
+             [email]
+             ['devices']
+             ['media_player']
+             [device['serialNumber']]) = device
 
-            if device['serialNumber'] not in alexa_clients:
-                new_alexa_clients.append(device)
-        _LOGGER.debug("%s: Adding %s items; forced inc: %s exc: %s",
+            if device['serialNumber'] not in existing_serials:
+                new_alexa_clients.append(device['accountName'])
+        _LOGGER.debug("%s: Existing: %s New: %s;"
+                      " Filtered by: include_devices: %s exclude_devices:%s",
                       hide_email(email),
-                      len(new_alexa_clients),
+                      list(existing_entities),
+                      new_alexa_clients,
                       included,
                       excluded)
 
@@ -328,6 +331,9 @@ def setup_alexa(hass, config, login_obj):
     def last_call_handler(call):
         """Handle last call service request.
 
+        Args:
+        call.ATTR_EMAIL: List of case-sensitive Alexa email addresses. If None
+                         all accounts are updated.
         """
         requested_emails = call.data.get(ATTR_EMAIL)
         _LOGGER.debug("Service update_last_called for: %s", requested_emails)
@@ -344,15 +350,11 @@ def setup_alexa(hass, config, login_obj):
     email = login_obj.get_email()
     (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
     (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
-    (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': []}
+    (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': {}}
     update_devices()
-    hass.data[DATA_ALEXAMEDIA]['update_devices'] = update_devices
-    for component in ALEXA_COMPONENTS:
-        load_platform(hass, component, DOMAIN, {}, config)
-
+    track_time_interval(hass, lambda now: update_devices(), scan_interval)
     hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
                            last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
-    track_time_interval(hass, lambda now: update_devices(), scan_interval)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
     for config_id in hass.data[DOMAIN]['accounts'][email]['config']:

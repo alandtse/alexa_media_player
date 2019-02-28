@@ -79,10 +79,10 @@ def setup_platform(hass, config, add_devices_callback,
             devices = []
             for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
                                           ['accounts'].items()):
-                devices = devices + (account_dict
-                                     ['entities']
-                                     ['media_player'])
-                _LOGGER.debug("Account: %s Devices: %s", hide_email(account),
+                devices = devices + list(account_dict
+                                         ['entities']['media_player'].values())
+                _LOGGER.debug("Account: %s Devices: %s",
+                              hide_email(account),
                               devices)
             entities = [entity for entity in devices
                         if entity.entity_id in entity_ids]
@@ -91,22 +91,22 @@ def setup_platform(hass, config, add_devices_callback,
 
         return entities
 
+    devices = []
     for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
-                                           ['accounts'].items()):
-        devices = [
-            AlexaClient(
-                device,
-                account_dict['login_obj'],
-                hass.data[DATA_ALEXAMEDIA]['update_devices'],
-                hass)
-            for key, device in
-            account_dict['devices']['media_player'].items()]
-        add_devices_callback(devices, True)
-        (hass.data[DATA_ALEXAMEDIA]
-         ['accounts']
-         [account]
-         ['entities']
-         ['media_player']) = devices
+                                  ['accounts'].items()):
+        for key, device in account_dict['devices']['media_player'].items():
+            if key not in account_dict['entities']['media_player']:
+                alexa_client = AlexaClient(device,
+                                           account_dict['login_obj'],
+                                           hass)
+                devices.append(alexa_client)
+                (hass.data[DATA_ALEXAMEDIA]
+                 ['accounts']
+                 [account]
+                 ['entities']
+                 ['media_player'][key]) = alexa_client
+    _LOGGER.debug("Adding %s", devices)
+    add_devices_callback(devices, True)
     hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
                            schema=ALEXA_TTS_SCHEMA)
 
@@ -114,7 +114,7 @@ def setup_platform(hass, config, add_devices_callback,
 class AlexaClient(MediaPlayerDevice):
     """Representation of a Alexa device."""
 
-    def __init__(self, device, login, update_devices, hass):
+    def __init__(self, device, login, hass):
         """Initialize the Alexa device."""
         from alexapy import AlexaAPI
 
@@ -133,7 +133,6 @@ class AlexaClient(MediaPlayerDevice):
         self._customer_name = None
         self._set_authentication_details(self.auth)
 
-        self.update_devices = update_devices
         # Device info
         self._device = None
         self._device_name = None

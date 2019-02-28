@@ -123,7 +123,7 @@ class AlexaClient(MediaPlayerDevice):
         self.alexa_api = AlexaAPI(self, login)
         self.auth = AlexaAPI.get_authentication(login)
         self.alexa_api_session = login._session
-        self.account = hide_email(login.get_email())
+        self.account = hide_email(login.email)
 
         # Logged in info
         self._authenticated = None
@@ -165,7 +165,7 @@ class AlexaClient(MediaPlayerDevice):
         self.refresh(device)
         # Register event handler on bus
         hass.bus.listen(('{}_{}'.format(ALEXA_DOMAIN,
-                                        hide_email(login.get_email())))[0:32],
+                                        hide_email(login.email)))[0:32],
                         self._handle_event)
 
     def _handle_event(self, event):

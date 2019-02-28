@@ -56,6 +56,7 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema({
         vol.All(cv.ensure_list, [cv.string]),
 })
 
+
 def hide_email(email):
     """Obfuscate email."""
     m = email.split('@')
@@ -350,7 +351,7 @@ def setup_alexa(hass, config, login_obj):
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
     scan_interval = config.get(CONF_SCAN_INTERVAL)
-    email = login_obj.get_email()
+    email = login_obj.email
     (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
     (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
     (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': {}}

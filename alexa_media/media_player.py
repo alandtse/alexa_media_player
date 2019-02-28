@@ -37,12 +37,14 @@ try:  # This is only necessary prior to official inclusion
     from homeassistant.components.alexa_media import (
         DOMAIN as ALEXA_DOMAIN,
         DATA_ALEXAMEDIA,
-        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS, hide_email)
+        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
+        hide_email, hide_serial)
 except ImportError:
     from custom_components.alexa_media import (
         DOMAIN as ALEXA_DOMAIN,
         DATA_ALEXAMEDIA,
-        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS, hide_email)
+        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
+        hide_email, hide_serial)
 from .const import (
     ATTR_MESSAGE, SERVICE_ALEXA_TTS, PLAY_SCAN_INTERVAL
 )
@@ -176,7 +178,8 @@ class AlexaClient(MediaPlayerDevice):
         """
         if (event.data['last_called_change']['serialNumber'] ==
                 self.device_serial_number):
-            _LOGGER.debug("%s is last_called", self.name)
+            _LOGGER.debug("%s is last_called: %s", self.name,
+                          hide_serial(self.device_serial_number))
         self.update()
         return None
 

@@ -66,11 +66,16 @@ def hide_serial(item):
     """Obfuscate serial."""
     if item is None:
         return ""
-    response = item.copy()
-    serial = item['serialNumber']
-    response['serialNumber'] = "{}{}{}".format(serial[0],
-                                               "*"*(len(serial)-4),
-                                               serial[-3:])
+    if type(item) == dict:
+        response = item.copy()
+        serial = item['serialNumber']
+        response['serialNumber'] = "{}{}{}".format(serial[0],
+                                                   "*"*(len(serial)-4),
+                                                   serial[-3:])
+    elif type(item) == str:
+        response = "{}{}{}".format(item[0],
+                                   "*"*(len(item)-4),
+                                   item[-3:])
     return response
 
 

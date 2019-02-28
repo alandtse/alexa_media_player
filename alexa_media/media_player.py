@@ -393,7 +393,9 @@ class AlexaClient(MediaPlayerDevice):
         self.refresh(no_throttle=True)
         if (self.state in [STATE_PLAYING]):
             self._should_poll = False  # disable polling since manual update
-            if(time.time() - self._last_update > PLAY_SCAN_INTERVAL):
+            if(self._last_update == 0 or util.dt.as_timestamp(util.utcnow()) -
+               util.dt.as_timestamp(self._last_update)
+               > PLAY_SCAN_INTERVAL):
                 _LOGGER.debug("%s playing; scheduling update in %s seconds",
                               self.name, PLAY_SCAN_INTERVAL)
                 call_later(self.hass, PLAY_SCAN_INTERVAL, lambda _:
@@ -405,7 +407,7 @@ class AlexaClient(MediaPlayerDevice):
                           self.name)
             call_later(self.hass, 300, lambda _:
                        self.schedule_update_ha_state(force_refresh=True))
-        self._last_update = time.time()
+        self._last_update = util.utcnow()
 
     @property
     def media_content_type(self):

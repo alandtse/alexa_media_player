@@ -158,16 +158,19 @@ def request_configuration(hass, config, login, setup_platform_callback):
     elif (status and 'claimspicker_required' in status and
             status['claimspicker_required']):  # Get picker method
         options = status['claimspicker_message']
-        config_id = configurator.request_config(
-            "Alexa Media Player - Verification Method - {}".format(email),
-            configuration_callback,
-            description=('Please select the verification method. '
-                         '(e.g., sms or email).<br />{}').format(
-                         options
-                         ),
-            submit_caption="Confirm",
-            fields=[{'id': 'claimsoption', 'name': 'Option'}]
-        )
+        if options:
+            config_id = configurator.request_config(
+                "Alexa Media Player - Verification Method - {}".format(email),
+                configuration_callback,
+                description=('Please select the verification method. '
+                             '(e.g., sms or email).<br />{}').format(
+                             options
+                             ),
+                submit_caption="Confirm",
+                fields=[{'id': 'claimsoption', 'name': 'Option'}]
+            )
+        else:
+            configuration_callback({})
     elif (status and 'verificationcode_required' in status and
             status['verificationcode_required']):  # Get picker method
         config_id = configurator.request_config(

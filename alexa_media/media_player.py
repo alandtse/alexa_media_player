@@ -179,7 +179,11 @@ class AlexaClient(MediaPlayerDevice):
                 self.device_serial_number):
             _LOGGER.debug("%s is last_called: %s", self.name,
                           hide_serial(self.device_serial_number))
-        self.update()
+            self._last_called = True
+        self._last_called = False
+        #  Without polling, we must schedule the HA update.
+        #  https://developers.home-assistant.io/docs/en/entity_index.html#subscribing-to-updates
+        self.schedule_update_ha_state(force_refresh=True)
         return None
 
     def _clear_media_details(self):
@@ -231,8 +235,8 @@ class AlexaClient(MediaPlayerDevice):
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             self._source = self._get_source()
             self._source_list = self._get_source_list()
-            session = self.alexa_api.get_state()
             self._last_called = self._get_last_called()
+            session = self.alexa_api.get_state()
         else:
             session = None
         self._clear_media_details()
@@ -327,10 +331,14 @@ class AlexaClient(MediaPlayerDevice):
     def _get_last_called(self):
         last_called_serial = (None if self.hass is None else
                               (self.hass.data[DATA_ALEXAMEDIA]
-                                             ['accounts']
-                                             [self._login.email]
-                                             ['last_called']
-                                             ['serialNumber']))
+                               ['accounts']
+                               [self._login.email]
+                               ['last_called']
+                               ['serialNumber']))
+        _LOGGER.debug("%s: Last_called check: self: %s reported: %s",
+                      self._device_name,
+                      hide_serial(self._device_serial_number),
+                      hide_serial(last_called_serial))
         if (last_called_serial is not None and
                 self._device_serial_number == last_called_serial):
             return True
@@ -408,6 +416,7 @@ class AlexaClient(MediaPlayerDevice):
             call_later(self.hass, 300, lambda _:
                        self.schedule_update_ha_state(force_refresh=True))
         self._last_update = util.utcnow()
+        self.schedule_update_ha_state()
 
     @property
     def media_content_type(self):

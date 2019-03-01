@@ -212,8 +212,8 @@ def test_login_status(hass, config, login,
         hass.async_add_job(setup_alexa, hass, config,
                            login)
         return
-    elif ('captcha_required' in login.status and
-          login.status['captcha_required']):
+    if ('captcha_required' in login.status and
+            login.status['captcha_required']):
         _LOGGER.debug("Creating configurator to request captcha")
     elif ('securitycode_required' in login.status and
           login.status['securitycode_required']):

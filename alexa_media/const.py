@@ -1,9 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#  SPDX-License-Identifier: Apache-2.0
 """
 Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-VERSION 1.0.0
 """
 from datetime import timedelta
 
@@ -24,4 +26,6 @@ CONF_DEBUG = 'debug'
 CONF_INCLUDE_DEVICES = 'include_devices'
 CONF_EXCLUDE_DEVICES = 'exclude_devices'
 SERVICE_ALEXA_TTS = 'alexa_tts'
+SERVICE_UPDATE_LAST_CALLED = 'update_last_called'
 ATTR_MESSAGE = 'message'
+ATTR_EMAIL = 'email'

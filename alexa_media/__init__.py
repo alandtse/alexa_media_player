@@ -1,9 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#  SPDX-License-Identifier: Apache-2.0
 """
 Support to interface with Alexa Devices.
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
-SPDX-License-Identifier: Apache-2.0
 """
 import logging
 
@@ -24,7 +26,7 @@ from .const import (
 
 # from .config_flow import configured_instances
 
-REQUIREMENTS = ['alexapy==0.1.0']
+REQUIREMENTS = ['alexapy==0.2.1']
 
 __version__ = '1.1.0'
 
@@ -56,21 +58,25 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema({
         vol.All(cv.ensure_list, [cv.string]),
 })
 
+
 def hide_email(email):
     """Obfuscate email."""
-    m = email.split('@')
-    return "{}{}{}@{}".format(m[0][0], "*"*(len(m[0])-2), m[0][-1], m[1])
+    part = email.split('@')
+    return "{}{}{}@{}".format(part[0][0],
+                              "*"*(len(part[0])-2),
+                              part[0][-1],
+                              part[1])
 
 
 def hide_serial(item):
     """Obfuscate serial."""
     if item is None:
         return ""
-    if type(item) == dict:
+    if isinstance(item, dict):
         response = item.copy()
         serial = item['serialNumber']
         response['serialNumber'] = hide_serial(serial)
-    elif type(item) == str:
+    elif isinstance(item, str):
         response = "{}{}{}".format(item[0],
                                    "*"*(len(item)-4),
                                    item[-3:])
@@ -96,8 +102,8 @@ def setup(hass, config, discovery_info=None):
         login = AlexaLogin(url, email, password, hass.config.path,
                            account.get(CONF_DEBUG))
 
-        testLoginStatus(hass, account, login,
-                        setup_platform_callback)
+        test_login_status(hass, account, login,
+                          setup_platform_callback)
     return True
 
 
@@ -108,19 +114,19 @@ async def setup_platform_callback(hass, config, login, callback_data):
     callback_data (json): Returned data from configurator passed through
                           request_configuration and configuration_callback
     """
-    _LOGGER.debug(("Status: {} got captcha: {} securitycode: {}"
-                  " Claimsoption: {} VerificationCode: {}").format(
-        login.status,
-        callback_data.get('captcha'),
-        callback_data.get('securitycode'),
-        callback_data.get('claimsoption'),
-        callback_data.get('verificationcode')))
+    _LOGGER.debug(("Status: %s got captcha: %s securitycode: %s"
+                   " Claimsoption: %s VerificationCode: %s"),
+                  login.status,
+                  callback_data.get('captcha'),
+                  callback_data.get('securitycode'),
+                  callback_data.get('claimsoption'),
+                  callback_data.get('verificationcode'))
     login.login(captcha=callback_data.get('captcha'),
                 securitycode=callback_data.get('securitycode'),
                 claimsoption=callback_data.get('claimsoption'),
                 verificationcode=callback_data.get('verificationcode'))
-    testLoginStatus(hass, config, login,
-                    setup_platform_callback)
+    test_login_status(hass, config, login,
+                      setup_platform_callback)
 
 
 def request_configuration(hass, config, login, setup_platform_callback):
@@ -132,7 +138,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
         hass.async_add_job(setup_platform_callback, hass, config,
                            login, callback_data)
     status = login.status
-    email = login.get_email()
+    email = login.email
     # Get Captcha
     if (status and 'captcha_image_url' in status and
             status['captcha_image_url'] is not None):
@@ -147,7 +153,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
             fields=[{'id': 'captcha', 'name': 'Captcha'}]
         )
     elif (status and 'securitycode_required' in status and
-            status['securitycode_required']):  # Get 2FA code
+          status['securitycode_required']):  # Get 2FA code
         config_id = configurator.request_config(
             "Alexa Media Player - 2FA - {}".format(email),
             configuration_callback,
@@ -156,7 +162,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
             fields=[{'id': 'securitycode', 'name': 'Security Code'}]
         )
     elif (status and 'claimspicker_required' in status and
-            status['claimspicker_required']):  # Get picker method
+          status['claimspicker_required']):  # Get picker method
         options = status['claimspicker_message']
         if options:
             config_id = configurator.request_config(
@@ -164,7 +170,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
                 configuration_callback,
                 description=('Please select the verification method. '
                              '(e.g., sms or email).<br />{}').format(
-                             options
+                                 options
                              ),
                 submit_caption="Confirm",
                 fields=[{'id': 'claimsoption', 'name': 'Option'}]
@@ -172,7 +178,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
         else:
             configuration_callback({})
     elif (status and 'verificationcode_required' in status and
-            status['verificationcode_required']):  # Get picker method
+          status['verificationcode_required']):  # Get picker method
         config_id = configurator.request_config(
             "Alexa Media Player - Verification Code - {}".format(email),
             configuration_callback,
@@ -198,28 +204,28 @@ def request_configuration(hass, config, login, setup_platform_callback):
                                          ['accounts'][email]['config']).pop(0))
 
 
-def testLoginStatus(hass, config, login,
-                    setup_platform_callback):
+def test_login_status(hass, config, login,
+                      setup_platform_callback):
     """Test the login status and spawn requests for info."""
     if 'login_successful' in login.status and login.status['login_successful']:
         _LOGGER.debug("Setting up Alexa devices")
         hass.async_add_job(setup_alexa, hass, config,
                            login)
         return
-    elif ('captcha_required' in login.status and
-          login.status['captcha_required']):
+    if ('captcha_required' in login.status and
+            login.status['captcha_required']):
         _LOGGER.debug("Creating configurator to request captcha")
     elif ('securitycode_required' in login.status and
-            login.status['securitycode_required']):
+          login.status['securitycode_required']):
         _LOGGER.debug("Creating configurator to request 2FA")
     elif ('claimspicker_required' in login.status and
-            login.status['claimspicker_required']):
+          login.status['claimspicker_required']):
         _LOGGER.debug("Creating configurator to select verification option")
     elif ('verificationcode_required' in login.status and
-            login.status['verificationcode_required']):
+          login.status['verificationcode_required']):
         _LOGGER.debug("Creating configurator to enter verification code")
     elif ('login_failed' in login.status and
-            login.status['login_failed']):
+          login.status['login_failed']):
         _LOGGER.debug("Creating configurator to start new login attempt")
     hass.async_add_job(request_configuration, hass, config, login,
                        setup_platform_callback
@@ -261,7 +267,7 @@ def setup_alexa(hass, config, login_obj):
                 and not hass.data[DOMAIN]['accounts'][email]['config']):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
-            testLoginStatus(hass, config, login_obj, setup_platform_callback)
+            test_login_status(hass, config, login_obj, setup_platform_callback)
             return
 
         new_alexa_clients = []  # list of newly discovered device names
@@ -350,7 +356,7 @@ def setup_alexa(hass, config, login_obj):
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
     scan_interval = config.get(CONF_SCAN_INTERVAL)
-    email = login_obj.get_email()
+    email = login_obj.email
     (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
     (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
     (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': {}}

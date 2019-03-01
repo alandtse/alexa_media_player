@@ -143,6 +143,7 @@ class AlexaClient(MediaPlayerDevice):
         self._software_version = None
         self._available = None
         self._capabilities = []
+        self._cluster_members = []
         # Media
         self._session = None
         self._media_duration = None
@@ -230,6 +231,7 @@ class AlexaClient(MediaPlayerDevice):
             self._software_version = device['softwareVersion']
             self._available = device['online']
             self._capabilities = device['capabilities']
+            self._cluster_members = device['clusterMembers']
             self._bluetooth_state = device['bluetooth_state']
         if self._available is True:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)

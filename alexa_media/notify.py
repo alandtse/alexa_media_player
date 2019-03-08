@@ -1,0 +1,155 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#  SPDX-License-Identifier: Apache-2.0
+"""
+Alexa Devices notification service.
+
+For more details about this platform, please refer to the documentation at
+https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
+"""
+import logging
+
+import voluptuous as vol
+
+from homeassistant.components.notify import (
+    ATTR_DATA, ATTR_TARGET, ATTR_TITLE, ATTR_TITLE_DEFAULT,
+    PLATFORM_SCHEMA, BaseNotificationService
+)
+from homeassistant.helpers.service import extract_entity_ids
+
+from . import (
+        DOMAIN as ALEXA_DOMAIN,
+        DATA_ALEXAMEDIA,
+        hide_email, hide_serial)
+
+_LOGGER = logging.getLogger(__name__)
+
+DEPENDENCIES = [ALEXA_DOMAIN]
+
+EVENT_NOTIFY = "notify"
+
+
+def get_service(hass, config, discovery_info=None):
+    """Get the demo notification service."""
+    return AlexaNotificationService(hass)
+
+
+class AlexaNotificationService(BaseNotificationService):
+    """Implement Alexa Media Player notification service."""
+
+    def __init__(self, hass):
+        """Initialize the service."""
+        self.hass = hass
+
+    def convert(self, names, type_="entities", filter_matches=False):
+        """Return a list of converted Alexa devices based on names.
+
+        Names may be matched either by serialNumber, accountName, or
+        Homeassistant entity_id and can return any of the above plus entities
+
+        Parameters
+        ----------
+        names : list(string)
+            A list of names to convert
+        type : string
+            The type to return entities, entity_ids, serialnumbers, names
+        filter : bool
+            Whether non-matching items are removed from the returned list.
+
+        Returns
+        -------
+        list(string)
+            List of home assistant entity_ids
+
+        """
+        devices = []
+        if isinstance(names, str):
+            names = [names]
+        for item in names:
+            matched = False
+            for alexa in self.devices:
+                _LOGGER.debug("Testing item: %s against (%s, %s, %s)",
+                              item,
+                              alexa.name,
+                              alexa.unique_id,
+                              alexa.entity_id)
+                if item in (alexa.name, alexa.unique_id, alexa.entity_id):
+                    if type_ == "entities":
+                        converted = alexa
+                    elif type_ == "serialnumbers":
+                        converted = alexa.unique_id
+                    elif type_ == "names":
+                        converted = alexa.name
+                    elif type_ == "entity_ids":
+                        converted = alexa.entity_id
+                    devices.append(converted)
+                    matched = True
+                    _LOGGER.debug("Converting: %s to (%s): %s",
+                                  item,
+                                  type_,
+                                  converted)
+                else:
+                    _LOGGER.debug("Filtering out: %s",
+                                  item)
+            if not filter_matches and not matched:
+                devices.append(item)
+        return devices
+
+    # This can't be enabled because notify is setup before the media_player
+    # once a method is determined to wait till media_player, this can be used
+    # @property
+    # def targets(self):
+    #     """Return a dictionary of Alexa devices."""
+    #     devices = {}
+    #     # if ('accounts' not in self.hass.data[DATA_ALEXAMEDIA] or
+    #     #         self.hass.data[DATA_ALEXAMEDIA]['accounts'].items()):
+    #     #     return devices
+    #     for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
+    #                                   ['accounts'].items()):
+    #         for alexa in account_dict['entities']['media_player'].values():
+    #             devices[alexa.name] = alexa
+    #         _LOGGER.debug("Account: %s Devices: %s Raw:%s",
+    #                       hide_email(account),
+    #                       devices,
+    #                       account_dict)
+    #     return devices
+
+    @property
+    def devices(self):
+        """Return a dictionary of Alexa devices."""
+        devices = []
+        if ('accounts' not in self.hass.data[DATA_ALEXAMEDIA] and
+                not self.hass.data[DATA_ALEXAMEDIA]['accounts'].items()):
+            return devices
+        for _, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
+                                ['accounts'].items()):
+            devices = devices + list(account_dict
+                                     ['entities']['media_player'].values())
+        return devices
+
+    def send_message(self, message="", **kwargs):
+        """Send a message to a Alexa device."""
+        _LOGGER.debug("Notify: message: %s, kwargs: %s",
+                      message,
+                      kwargs)
+        kwargs['message'] = message
+        targets = kwargs.get(ATTR_TARGET)
+        title = (kwargs.get(ATTR_TITLE) if ATTR_TITLE in kwargs
+                 else ATTR_TITLE_DEFAULT)
+        data = kwargs.get(ATTR_DATA)
+        if isinstance(targets, str):
+            targets = [targets]
+        _LOGGER.debug("Notify: targets: %s", targets)
+        #  targets = self.hass.components.group.expand_entity_ids(targets)
+
+        if data['method'] == "tts":
+            targets = self.convert(targets, type_="entities")
+            _LOGGER.debug("Notify: TTS targets: %s", targets)
+            for alexa in targets:
+                _LOGGER.debug("Notify: TTS alexa: %s", alexa)
+                alexa.send_tts(message)
+        elif data['method'] == "announce":
+            targets = self.convert(targets, type_="serialnumbers")
+            alexa.send_announcement(message, target=targets, title=title)
+        elif data['method'] == "push":
+            alexa.send_mobilepush(message, target=targets, title=title)

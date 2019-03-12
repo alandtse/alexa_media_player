@@ -71,7 +71,8 @@ class AlexaNotificationService(BaseNotificationService):
                               alexa.name,
                               alexa.unique_id,
                               alexa.entity_id)
-                if item in (alexa.name, alexa.unique_id, alexa.entity_id):
+                if item in (alexa, alexa.name, alexa.unique_id,
+                            alexa.entity_id):
                     if type_ == "entities":
                         converted = alexa
                     elif type_ == "serialnumbers":

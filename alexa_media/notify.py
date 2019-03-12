@@ -129,9 +129,9 @@ class AlexaNotificationService(BaseNotificationService):
 
     def send_message(self, message="", **kwargs):
         """Send a message to a Alexa device."""
-        _LOGGER.debug("Notify: message: %s, kwargs: %s",
-                      message,
-                      kwargs)
+        _LOGGER.info("Message: %s, kwargs: %s",
+                     message,
+                     kwargs)
         kwargs['message'] = message
         targets = kwargs.get(ATTR_TARGET)
         title = (kwargs.get(ATTR_TITLE) if ATTR_TITLE in kwargs

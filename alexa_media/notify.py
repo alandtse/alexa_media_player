@@ -169,4 +169,7 @@ class AlexaNotificationService(BaseNotificationService):
                                                         else 'all'))
                         break
         elif data['type'] == "push":
-            alexa.send_mobilepush(message, targets=targets, title=title)
+            targets = self.convert(targets, type_="entities")
+            for alexa in targets:
+                _LOGGER.info("Push by %s : %s %s", alexa, title, message)
+                alexa.send_mobilepush(message, title=title)

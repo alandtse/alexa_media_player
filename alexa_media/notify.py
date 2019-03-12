@@ -9,13 +9,10 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import logging
 
-import voluptuous as vol
-
 from homeassistant.components.notify import (
     ATTR_DATA, ATTR_TARGET, ATTR_TITLE, ATTR_TITLE_DEFAULT,
-    PLATFORM_SCHEMA, BaseNotificationService
+    BaseNotificationService
 )
-from homeassistant.helpers.service import extract_entity_ids
 
 from . import (
         DOMAIN as ALEXA_DOMAIN,
@@ -30,6 +27,7 @@ EVENT_NOTIFY = "notify"
 
 
 def get_service(hass, config, discovery_info=None):
+    # pylint: disable=unused-argument
     """Get the demo notification service."""
     return AlexaNotificationService(hass)
 

@@ -6,8 +6,8 @@
         "visit_repo": "https://github.com/keatontaylor/alexa_media_player",
         "changelog": "https://github.com/keatontaylor/alexa_media_player/wiki/Changelog",
         "resources": [
-            "https://raw.githubusercontent.com/alandtse/alexa_media_player/master/alexa_media/const.py",
-            "https://raw.githubusercontent.com/alandtse/alexa_media_player/master/alexa_media/media_player.py",
+            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/const.py",
+            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/media_player.py",
             "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/notify.py"
         ]
     }

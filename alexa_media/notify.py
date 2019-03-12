@@ -53,7 +53,7 @@ class AlexaNotificationService(BaseNotificationService):
             A list of names to convert
         type : string
             The type to return entities, entity_ids, serialnumbers, names
-        filter : bool
+        filter_matches : bool
             Whether non-matching items are removed from the returned list.
 
         Returns
@@ -139,27 +139,29 @@ class AlexaNotificationService(BaseNotificationService):
         data = kwargs.get(ATTR_DATA)
         if isinstance(targets, str):
             targets = [targets]
-        #  targets = self.hass.components.group.expand_entity_ids(targets)
+        entities = self.convert(targets, type_="entities")
+        entities.extend(self.hass.components.group.expand_entity_ids(entities))
 
         if data['type'] == "tts":
-            targets = self.convert(targets, type_="entities")
-            _LOGGER.debug("TTS targets: %s", targets)
+            targets = self.convert(entities, type_="entities",
+                                   filter_matches=True)
+            _LOGGER.debug("TTS entities: %s", targets)
             for alexa in targets:
                 _LOGGER.info("TTS by %s : %s", alexa, message)
                 alexa.send_tts(message)
         elif data['type'] == "announce":
-            entities = self.convert(targets, type_="entities")
-            targets = self.convert(targets, type_="serialnumbers")
+            targets = self.convert(entities, type_="serialnumbers",
+                                   filter_matches=True)
             for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
                                           ['accounts'].items()):
                 for alexa in (account_dict['entities']
                               ['media_player'].values()):
                     if alexa in entities and alexa.available:
                         _LOGGER.info(("%s: Announce by %s to "
-                                      " targets: %s: %s"),
+                                      "targets: %s: %s"),
                                      hide_email(account),
                                      alexa,
-                                     entities,
+                                     list(map(hide_serial, targets)),
                                      message)
                         alexa.send_announcement(message,
                                                 targets=targets,
@@ -169,7 +171,8 @@ class AlexaNotificationService(BaseNotificationService):
                                                         else 'all'))
                         break
         elif data['type'] == "push":
-            targets = self.convert(targets, type_="entities")
+            targets = self.convert(entities, type_="entities",
+                                   filter_matches=True)
             for alexa in targets:
                 _LOGGER.info("Push by %s : %s %s", alexa, title, message)
                 alexa.send_mobilepush(message, title=title)

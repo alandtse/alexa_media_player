@@ -561,6 +561,18 @@ class AlexaClient(MediaPlayerDevice):
         """
         self.alexa_api.send_tts(message, customer_id=self._customer_id)
 
+    def send_announcement(self, message, **kwargs):
+        """Send announcement to the media player."""
+        self.alexa_api.send_announcement(message,
+                                         customer_id=self._customer_id,
+                                         **kwargs)
+
+    def send_mobilepush(self, message, **kwargs):
+        """Send push to the media player's associated mobile devices."""
+        self.alexa_api.send_mobilepush(message,
+                                       customer_id=self._customer_id,
+                                       **kwargs)
+
     def play_media(self, media_type, media_id, enqueue=None, **kwargs):
         """Send the play_media command to the media player."""
         if media_type == "music":

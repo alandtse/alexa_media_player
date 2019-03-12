@@ -139,17 +139,34 @@ class AlexaNotificationService(BaseNotificationService):
         data = kwargs.get(ATTR_DATA)
         if isinstance(targets, str):
             targets = [targets]
-        _LOGGER.debug("Notify: targets: %s", targets)
         #  targets = self.hass.components.group.expand_entity_ids(targets)
 
-        if data['method'] == "tts":
+        if data['type'] == "tts":
             targets = self.convert(targets, type_="entities")
-            _LOGGER.debug("Notify: TTS targets: %s", targets)
+            _LOGGER.debug("TTS targets: %s", targets)
             for alexa in targets:
-                _LOGGER.debug("Notify: TTS alexa: %s", alexa)
+                _LOGGER.info("TTS by %s : %s", alexa, message)
                 alexa.send_tts(message)
-        elif data['method'] == "announce":
+        elif data['type'] == "announce":
+            entities = self.convert(targets, type_="entities")
             targets = self.convert(targets, type_="serialnumbers")
-            alexa.send_announcement(message, target=targets, title=title)
-        elif data['method'] == "push":
-            alexa.send_mobilepush(message, target=targets, title=title)
+            for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
+                                          ['accounts'].items()):
+                for alexa in (account_dict['entities']
+                              ['media_player'].values()):
+                    if alexa in entities and alexa.available:
+                        _LOGGER.info(("%s: Announce by %s to "
+                                      " targets: %s: %s"),
+                                     hide_email(account),
+                                     alexa,
+                                     entities,
+                                     message)
+                        alexa.send_announcement(message,
+                                                targets=targets,
+                                                title=title,
+                                                method=(data['method'] if
+                                                        'method' in data
+                                                        else 'all'))
+                        break
+        elif data['type'] == "push":
+            alexa.send_mobilepush(message, targets=targets, title=title)

@@ -66,10 +66,11 @@ class AlexaNotificationService(BaseNotificationService):
         for item in names:
             matched = False
             for alexa in self.devices:
-                _LOGGER.debug("Testing item: %s against (%s, %s, %s)",
+                _LOGGER.debug("Testing item: %s against (%s, %s, %s, %s)",
                               item,
+                              alexa,
                               alexa.name,
-                              alexa.unique_id,
+                              hide_serial(alexa.unique_id),
                               alexa.entity_id)
                 if item in (alexa, alexa.name, alexa.unique_id,
                             alexa.entity_id):
@@ -87,9 +88,6 @@ class AlexaNotificationService(BaseNotificationService):
                                   item,
                                   type_,
                                   converted)
-                else:
-                    _LOGGER.debug("Filtering out: %s",
-                                  item)
             if not filter_matches and not matched:
                 devices.append(item)
         return devices
@@ -151,6 +149,9 @@ class AlexaNotificationService(BaseNotificationService):
         elif data['type'] == "announce":
             targets = self.convert(entities, type_="serialnumbers",
                                    filter_matches=True)
+            _LOGGER.debug("Announce targets: %s entities: %s",
+                          list(map(hide_serial, targets)),
+                          entities)
             for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
                                           ['accounts'].items()):
                 for alexa in (account_dict['entities']

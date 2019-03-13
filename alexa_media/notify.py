@@ -155,7 +155,7 @@ class AlexaNotificationService(BaseNotificationService):
                                           ['accounts'].items()):
                 for alexa in (account_dict['entities']
                               ['media_player'].values()):
-                    if alexa in entities and alexa.available:
+                    if alexa.unique_id in targets and alexa.available:
                         _LOGGER.info(("%s: Announce by %s to "
                                       "targets: %s: %s"),
                                      hide_email(account),

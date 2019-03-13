@@ -137,8 +137,11 @@ class AlexaNotificationService(BaseNotificationService):
         if isinstance(targets, str):
             targets = [targets]
         entities = self.convert(targets, type_="entities")
-        entities.extend(self.hass.components.group.expand_entity_ids(entities))
-
+        try:
+            entities.extend(self.hass.components.group.expand_entity_ids(
+                entities))
+        except ValueError:
+            _LOGGER.info("Invalid Home Assistant entity in %s", entities)
         if data['type'] == "tts":
             targets = self.convert(entities, type_="entities",
                                    filter_matches=True)

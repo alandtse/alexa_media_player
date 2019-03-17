@@ -168,15 +168,28 @@ class AlexaClient(MediaPlayerDevice):
         devices on account update to handle starting music with other Alexas.
         Last_called events are only sent if it's a new device or timestamp.
         """
-        if (event.data['last_called_change']['serialNumber'] ==
-                self.device_serial_number):
-            _LOGGER.debug("%s is last_called: %s", self.name,
-                          hide_serial(self.device_serial_number))
-            self._last_called = True
-        self._last_called = False
-        #  Without polling, we must schedule the HA update.
-        #  https://developers.home-assistant.io/docs/en/entity_index.html#subscribing-to-updates
-        self.schedule_update_ha_state(force_refresh=True)
+        _LOGGER.debug("%s event: %s", self.name,
+                      event.data)
+        if 'last_called_change' in event.data:
+            if (event.data['last_called_change']['serialNumber'] ==
+                    self.device_serial_number):
+                _LOGGER.debug("%s is last_called: %s", self.name,
+                              hide_serial(self.device_serial_number))
+                self._last_called = True
+            else:
+                self._last_called = False
+            #  Without polling, we must schedule the HA update.
+            #  https://developers.home-assistant.io/docs/en/entity_index.html#subscribing-to-updates
+            self.schedule_update_ha_state(force_refresh=True)
+        elif 'player_state' in event.data:
+            _LOGGER.debug("%s has player_update: %s", self.name,
+                          event.data)
+
+            if (event.data['player_state']['dopplerId']
+                    ['deviceSerialNumber'] == self.device_serial_number):
+                _LOGGER.debug("%s has player_update: %s", self.name,
+                              hide_serial(self.device_serial_number))
+                self.update()
 
     def _clear_media_details(self):
         """Set all Media Items to None."""
@@ -390,8 +403,16 @@ class AlexaClient(MediaPlayerDevice):
         if (self._device is None or self.entity_id is None):
             # Device has not initialized yet
             return
-        self.refresh(no_throttle=True)
-        if self.state in [STATE_PLAYING]:
+        device = (hass.data[DATA_ALEXAMEDIA]
+                  ['accounts']
+                  [email]
+                  ['devices']
+                  ['media_player']
+                  [self.unique_id]
+        self.refresh(device, no_throttle=True)
+        if self.state in [STATE_PLAYING] and
+            #  only enable polling if websocket not connected
+          (not hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']):
             self._should_poll = False  # disable polling since manual update
             if(self._last_update == 0 or util.dt.as_timestamp(util.utcnow()) -
                util.dt.as_timestamp(self._last_update)
@@ -402,11 +423,12 @@ class AlexaClient(MediaPlayerDevice):
                            self.schedule_update_ha_state(force_refresh=True))
         elif self._should_poll:  # Not playing, one last poll
             self._should_poll = False
-            _LOGGER.debug("Disabling polling and scheduling last update in 300"
-                          " seconds for %s",
-                          self.name)
-            call_later(self.hass, 300, lambda _:
-                       self.schedule_update_ha_state(force_refresh=True))
+            if not hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']:
+                _LOGGER.debug("Disabling polling and scheduling last update in"
+                              " 300 seconds for %s",
+                              self.name)
+                call_later(self.hass, 300, lambda _:
+                           self.schedule_update_ha_state(force_refresh=True))
         self._last_update = util.utcnow()
         self.schedule_update_ha_state()
 

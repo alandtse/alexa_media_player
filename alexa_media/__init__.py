@@ -26,9 +26,9 @@ from .const import (
 
 # from .config_flow import configured_instances
 
-REQUIREMENTS = ['alexapy==0.3.0']
+REQUIREMENTS = ['alexapy==0.4.0']
 
-__version__ = '1.2.1'
+__version__ = '1.2.2'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -357,7 +357,11 @@ def setup_alexa(hass, config, login_obj):
             update_last_called(login_obj)
 
     def ws_handler(message_obj):
-        """Handle websocket messages."""
+        """Handle websocket messages.
+
+        This allows push notifications from Alexa to update last_called
+        and media state.
+        """
         command = (message_obj.json_payload['command']
                    if isinstance(message_obj.json_payload, dict) and
                    'command' in message_obj.json_payload
@@ -382,20 +386,25 @@ def setup_alexa(hass, config, login_obj):
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
                 _LOGGER.debug("Updating media_player: %s", json_payload)
-                # hass.bus.fire(('{}_{}'.format(DOMAIN,
-                #                               hide_email(email)))[0:32],
-                #               {'player_state': json_payload})
+                hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                              hide_email(email)))[0:32],
+                              {'player_state': json_payload})
+            elif command == 'PUSH_VOLUME_CHANGE':
+                # Player volume update
+                _LOGGER.debug("Updating media_player volume: %s", json_payload)
+                hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                              hide_email(email)))[0:32],
+                              {'player_state': json_payload})
 
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
     scan_interval = config.get(CONF_SCAN_INTERVAL)
     email = login_obj.email
-    from alexapy import WebSocket_EchoClient
+    from alexapy import WebsocketEchoClient
     try:
-        websocket = WebSocket_EchoClient(login_obj, ws_handler)
+        websocket = WebsocketEchoClient(login_obj, ws_handler)
         _LOGGER.debug("%s: Websocket created: %s", hide_email(email),
                       websocket)
-        websocket.run()
     except BaseException as exception_:
         _LOGGER.exception("%s: Websocket failed: %s", hide_email(email),
                           exception_)

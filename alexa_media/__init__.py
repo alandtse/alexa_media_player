@@ -356,6 +356,23 @@ def setup_alexa(hass, config, login_obj):
             login_obj = account_dict['login_obj']
             update_last_called(login_obj)
 
+    def ws_connect():
+        """Open WebSocket connection."""
+        from alexapy import WebsocketEchoClient
+        try:
+            websocket = WebsocketEchoClient(login_obj,
+                                            ws_handler,
+                                            ws_close_handler,
+                                            ws_error_handler)
+            _LOGGER.debug("%s: Websocket created: %s", hide_email(email),
+                          websocket)
+        except BaseException as exception_:
+            _LOGGER.debug("%s: Websocket failed: %s falling back to polling",
+                          hide_email(email),
+                          exception_)
+            websocket = None
+        return websocket
+
     def ws_handler(message_obj):
         """Handle websocket messages.
 
@@ -396,20 +413,31 @@ def setup_alexa(hass, config, login_obj):
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
 
+    def ws_close_handler():
+        """Handle websocket close.
+
+        This should attempt to reconnect.
+        """
+        email = login_obj.email
+        _LOGGER.debug("%s: Received websocket close; attempting reconnect",
+                      hide_email(email))
+        (hass.data[DOMAIN]['accounts'][email]['websocket']) = ws_connect()
+
+    def ws_error_handler(message):
+        """Handle websocket error.
+
+        This should not attempt to reconnect.
+        """
+        email = login_obj.email
+        _LOGGER.debug("%s: Received websocket error %s; enabling polling",
+                      hide_email(email),
+                      message)
+        (hass.data[DOMAIN]['accounts'][email]['websocket']) = None
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
     scan_interval = config.get(CONF_SCAN_INTERVAL)
     email = login_obj.email
-    from alexapy import WebsocketEchoClient
-    try:
-        websocket = WebsocketEchoClient(login_obj, ws_handler)
-        _LOGGER.debug("%s: Websocket created: %s", hide_email(email),
-                      websocket)
-    except BaseException as exception_:
-        _LOGGER.exception("%s: Websocket failed: %s", hide_email(email),
-                          exception_)
-        websocket = None
-    (hass.data[DOMAIN]['accounts'][email]['websocket']) = websocket
+    (hass.data[DOMAIN]['accounts'][email]['websocket']) = ws_connect()
     (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
     (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
     (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': {}}

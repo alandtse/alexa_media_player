@@ -26,9 +26,9 @@ from .const import (
 
 # from .config_flow import configured_instances
 
-REQUIREMENTS = ['alexapy==0.4.0']
+REQUIREMENTS = ['alexapy==0.4.2']
 
-__version__ = '1.2.2'
+__version__ = '1.2.3'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -357,7 +357,10 @@ def setup_alexa(hass, config, login_obj):
             update_last_called(login_obj)
 
     def ws_connect():
-        """Open WebSocket connection."""
+        """Open WebSocket connection.
+
+        This will only attempt one login before failing.
+        """
         from alexapy import WebsocketEchoClient
         try:
             websocket = WebsocketEchoClient(login_obj,
@@ -426,10 +429,12 @@ def setup_alexa(hass, config, login_obj):
     def ws_error_handler(message):
         """Handle websocket error.
 
-        This should not attempt to reconnect.
+        This currently logs the error.  In the future, this should invalidate
+        the websocket and determine if a reconnect should be done. By
+        specification, websockets will issue a close after every error.
         """
         email = login_obj.email
-        _LOGGER.debug("%s: Received websocket error %s; enabling polling",
+        _LOGGER.debug("%s: Received websocket error %s",
                       hide_email(email),
                       message)
         (hass.data[DOMAIN]['accounts'][email]['websocket']) = None

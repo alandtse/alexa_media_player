@@ -1,6 +1,6 @@
 {
     "alexa_media": {
-        "version": "1.2.2",
+        "version": "1.2.3",
         "local_location": "/custom_components/alexa_media/__init__.py",
         "remote_location": "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/__init__.py",
         "visit_repo": "https://github.com/keatontaylor/alexa_media_player",

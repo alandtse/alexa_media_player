@@ -415,6 +415,13 @@ def setup_alexa(hass, config, login_obj):
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
+            elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
+                # Player volume update
+                _LOGGER.debug("Updating media_player avalibility %s",
+                              json_payload)
+                hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                              hide_email(email)))[0:32],
+                              {'player_state': json_payload})
 
     def ws_close_handler():
         """Handle websocket close.

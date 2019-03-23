@@ -206,6 +206,13 @@ class AlexaClient(MediaPlayerDevice):
                     self._media_vol_level = player_state['volumeSetting']/100
                     if (self.hass and self.schedule_update_ha_state):
                         self.schedule_update_ha_state()
+                elif 'dopplerConnectionState' in player_state:
+                    if player_state['dopplerConnectionState'] == "ONLINE":
+                        self._available = True
+                    else:
+                        self._available = False
+                    if (self.hass and self.schedule_update_ha_state):
+                                self.schedule_update_ha_state()
 
     def _clear_media_details(self):
         """Set all Media Items to None."""

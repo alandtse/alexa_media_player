@@ -518,7 +518,9 @@ class AlexaClient(MediaPlayerDevice):
             return
         self.alexa_api.set_volume(volume)
         self._media_vol_level = volume
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     @property
     def volume_level(self):
@@ -551,7 +553,9 @@ class AlexaClient(MediaPlayerDevice):
                 self.alexa_api.set_volume(self._previous_volume)
             else:
                 self.alexa_api.set_volume(50)
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def media_play(self):
         """Send play command."""
@@ -559,7 +563,9 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.play()
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def media_pause(self):
         """Send pause command."""
@@ -567,7 +573,9 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.pause()
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def turn_off(self):
         """Turn the client off.
@@ -594,7 +602,9 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.next()
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def media_previous_track(self):
         """Send previous track command."""
@@ -602,7 +612,9 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.previous()
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def send_tts(self, message):
         """Send TTS to Device.
@@ -637,7 +649,9 @@ class AlexaClient(MediaPlayerDevice):
         else:
             self.alexa_api.play_music(media_type, media_id,
                                       customer_id=self._customer_id, **kwargs)
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     @property
     def device_state_attributes(self):

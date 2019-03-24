@@ -416,8 +416,8 @@ def setup_alexa(hass, config, login_obj):
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
             elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
-                # Player volume update
-                _LOGGER.debug("Updating media_player avalibility %s",
+                # Player availability update
+                _LOGGER.debug("Updating media_player availability %s",
                               json_payload)
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],

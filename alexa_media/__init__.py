@@ -451,8 +451,12 @@ def setup_alexa(hass, config, login_obj):
     email = login_obj.email
     (hass.data[DOMAIN]['accounts'][email]['websocket']) = ws_connect()
     (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
-    (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
-    (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': {}}
+    if 'devices' not in hass.data[DOMAIN]['accounts'][email]:
+        (hass.data[DOMAIN]['accounts'][email]
+         ['devices']) = {'media_player': {}}
+    if 'entities' not in hass.data[DOMAIN]['accounts'][email]:
+        (hass.data[DOMAIN]['accounts'][email]
+         ['entities']) = {'media_player': {}}
     update_devices()
     track_time_interval(hass, lambda now: update_devices(), scan_interval)
     hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,

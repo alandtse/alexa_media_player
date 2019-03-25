@@ -239,12 +239,14 @@ def setup_alexa(hass, config, login_obj):
         """Ping Alexa API to identify all devices, bluetooth, and last called device.
 
         This will add new devices and services when discovered. By default this
-        runs every SCAN_INTERVAL seconds unless another method calls it. While
-        throttled at MIN_TIME_BETWEEN_SCANS, care should be taken to reduce the
-        number of runs to avoid flooding. Slow changing states should be
-        checked here instead of in spawned components like media_player since
-        this object is one per account.
-        Each AlexaAPI call generally results in one webpage request.
+        runs every SCAN_INTERVAL seconds unless another method calls it. if
+        websockets is connected, it will return immediately unless
+        'new_devices' has been set to True.
+        While throttled at MIN_TIME_BETWEEN_SCANS, care should be taken to
+        reduce the number of runs to avoid flooding. Slow changing states
+        should be checked here instead of in spawned components like
+        media_player since this object is one per account.
+        Each AlexaAPI call generally results in two webpage requests.
         """
         from alexapy import AlexaAPI
         existing_serials = (hass.data[DATA_ALEXAMEDIA]
@@ -474,7 +476,7 @@ def setup_alexa(hass, config, login_obj):
         (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
          ['entities']) = {'media_player': {}}
         (hass.data[DATA_ALEXAMEDIA]
-         ['accounts'][email]['new_devices']) = True
+         ['accounts'][email]['new_devices']) = True  # force initial update
     update_devices()
     track_time_interval(hass, lambda now: update_devices(), scan_interval)
     hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,

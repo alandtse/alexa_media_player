@@ -98,7 +98,7 @@ def setup(hass, config, discovery_info=None):
         email = account.get(CONF_EMAIL)
         password = account.get(CONF_PASSWORD)
         url = account.get(CONF_URL)
-        hass.data[DOMAIN]['accounts'][email] = {"config": []}
+        hass.data[DATA_ALEXAMEDIA]['accounts'][email] = {"config": []}
         login = AlexaLogin(url, email, password, hass.config.path,
                            account.get(CONF_DEBUG))
 
@@ -194,13 +194,13 @@ def request_configuration(hass, config, login, setup_platform_callback):
             submit_caption="Confirm",
             fields=[]
         )
-    hass.data[DOMAIN]['accounts'][email]['config'].append(config_id)
+    hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config'].append(config_id)
     if 'error_message' in status and status['error_message']:
         configurator.notify_errors(  # use sync to delay next pop
             config_id,
             status['error_message'])
-    if len(hass.data[DOMAIN]['accounts'][email]['config']) > 1:
-        configurator.async_request_done((hass.data[DOMAIN]
+    if len(hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config']) > 1:
+        configurator.async_request_done((hass.data[DATA_ALEXAMEDIA]
                                          ['accounts'][email]['config']).pop(0))
 
 
@@ -264,7 +264,8 @@ def setup_alexa(hass, config, login_obj):
                       len(devices) if devices is not None else '',
                       len(bluetooth) if bluetooth is not None else '')
         if ((devices is None or bluetooth is None)
-                and not hass.data[DOMAIN]['accounts'][email]['config']):
+                and not hass.data[DATA_ALEXAMEDIA]
+                                 ['accounts'][email]['config']):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
             test_login_status(hass, config, login_obj, setup_platform_callback)
@@ -431,7 +432,7 @@ def setup_alexa(hass, config, login_obj):
         email = login_obj.email
         _LOGGER.debug("%s: Received websocket close; attempting reconnect",
                       hide_email(email))
-        (hass.data[DOMAIN]['accounts'][email]['websocket']) = ws_connect()
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = ws_connect()
 
     def ws_error_handler(message):
         """Handle websocket error.
@@ -444,27 +445,29 @@ def setup_alexa(hass, config, login_obj):
         _LOGGER.debug("%s: Received websocket error %s",
                       hide_email(email),
                       message)
-        (hass.data[DOMAIN]['accounts'][email]['websocket']) = None
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = None
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
     scan_interval = config.get(CONF_SCAN_INTERVAL)
     email = login_obj.email
-    (hass.data[DOMAIN]['accounts'][email]['websocket']) = ws_connect()
-    (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
-    if 'devices' not in hass.data[DOMAIN]['accounts'][email]:
-        (hass.data[DOMAIN]['accounts'][email]
+    (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = ws_connect()
+    (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['login_obj']) = login_obj
+    if 'devices' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
          ['devices']) = {'media_player': {}}
-    if 'entities' not in hass.data[DOMAIN]['accounts'][email]:
-        (hass.data[DOMAIN]['accounts'][email]
+    if 'entities' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
          ['entities']) = {'media_player': {}}
+        (hass.data[DATA_ALEXAMEDIA]
+         ['accounts'][email]['new_devices']) = True
     update_devices()
     track_time_interval(hass, lambda now: update_devices(), scan_interval)
     hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
                            last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
-    for config_id in hass.data[DOMAIN]['accounts'][email]['config']:
+    for config_id in hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config']:
         configurator = hass.components.configurator
         configurator.async_request_done(config_id)
-    hass.data[DOMAIN]['accounts'][email]['config'] = []
+    hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config'] = []
     return True

@@ -257,6 +257,11 @@ def setup_alexa(hass, config, login_obj):
                              [email]
                              ['entities']
                              ['media_player'].values())
+        if (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']
+                and not (hass.data[DATA_ALEXAMEDIA]
+                         ['accounts'][email]['new_devices'])):
+            return
+        hass.data[DATA_ALEXAMEDIA]['accounts'][email]['new_devices'] = False
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         _LOGGER.debug("%s: Found %s devices, %s bluetooth",
@@ -423,6 +428,16 @@ def setup_alexa(hass, config, login_obj):
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
+                player_state = json_payload['player_state']
+                serial = (player_state['dopplerId']['deviceSerialNumber'])
+                if (serial not in (hass.data[DATA_ALEXAMEDIA]
+                                   ['accounts']
+                                   [email]
+                                   ['entities']
+                                   ['media_player'].keys())):
+                    _LOGGER.debug("Discovered new media_player %s", serial)
+                    (hass.data[DATA_ALEXAMEDIA]
+                     ['accounts'][email]['new_devices']) = True
 
     def ws_close_handler():
         """Handle websocket close.

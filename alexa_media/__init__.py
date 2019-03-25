@@ -443,6 +443,7 @@ def setup_alexa(hass, config, login_obj):
                 _LOGGER.debug("Discovered new media_player %s", serial)
                 (hass.data[DATA_ALEXAMEDIA]
                  ['accounts'][email]['new_devices']) = True
+                update_devices(no_throttle=True)
 
     def ws_close_handler():
         """Handle websocket close.

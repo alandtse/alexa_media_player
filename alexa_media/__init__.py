@@ -402,44 +402,47 @@ def setup_alexa(hass, config, login_obj):
             _LOGGER.debug("%s: Received websocket command: %s : %s",
                           hide_email(email),
                           command, json_payload)
+            serial = None
             if command == 'PUSH_ACTIVITY':
                 #  Last_Alexa Updated
+                serial = (json_payload
+                          ['key']
+                          ['entryId']).split('#')[2]
                 last_called = {
-                    'serialNumber': (json_payload
-                                     ['key']
-                                     ['entryId']).split('#')[2],
+                    'serialNumber': serial,
                     'timestamp': json_payload['timestamp']
                     }
                 update_last_called(login_obj, last_called)
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 _LOGGER.debug("Updating media_player: %s", json_payload)
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
             elif command == 'PUSH_VOLUME_CHANGE':
                 # Player volume update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 _LOGGER.debug("Updating media_player volume: %s", json_payload)
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
             elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
                 # Player availability update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 _LOGGER.debug("Updating media_player availability %s",
                               json_payload)
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
-                player_state = json_payload['player_state']
-                serial = (player_state['dopplerId']['deviceSerialNumber'])
-                if (serial not in (hass.data[DATA_ALEXAMEDIA]
-                                   ['accounts']
-                                   [email]
-                                   ['entities']
-                                   ['media_player'].keys())):
-                    _LOGGER.debug("Discovered new media_player %s", serial)
-                    (hass.data[DATA_ALEXAMEDIA]
-                     ['accounts'][email]['new_devices']) = True
+            if (serial and serial not in (hass.data[DATA_ALEXAMEDIA]
+                                          ['accounts']
+                                          [email]
+                                          ['entities']
+                                          ['media_player'].keys())):
+                _LOGGER.debug("Discovered new media_player %s", serial)
+                (hass.data[DATA_ALEXAMEDIA]
+                 ['accounts'][email]['new_devices']) = True
 
     def ws_close_handler():
         """Handle websocket close.

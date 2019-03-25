@@ -481,8 +481,8 @@ def setup_alexa(hass, config, login_obj):
          ['entities']) = {'media_player': {}}
         (hass.data[DATA_ALEXAMEDIA]
          ['accounts'][email]['new_devices']) = True  # force initial update
+        track_time_interval(hass, lambda now: update_devices(), scan_interval)
     update_devices()
-    track_time_interval(hass, lambda now: update_devices(), scan_interval)
     hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
                            last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
 

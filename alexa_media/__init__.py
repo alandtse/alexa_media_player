@@ -98,7 +98,7 @@ def setup(hass, config, discovery_info=None):
         email = account.get(CONF_EMAIL)
         password = account.get(CONF_PASSWORD)
         url = account.get(CONF_URL)
-        hass.data[DOMAIN]['accounts'][email] = {"config": []}
+        hass.data[DATA_ALEXAMEDIA]['accounts'][email] = {"config": []}
         login = AlexaLogin(url, email, password, hass.config.path,
                            account.get(CONF_DEBUG))
 
@@ -194,13 +194,13 @@ def request_configuration(hass, config, login, setup_platform_callback):
             submit_caption="Confirm",
             fields=[]
         )
-    hass.data[DOMAIN]['accounts'][email]['config'].append(config_id)
+    hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config'].append(config_id)
     if 'error_message' in status and status['error_message']:
         configurator.notify_errors(  # use sync to delay next pop
             config_id,
             status['error_message'])
-    if len(hass.data[DOMAIN]['accounts'][email]['config']) > 1:
-        configurator.async_request_done((hass.data[DOMAIN]
+    if len(hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config']) > 1:
+        configurator.async_request_done((hass.data[DATA_ALEXAMEDIA]
                                          ['accounts'][email]['config']).pop(0))
 
 
@@ -239,12 +239,14 @@ def setup_alexa(hass, config, login_obj):
         """Ping Alexa API to identify all devices, bluetooth, and last called device.
 
         This will add new devices and services when discovered. By default this
-        runs every SCAN_INTERVAL seconds unless another method calls it. While
-        throttled at MIN_TIME_BETWEEN_SCANS, care should be taken to reduce the
-        number of runs to avoid flooding. Slow changing states should be
-        checked here instead of in spawned components like media_player since
-        this object is one per account.
-        Each AlexaAPI call generally results in one webpage request.
+        runs every SCAN_INTERVAL seconds unless another method calls it. if
+        websockets is connected, it will return immediately unless
+        'new_devices' has been set to True.
+        While throttled at MIN_TIME_BETWEEN_SCANS, care should be taken to
+        reduce the number of runs to avoid flooding. Slow changing states
+        should be checked here instead of in spawned components like
+        media_player since this object is one per account.
+        Each AlexaAPI call generally results in two webpage requests.
         """
         from alexapy import AlexaAPI
         existing_serials = (hass.data[DATA_ALEXAMEDIA]
@@ -257,6 +259,11 @@ def setup_alexa(hass, config, login_obj):
                              [email]
                              ['entities']
                              ['media_player'].values())
+        if (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']
+                and not (hass.data[DATA_ALEXAMEDIA]
+                         ['accounts'][email]['new_devices'])):
+            return
+        hass.data[DATA_ALEXAMEDIA]['accounts'][email]['new_devices'] = False
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         _LOGGER.debug("%s: Found %s devices, %s bluetooth",
@@ -264,7 +271,8 @@ def setup_alexa(hass, config, login_obj):
                       len(devices) if devices is not None else '',
                       len(bluetooth) if bluetooth is not None else '')
         if ((devices is None or bluetooth is None)
-                and not hass.data[DOMAIN]['accounts'][email]['config']):
+                and not hass.data[DATA_ALEXAMEDIA]
+                                 ['accounts'][email]['config']):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
             test_login_status(hass, config, login_obj, setup_platform_callback)
@@ -394,34 +402,48 @@ def setup_alexa(hass, config, login_obj):
             _LOGGER.debug("%s: Received websocket command: %s : %s",
                           hide_email(email),
                           command, json_payload)
+            serial = None
             if command == 'PUSH_ACTIVITY':
                 #  Last_Alexa Updated
+                serial = (json_payload
+                          ['key']
+                          ['entryId']).split('#')[2]
                 last_called = {
-                    'serialNumber': (json_payload
-                                     ['key']
-                                     ['entryId']).split('#')[2],
+                    'serialNumber': serial,
                     'timestamp': json_payload['timestamp']
                     }
                 update_last_called(login_obj, last_called)
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 _LOGGER.debug("Updating media_player: %s", json_payload)
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
             elif command == 'PUSH_VOLUME_CHANGE':
                 # Player volume update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 _LOGGER.debug("Updating media_player volume: %s", json_payload)
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
             elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
-                # Player volume update
-                _LOGGER.debug("Updating media_player avalibility %s",
+                # Player availability update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
+                _LOGGER.debug("Updating media_player availability %s",
                               json_payload)
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
+            if (serial and serial not in (hass.data[DATA_ALEXAMEDIA]
+                                          ['accounts']
+                                          [email]
+                                          ['entities']
+                                          ['media_player'].keys())):
+                _LOGGER.debug("Discovered new media_player %s", serial)
+                (hass.data[DATA_ALEXAMEDIA]
+                 ['accounts'][email]['new_devices']) = True
+                update_devices(no_throttle=True)
 
     def ws_close_handler():
         """Handle websocket close.
@@ -431,7 +453,7 @@ def setup_alexa(hass, config, login_obj):
         email = login_obj.email
         _LOGGER.debug("%s: Received websocket close; attempting reconnect",
                       hide_email(email))
-        (hass.data[DOMAIN]['accounts'][email]['websocket']) = ws_connect()
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = ws_connect()
 
     def ws_error_handler(message):
         """Handle websocket error.
@@ -444,23 +466,29 @@ def setup_alexa(hass, config, login_obj):
         _LOGGER.debug("%s: Received websocket error %s",
                       hide_email(email),
                       message)
-        (hass.data[DOMAIN]['accounts'][email]['websocket']) = None
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = None
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
     scan_interval = config.get(CONF_SCAN_INTERVAL)
     email = login_obj.email
-    (hass.data[DOMAIN]['accounts'][email]['websocket']) = ws_connect()
-    (hass.data[DOMAIN]['accounts'][email]['login_obj']) = login_obj
-    (hass.data[DOMAIN]['accounts'][email]['devices']) = {'media_player': {}}
-    (hass.data[DOMAIN]['accounts'][email]['entities']) = {'media_player': {}}
+    (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = ws_connect()
+    (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['login_obj']) = login_obj
+    if 'devices' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+         ['devices']) = {'media_player': {}}
+    if 'entities' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+         ['entities']) = {'media_player': {}}
+        (hass.data[DATA_ALEXAMEDIA]
+         ['accounts'][email]['new_devices']) = True  # force initial update
+        track_time_interval(hass, lambda now: update_devices(), scan_interval)
     update_devices()
-    track_time_interval(hass, lambda now: update_devices(), scan_interval)
     hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
                            last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
-    for config_id in hass.data[DOMAIN]['accounts'][email]['config']:
+    for config_id in hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config']:
         configurator = hass.components.configurator
         configurator.async_request_done(config_id)
-    hass.data[DOMAIN]['accounts'][email]['config'] = []
+    hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config'] = []
     return True

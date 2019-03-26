@@ -126,9 +126,9 @@ class AlexaNotificationService(BaseNotificationService):
 
     def send_message(self, message="", **kwargs):
         """Send a message to a Alexa device."""
-        _LOGGER.info("Message: %s, kwargs: %s",
-                     message,
-                     kwargs)
+        _LOGGER.debug("Message: %s, kwargs: %s",
+                      message,
+                      kwargs)
         kwargs['message'] = message
         targets = kwargs.get(ATTR_TARGET)
         title = (kwargs.get(ATTR_TITLE) if ATTR_TITLE in kwargs
@@ -141,13 +141,13 @@ class AlexaNotificationService(BaseNotificationService):
             entities.extend(self.hass.components.group.expand_entity_ids(
                 entities))
         except ValueError:
-            _LOGGER.info("Invalid Home Assistant entity in %s", entities)
+            _LOGGER.debug("Invalid Home Assistant entity in %s", entities)
         if data['type'] == "tts":
             targets = self.convert(entities, type_="entities",
                                    filter_matches=True)
             _LOGGER.debug("TTS entities: %s", targets)
             for alexa in targets:
-                _LOGGER.info("TTS by %s : %s", alexa, message)
+                _LOGGER.debug("TTS by %s : %s", alexa, message)
                 alexa.send_tts(message)
         elif data['type'] == "announce":
             targets = self.convert(entities, type_="serialnumbers",
@@ -160,12 +160,12 @@ class AlexaNotificationService(BaseNotificationService):
                 for alexa in (account_dict['entities']
                               ['media_player'].values()):
                     if alexa.unique_id in targets and alexa.available:
-                        _LOGGER.info(("%s: Announce by %s to "
-                                      "targets: %s: %s"),
-                                     hide_email(account),
-                                     alexa,
-                                     list(map(hide_serial, targets)),
-                                     message)
+                        _LOGGER.debug(("%s: Announce by %s to "
+                                       "targets: %s: %s"),
+                                      hide_email(account),
+                                      alexa,
+                                      list(map(hide_serial, targets)),
+                                      message)
                         alexa.send_announcement(message,
                                                 targets=targets,
                                                 title=title,
@@ -177,5 +177,5 @@ class AlexaNotificationService(BaseNotificationService):
             targets = self.convert(entities, type_="entities",
                                    filter_matches=True)
             for alexa in targets:
-                _LOGGER.info("Push by %s : %s %s", alexa, title, message)
+                _LOGGER.debug("Push by %s : %s %s", alexa, title, message)
                 alexa.send_mobilepush(message, title=title)

@@ -284,9 +284,33 @@ def setup_alexa(hass, config, login_obj):
         for device in devices:
             if include and device['accountName'] not in include:
                 included.append(device['accountName'])
+                if 'appDeviceList' in device:
+                    for app in device['appDeviceList']:
+                        (hass.data[DATA_ALEXAMEDIA]
+                         ['accounts']
+                         [email]
+                         ['excluded']
+                         [app['serialNumber']]) = device
+                (hass.data[DATA_ALEXAMEDIA]
+                 ['accounts']
+                 [email]
+                 ['excluded']
+                 [device['serialNumber']]) = device
                 continue
             elif exclude and device['accountName'] in exclude:
                 excluded.append(device['accountName'])
+                if 'appDeviceList' in device:
+                    for app in device['appDeviceList']:
+                        (hass.data[DATA_ALEXAMEDIA]
+                         ['accounts']
+                         [email]
+                         ['excluded']
+                         [app['serialNumber']]) = device
+                (hass.data[DATA_ALEXAMEDIA]
+                 ['accounts']
+                 [email]
+                 ['excluded']
+                 [device['serialNumber']]) = device
                 continue
 
             for b_state in bluetooth['bluetoothStates']:
@@ -414,6 +438,11 @@ def setup_alexa(hass, config, login_obj):
                         if isinstance(message_obj.json_payload, dict) and
                         'payload' in message_obj.json_payload
                         else None)
+        existing_serials = (hass.data[DATA_ALEXAMEDIA]
+                            ['accounts']
+                            [email]
+                            ['entities']
+                            ['media_player'].keys())
         if command and json_payload:
             _LOGGER.debug("%s: Received websocket command: %s : %s",
                           hide_email(email),
@@ -428,43 +457,49 @@ def setup_alexa(hass, config, login_obj):
                     'serialNumber': serial,
                     'timestamp': json_payload['timestamp']
                 }
-                update_last_called(login_obj, last_called)
+                if (serial and serial in existing_serials):
+                    update_last_called(login_obj, last_called)
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
-                _LOGGER.debug("Updating media_player: %s", json_payload)
-                hass.bus.fire(('{}_{}'.format(DOMAIN,
-                                              hide_email(email)))[0:32],
-                              {'player_state': json_payload})
+                if (serial and serial in existing_serials):
+                    _LOGGER.debug("Updating media_player: %s", json_payload)
+                    hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                                  hide_email(email)))[0:32],
+                                  {'player_state': json_payload})
             elif command == 'PUSH_VOLUME_CHANGE':
                 # Player volume update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
-                _LOGGER.debug("Updating media_player volume: %s", json_payload)
-                hass.bus.fire(('{}_{}'.format(DOMAIN,
-                                              hide_email(email)))[0:32],
-                              {'player_state': json_payload})
+                if (serial and serial in existing_serials):
+                    _LOGGER.debug("Updating media_player volume: %s",
+                                  json_payload)
+                    hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                                  hide_email(email)))[0:32],
+                                  {'player_state': json_payload})
             elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
                 # Player availability update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
-                _LOGGER.debug("Updating media_player availability %s",
-                              json_payload)
-                hass.bus.fire(('{}_{}'.format(DOMAIN,
-                                              hide_email(email)))[0:32],
-                              {'player_state': json_payload})
+                if (serial and serial in existing_serials):
+                    _LOGGER.debug("Updating media_player availability %s",
+                                  json_payload)
+                    hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                                  hide_email(email)))[0:32],
+                                  {'player_state': json_payload})
             elif command == 'PUSH_BLUETOOTH_STATE_CHANGE':
                 # Player bluetooth update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
-                _LOGGER.debug("Updating media_player bluetooth %s",
-                              json_payload)
-                bluetooth_state = update_bluetooth_state(login_obj, serial)
-                hass.bus.fire(('{}_{}'.format(DOMAIN,
-                                              hide_email(email)))[0:32],
-                              {'bluetooth_change': bluetooth_state})
-            if (serial and serial not in (hass.data[DATA_ALEXAMEDIA]
-                                          ['accounts']
-                                          [email]
-                                          ['entities']
-                                          ['media_player'].keys())):
+                if (serial and serial in existing_serials):
+                    _LOGGER.debug("Updating media_player bluetooth %s",
+                                  json_payload)
+                    bluetooth_state = update_bluetooth_state(login_obj, serial)
+                    hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                                  hide_email(email)))[0:32],
+                                  {'bluetooth_change': bluetooth_state})
+            if (serial and serial not in existing_serials
+                    and serial not in (hass.data[DATA_ALEXAMEDIA]
+                                       ['accounts']
+                                       [email]
+                                       ['excluded'].keys())):
                 _LOGGER.debug("Discovered new media_player %s", serial)
                 (hass.data[DATA_ALEXAMEDIA]
                  ['accounts'][email]['new_devices']) = True
@@ -502,6 +537,9 @@ def setup_alexa(hass, config, login_obj):
     if 'devices' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
         (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
          ['devices']) = {'media_player': {}}
+    if 'excluded' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+         ['excluded']) = {}
     if 'entities' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
         (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
          ['entities']) = {'media_player': {}}

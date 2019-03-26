@@ -171,7 +171,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
                 description=('Please select the verification method. '
                              '(e.g., sms or email).<br />{}').format(
                                  options
-                             ),
+                ),
                 submit_caption="Confirm",
                 fields=[{'id': 'claimsoption', 'name': 'Option'}]
             )
@@ -348,6 +348,22 @@ def setup_alexa(hass, config, login_obj):
                   [email]
                   ['last_called']) = last_called
 
+    def update_bluetooth_state(login_obj, device_serial):
+        """Update the bluetooth state on ws bluetooth event."""
+        from alexapy import AlexaAPI
+        bluetooth = AlexaAPI.get_bluetooth(login_obj)
+        device = (hass.data[DATA_ALEXAMEDIA]
+                  ['accounts']
+                  [email]
+                  ['devices']
+                  ['media_player']
+                  [device_serial])
+
+        for b_state in bluetooth['bluetoothStates']:
+            if device_serial == b_state['deviceSerialNumber']:
+                device['bluetooth_state'] = b_state
+        return device['bluetooth_state']
+
     def last_call_handler(call):
         """Handle last call service request.
 
@@ -411,7 +427,7 @@ def setup_alexa(hass, config, login_obj):
                 last_called = {
                     'serialNumber': serial,
                     'timestamp': json_payload['timestamp']
-                    }
+                }
                 update_last_called(login_obj, last_called)
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
@@ -435,6 +451,15 @@ def setup_alexa(hass, config, login_obj):
                 hass.bus.fire(('{}_{}'.format(DOMAIN,
                                               hide_email(email)))[0:32],
                               {'player_state': json_payload})
+            elif command == 'PUSH_BLUETOOTH_STATE_CHANGE':
+                # Player bluetooth update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
+                _LOGGER.debug("Updating media_player bluetooth %s",
+                              json_payload)
+                bluetooth_state = update_bluetooth_state(login_obj, serial)
+                hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                              hide_email(email)))[0:32],
+                              {'bluetooth_change': bluetooth_state})
             if (serial and serial not in (hass.data[DATA_ALEXAMEDIA]
                                           ['accounts']
                                           [email]
@@ -453,7 +478,8 @@ def setup_alexa(hass, config, login_obj):
         email = login_obj.email
         _LOGGER.debug("%s: Received websocket close; attempting reconnect",
                       hide_email(email))
-        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = ws_connect()
+        (hass.data[DATA_ALEXAMEDIA]['accounts']
+         [email]['websocket']) = ws_connect()
 
     def ws_error_handler(message):
         """Handle websocket error.

@@ -92,24 +92,16 @@ class AlexaNotificationService(BaseNotificationService):
                 devices.append(item)
         return devices
 
-    # This can't be enabled because notify is setup before the media_player
-    # once a method is determined to wait till media_player, this can be used
-    # @property
-    # def targets(self):
-    #     """Return a dictionary of Alexa devices."""
-    #     devices = {}
-    #     # if ('accounts' not in self.hass.data[DATA_ALEXAMEDIA] or
-    #     #         self.hass.data[DATA_ALEXAMEDIA]['accounts'].items()):
-    #     #     return devices
-    #     for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
-    #                                   ['accounts'].items()):
-    #         for alexa in account_dict['entities']['media_player'].values():
-    #             devices[alexa.name] = alexa
-    #         _LOGGER.debug("Account: %s Devices: %s Raw:%s",
-    #                       hide_email(account),
-    #                       devices,
-    #                       account_dict)
-    #     return devices
+    @property
+    def targets(self):
+        """Return a dictionary of Alexa devices."""
+        devices = {}
+        for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
+                                      ['accounts'].items()):
+            for serial, alexa in (account_dict
+                                  ['devices']['media_player'].items()):
+                devices[alexa['accountName']] = serial
+        return devices
 
     @property
     def devices(self):

@@ -190,6 +190,14 @@ class AlexaClient(MediaPlayerDevice):
                 force_refresh = not (self.hass.data[DATA_ALEXAMEDIA]
                                      ['accounts'][email]['websocket'])
                 self.schedule_update_ha_state(force_refresh=force_refresh)
+        elif 'bluetooth_change' in event.data:
+            if (event.data['bluetooth_change']['deviceSerialNumber'] ==
+                    self.device_serial_number):
+                self._bluetooth_state = event.data['bluetooth_change']
+                self._source = self._get_source()
+                self._source_list = self._get_source_list()
+                if (self.hass and self.schedule_update_ha_state):
+                    self.schedule_update_ha_state()
         elif 'player_state' in event.data:
             player_state = event.data['player_state']
             if (player_state['dopplerId']

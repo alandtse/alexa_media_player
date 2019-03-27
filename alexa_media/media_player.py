@@ -194,6 +194,8 @@ class AlexaClient(MediaPlayerDevice):
             if (event.data['bluetooth_change']['deviceSerialNumber'] ==
                     self.device_serial_number):
                 self._bluetooth_state = event.data['bluetooth_change']
+                self._source = self._get_source()
+                self._source_list = self._get_source_list()
                 if (self.hass and self.schedule_update_ha_state):
                     self.schedule_update_ha_state()
         elif 'player_state' in event.data:

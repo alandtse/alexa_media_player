@@ -13,7 +13,7 @@ import voluptuous as vol
 
 from homeassistant import util
 from homeassistant.const import (
-    CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_URL)
+    CONF_EMAIL, CONF_NAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_URL)
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant.helpers.discovery import load_platform
@@ -336,7 +336,8 @@ def setup_alexa(hass, config, login_obj):
 
         if new_alexa_clients:
             for component in ALEXA_COMPONENTS:
-                load_platform(hass, component, DOMAIN, {}, config)
+                load_platform(hass, component, DOMAIN, {CONF_NAME: DOMAIN},
+                              config)
 
         # Process last_called data to fire events
         update_last_called(login_obj)

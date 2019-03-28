@@ -18,7 +18,8 @@ MIN_TIME_BETWEEN_SCANS = SCAN_INTERVAL
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 
 ALEXA_COMPONENTS = [
-    'media_player'
+    'media_player',
+    'notify'
 ]
 
 CONF_ACCOUNTS = 'accounts'

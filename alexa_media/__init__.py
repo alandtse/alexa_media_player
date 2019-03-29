@@ -26,9 +26,9 @@ from .const import (
 
 # from .config_flow import configured_instances
 
-REQUIREMENTS = ['alexapy==0.4.2']
+REQUIREMENTS = ['alexapy==0.4.3']
 
-__version__ = '1.2.3'
+__version__ = '1.2.4'
 
 _LOGGER = logging.getLogger(__name__)
 

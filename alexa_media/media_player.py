@@ -190,6 +190,14 @@ class AlexaClient(MediaPlayerDevice):
                 force_refresh = not (self.hass.data[DATA_ALEXAMEDIA]
                                      ['accounts'][email]['websocket'])
                 self.schedule_update_ha_state(force_refresh=force_refresh)
+        elif 'bluetooth_change' in event.data:
+            if (event.data['bluetooth_change']['deviceSerialNumber'] ==
+                    self.device_serial_number):
+                self._bluetooth_state = event.data['bluetooth_change']
+                self._source = self._get_source()
+                self._source_list = self._get_source_list()
+                if (self.hass and self.schedule_update_ha_state):
+                    self.schedule_update_ha_state()
         elif 'player_state' in event.data:
             player_state = event.data['player_state']
             if (player_state['dopplerId']
@@ -204,6 +212,11 @@ class AlexaClient(MediaPlayerDevice):
                                   self.name,
                                   player_state['volumeSetting'])
                     self._media_vol_level = player_state['volumeSetting']/100
+                    if (self.hass and self.schedule_update_ha_state):
+                        self.schedule_update_ha_state()
+                elif 'dopplerConnectionState' in player_state:
+                    self._available = (player_state['dopplerConnectionState']
+                                       == "ONLINE")
                     if (self.hass and self.schedule_update_ha_state):
                         self.schedule_update_ha_state()
 
@@ -513,7 +526,9 @@ class AlexaClient(MediaPlayerDevice):
             return
         self.alexa_api.set_volume(volume)
         self._media_vol_level = volume
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     @property
     def volume_level(self):
@@ -546,7 +561,9 @@ class AlexaClient(MediaPlayerDevice):
                 self.alexa_api.set_volume(self._previous_volume)
             else:
                 self.alexa_api.set_volume(50)
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def media_play(self):
         """Send play command."""
@@ -554,7 +571,9 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.play()
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def media_pause(self):
         """Send pause command."""
@@ -562,7 +581,9 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.pause()
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def turn_off(self):
         """Turn the client off.
@@ -589,7 +610,9 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.next()
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def media_previous_track(self):
         """Send previous track command."""
@@ -597,7 +620,9 @@ class AlexaClient(MediaPlayerDevice):
                 and self.available):
             return
         self.alexa_api.previous()
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     def send_tts(self, message):
         """Send TTS to Device.
@@ -632,7 +657,9 @@ class AlexaClient(MediaPlayerDevice):
         else:
             self.alexa_api.play_music(media_type, media_id,
                                       customer_id=self._customer_id, **kwargs)
-        self.update()
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            self.update()
 
     @property
     def device_state_attributes(self):

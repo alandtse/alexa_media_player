@@ -10,18 +10,5 @@
             "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/media_player.py",
             "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/notify.py"
         ]
-    },
-    "alexa_media (dev)": {
-        "version": "1.2.4",
-        "local_location": "/custom_components/alexa_media/__init__.py",
-        "remote_location": "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/dev/alexa_media/__init__.py",
-        "visit_repo": "https://github.com/keatontaylor/alexa_media_player",
-        "changelog": "https://github.com/keatontaylor/alexa_media_player/wiki/Changelog",
-        "resources": [
-            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/dev/alexa_media/const.py",
-            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/dev/alexa_media/media_player.py",
-            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/dev/alexa_media/notify.py"
-        ]
     }
-
 }

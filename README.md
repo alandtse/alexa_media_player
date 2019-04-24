@@ -63,7 +63,7 @@ Add this to your configuration:
 custom_updater:
   component_urls:
 # Dev build (unstable)
-    - https://raw.githubusercontent.com/keatontaylor/alexa_media_player/next/custom_components.json
+    - https://raw.githubusercontent.com/keatontaylor/alexa_media_player/dev/custom_components.json
 # Released build
     - https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/custom_components.json
 ```

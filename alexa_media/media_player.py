@@ -360,7 +360,9 @@ class AlexaClient(MediaPlayerDevice):
         sources = []
         if self._bluetooth_state['pairedDeviceList'] is not None:
             for devices in self._bluetooth_state['pairedDeviceList']:
-                sources.append(devices['friendlyName'])
+                if (devices['profiles'] and
+                        'A2DP-SOURCE' in devices['profiles']):
+                    sources.append(devices['friendlyName'])
         return ['Local Speaker'] + sources
 
     def _get_last_called(self):

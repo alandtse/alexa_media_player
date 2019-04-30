@@ -28,7 +28,7 @@ from .const import (
 
 REQUIREMENTS = ['alexapy==0.5.0']
 
-__version__ = '1.2.4'
+__version__ = '1.2.5'
 
 _LOGGER = logging.getLogger(__name__)
 

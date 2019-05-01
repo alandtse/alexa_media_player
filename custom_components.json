@@ -8,7 +8,9 @@
         "resources": [
             "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/const.py",
             "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/media_player.py",
-            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/notify.py"
+            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/notify.py",
+            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/manifest.json",
+            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/services.yaml"
         ]
     }
 }

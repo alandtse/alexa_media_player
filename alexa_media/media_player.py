@@ -136,6 +136,7 @@ class AlexaClient(MediaPlayerDevice):
         self._available = None
         self._capabilities = []
         self._cluster_members = []
+        self._locale = None
         # Media
         self._session = None
         self._media_duration = None
@@ -266,6 +267,7 @@ class AlexaClient(MediaPlayerDevice):
             self._capabilities = device['capabilities']
             self._cluster_members = device['clusterMembers']
             self._bluetooth_state = device['bluetooth_state']
+            self._locale = device['locale'] if 'locale' in device else 'en-US'
         if self._available is True:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             self._source = self._get_source()
@@ -360,7 +362,9 @@ class AlexaClient(MediaPlayerDevice):
         sources = []
         if self._bluetooth_state['pairedDeviceList'] is not None:
             for devices in self._bluetooth_state['pairedDeviceList']:
-                sources.append(devices['friendlyName'])
+                if (devices['profiles'] and
+                        'A2DP-SOURCE' in devices['profiles']):
+                    sources.append(devices['friendlyName'])
         return ['Local Speaker'] + sources
 
     def _get_last_called(self):

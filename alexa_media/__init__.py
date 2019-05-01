@@ -26,9 +26,9 @@ from .const import (
 
 # from .config_flow import configured_instances
 
-REQUIREMENTS = ['alexapy==0.4.3']
+REQUIREMENTS = ['alexapy==0.5.0']
 
-__version__ = '1.2.4'
+__version__ = '1.2.5'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -266,6 +266,7 @@ def setup_alexa(hass, config, login_obj):
         hass.data[DATA_ALEXAMEDIA]['accounts'][email]['new_devices'] = False
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
+        preferences = AlexaAPI.get_device_preferences(login_obj)
         _LOGGER.debug("%s: Found %s devices, %s bluetooth",
                       hide_email(email),
                       len(devices) if devices is not None else '',
@@ -317,6 +318,12 @@ def setup_alexa(hass, config, login_obj):
                 if device['serialNumber'] == b_state['deviceSerialNumber']:
                     device['bluetooth_state'] = b_state
 
+            for dev in preferences['devicePreferences']:
+                if dev['deviceSerialNumber'] == device['serialNumber']:
+                    device['locale'] = dev['locale']
+                    _LOGGER.debug("Locale %s found for %s",
+                                  device['locale'],
+                                  hide_serial(device['serialNumber']))
             (hass.data[DATA_ALEXAMEDIA]
              ['accounts']
              [email]

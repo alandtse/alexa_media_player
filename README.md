@@ -15,6 +15,9 @@ Allows for control of Amazon Echo products as home assistant media devices with 
   * Album Name
   * Album Image
 
+# Installation and Configuration
+Please see the [wiki.](https://github.com/keatontaylor/alexa_media_player/wiki/Installation-and-Configuration)
+
 # Notable Additional Features
 ## Play Music
 We can basically do anything a Alexa [Routine](https://www.amazon.com/gp/help/customer/display.html?nodeId=G202200080) can do.  You'll have to [discover specifics](https://github.com/keatontaylor/alexa_media_player/wiki/Sequence-Discovery), but here are some examples (and please help add them below!).
@@ -62,8 +65,6 @@ Add this to your configuration:
 ```yaml
 custom_updater:
   component_urls:
-# Dev build (unstable)
-    - https://raw.githubusercontent.com/keatontaylor/alexa_media_player/next/custom_components.json
 # Released build
     - https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/custom_components.json
 ```

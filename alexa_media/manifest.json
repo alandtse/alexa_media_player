@@ -1,0 +1,8 @@
+{
+  "domain": "alexa_media",
+  "name": "Alexa Media Player",
+  "documentation": "https://github.com/keatontaylor/alexa_media_player/wiki",
+  "dependencies": [],
+  "codeowners": ["@keatontaylor", "@alandtse"],
+  "requirements": ["alexapy==0.5.0"]
+}

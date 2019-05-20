@@ -147,7 +147,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
             configuration_callback,
             description=('Please enter the text for the captcha.'
                          ' Please enter anything if the image is missing.'
-                         ),
+                        ),
             description_image=status['captcha_image_url'],
             submit_caption="Confirm",
             fields=[{'id': 'captcha', 'name': 'Captcha'}]
@@ -171,7 +171,7 @@ def request_configuration(hass, config, login, setup_platform_callback):
                 description=('Please select the verification method. '
                              '(e.g., sms or email).<br />{}').format(
                                  options
-                ),
+                            ),
                 submit_caption="Confirm",
                 fields=[{'id': 'claimsoption', 'name': 'Option'}]
             )
@@ -200,8 +200,8 @@ def request_configuration(hass, config, login, setup_platform_callback):
             config_id,
             status['error_message'])
     if len(hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config']) > 1:
-        configurator.async_request_done((hass.data[DATA_ALEXAMEDIA]
-                                         ['accounts'][email]['config']).pop(0))
+        configurator.request_done((hass.data[DATA_ALEXAMEDIA]
+                                   ['accounts'][email]['config']).pop(0))
 
 
 def test_login_status(hass, config, login,
@@ -271,8 +271,8 @@ def setup_alexa(hass, config, login_obj):
                       len(devices) if devices is not None else '',
                       len(bluetooth) if bluetooth is not None else '')
         if ((devices is None or bluetooth is None)
-                and not hass.data[DATA_ALEXAMEDIA]
-                                 ['accounts'][email]['config']):
+                and not (hass.data[DATA_ALEXAMEDIA]
+                         ['accounts'][email]['config'])):
             _LOGGER.debug("Alexa API disconnected; attempting to relogin")
             login_obj.login_with_cookie()
             test_login_status(hass, config, login_obj, setup_platform_callback)
@@ -375,9 +375,9 @@ def setup_alexa(hass, config, login_obj):
             hass.bus.fire(('{}_{}'.format(DOMAIN, hide_email(email)))[0:32],
                           {'last_called_change': last_called})
         (hass.data[DATA_ALEXAMEDIA]
-                  ['accounts']
-                  [email]
-                  ['last_called']) = last_called
+         ['accounts']
+         [email]
+         ['last_called']) = last_called
 
     def update_bluetooth_state(login_obj, device_serial):
         """Update the bluetooth state on ws bluetooth event."""

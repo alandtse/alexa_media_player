@@ -42,3 +42,8 @@ set_guard_state:
       description: List of Alexa accounts to set. If empty, will set all known accounts
       # Example value that can be passed for this field
       example: 'my_email@alexa.com'
+    state:
+      # Description of the field
+      description: The state to set. Allows ARMED_AWAY and ARMED_STAY
+      # Example value that can be passed for this field
+      example: 'ARMED_AWAY'

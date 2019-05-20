@@ -1,6 +1,6 @@
 {
     "alexa_media": {
-        "version": "1.2.4",
+        "version": "1.2.5",
         "local_location": "/custom_components/alexa_media/__init__.py",
         "remote_location": "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/__init__.py",
         "visit_repo": "https://github.com/keatontaylor/alexa_media_player",
@@ -8,7 +8,9 @@
         "resources": [
             "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/const.py",
             "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/media_player.py",
-            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/notify.py"
+            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/notify.py",
+            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/manifest.json",
+            "https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/alexa_media/services.yaml"
         ]
     }
 }

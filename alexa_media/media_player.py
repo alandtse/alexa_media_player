@@ -9,6 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import logging
 
+from typing import List  # noqa pylint: disable=unused-import
 import voluptuous as vol
 from homeassistant import util
 from homeassistant.components.media_player import (MEDIA_PLAYER_SCHEMA,
@@ -29,6 +30,7 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_SET)
 from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
                                  STATE_STANDBY)
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import call_later
 from homeassistant.helpers.service import extract_entity_ids
@@ -36,10 +38,10 @@ from homeassistant.helpers.service import extract_entity_ids
 from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL, SERVICE_ALEXA_TTS
 
 from . import (
-        DOMAIN as ALEXA_DOMAIN,
-        DATA_ALEXAMEDIA,
-        MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
-        hide_email, hide_serial)
+    DOMAIN as ALEXA_DOMAIN,
+    DATA_ALEXAMEDIA,
+    MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
+    hide_email, hide_serial)
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_NEXT_TRACK | SUPPORT_STOP |
                  SUPPORT_VOLUME_SET | SUPPORT_PLAY |
@@ -59,6 +61,7 @@ def setup_platform(hass, config, add_devices_callback,
                    discovery_info=None):
     """Set up the Alexa media player platform."""
     def tts_handler(call):
+        """Handler for tts"""
         for alexa in service_to_entities(call):
             if call.service == SERVICE_ALEXA_TTS:
                 message = call.data.get(ATTR_MESSAGE)
@@ -83,7 +86,7 @@ def setup_platform(hass, config, add_devices_callback,
 
         return entities
 
-    devices = []
+    devices = []  # type: List[AlexaClient]
     for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
                                   ['accounts'].items()):
         for key, device in account_dict['devices']['media_player'].items():
@@ -98,7 +101,17 @@ def setup_platform(hass, config, add_devices_callback,
                  ['entities']
                  ['media_player'][key]) = alexa_client
     _LOGGER.debug("Adding %s", devices)
-    add_devices_callback(devices, True)
+    try:
+        add_devices_callback(devices, True)
+    except HomeAssistantError as exception_:
+        message = exception_.message  # type: str
+        if message.startswith("Entity id already exists"):
+            _LOGGER.debug("Device already added: %s",
+                          message)
+        else:
+            _LOGGER.debug("Unable to add devices: %s : %s",
+                          devices,
+                          message)
     hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
                            schema=ALEXA_TTS_SCHEMA)
 

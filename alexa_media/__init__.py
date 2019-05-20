@@ -107,7 +107,7 @@ def setup(hass, config, discovery_info=None):
     return True
 
 
-async def setup_platform_callback(hass, config, login, callback_data):
+def setup_platform_callback(hass, config, login, callback_data):
     """Handle response from configurator.
 
     Args:
@@ -133,10 +133,10 @@ def request_configuration(hass, config, login, setup_platform_callback):
     """Request configuration steps from the user using the configurator."""
     configurator = hass.components.configurator
 
-    async def configuration_callback(callback_data):
+    def configuration_callback(callback_data):
         """Handle the submitted configuration."""
-        hass.async_add_job(setup_platform_callback, hass, config,
-                           login, callback_data)
+        hass.add_job(setup_platform_callback, hass, config,
+                     login, callback_data)
     status = login.status
     email = login.email
     # Get Captcha
@@ -209,8 +209,8 @@ def test_login_status(hass, config, login,
     """Test the login status and spawn requests for info."""
     if 'login_successful' in login.status and login.status['login_successful']:
         _LOGGER.debug("Setting up Alexa devices")
-        hass.async_add_job(setup_alexa, hass, config,
-                           login)
+        hass.add_job(setup_alexa, hass, config,
+                     login)
         return
     if ('captcha_required' in login.status and
             login.status['captcha_required']):
@@ -227,9 +227,8 @@ def test_login_status(hass, config, login,
     elif ('login_failed' in login.status and
           login.status['login_failed']):
         _LOGGER.debug("Creating configurator to start new login attempt")
-    hass.async_add_job(request_configuration, hass, config, login,
-                       setup_platform_callback
-                       )
+    hass.add_job(request_configuration, hass, config, login,
+                 setup_platform_callback)
 
 
 def setup_alexa(hass, config, login_obj):
@@ -561,6 +560,6 @@ def setup_alexa(hass, config, login_obj):
     # Clear configurator. We delay till here to avoid leaving a modal orphan
     for config_id in hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config']:
         configurator = hass.components.configurator
-        configurator.async_request_done(config_id)
+        configurator.request_done(config_id)
     hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config'] = []
     return True

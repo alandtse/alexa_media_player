@@ -418,18 +418,19 @@ def setup_alexa(hass, config, login_obj):
         This will only attempt one login before failing.
         """
         from alexapy import WebsocketEchoClient
+        websocket = None
         try:
             websocket = WebsocketEchoClient(login_obj,
                                             ws_handler,
+                                            ws_open_handler,
                                             ws_close_handler,
                                             ws_error_handler)
             _LOGGER.debug("%s: Websocket created: %s", hide_email(email),
                           websocket)
         except BaseException as exception_:
-            _LOGGER.debug("%s: Websocket failed: %s falling back to polling",
+            _LOGGER.debug("%s: Websocket creation failed: %s",
                           hide_email(email),
                           exception_)
-            websocket = None
         return websocket
 
     def ws_handler(message_obj):
@@ -513,16 +514,40 @@ def setup_alexa(hass, config, login_obj):
                  ['accounts'][email]['new_devices']) = True
                 update_devices(no_throttle=True)
 
+    def ws_open_handler():
+        """Handle websocket open."""
+        email = login_obj.email
+        _LOGGER.debug("%s: Websocket succesfully connected",
+                      hide_email(email))
+        (hass.data[DATA_ALEXAMEDIA]
+         ['accounts'][email]['websocketerror']) = 0  # set errors to 0
+
     def ws_close_handler():
         """Handle websocket close.
 
-        This should attempt to reconnect.
+        This should attempt to reconnect up to 5 times
         """
+        from time import sleep
         email = login_obj.email
-        _LOGGER.debug("%s: Received websocket close; attempting reconnect",
-                      hide_email(email))
-        (hass.data[DATA_ALEXAMEDIA]['accounts']
-         [email]['websocket']) = ws_connect()
+        errors = (hass.data
+                  [DATA_ALEXAMEDIA]['accounts'][email]['websocketerror'])
+        delay = 5*2**errors
+        if (errors < 5):
+            _LOGGER.debug("%s: Websocket closed; reconnect #%i in %is",
+                          hide_email(email),
+                          errors,
+                          delay)
+            sleep(delay)
+            if (not (hass.data
+                     [DATA_ALEXAMEDIA]['accounts'][email]['websocket'])):
+                    (hass.data[DATA_ALEXAMEDIA]['accounts']
+                     [email]['websocket']) = ws_connect()
+        else:
+            _LOGGER.debug("%s: Websocket closed; retries exceeded; polling",
+                          hide_email(email))
+            (hass.data[DATA_ALEXAMEDIA]['accounts']
+             [email]['websocket']) = None
+            update_devices()
 
     def ws_error_handler(message):
         """Handle websocket error.
@@ -532,10 +557,15 @@ def setup_alexa(hass, config, login_obj):
         specification, websockets will issue a close after every error.
         """
         email = login_obj.email
-        _LOGGER.debug("%s: Received websocket error %s",
+        errors = (hass.data[DATA_ALEXAMEDIA]
+                  ['accounts'][email]['websocketerror'])
+        _LOGGER.debug("%s: Received websocket error #%i %s",
                       hide_email(email),
+                      errors,
                       message)
         (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = None
+        (hass.data[DATA_ALEXAMEDIA]
+         ['accounts'][email]['websocketerror']) = errors + 1
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
     scan_interval = config.get(CONF_SCAN_INTERVAL)

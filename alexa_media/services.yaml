@@ -36,7 +36,7 @@ set_guard_state:
       # Description of the field
       description: entityId of Alexa Guard device (https://alexa.amazon.com/api/phoenix?includeRelationships=true)
       # Example value that can be passed for this field
-      example: 'UNKNOWN at this time'
+      example: 'c5845e85-18bd-412a-b2b0-XXXXXXXXXXXX'
     email:
       # Description of the field
       description: List of Alexa accounts to set. If empty, will set all known accounts

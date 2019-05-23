@@ -21,8 +21,7 @@ from .const import (
     ALEXA_COMPONENTS, CONF_DEBUG, CONF_ACCOUNTS, CONF_INCLUDE_DEVICES,
     CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
     MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL, SERVICE_UPDATE_LAST_CALLED,
-    ATTR_EMAIL, ATTR_ENTITY, ATTR_STATE,
-    SERVICE_GET_GUARD_STATE, SERVICE_SET_GUARD_STATE
+    ATTR_EMAIL, ATTR_ENTITY, ATTR_STATE
 )
 
 # from .config_flow import configured_instances
@@ -428,53 +427,6 @@ def setup_alexa(hass, config, login_obj):
             login_obj = account_dict['login_obj']
             update_last_called(login_obj)
 
-
-    def get_guard_state_handler(call):
-        """Handle get guard service request.
-
-        Args:
-        call.ATTR_EMAIL: List of case-sensitive Alexa email addresses. If None
-                         all accounts are checked.
-        call.ATTR_ENTITY: Alexa entityId
-        """
-        from alexapy import AlexaAPI
-        requested_emails = call.data.get(ATTR_EMAIL)
-        entity = call.data.get(ATTR_ENTITY)
-        _LOGGER.debug("Service get_guard_state for %s : %s",
-                      entity,
-                      requested_emails)
-        for email, account_dict in (hass.data
-                                    [DATA_ALEXAMEDIA]['accounts'].items()):
-            if requested_emails and email not in requested_emails:
-                continue
-            login_obj = account_dict['login_obj']
-            AlexaAPI.get_guard_state(login_obj, entity)
-
-    def set_guard_state_handler(call):
-        """Handle set guard service request.
-
-        Args:
-        call.ATTR_EMAIL: List of case-sensitive Alexa email addresses. If None
-                         all accounts are checked.
-        call.ATTR_ENTITY: Alexa applianceId
-        call.ATTR_STATE: State (ARMED_AWAY, ARMED_STAY)
-
-        """
-        from alexapy import AlexaAPI
-        requested_emails = call.data.get(ATTR_EMAIL)
-        entity = call.data.get(ATTR_ENTITY)
-        state = call.data.get(ATTR_STATE)
-        _LOGGER.debug("Service set_guard_state to %s for %s : %s",
-                      state,
-                      entity,
-                      requested_emails)
-        for email, account_dict in (hass.data
-                                    [DATA_ALEXAMEDIA]['accounts'].items()):
-            if requested_emails and email not in requested_emails:
-                continue
-            login_obj = account_dict['login_obj']
-            AlexaAPI.set_guard_state(login_obj, entity, state)
-
     def ws_connect():
         """Open WebSocket connection.
 
@@ -620,12 +572,6 @@ def setup_alexa(hass, config, login_obj):
     update_devices()
     hass.services.register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
                            last_call_handler, schema=LAST_CALL_UPDATE_SCHEMA)
-    hass.services.register(DOMAIN, SERVICE_GET_GUARD_STATE,
-                           get_guard_state_handler,
-                           schema=GET_GUARD_SCHEMA)
-    hass.services.register(DOMAIN, SERVICE_SET_GUARD_STATE,
-                           set_guard_state_handler,
-                           schema=SET_GUARD_SCHEMA)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
     for config_id in hass.data[DATA_ALEXAMEDIA]['accounts'][email]['config']:

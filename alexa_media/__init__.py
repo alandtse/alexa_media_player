@@ -21,7 +21,7 @@ from .const import (
     ALEXA_COMPONENTS, CONF_DEBUG, CONF_ACCOUNTS, CONF_INCLUDE_DEVICES,
     CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
     MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL, SERVICE_UPDATE_LAST_CALLED,
-    ATTR_EMAIL, ATTR_ENTITY, ATTR_STATE
+    ATTR_EMAIL
 )
 
 # from .config_flow import configured_instances
@@ -56,21 +56,6 @@ CONFIG_SCHEMA = vol.Schema({
 LAST_CALL_UPDATE_SCHEMA = vol.Schema({
     vol.Optional(ATTR_EMAIL, default=[]):
         vol.All(cv.ensure_list, [cv.string]),
-})
-
-GET_GUARD_SCHEMA = vol.Schema({
-    vol.Optional(ATTR_EMAIL, default=[]):
-        vol.All(cv.ensure_list, [cv.string]),
-    vol.Required(ATTR_ENTITY): cv.string,
-})
-
-
-SET_GUARD_SCHEMA = vol.Schema({
-    vol.Optional(ATTR_EMAIL, default=[]):
-        vol.All(cv.ensure_list, [cv.string]),
-    vol.Required(ATTR_ENTITY): cv.string,
-    vol.Required(ATTR_STATE): cv.string,
-
 })
 
 

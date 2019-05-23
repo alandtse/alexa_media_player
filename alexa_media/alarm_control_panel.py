@@ -9,24 +9,20 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import logging
 from typing import List  # noqa pylint: disable=unused-import
+
 from homeassistant import util
+from homeassistant.components.alarm_control_panel import AlarmControlPanel
+from homeassistant.const import (STATE_ALARM_ARMED_AWAY,
+                                 STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED)
 
-from homeassistant.components.alarm_control_panel import (
-    AlarmControlPanel
-)
-from homeassistant.const import (
-    STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME,
-    STATE_ALARM_DISARMED)
-
-from . import (
-    DOMAIN as ALEXA_DOMAIN,
-    DATA_ALEXAMEDIA,
-    MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
-    hide_email)
+from . import DATA_ALEXAMEDIA
+from . import DOMAIN as ALEXA_DOMAIN
+from . import MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS, hide_email
 
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
+
 
 def setup_platform(hass, config, add_devices_callback,
                    discovery_info=None):
@@ -52,6 +48,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
     """Implementation of Alexa Media Player alarm control panel."""
 
     def __init__(self, login, hass):
+        # pylint: disable=unexpected-keyword-arg
         """Initialize the Alexa device."""
         from alexapy import AlexaAPI
         # Class info
@@ -99,17 +96,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def refresh(self):
-        """Update device data.
-
-        This is a per device refresh and for many Alexa devices can result in
-        many refreshes from each individual device. This will call the
-        AlexaAPI directly.
-
-        Args:
-        device (json): A refreshed device json from Amazon. For efficiency,
-                       an individual device does not refresh if it's reported
-                       as offline.
-        """
+        """Update Guard state."""
         import json
         _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
         state = None
@@ -141,6 +128,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         _LOGGER.debug("%s: Alarm State: %s", self.account, self.state)
 
     def alarm_disarm(self, code=None):
+        # pylint: disable=unexpected-keyword-arg
         """Send disarm command.
 
         We use the arm_home state as Alexa does not have disarm state.
@@ -156,9 +144,9 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self.refresh(no_throttle=True)
         self.schedule_update_ha_state()
 
-
     def alarm_arm_away(self, code=None):
         """Send arm away command."""
+        # pylint: disable=unexpected-keyword-arg
         self.alexa_api.set_guard_state(self._login,
                                        self._guard_entity_id,
                                        "ARMED_AWAY")

@@ -8,7 +8,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 import logging
-
+import urllib.parse
 import voluptuous as vol
 from homeassistant import util
 from homeassistant.components.media_player import (MEDIA_PLAYER_SCHEMA,
@@ -33,7 +33,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import call_later
 from homeassistant.helpers.service import extract_entity_ids
 
-from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL, SERVICE_ALEXA_TTS
+from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL, SERVICE_ALEXA_TTS, SERVICE_CLEAR_HISTORY
 
 from . import (
         DOMAIN as ALEXA_DOMAIN,

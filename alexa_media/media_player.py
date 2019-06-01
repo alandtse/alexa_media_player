@@ -102,6 +102,16 @@ def setup_platform(hass, config, add_devices_callback,
     hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
                            schema=ALEXA_TTS_SCHEMA)
 
+    def clear_history(call):
+        api = devices[0].alexa_api
+        request = api._get_request('/api/activities?size=50&offset=-1&_=1')
+        for activity in request.json()['activities']:
+            activity_id = activity['id']
+            _LOGGER.debug("Removing activity with id: {}".format(activity_id))
+            api._session.delete('{}/api/activities/{}'.format(api._url, urllib.parse.quote_plus(activity_id)))
+
+
+    hass.services.register(ALEXA_DOMAIN, SERVICE_CLEAR_HISTORY, clear_history)
 
 class AlexaClient(MediaPlayerDevice):
     """Representation of a Alexa device."""

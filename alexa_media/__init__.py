@@ -26,7 +26,7 @@ from .const import (
 
 # from .config_flow import configured_instances
 
-REQUIREMENTS = ['alexapy==0.5.0']
+REQUIREMENTS = ['alexapy==0.6.0']
 
 __version__ = '1.2.5'
 

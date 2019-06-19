@@ -35,7 +35,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import call_later
 from homeassistant.helpers.service import extract_entity_ids
 
-from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL, SERVICE_ALEXA_TTS
+from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL
 
 from . import (
     DOMAIN as ALEXA_DOMAIN,
@@ -52,40 +52,10 @@ _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
 
-ALEXA_TTS_SCHEMA = MEDIA_PLAYER_SCHEMA.extend({
-    vol.Required(ATTR_MESSAGE): cv.string,
-})
-
 
 def setup_platform(hass, config, add_devices_callback,
                    discovery_info=None):
     """Set up the Alexa media player platform."""
-    def tts_handler(call):
-        """Handler for tts"""
-        for alexa in service_to_entities(call):
-            if call.service == SERVICE_ALEXA_TTS:
-                message = call.data.get(ATTR_MESSAGE)
-                alexa.send_tts(message)
-
-    def service_to_entities(call):
-        """Return the known devices that a service call mentions."""
-        entity_ids = extract_entity_ids(hass, call)
-        if entity_ids:
-            devices = []
-            for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
-                                          ['accounts'].items()):
-                devices = devices + list(account_dict
-                                         ['entities']['media_player'].values())
-                _LOGGER.debug("Account: %s Devices: %s",
-                              hide_email(account),
-                              devices)
-            entities = [entity for entity in devices
-                        if entity.entity_id in entity_ids]
-        else:
-            entities = None
-
-        return entities
-
     devices = []  # type: List[AlexaClient]
     for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
                                   ['accounts'].items()):
@@ -112,8 +82,6 @@ def setup_platform(hass, config, add_devices_callback,
             _LOGGER.debug("Unable to add devices: %s : %s",
                           devices,
                           message)
-    hass.services.register(DOMAIN, SERVICE_ALEXA_TTS, tts_handler,
-                           schema=ALEXA_TTS_SCHEMA)
 
 
 class AlexaClient(MediaPlayerDevice):

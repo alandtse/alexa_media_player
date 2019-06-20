@@ -26,8 +26,8 @@ If applicable, add screenshots to help explain your problem.
 **System details**
  - Home-assistant (version): 
  - Hassio (Yes/No): (Please note you may have to restart hassio 2-3 times to load the latest version of alexapy after an update. This looks like a HA bug).
- - alexa_media  (version from `__init__.py`):
- - alexapy (version from `pip show alexapy`):
+ - alexa_media  (version from `const.py` or HA startup):
+ - alexapy (version from `pip show alexapy` or HA startup):
 
 **Additional context**
 Add any other context about the problem here.

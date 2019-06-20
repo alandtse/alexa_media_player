@@ -21,12 +21,10 @@ from .const import (
     ALEXA_COMPONENTS, CONF_DEBUG, CONF_ACCOUNTS, CONF_INCLUDE_DEVICES,
     CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
     MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL, SERVICE_UPDATE_LAST_CALLED,
-    ATTR_EMAIL
+    ATTR_EMAIL, STARTUP, __version__
 )
 
 # from .config_flow import configured_instances
-
-__version__ = '1.3.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -86,8 +84,9 @@ def setup(hass, config, discovery_info=None):
     if DATA_ALEXAMEDIA not in hass.data:
         hass.data[DATA_ALEXAMEDIA] = {}
         hass.data[DATA_ALEXAMEDIA]['accounts'] = {}
-    from alexapy import AlexaLogin
-
+    from alexapy import AlexaLogin, __version__ as alexapy_version
+    _LOGGER.info(STARTUP)
+    _LOGGER.info("Loaded alexapy==%s", alexapy_version)
     config = config.get(DOMAIN)
     for account in config[CONF_ACCOUNTS]:
         # if account[CONF_EMAIL] in configured_instances(hass):

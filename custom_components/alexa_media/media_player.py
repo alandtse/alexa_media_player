@@ -22,6 +22,7 @@ from homeassistant.components.media_player.const import (
     SUPPORT_PLAY_MEDIA,
     SUPPORT_PREVIOUS_TRACK,
     SUPPORT_SELECT_SOURCE,
+    SUPPORT_SHUFFLE_SET,
     SUPPORT_STOP,
     SUPPORT_TURN_OFF,
     SUPPORT_TURN_ON,
@@ -46,7 +47,7 @@ SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_VOLUME_SET | SUPPORT_PLAY |
                  SUPPORT_PLAY_MEDIA | SUPPORT_TURN_OFF | SUPPORT_TURN_ON |
                  SUPPORT_VOLUME_MUTE | SUPPORT_PAUSE |
-                 SUPPORT_SELECT_SOURCE)
+                 SUPPORT_SELECT_SOURCE | SUPPORT_SHUFFLE_SET)
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
@@ -131,8 +132,12 @@ class AlexaClient(MediaPlayerDevice):
         self._previous_volume = None
         self._source = None
         self._source_list = []
+        self._shuffle = None
+        self._repeat = None
         # Last Device
         self._last_called = None
+        # Do not Disturb state
+        self._dnd = None
         # Polling state
         self._should_poll = True
         self._last_update = 0
@@ -251,6 +256,7 @@ class AlexaClient(MediaPlayerDevice):
             self._cluster_members = device['clusterMembers']
             self._bluetooth_state = device['bluetooth_state']
             self._locale = device['locale'] if 'locale' in device else 'en-US'
+            self._dnd = device['dnd']
         if self._available is True:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             self._source = self._get_source()
@@ -311,6 +317,15 @@ class AlexaClient(MediaPlayerDevice):
                                             None and 'mediaLength' in
                                             self._session['progress'])
                                         else None)
+            if self._session['transport'] is not None:
+                self._shuffle = (self._session['transport']
+                                 ['shuffle'] == "SELECTED"
+                                 if ('shuffle' in self._session['transport'])
+                                 else None)
+                self._repeat = (self._session['transport']
+                                ['repeat'] == "SELECTED"
+                                if ('repeat' in self._session['transport'])
+                                else None)
 
     @property
     def source(self):
@@ -501,6 +516,41 @@ class AlexaClient(MediaPlayerDevice):
     def device_family(self):
         """Return the make of the device (ex. Echo, Other)."""
         return self._device_family
+
+    @property
+    def dnd_state(self):
+        """Return the Do Not Disturb state."""
+        return self._dnd
+
+    @dnd_state.setter
+    def dnd_state(self, state):
+        """Set the Do Not Disturb state."""
+        self._dnd = state
+
+    def set_shuffle(self, shuffle):
+        """Enable/disable shuffle mode."""
+        self.alexa_api.shuffle(shuffle)
+        self.shuffle_state = shuffle
+
+    @property
+    def shuffle_state(self):
+        """Return the Shuffle state."""
+        return self._shuffle
+
+    @shuffle_state.setter
+    def shuffle_state(self, state):
+        """Set the Shuffle state."""
+        self._shuffle = state
+
+    @property
+    def repeat_state(self):
+        """Return the Repeat state."""
+        return self._repeat
+
+    @repeat_state.setter
+    def repeat_state(self, state):
+        """Set the Repeat state."""
+        self._repeat = state
 
     @property
     def supported_features(self):

@@ -263,6 +263,7 @@ def setup_alexa(hass, config, login_obj):
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         preferences = AlexaAPI.get_device_preferences(login_obj)
+        dnd = AlexaAPI.get_dnd_state(login_obj)
         _LOGGER.debug("%s: Found %s devices, %s bluetooth",
                       hide_email(email),
                       len(devices) if devices is not None else '',
@@ -320,6 +321,14 @@ def setup_alexa(hass, config, login_obj):
                     _LOGGER.debug("Locale %s found for %s",
                                   device['locale'],
                                   hide_serial(device['serialNumber']))
+
+            for dev in dnd['doNotDisturbDeviceStatusList']:
+                if dev['deviceSerialNumber'] == device['serialNumber']:
+                    device['dnd'] = dev['enabled']
+                    _LOGGER.debug("DND %s found for %s",
+                                  device['dnd'],
+                                  hide_serial(device['serialNumber']))
+
             (hass.data[DATA_ALEXAMEDIA]
              ['accounts']
              [email]

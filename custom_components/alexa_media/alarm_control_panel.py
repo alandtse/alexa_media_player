@@ -67,20 +67,30 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._attrs = {}
 
         data = self.alexa_api.get_guard_details(self._login)
-        guard_dict = (data['locationDetails']
-                      ['locationDetails']['Default_Location']
-                      ['amazonBridgeDetails']['amazonBridgeDetails']
-                      ['LambdaBridge_AAA/OnGuardSmartHomeBridgeService']
-                      ['applianceDetails']['applianceDetails'])
+        if 'LambdaBridge_AAA/OnGuardSmartHomeBridgeService' not in \
+            (data['locationDetails']
+             ['locationDetails']['Default_Location']
+             ['amazonBridgeDetails']['amazonBridgeDetails']):
+            guard_dict = {}
+        else:
+            guard_dict = (data['locationDetails']
+                          ['locationDetails']['Default_Location']
+                          ['amazonBridgeDetails']['amazonBridgeDetails']
+                          ['LambdaBridge_AAA/OnGuardSmartHomeBridgeService']
+                          ['applianceDetails']['applianceDetails'])
         for key, value in guard_dict.items():
             if value['modelName'] == "REDROCK_GUARD_PANEL":
                 self._appliance_id = value['applianceId']
                 self._guard_entity_id = value['entityId']
                 self._friendly_name += " " + self._appliance_id[-5:]
-                _LOGGER.debug("Discovered Alexa Guard %s: %s %s",
+                _LOGGER.debug("%s: Discovered %s: %s %s",
+                              self.account,
                               self._friendly_name,
                               self._appliance_id,
                               self._guard_entity_id)
+        if not self._appliance_id:
+            _LOGGER.debug("%s: No Alexa Guard entity found", self.account)
+            return None
         # Register event handler on bus
         hass.bus.listen(('{}_{}'.format(ALEXA_DOMAIN,
                                         hide_email(login.email)))[0:32],

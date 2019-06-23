@@ -9,6 +9,10 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from datetime import timedelta
 
+__version__ = '1.3.0'
+PROJECT_URL = "https://github.com/keatontaylor/alexa_media_player/"
+ISSUE_URL = "{}issues".format(PROJECT_URL)
+
 DOMAIN = 'alexa_media'
 DATA_ALEXAMEDIA = 'alexa_media'
 
@@ -19,14 +23,24 @@ MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 
 ALEXA_COMPONENTS = [
     'media_player',
-    'notify'
+    'notify',
+    'alarm_control_panel'
 ]
 
 CONF_ACCOUNTS = 'accounts'
 CONF_DEBUG = 'debug'
 CONF_INCLUDE_DEVICES = 'include_devices'
 CONF_EXCLUDE_DEVICES = 'exclude_devices'
-SERVICE_ALEXA_TTS = 'alexa_tts'
 SERVICE_UPDATE_LAST_CALLED = 'update_last_called'
 ATTR_MESSAGE = 'message'
 ATTR_EMAIL = 'email'
+
+STARTUP = """
+-------------------------------------------------------------------
+{}
+Version: {}
+This is a custom component
+If you have any issues with this you need to open an issue here:
+{}
+-------------------------------------------------------------------
+""".format(DOMAIN, __version__, ISSUE_URL)

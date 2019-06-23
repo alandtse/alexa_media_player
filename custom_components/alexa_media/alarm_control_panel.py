@@ -14,6 +14,7 @@ from homeassistant import util
 from homeassistant.components.alarm_control_panel import AlarmControlPanel
 from homeassistant.const import (STATE_ALARM_ARMED_AWAY,
                                  STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED)
+from homeassistant.exceptions import HomeAssistantError
 
 from . import DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
@@ -33,14 +34,27 @@ def setup_platform(hass, config, add_devices_callback,
         alexa_client = AlexaAlarmControlPanel(account_dict['login_obj'],
                                               hass)  \
                                               # type: AlexaAlarmControlPanel
+        if not alexa_client:
+            continue
         devices.append(alexa_client)
         (hass.data[DATA_ALEXAMEDIA]
          ['accounts']
          [account]
          ['entities']
          ['alarm_control_panel']) = alexa_client
-    _LOGGER.debug("Adding %s", devices)
-    add_devices_callback(devices, True)
+    if devices:
+        _LOGGER.debug("Adding %s", devices)
+        try:
+            add_devices_callback(devices, True)
+        except HomeAssistantError as exception_:
+            message = exception_.message  # type: str
+            if message.startswith("Entity id already exists"):
+                _LOGGER.debug("Device already added: %s",
+                              message)
+            else:
+                _LOGGER.debug("Unable to add devices: %s : %s",
+                              devices,
+                              message)
     return True
 
 

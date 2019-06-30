@@ -130,7 +130,8 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         state_json = self.alexa_api.get_guard_state(self._login,
                                                     self._appliance_id)
         # _LOGGER.debug("%s: state_json %s", self.account, state_json)
-        if state_json['deviceStates']:
+        if (state_json and 'deviceStates' in state_json
+                and state_json['deviceStates']):
             cap = state_json['deviceStates'][0]['capabilityStates']
             # _LOGGER.debug("%s: cap %s", self.account, cap)
             for item_json in cap:
@@ -143,7 +144,8 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
             _LOGGER.debug("%s: Error refreshing alarm_control_panel %s: %s",
                           self.account,
                           self.name,
-                          json.dumps(state_json['errors']))
+                          json.dumps(state_json['errors']) if state_json
+                          else None)
         if state is None:
             return
         if state == "ARMED_AWAY":

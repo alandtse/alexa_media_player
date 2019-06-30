@@ -14,6 +14,7 @@ from homeassistant import util
 from homeassistant.components.alarm_control_panel import AlarmControlPanel
 from homeassistant.const import (STATE_ALARM_ARMED_AWAY,
                                  STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED)
+from homeassistant.exceptions import HomeAssistantError
 
 from . import DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
@@ -33,14 +34,30 @@ def setup_platform(hass, config, add_devices_callback,
         alexa_client = AlexaAlarmControlPanel(account_dict['login_obj'],
                                               hass)  \
                                               # type: AlexaAlarmControlPanel
+        if not (alexa_client and alexa_client.unique_id):
+            _LOGGER.debug("%s: Skipping creation of uninitialized device: %s",
+                          account,
+                          alexa_client)
+            continue
         devices.append(alexa_client)
         (hass.data[DATA_ALEXAMEDIA]
          ['accounts']
          [account]
          ['entities']
          ['alarm_control_panel']) = alexa_client
-    _LOGGER.debug("Adding %s", devices)
-    add_devices_callback(devices, True)
+    if devices:
+        _LOGGER.debug("Adding %s", devices)
+        try:
+            add_devices_callback(devices, True)
+        except HomeAssistantError as exception_:
+            message = exception_.message  # type: str
+            if message.startswith("Entity id already exists"):
+                _LOGGER.debug("Device already added: %s",
+                              message)
+            else:
+                _LOGGER.debug("Unable to add devices: %s : %s",
+                              devices,
+                              message)
     return True
 
 
@@ -67,20 +84,27 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._attrs = {}
 
         data = self.alexa_api.get_guard_details(self._login)
-        guard_dict = (data['locationDetails']
-                      ['locationDetails']['Default_Location']
-                      ['amazonBridgeDetails']['amazonBridgeDetails']
-                      ['LambdaBridge_AAA/OnGuardSmartHomeBridgeService']
-                      ['applianceDetails']['applianceDetails'])
+        try:
+            guard_dict = (data['locationDetails']
+                          ['locationDetails']['Default_Location']
+                          ['amazonBridgeDetails']['amazonBridgeDetails']
+                          ['LambdaBridge_AAA/OnGuardSmartHomeBridgeService']
+                          ['applianceDetails']['applianceDetails'])
+        except KeyError:
+            guard_dict = {}
         for key, value in guard_dict.items():
             if value['modelName'] == "REDROCK_GUARD_PANEL":
                 self._appliance_id = value['applianceId']
                 self._guard_entity_id = value['entityId']
                 self._friendly_name += " " + self._appliance_id[-5:]
-                _LOGGER.debug("Discovered Alexa Guard %s: %s %s",
+                _LOGGER.debug("%s: Discovered %s: %s %s",
+                              self.account,
                               self._friendly_name,
                               self._appliance_id,
                               self._guard_entity_id)
+        if not self._appliance_id:
+            _LOGGER.debug("%s: No Alexa Guard entity found", self.account)
+            return None
         # Register event handler on bus
         hass.bus.listen(('{}_{}'.format(ALEXA_DOMAIN,
                                         hide_email(login.email)))[0:32],
@@ -103,7 +127,8 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         state_json = self.alexa_api.get_guard_state(self._login,
                                                     self._appliance_id)
         # _LOGGER.debug("%s: state_json %s", self.account, state_json)
-        if state_json['deviceStates']:
+        if (state_json and 'deviceStates' in state_json
+                and state_json['deviceStates']):
             cap = state_json['deviceStates'][0]['capabilityStates']
             # _LOGGER.debug("%s: cap %s", self.account, cap)
             for item_json in cap:
@@ -116,7 +141,8 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
             _LOGGER.debug("%s: Error refreshing alarm_control_panel %s: %s",
                           self.account,
                           self.name,
-                          json.dumps(state_json['errors']))
+                          json.dumps(state_json['errors']) if state_json
+                          else None)
         if state is None:
             return
         if state == "ARMED_AWAY":

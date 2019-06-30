@@ -34,7 +34,10 @@ def setup_platform(hass, config, add_devices_callback,
         alexa_client = AlexaAlarmControlPanel(account_dict['login_obj'],
                                               hass)  \
                                               # type: AlexaAlarmControlPanel
-        if not alexa_client:
+        if not (alexa_client and alexa_client.unique_id):
+            _LOGGER.debug("%s: Skipping creation of unintialized device: %s",
+                          account,
+                          alexa_client)
             continue
         devices.append(alexa_client)
         (hass.data[DATA_ALEXAMEDIA]

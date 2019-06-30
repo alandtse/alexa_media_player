@@ -84,17 +84,14 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._attrs = {}
 
         data = self.alexa_api.get_guard_details(self._login)
-        if 'LambdaBridge_AAA/OnGuardSmartHomeBridgeService' not in \
-            (data['locationDetails']
-             ['locationDetails']['Default_Location']
-             ['amazonBridgeDetails']['amazonBridgeDetails']):
-            guard_dict = {}
-        else:
+        try:
             guard_dict = (data['locationDetails']
                           ['locationDetails']['Default_Location']
                           ['amazonBridgeDetails']['amazonBridgeDetails']
                           ['LambdaBridge_AAA/OnGuardSmartHomeBridgeService']
                           ['applianceDetails']['applianceDetails'])
+        except KeyError:
+            guard_dict = {}
         for key, value in guard_dict.items():
             if value['modelName'] == "REDROCK_GUARD_PANEL":
                 self._appliance_id = value['applianceId']

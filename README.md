@@ -23,10 +23,9 @@ Please see the [wiki.](https://github.com/keatontaylor/alexa_media_player/wiki/I
 We can basically do anything a Alexa [Routine](https://www.amazon.com/gp/help/customer/display.html?nodeId=G202200080) can do.  You'll have to [discover specifics](https://github.com/keatontaylor/alexa_media_player/wiki/Sequence-Discovery), but here are some examples (and please help add them below!).
 To play music using the `media_player.play_media` service, you have to define the media_content_type appropriately. Search the [forum](https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639/2055) for other examples.
 
-## Text-to-Speech
-For version 1.2.0 and above, can be provided via the [Notification Component](https://github.com/keatontaylor/alexa_media_player/wiki/Notification-Component) using `TTS` or `Announce`.
-
-**The Media_Player UI will not work!**
+## Notification service (versions >= 1.2.0)
+Please see [Notification Component](https://github.com/keatontaylor/alexa_media_player/wiki/Notification-Component) for TTS, announcements, or mobile push.
+**Please note we do not support the the Media Player UI for TTS!**
 
 ## Online status of devices
 Additional attribute to tell you if the Alexa device is online (extremely useful if you want to send a TTS after one has come back online (such as one in a vehicle)
@@ -58,16 +57,18 @@ Supported sequences (may be region specific):
 Running Alexa automation routines is now supported.  Routines are tasks you can trigger through the Alexa App.
  Please create them using the Alexa [app](https://www.amazon.com/gp/help/customer/display.html?nodeId=G202200080) and ensure they are **enabled**.  This is now exposed through the media_player.play_media service when the `media_content_type` is set to `routine`
 
-## Custom_updater (versions >= 1.1.0)
-We now support [custom_updater](https://github.com/custom-components/custom_updater).
+## HACS - Home Assistant Community Store (versions >= 1.3.0)
+We also support [HACS](https://custom-components.github.io/hacs/). **This cannot be used with custom_updater.**
 
-Add this to your configuration:
-```yaml
-custom_updater:
-  component_urls:
-# Released build
-    - https://raw.githubusercontent.com/keatontaylor/alexa_media_player/master/custom_components.json
-```
+In order to find Alexa Media Player, you first need to add the repository:
+1. Open HACS
+2. Go to Settings
+3. Enter `https://github.com/keatontaylor/alexa_media_player`in **ADD CUSTOM REPOSITORY**. Select type `integration`.
+
+## Guard Mode (versions >= 1.3.0)
+Arm and disarm Alexa guard mode using an Alarm Control Panel. To arm, use `ARM_AWAY`.  `ARM_HOME` is the same as `DISARM`.  Please ensure you've enabled through the [Alexa app](https://www.amazon.com/b?ie=UTF8&node=18021383011).
+
+We do not support any Guard notifications at the moment.
 
 ## Notification service (versions >= 1.2.0)
 Please see [Notification Component](https://github.com/keatontaylor/alexa_media_player/wiki/Notification-Component).

@@ -35,7 +35,7 @@ def setup_platform(hass, config, add_devices_callback,
                                               hass)  \
                                               # type: AlexaAlarmControlPanel
         if not (alexa_client and alexa_client.unique_id):
-            _LOGGER.debug("%s: Skipping creation of unintialized device: %s",
+            _LOGGER.debug("%s: Skipping creation of uninitialized device: %s",
                           account,
                           alexa_client)
             continue

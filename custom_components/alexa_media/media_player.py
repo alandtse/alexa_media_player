@@ -362,10 +362,10 @@ class AlexaClient(MediaPlayerDevice):
                       self._device_name,
                       hide_serial(self._device_serial_number),
                       hide_serial(last_called_serial))
-        if (last_called_serial is not None and
-                self._device_serial_number == last_called_serial):
-            return True
-        return False
+        return (last_called_serial is not None and
+                (self._device_serial_number == last_called_serial or
+                 any(item['serialNumber'] ==
+                     last_called_serial for item in self._app_device_list)))
 
     @property
     def available(self):

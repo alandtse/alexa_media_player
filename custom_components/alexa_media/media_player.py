@@ -160,8 +160,10 @@ class AlexaClient(MediaPlayerDevice):
         assumes the MediaClient state is already updated.
         """
         if 'last_called_change' in event.data:
-            if (event.data['last_called_change']['serialNumber'] ==
-                    self.device_serial_number):
+            event_serial = event.data['last_called_change']['serialNumber']
+            if (event_serial == self.device_serial_number or
+                    any(item['serialNumber'] ==
+                        event_serial for item in self._app_device_list)):
                 _LOGGER.debug("%s is last_called: %s", self.name,
                               hide_serial(self.device_serial_number))
                 self._last_called = True
@@ -242,6 +244,7 @@ class AlexaClient(MediaPlayerDevice):
             self._device_family = device['deviceFamily']
             self._device_type = device['deviceType']
             self._device_serial_number = device['serialNumber']
+            self._app_device_list = device['appDeviceList']
             self._device_owner_customer_id = device['deviceOwnerCustomerId']
             self._software_version = device['softwareVersion']
             self._available = device['online']

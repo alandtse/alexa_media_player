@@ -12,8 +12,7 @@ import logging
 from typing import List  # noqa pylint: disable=unused-import
 import voluptuous as vol
 from homeassistant import util
-from homeassistant.components.media_player import (MEDIA_PLAYER_SCHEMA,
-                                                   MediaPlayerDevice)
+from homeassistant.components.media_player import (MediaPlayerDevice)
 from homeassistant.components.media_player.const import (
     DOMAIN,
     MEDIA_TYPE_MUSIC,

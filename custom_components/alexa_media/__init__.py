@@ -464,6 +464,9 @@ def setup_alexa(hass, config, login_obj):
                 }
                 if (serial and serial in existing_serials):
                     update_last_called(login_obj, last_called)
+                hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                              hide_email(email)))[0:32],
+                              {'push_activity': json_payload})
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])

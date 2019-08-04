@@ -15,6 +15,7 @@ from homeassistant.components.alarm_control_panel import AlarmControlPanel
 from homeassistant.const import (STATE_ALARM_ARMED_AWAY,
                                  STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED)
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.event import call_later
 
 from . import DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
@@ -116,7 +117,9 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
 
         Used instead of polling.
         """
-        self.refresh()
+        if 'push_activity' in event.data:
+            call_later(self.hass, 1, lambda _:
+                       self.refresh(no_throttle=True))
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def refresh(self):

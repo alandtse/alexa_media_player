@@ -90,7 +90,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
                           ['amazonBridgeDetails']['amazonBridgeDetails']
                           ['LambdaBridge_AAA/OnGuardSmartHomeBridgeService']
                           ['applianceDetails']['applianceDetails'])
-        except KeyError:
+        except (KeyError, TypeError):
             guard_dict = {}
         for key, value in guard_dict.items():
             if value['modelName'] == "REDROCK_GUARD_PANEL":

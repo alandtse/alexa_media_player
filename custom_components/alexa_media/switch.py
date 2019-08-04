@@ -12,6 +12,7 @@ from typing import List  # noqa pylint: disable=unused-import
 
 from homeassistant import util
 from homeassistant.components.switch import SwitchDevice
+from homeassistant.exceptions import NoEntitySpecifiedError
 from homeassistant.helpers.event import call_later
 
 from . import DATA_ALEXAMEDIA
@@ -60,7 +61,9 @@ def setup_platform(hass, config, add_devices_callback,
                 for (switch_key, class_) in SWITCH_TYPES:
                     alexa_client = class_(account_dict['entities']
                                           ['media_player']
-                                          [key])  # type: AlexaMediaSwitch
+                                          [key],
+                                          hass,
+                                          account)  # type: AlexaMediaSwitch
                     (hass.data[DATA_ALEXAMEDIA]
                      ['accounts']
                      [account]
@@ -80,28 +83,55 @@ class AlexaMediaSwitch(SwitchDevice):
     """Representation of a Alexa Media switch."""
 
     def __init__(self,
+                 hass,
                  client,
                  switch_property,
                  switch_function,
+                 account,
                  name="Alexa"):
         """Initialize the Alexa Switch device."""
         # Class info
         self._client = client
+        self._account = account
         self._name = name
         self._switch_property = switch_property
+        self._state = False
         self._switch_function = switch_function
         _LOGGER.debug("Creating %s switch for %s", name, client)
+        # Register event handler on bus
+        hass.bus.listen(('{}_{}'.format(ALEXA_DOMAIN,
+                                        client.account))[0:32],
+                        self._handle_event)
+
+    def _handle_event(self, event):
+        """Handle events.
+
+        This will update PUSH_MEDIA_QUEUE_CHANGE events to see if the switch
+        should be updated.
+        """
+        if 'queue_state' in event.data:
+            queue_state = event.data['queue_state']
+            if (queue_state['dopplerId']
+                    ['deviceSerialNumber'] == self._client.unique_id):
+                self._state = getattr(self._client, self._switch_property)
+                self.schedule_update_ha_state()
 
     def _set_switch(self, state, **kwargs):
         success = self._switch_function(state)
         # if function returns  success, make immediate state change
         if success:
-            self._switch_property = state
+            setattr(self._client, self._switch_property, state)
+            _LOGGER.debug("Switch set to %s based on %s",
+                          getattr(self._client,
+                                  self._switch_property),
+                          state)
+            self.schedule_update_ha_state()
+
 
     @property
     def is_on(self):
         """Return true if on."""
-        return self._switch_property
+        return getattr(self._client, self._switch_property)
 
     def turn_on(self, **kwargs):
         """Turn on switch."""
@@ -116,38 +146,57 @@ class AlexaMediaSwitch(SwitchDevice):
         """Return the name of the switch."""
         return "{} {} switch".format(self._client.name, self._name)
 
+    @property
+    def should_poll(self):
+        """Return the polling state."""
+        return not (self.hass.data[DATA_ALEXAMEDIA]
+                    ['accounts'][self._account]['websocket'])
+
+    def update(self):
+        """Update state."""
+        try:
+            self.schedule_update_ha_state()
+        except NoEntitySpecifiedError:
+            pass  # we ignore this due to a harmless startup race condition
+
 
 class DNDSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Do Not Disturb switch."""
 
-    def __init__(self, client):
+    def __init__(self, client, hass, account):
         """Initialize the Alexa Switch."""
         # Class info
-        super().__init__(client,
-                         client.dnd_state,
+        super().__init__(hass,
+                         client,
+                         'dnd_state',
                          client.alexa_api.set_dnd_state,
+                         account,
                          "do not disturb")
 
 
 class ShuffleSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Shuffle switch."""
 
-    def __init__(self, client):
+    def __init__(self, client, hass, account):
         """Initialize the Alexa Switch."""
         # Class info
-        super().__init__(client,
-                         client.shuffle_state,
+        super().__init__(hass,
+                         client,
+                         'shuffle_state',
                          client.alexa_api.shuffle,
+                         account,
                          "shuffle")
 
 
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""
 
-    def __init__(self, client):
+    def __init__(self, client, hass, account):
         """Initialize the Alexa Switch."""
         # Class info
-        super().__init__(client,
-                         client.repeat_state,
+        super().__init__(hass,
+                         client,
+                         'repeat_state',
                          client.alexa_api.repeat,
+                         account,
                          "repeat")

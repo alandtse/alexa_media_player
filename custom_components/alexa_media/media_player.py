@@ -207,6 +207,26 @@ class AlexaClient(MediaPlayerDevice):
                                        == "ONLINE")
                     if (self.hass and self.schedule_update_ha_state):
                         self.schedule_update_ha_state()
+        if 'queue_state' in event.data:
+            queue_state = event.data['queue_state']
+            if (queue_state['dopplerId']
+                    ['deviceSerialNumber'] == self.device_serial_number):
+                if ('trackOrderChanged' in queue_state and
+                        not queue_state['trackOrderChanged'] and
+                        'loopMode' in queue_state):
+                    self._repeat = (queue_state['loopMode']
+                                    == 'LOOP_QUEUE')
+                    _LOGGER.debug("%s repeat updated to: %s %s",
+                                  self.name,
+                                  self._repeat,
+                                  queue_state['loopMode'])
+                elif 'playBackOrder' in queue_state:
+                    self._shuffle = (queue_state['playBackOrder']
+                                     == 'SHUFFLE_ALL')
+                    _LOGGER.debug("%s shuffle updated to: %s %s",
+                                  self.name,
+                                  self._shuffle,
+                                  queue_state['playBackOrder'])
 
     def _clear_media_details(self):
         """Set all Media Items to None."""

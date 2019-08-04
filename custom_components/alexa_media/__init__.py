@@ -512,6 +512,15 @@ def setup_alexa(hass, config, login_obj):
                     hass.bus.fire(('{}_{}'.format(DOMAIN,
                                                   hide_email(email)))[0:32],
                                   {'bluetooth_change': bluetooth_state})
+            elif command == 'PUSH_MEDIA_QUEUE_CHANGE':
+                # Player availability update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
+                if (serial and serial in existing_serials):
+                    _LOGGER.debug("Updating media_player queue %s",
+                                  json_payload)
+                    hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                                  hide_email(email)))[0:32],
+                                  {'queue_state': json_payload})
             if (serial and serial not in existing_serials
                     and serial not in (hass.data[DATA_ALEXAMEDIA]
                                        ['accounts']

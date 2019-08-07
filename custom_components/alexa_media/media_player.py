@@ -351,12 +351,15 @@ class AlexaClient(MediaPlayerDevice):
         return ['Local Speaker'] + sources
 
     def _get_last_called(self):
-        last_called_serial = (None if self.hass is None else
-                              (self.hass.data[DATA_ALEXAMEDIA]
-                               ['accounts']
-                               [self._login.email]
-                               ['last_called']
-                               ['serialNumber']))
+        try:
+            last_called_serial = (None if self.hass is None else
+                                  (self.hass.data[DATA_ALEXAMEDIA]
+                                   ['accounts']
+                                   [self._login.email]
+                                   ['last_called']
+                                   ['serialNumber']))
+        except TypeError:
+            last_called_serial = None
         _LOGGER.debug("%s: Last_called check: self: %s reported: %s",
                       self._device_name,
                       hide_serial(self._device_serial_number),

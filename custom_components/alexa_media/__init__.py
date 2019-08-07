@@ -295,6 +295,7 @@ def setup_alexa(hass, config, login_obj):
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         preferences = AlexaAPI.get_device_preferences(login_obj)
+        dnd = AlexaAPI.get_dnd_state(login_obj)
         _LOGGER.debug("%s: Found %s devices, %s bluetooth",
                       hide_email(email),
                       len(devices) if devices is not None else '',
@@ -352,6 +353,14 @@ def setup_alexa(hass, config, login_obj):
                     _LOGGER.debug("Locale %s found for %s",
                                   device['locale'],
                                   hide_serial(device['serialNumber']))
+
+            for dev in dnd['doNotDisturbDeviceStatusList']:
+                if dev['deviceSerialNumber'] == device['serialNumber']:
+                    device['dnd'] = dev['enabled']
+                    _LOGGER.debug("DND %s found for %s",
+                                  device['dnd'],
+                                  hide_serial(device['serialNumber']))
+
             (hass.data[DATA_ALEXAMEDIA]
              ['accounts']
              [email]
@@ -535,6 +544,15 @@ def setup_alexa(hass, config, login_obj):
                     hass.bus.fire(('{}_{}'.format(DOMAIN,
                                                   hide_email(email)))[0:32],
                                   {'bluetooth_change': bluetooth_state})
+            elif command == 'PUSH_MEDIA_QUEUE_CHANGE':
+                # Player availability update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
+                if (serial and serial in existing_serials):
+                    _LOGGER.debug("Updating media_player queue %s",
+                                  json_payload)
+                    hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                                  hide_email(email)))[0:32],
+                                  {'queue_state': json_payload})
             if (serial and serial not in existing_serials
                     and serial not in (hass.data[DATA_ALEXAMEDIA]
                                        ['accounts']

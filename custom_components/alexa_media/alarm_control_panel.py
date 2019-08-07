@@ -155,6 +155,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         else:
             self._state = STATE_ALARM_DISARMED
         _LOGGER.debug("%s: Alarm State: %s", self.account, self.state)
+        self.schedule_update_ha_state()
 
     def alarm_disarm(self, code=None):
         # pylint: disable=unexpected-keyword-arg

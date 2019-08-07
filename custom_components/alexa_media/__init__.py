@@ -112,16 +112,15 @@ def setup_platform_callback(hass, config, login, callback_data):
                           request_configuration and configuration_callback
     """
     _LOGGER.debug(("Status: %s got captcha: %s securitycode: %s"
-                   " Claimsoption: %s VerificationCode: %s"),
+                   " Claimsoption: %s AuthSelectOption: %s "
+                   " VerificationCode: %s"),
                   login.status,
                   callback_data.get('captcha'),
                   callback_data.get('securitycode'),
                   callback_data.get('claimsoption'),
+                  callback_data.get('authselectoption'),
                   callback_data.get('verificationcode'))
-    login.login(captcha=callback_data.get('captcha'),
-                securitycode=callback_data.get('securitycode'),
-                claimsoption=callback_data.get('claimsoption'),
-                verificationcode=callback_data.get('verificationcode'))
+    login.login(data=callback_data)
     test_login_status(hass, config, login,
                       setup_platform_callback)
 
@@ -136,6 +135,14 @@ def request_configuration(hass, config, login, setup_platform_callback):
                      login, callback_data)
     status = login.status
     email = login.email
+    # links = ""
+    footer = ""
+    if 'error_message' in status and status['error_message']:
+        footer = ('\n<b>NOTE: Actual Amazon error message in red below. '
+                  'Remember password will be provided automatically'
+                  ' and Amazon error message normally appears first!</b>')
+    # if login.links:
+    #     links = '\n\nGo to link with link# (e.g. link0)\n' + login.links
     # Get Captcha
     if (status and 'captcha_image_url' in status and
             status['captcha_image_url'] is not None):
@@ -171,6 +178,22 @@ def request_configuration(hass, config, login, setup_platform_callback):
                             ),
                 submit_caption="Confirm",
                 fields=[{'id': 'claimsoption', 'name': 'Option'}]
+            )
+        else:
+            configuration_callback({})
+    elif (status and 'authselect_required' in status and
+          status['authselect_required']):  # Get picker method
+        options = status['authselect_message']
+        if options:
+            config_id = configurator.request_config(
+                "Alexa Media Player - OTP Method - {}".format(email),
+                configuration_callback,
+                description=('Please select the OTP method. '
+                             '(e.g., 0, 1).<br />{}'.format(options)
+                             # + links
+                             + footer),
+                submit_caption="Confirm",
+                fields=[{'id': 'authselectoption', 'name': 'Option'}]
             )
         else:
             configuration_callback({})
@@ -218,6 +241,9 @@ def test_login_status(hass, config, login,
     elif ('claimspicker_required' in login.status and
           login.status['claimspicker_required']):
         _LOGGER.debug("Creating configurator to select verification option")
+    elif ('authselect_required' in login.status and
+          login.status['authselect_required']):
+        _LOGGER.debug("Creating configurator to select OTA option")
     elif ('verificationcode_required' in login.status and
           login.status['verificationcode_required']):
         _LOGGER.debug("Creating configurator to enter verification code")

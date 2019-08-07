@@ -118,7 +118,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         Used instead of polling.
         """
         if 'push_activity' in event.data:
-            call_later(self.hass, 1, lambda _:
+            call_later(self.hass, 2, lambda _:
                        self.refresh(no_throttle=True))
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)

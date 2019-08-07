@@ -150,7 +150,9 @@ def request_configuration(hass, config, login, setup_platform_callback):
             "Alexa Media Player - Captcha - {}".format(email),
             configuration_callback,
             description=('Please enter the text for the captcha.'
-                         ' Please enter anything if the image is missing.'
+                         ' Please hit confirm to reload image.'
+                         # + links
+                         + footer
                         ),
             description_image=status['captcha_image_url'],
             submit_caption="Confirm",
@@ -161,7 +163,9 @@ def request_configuration(hass, config, login, setup_platform_callback):
         config_id = configurator.request_config(
             "Alexa Media Player - 2FA - {}".format(email),
             configuration_callback,
-            description=('Please enter your Two-Factor Security code.'),
+            description=('Please enter your Two-Factor Security code.'
+                         # + links
+                         + footer),
             submit_caption="Confirm",
             fields=[{'id': 'securitycode', 'name': 'Security Code'}]
         )
@@ -173,9 +177,9 @@ def request_configuration(hass, config, login, setup_platform_callback):
                 "Alexa Media Player - Verification Method - {}".format(email),
                 configuration_callback,
                 description=('Please select the verification method. '
-                             '(e.g., sms or email).<br />{}').format(
-                                 options
-                            ),
+                             '(e.g., sms or email).\n{}'.format(options)
+                             # + links
+                             + footer),
                 submit_caption="Confirm",
                 fields=[{'id': 'claimsoption', 'name': 'Option'}]
             )
@@ -202,7 +206,9 @@ def request_configuration(hass, config, login, setup_platform_callback):
         config_id = configurator.request_config(
             "Alexa Media Player - Verification Code - {}".format(email),
             configuration_callback,
-            description=('Please enter received verification code.'),
+            description=('Please enter received verification code.'
+                         # + links
+                         + footer),
             submit_caption="Confirm",
             fields=[{'id': 'verificationcode', 'name': 'Verification Code'}]
         )

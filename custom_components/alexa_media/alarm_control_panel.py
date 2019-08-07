@@ -84,14 +84,15 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._should_poll = False
         self._attrs = {}
 
-        data = self.alexa_api.get_guard_details(self._login)
         try:
+            from simplejson import JSONDecodeError
+            data = self.alexa_api.get_guard_details(self._login)
             guard_dict = (data['locationDetails']
                           ['locationDetails']['Default_Location']
                           ['amazonBridgeDetails']['amazonBridgeDetails']
                           ['LambdaBridge_AAA/OnGuardSmartHomeBridgeService']
                           ['applianceDetails']['applianceDetails'])
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, JSONDecodeError):
             guard_dict = {}
         for key, value in guard_dict.items():
             if value['modelName'] == "REDROCK_GUARD_PANEL":

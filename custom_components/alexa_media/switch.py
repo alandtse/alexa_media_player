@@ -127,7 +127,6 @@ class AlexaMediaSwitch(SwitchDevice):
                           state)
             self.schedule_update_ha_state()
 
-
     @property
     def is_on(self):
         """Return true if on."""

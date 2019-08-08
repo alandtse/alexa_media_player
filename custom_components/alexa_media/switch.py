@@ -142,6 +142,11 @@ class AlexaMediaSwitch(SwitchDevice):
         self._set_switch(False, **kwargs)
 
     @property
+    def unique_id(self):
+        """Return the unique ID."""
+        return self._client.unique_id + '_' + self._name
+
+    @property
     def name(self):
         """Return the name of the switch."""
         return "{} {} switch".format(self._client.name, self._name)

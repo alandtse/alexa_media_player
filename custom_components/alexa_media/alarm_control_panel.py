@@ -15,6 +15,7 @@ from homeassistant.components.alarm_control_panel import AlarmControlPanel
 from homeassistant.const import (STATE_ALARM_ARMED_AWAY,
                                  STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED)
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.event import call_later
 
 from . import DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
@@ -36,7 +37,7 @@ def setup_platform(hass, config, add_devices_callback,
                                               # type: AlexaAlarmControlPanel
         if not (alexa_client and alexa_client.unique_id):
             _LOGGER.debug("%s: Skipping creation of uninitialized device: %s",
-                          account,
+                          hide_email(account),
                           alexa_client)
             continue
         devices.append(alexa_client)
@@ -83,14 +84,15 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._should_poll = False
         self._attrs = {}
 
-        data = self.alexa_api.get_guard_details(self._login)
         try:
+            from simplejson import JSONDecodeError
+            data = self.alexa_api.get_guard_details(self._login)
             guard_dict = (data['locationDetails']
                           ['locationDetails']['Default_Location']
                           ['amazonBridgeDetails']['amazonBridgeDetails']
                           ['LambdaBridge_AAA/OnGuardSmartHomeBridgeService']
                           ['applianceDetails']['applianceDetails'])
-        except KeyError:
+        except (KeyError, TypeError, JSONDecodeError):
             guard_dict = {}
         for key, value in guard_dict.items():
             if value['modelName'] == "REDROCK_GUARD_PANEL":
@@ -116,7 +118,9 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
 
         Used instead of polling.
         """
-        self.refresh()
+        if 'push_activity' in event.data:
+            call_later(self.hass, 2, lambda _:
+                       self.refresh(no_throttle=True))
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     def refresh(self):
@@ -152,6 +156,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         else:
             self._state = STATE_ALARM_DISARMED
         _LOGGER.debug("%s: Alarm State: %s", self.account, self.state)
+        self.schedule_update_ha_state()
 
     def alarm_disarm(self, code=None):
         # pylint: disable=unexpected-keyword-arg

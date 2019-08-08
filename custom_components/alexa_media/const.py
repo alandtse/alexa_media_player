@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from datetime import timedelta
 
-__version__ = '1.3.1'
+__version__ = '1.4.0'
 PROJECT_URL = "https://github.com/keatontaylor/alexa_media_player/"
 ISSUE_URL = "{}issues".format(PROJECT_URL)
 
@@ -24,7 +24,8 @@ MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 ALEXA_COMPONENTS = [
     'media_player',
     'notify',
-    'alarm_control_panel'
+    'alarm_control_panel',
+    'switch'
 ]
 
 CONF_ACCOUNTS = 'accounts'

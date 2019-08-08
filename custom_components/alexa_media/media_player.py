@@ -12,8 +12,7 @@ import logging
 from typing import List  # noqa pylint: disable=unused-import
 import voluptuous as vol
 from homeassistant import util
-from homeassistant.components.media_player import (MEDIA_PLAYER_SCHEMA,
-                                                   MediaPlayerDevice)
+from homeassistant.components.media_player import (MediaPlayerDevice)
 from homeassistant.components.media_player.const import (
     DOMAIN,
     MEDIA_TYPE_MUSIC,
@@ -23,6 +22,7 @@ from homeassistant.components.media_player.const import (
     SUPPORT_PLAY_MEDIA,
     SUPPORT_PREVIOUS_TRACK,
     SUPPORT_SELECT_SOURCE,
+    SUPPORT_SHUFFLE_SET,
     SUPPORT_STOP,
     SUPPORT_TURN_OFF,
     SUPPORT_TURN_ON,
@@ -47,7 +47,7 @@ SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_VOLUME_SET | SUPPORT_PLAY |
                  SUPPORT_PLAY_MEDIA | SUPPORT_TURN_OFF | SUPPORT_TURN_ON |
                  SUPPORT_VOLUME_MUTE | SUPPORT_PAUSE |
-                 SUPPORT_SELECT_SOURCE)
+                 SUPPORT_SELECT_SOURCE | SUPPORT_SHUFFLE_SET)
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
@@ -132,8 +132,12 @@ class AlexaClient(MediaPlayerDevice):
         self._previous_volume = None
         self._source = None
         self._source_list = []
+        self._shuffle = None
+        self._repeat = None
         # Last Device
         self._last_called = None
+        # Do not Disturb state
+        self._dnd = None
         # Polling state
         self._should_poll = True
         self._last_update = 0
@@ -160,8 +164,10 @@ class AlexaClient(MediaPlayerDevice):
         assumes the MediaClient state is already updated.
         """
         if 'last_called_change' in event.data:
-            if (event.data['last_called_change']['serialNumber'] ==
-                    self.device_serial_number):
+            event_serial = event.data['last_called_change']['serialNumber']
+            if (event_serial == self.device_serial_number or
+                    any(item['serialNumber'] ==
+                        event_serial for item in self._app_device_list)):
                 _LOGGER.debug("%s is last_called: %s", self.name,
                               hide_serial(self.device_serial_number))
                 self._last_called = True
@@ -201,6 +207,26 @@ class AlexaClient(MediaPlayerDevice):
                                        == "ONLINE")
                     if (self.hass and self.schedule_update_ha_state):
                         self.schedule_update_ha_state()
+        if 'queue_state' in event.data:
+            queue_state = event.data['queue_state']
+            if (queue_state['dopplerId']
+                    ['deviceSerialNumber'] == self.device_serial_number):
+                if ('trackOrderChanged' in queue_state and
+                        not queue_state['trackOrderChanged'] and
+                        'loopMode' in queue_state):
+                    self._repeat = (queue_state['loopMode']
+                                    == 'LOOP_QUEUE')
+                    _LOGGER.debug("%s repeat updated to: %s %s",
+                                  self.name,
+                                  self._repeat,
+                                  queue_state['loopMode'])
+                elif 'playBackOrder' in queue_state:
+                    self._shuffle = (queue_state['playBackOrder']
+                                     == 'SHUFFLE_ALL')
+                    _LOGGER.debug("%s shuffle updated to: %s %s",
+                                  self.name,
+                                  self._shuffle,
+                                  queue_state['playBackOrder'])
 
     def _clear_media_details(self):
         """Set all Media Items to None."""
@@ -242,6 +268,7 @@ class AlexaClient(MediaPlayerDevice):
             self._device_family = device['deviceFamily']
             self._device_type = device['deviceType']
             self._device_serial_number = device['serialNumber']
+            self._app_device_list = device['appDeviceList']
             self._device_owner_customer_id = device['deviceOwnerCustomerId']
             self._software_version = device['softwareVersion']
             self._available = device['online']
@@ -249,6 +276,7 @@ class AlexaClient(MediaPlayerDevice):
             self._cluster_members = device['clusterMembers']
             self._bluetooth_state = device['bluetooth_state']
             self._locale = device['locale'] if 'locale' in device else 'en-US'
+            self._dnd = device['dnd']
         if self._available is True:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             self._source = self._get_source()
@@ -309,6 +337,15 @@ class AlexaClient(MediaPlayerDevice):
                                             None and 'mediaLength' in
                                             self._session['progress'])
                                         else None)
+            if self._session['transport'] is not None:
+                self._shuffle = (self._session['transport']
+                                 ['shuffle'] == "SELECTED"
+                                 if ('shuffle' in self._session['transport'])
+                                 else None)
+                self._repeat = (self._session['transport']
+                                ['repeat'] == "SELECTED"
+                                if ('repeat' in self._session['transport'])
+                                else None)
 
     @property
     def source(self):
@@ -349,20 +386,23 @@ class AlexaClient(MediaPlayerDevice):
         return ['Local Speaker'] + sources
 
     def _get_last_called(self):
-        last_called_serial = (None if self.hass is None else
-                              (self.hass.data[DATA_ALEXAMEDIA]
-                               ['accounts']
-                               [self._login.email]
-                               ['last_called']
-                               ['serialNumber']))
+        try:
+            last_called_serial = (None if self.hass is None else
+                                  (self.hass.data[DATA_ALEXAMEDIA]
+                                   ['accounts']
+                                   [self._login.email]
+                                   ['last_called']
+                                   ['serialNumber']))
+        except TypeError:
+            last_called_serial = None
         _LOGGER.debug("%s: Last_called check: self: %s reported: %s",
                       self._device_name,
                       hide_serial(self._device_serial_number),
                       hide_serial(last_called_serial))
-        if (last_called_serial is not None and
-                self._device_serial_number == last_called_serial):
-            return True
-        return False
+        return (last_called_serial is not None and
+                (self._device_serial_number == last_called_serial or
+                 any(item['serialNumber'] ==
+                     last_called_serial for item in self._app_device_list)))
 
     @property
     def available(self):
@@ -499,6 +539,41 @@ class AlexaClient(MediaPlayerDevice):
     def device_family(self):
         """Return the make of the device (ex. Echo, Other)."""
         return self._device_family
+
+    @property
+    def dnd_state(self):
+        """Return the Do Not Disturb state."""
+        return self._dnd
+
+    @dnd_state.setter
+    def dnd_state(self, state):
+        """Set the Do Not Disturb state."""
+        self._dnd = state
+
+    def set_shuffle(self, shuffle):
+        """Enable/disable shuffle mode."""
+        self.alexa_api.shuffle(shuffle)
+        self.shuffle_state = shuffle
+
+    @property
+    def shuffle_state(self):
+        """Return the Shuffle state."""
+        return self._shuffle
+
+    @shuffle_state.setter
+    def shuffle_state(self, state):
+        """Set the Shuffle state."""
+        self._shuffle = state
+
+    @property
+    def repeat_state(self):
+        """Return the Repeat state."""
+        return self._repeat
+
+    @repeat_state.setter
+    def repeat_state(self, state):
+        """Set the Repeat state."""
+        self._repeat = state
 
     @property
     def supported_features(self):

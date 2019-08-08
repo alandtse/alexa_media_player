@@ -112,16 +112,15 @@ def setup_platform_callback(hass, config, login, callback_data):
                           request_configuration and configuration_callback
     """
     _LOGGER.debug(("Status: %s got captcha: %s securitycode: %s"
-                   " Claimsoption: %s VerificationCode: %s"),
+                   " Claimsoption: %s AuthSelectOption: %s "
+                   " VerificationCode: %s"),
                   login.status,
                   callback_data.get('captcha'),
                   callback_data.get('securitycode'),
                   callback_data.get('claimsoption'),
+                  callback_data.get('authselectoption'),
                   callback_data.get('verificationcode'))
-    login.login(captcha=callback_data.get('captcha'),
-                securitycode=callback_data.get('securitycode'),
-                claimsoption=callback_data.get('claimsoption'),
-                verificationcode=callback_data.get('verificationcode'))
+    login.login(data=callback_data)
     test_login_status(hass, config, login,
                       setup_platform_callback)
 
@@ -136,6 +135,14 @@ def request_configuration(hass, config, login, setup_platform_callback):
                      login, callback_data)
     status = login.status
     email = login.email
+    # links = ""
+    footer = ""
+    if 'error_message' in status and status['error_message']:
+        footer = ('\n<b>NOTE: Actual Amazon error message in red below. '
+                  'Remember password will be provided automatically'
+                  ' and Amazon error message normally appears first!</b>')
+    # if login.links:
+    #     links = '\n\nGo to link with link# (e.g. link0)\n' + login.links
     # Get Captcha
     if (status and 'captcha_image_url' in status and
             status['captcha_image_url'] is not None):
@@ -143,7 +150,9 @@ def request_configuration(hass, config, login, setup_platform_callback):
             "Alexa Media Player - Captcha - {}".format(email),
             configuration_callback,
             description=('Please enter the text for the captcha.'
-                         ' Please enter anything if the image is missing.'
+                         ' Please hit confirm to reload image.'
+                         # + links
+                         + footer
                         ),
             description_image=status['captcha_image_url'],
             submit_caption="Confirm",
@@ -154,7 +163,9 @@ def request_configuration(hass, config, login, setup_platform_callback):
         config_id = configurator.request_config(
             "Alexa Media Player - 2FA - {}".format(email),
             configuration_callback,
-            description=('Please enter your Two-Factor Security code.'),
+            description=('Please enter your Two-Factor Security code.'
+                         # + links
+                         + footer),
             submit_caption="Confirm",
             fields=[{'id': 'securitycode', 'name': 'Security Code'}]
         )
@@ -166,11 +177,27 @@ def request_configuration(hass, config, login, setup_platform_callback):
                 "Alexa Media Player - Verification Method - {}".format(email),
                 configuration_callback,
                 description=('Please select the verification method. '
-                             '(e.g., sms or email).<br />{}').format(
-                                 options
-                            ),
+                             '(e.g., sms or email).\n{}'.format(options)
+                             # + links
+                             + footer),
                 submit_caption="Confirm",
                 fields=[{'id': 'claimsoption', 'name': 'Option'}]
+            )
+        else:
+            configuration_callback({})
+    elif (status and 'authselect_required' in status and
+          status['authselect_required']):  # Get picker method
+        options = status['authselect_message']
+        if options:
+            config_id = configurator.request_config(
+                "Alexa Media Player - OTP Method - {}".format(email),
+                configuration_callback,
+                description=('Please select the OTP method. '
+                             '(e.g., 0, 1).<br />{}'.format(options)
+                             # + links
+                             + footer),
+                submit_caption="Confirm",
+                fields=[{'id': 'authselectoption', 'name': 'Option'}]
             )
         else:
             configuration_callback({})
@@ -179,7 +206,9 @@ def request_configuration(hass, config, login, setup_platform_callback):
         config_id = configurator.request_config(
             "Alexa Media Player - Verification Code - {}".format(email),
             configuration_callback,
-            description=('Please enter received verification code.'),
+            description=('Please enter received verification code.'
+                         # + links
+                         + footer),
             submit_caption="Confirm",
             fields=[{'id': 'verificationcode', 'name': 'Verification Code'}]
         )
@@ -218,6 +247,9 @@ def test_login_status(hass, config, login,
     elif ('claimspicker_required' in login.status and
           login.status['claimspicker_required']):
         _LOGGER.debug("Creating configurator to select verification option")
+    elif ('authselect_required' in login.status and
+          login.status['authselect_required']):
+        _LOGGER.debug("Creating configurator to select OTA option")
     elif ('verificationcode_required' in login.status and
           login.status['verificationcode_required']):
         _LOGGER.debug("Creating configurator to enter verification code")
@@ -263,6 +295,7 @@ def setup_alexa(hass, config, login_obj):
         devices = AlexaAPI.get_devices(login_obj)
         bluetooth = AlexaAPI.get_bluetooth(login_obj)
         preferences = AlexaAPI.get_device_preferences(login_obj)
+        dnd = AlexaAPI.get_dnd_state(login_obj)
         _LOGGER.debug("%s: Found %s devices, %s bluetooth",
                       hide_email(email),
                       len(devices) if devices is not None else '',
@@ -320,6 +353,14 @@ def setup_alexa(hass, config, login_obj):
                     _LOGGER.debug("Locale %s found for %s",
                                   device['locale'],
                                   hide_serial(device['serialNumber']))
+
+            for dev in dnd['doNotDisturbDeviceStatusList']:
+                if dev['deviceSerialNumber'] == device['serialNumber']:
+                    device['dnd'] = dev['enabled']
+                    _LOGGER.debug("DND %s found for %s",
+                                  device['dnd'],
+                                  hide_serial(device['serialNumber']))
+
             (hass.data[DATA_ALEXAMEDIA]
              ['accounts']
              [email]
@@ -455,15 +496,21 @@ def setup_alexa(hass, config, login_obj):
             serial = None
             if command == 'PUSH_ACTIVITY':
                 #  Last_Alexa Updated
-                serial = (json_payload
-                          ['key']
-                          ['entryId']).split('#')[2]
-                last_called = {
-                    'serialNumber': serial,
-                    'timestamp': json_payload['timestamp']
-                }
+                if (json_payload
+                        ['key']
+                        ['entryId']).find('#') != -1:
+                    serial = (json_payload
+                              ['key']
+                              ['entryId']).split('#')[2]
+                    last_called = {
+                        'serialNumber': serial,
+                        'timestamp': json_payload['timestamp']
+                    }
                 if (serial and serial in existing_serials):
                     update_last_called(login_obj, last_called)
+                hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                              hide_email(email)))[0:32],
+                              {'push_activity': json_payload})
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
@@ -500,6 +547,15 @@ def setup_alexa(hass, config, login_obj):
                     hass.bus.fire(('{}_{}'.format(DOMAIN,
                                                   hide_email(email)))[0:32],
                                   {'bluetooth_change': bluetooth_state})
+            elif command == 'PUSH_MEDIA_QUEUE_CHANGE':
+                # Player availability update
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
+                if (serial and serial in existing_serials):
+                    _LOGGER.debug("Updating media_player queue %s",
+                                  json_payload)
+                    hass.bus.fire(('{}_{}'.format(DOMAIN,
+                                                  hide_email(email)))[0:32],
+                                  {'queue_state': json_payload})
             if (serial and serial not in existing_serials
                     and serial not in (hass.data[DATA_ALEXAMEDIA]
                                        ['accounts']

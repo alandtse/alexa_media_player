@@ -69,10 +69,11 @@ def setup_platform(hass, config, add_devices_callback,
                      [account]
                      ['entities']
                      ['switch'][key][switch_key]) = alexa_client
-                    _LOGGER.debug("%s: Found %s %s switch",
+                    _LOGGER.debug("%s: Found %s %s switch with status: %s",
                                   hide_email(account),
                                   hide_serial(key),
-                                  switch_key)
+                                  switch_key,
+                                  alexa_client.is_on)
                     devices.append(alexa_client)
     if devices:
         add_devices_callback(devices, True)

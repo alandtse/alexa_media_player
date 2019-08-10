@@ -69,10 +69,11 @@ def setup_platform(hass, config, add_devices_callback,
                      [account]
                      ['entities']
                      ['switch'][key][switch_key]) = alexa_client
-                    _LOGGER.debug("%s: Found %s %s switch",
+                    _LOGGER.debug("%s: Found %s %s switch with status: %s",
                                   hide_email(account),
                                   hide_serial(key),
-                                  switch_key)
+                                  switch_key,
+                                  alexa_client.is_on)
                     devices.append(alexa_client)
     if devices:
         add_devices_callback(devices, True)
@@ -127,7 +128,6 @@ class AlexaMediaSwitch(SwitchDevice):
                           state)
             self.schedule_update_ha_state()
 
-
     @property
     def is_on(self):
         """Return true if on."""
@@ -140,6 +140,11 @@ class AlexaMediaSwitch(SwitchDevice):
     def turn_off(self, **kwargs):
         """Turn off switch."""
         self._set_switch(False, **kwargs)
+
+    @property
+    def unique_id(self):
+        """Return the unique ID."""
+        return self._client.unique_id + '_' + self._name
 
     @property
     def name(self):

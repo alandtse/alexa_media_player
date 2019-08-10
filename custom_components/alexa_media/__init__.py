@@ -496,13 +496,16 @@ def setup_alexa(hass, config, login_obj):
             serial = None
             if command == 'PUSH_ACTIVITY':
                 #  Last_Alexa Updated
-                serial = (json_payload
-                          ['key']
-                          ['entryId']).split('#')[2]
-                last_called = {
-                    'serialNumber': serial,
-                    'timestamp': json_payload['timestamp']
-                }
+                if (json_payload
+                        ['key']
+                        ['entryId']).find('#') != -1:
+                    serial = (json_payload
+                              ['key']
+                              ['entryId']).split('#')[2]
+                    last_called = {
+                        'serialNumber': serial,
+                        'timestamp': json_payload['timestamp']
+                    }
                 if (serial and serial in existing_serials):
                     update_last_called(login_obj, last_called)
                 hass.bus.fire(('{}_{}'.format(DOMAIN,

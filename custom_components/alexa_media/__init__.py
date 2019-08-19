@@ -85,12 +85,26 @@ def hide_serial(item):
 
 async def async_setup(hass, config, discovery_info=None):
     """Set up the Alexa domain."""
+    async def close_alexa_media(event) -> None:
+        """Clean up Alexa connections."""
+        _LOGGER.debug("Received shutdown request: %s", event)
+        for email, account_dict in (hass.data
+                                    [DATA_ALEXAMEDIA]['accounts'].items()):
+            login_obj = account_dict['login_obj']
+            if not login_obj._session.closed:
+                if login_obj._session._connector_owner:
+                    await login_obj._session._connector.close()
+                login_obj._session._connector = None
+            _LOGGER.debug("%s: Connection closed: %s",
+                          hide_email(email),
+                          login_obj._session.closed)
     if DATA_ALEXAMEDIA not in hass.data:
         hass.data[DATA_ALEXAMEDIA] = {}
         hass.data[DATA_ALEXAMEDIA]['accounts'] = {}
     from alexapy import AlexaLogin, __version__ as alexapy_version
     _LOGGER.info(STARTUP)
     _LOGGER.info("Loaded alexapy==%s", alexapy_version)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
     domainconfig = config.get(DOMAIN)
     for account in domainconfig[CONF_ACCOUNTS]:
         # if account[CONF_EMAIL] in configured_instances(hass):

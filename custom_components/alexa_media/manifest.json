@@ -4,5 +4,5 @@
   "documentation": "https://github.com/keatontaylor/alexa_media_player/wiki",
   "dependencies": [],
   "codeowners": ["@keatontaylor", "@alandtse"],
-  "requirements": ["alexapy==0.7.1"]
+  "requirements": ["alexapy==1.0.0"]
 }

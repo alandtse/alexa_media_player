@@ -365,23 +365,26 @@ async def setup_alexa(hass, config, login_obj):
                  [device['serialNumber']]) = device
                 continue
 
-            for b_state in bluetooth['bluetoothStates']:
-                if device['serialNumber'] == b_state['deviceSerialNumber']:
-                    device['bluetooth_state'] = b_state
+            if 'bluetoothStates' in bluetooth:
+                for b_state in bluetooth['bluetoothStates']:
+                    if device['serialNumber'] == b_state['deviceSerialNumber']:
+                        device['bluetooth_state'] = b_state
 
-            for dev in preferences['devicePreferences']:
-                if dev['deviceSerialNumber'] == device['serialNumber']:
-                    device['locale'] = dev['locale']
-                    _LOGGER.debug("Locale %s found for %s",
-                                  device['locale'],
-                                  hide_serial(device['serialNumber']))
+            if 'devicePreferences' in preferences:
+                for dev in preferences['devicePreferences']:
+                    if dev['deviceSerialNumber'] == device['serialNumber']:
+                        device['locale'] = dev['locale']
+                        _LOGGER.debug("Locale %s found for %s",
+                                      device['locale'],
+                                      hide_serial(device['serialNumber']))
 
-            for dev in dnd['doNotDisturbDeviceStatusList']:
-                if dev['deviceSerialNumber'] == device['serialNumber']:
-                    device['dnd'] = dev['enabled']
-                    _LOGGER.debug("DND %s found for %s",
-                                  device['dnd'],
-                                  hide_serial(device['serialNumber']))
+            if 'doNotDisturbDeviceStatusList' in dnd:
+                for dev in dnd['doNotDisturbDeviceStatusList']:
+                    if dev['deviceSerialNumber'] == device['serialNumber']:
+                        device['dnd'] = dev['enabled']
+                        _LOGGER.debug("DND %s found for %s",
+                                      device['dnd'],
+                                      hide_serial(device['serialNumber']))
 
             (hass.data[DATA_ALEXAMEDIA]
              ['accounts']

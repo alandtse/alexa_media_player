@@ -196,7 +196,7 @@ class AlexaClient(MediaPlayerDevice):
                 self._source = await self._get_source()
                 self._source_list = await self._get_source_list()
                 if (self.hass and self.async_schedule_update_ha_state):
-                    await self.async_schedule_update_ha_state()
+                    self.async_schedule_update_ha_state()
         elif 'player_state' in event.data:
             player_state = event.data['player_state']
             if (player_state['dopplerId']

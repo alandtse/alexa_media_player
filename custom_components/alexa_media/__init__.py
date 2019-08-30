@@ -130,7 +130,8 @@ async def setup_platform_callback(hass, config, login, callback_data):
     callback_data (json): Returned data from configurator passed through
                           request_configuration and configuration_callback
     """
-    _LOGGER.debug(("Status: %s got captcha: %s securitycode: %s"
+    _LOGGER.debug(("Configurator closed for Status: %s\n"
+                   " got captcha: %s securitycode: %s"
                    " Claimsoption: %s AuthSelectOption: %s "
                    " VerificationCode: %s"),
                   login.status,
@@ -462,10 +463,12 @@ async def setup_alexa(hass, config, login_obj):
                   ['media_player']
                   [device_serial])
 
-        for b_state in bluetooth['bluetoothStates']:
-            if device_serial == b_state['deviceSerialNumber']:
-                device['bluetooth_state'] = b_state
-        return device['bluetooth_state']
+        if 'bluetoothStates' in bluetooth:
+            for b_state in bluetooth['bluetoothStates']:
+                if device_serial == b_state['deviceSerialNumber']:
+                    device['bluetooth_state'] = b_state
+                return device['bluetooth_state']
+        return None
 
     async def last_call_handler(call):
         """Handle last call service request.
@@ -588,10 +591,11 @@ async def setup_alexa(hass, config, login_obj):
                                   json_payload)
                     bluetooth_state = await update_bluetooth_state(login_obj,
                                                                    serial)
-                    hass.bus.async_fire(
-                        ('{}_{}'.format(DOMAIN,
-                                        hide_email(email)))[0:32],
-                        {'bluetooth_change': bluetooth_state})
+                    if bluetooth_state:
+                        hass.bus.async_fire(
+                            ('{}_{}'.format(DOMAIN,
+                                            hide_email(email)))[0:32],
+                            {'bluetooth_change': bluetooth_state})
             elif command == 'PUSH_MEDIA_QUEUE_CHANGE':
                 # Player availability update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])

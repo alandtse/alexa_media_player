@@ -130,7 +130,8 @@ async def setup_platform_callback(hass, config, login, callback_data):
     callback_data (json): Returned data from configurator passed through
                           request_configuration and configuration_callback
     """
-    _LOGGER.debug(("Status: %s got captcha: %s securitycode: %s"
+    _LOGGER.debug(("Configurator closed for Status: %s\n"
+                   " got captcha: %s securitycode: %s"
                    " Claimsoption: %s AuthSelectOption: %s "
                    " VerificationCode: %s"),
                   login.status,

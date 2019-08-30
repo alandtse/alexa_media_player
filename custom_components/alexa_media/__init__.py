@@ -196,7 +196,7 @@ async def request_configuration(hass, config, login, setup_platform_callback):
                 "Alexa Media Player - Verification Method - {}".format(email),
                 configuration_callback,
                 description=('Please select the verification method. '
-                             '(e.g., sms or email).\n{}'.format(options)
+                             '(e.g., `sms` or `email`).\n{}'.format(options)
                              # + links
                              + footer),
                 submit_caption="Confirm",
@@ -212,7 +212,7 @@ async def request_configuration(hass, config, login, setup_platform_callback):
                 "Alexa Media Player - OTP Method - {}".format(email),
                 configuration_callback,
                 description=('Please select the OTP method. '
-                             '(e.g., 0, 1).<br />{}'.format(options)
+                             '(e.g., `0`, `1`).<br />{}'.format(options)
                              # + links
                              + footer),
                 submit_caption="Confirm",

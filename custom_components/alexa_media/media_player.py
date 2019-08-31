@@ -385,6 +385,9 @@ class AlexaClient(MediaPlayerDevice):
                 if devices['friendlyName'] == source:
                     await self.alexa_api.set_bluetooth(devices['address'])
                     self._source = source
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            await self.async_update()
 
     async def _get_source(self):
         source = 'Local Speaker'

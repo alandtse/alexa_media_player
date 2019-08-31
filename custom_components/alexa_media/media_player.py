@@ -393,7 +393,8 @@ class AlexaClient(MediaPlayerDevice):
         source = 'Local Speaker'
         if self._bluetooth_state['pairedDeviceList'] is not None:
             for device in self._bluetooth_state['pairedDeviceList']:
-                if device['connected'] is True:
+                if (device['connected'] is True and
+                        device['friendlyName'] in self.source_list):
                     return device['friendlyName']
         return source
 

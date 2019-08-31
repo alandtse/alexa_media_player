@@ -192,7 +192,14 @@ class AlexaClient(MediaPlayerDevice):
         elif 'bluetooth_change' in event.data:
             if (event.data['bluetooth_change']['deviceSerialNumber'] ==
                     self.device_serial_number):
+                _LOGGER.debug("%s bluetooth_state update: %s",
+                              self.name,
+                              hide_serial(event.data['bluetooth_change']))
                 self._bluetooth_state = event.data['bluetooth_change']
+                # the setting of bluetooth_state is not consistent as this
+                # takes from the event instead of the hass storage. We're
+                # setting the value twice. Architectually we should have a
+                # single authorative source of truth.
                 self._source = await self._get_source()
                 self._source_list = await self._get_source_list()
                 if (self.hass and self.async_schedule_update_ha_state):

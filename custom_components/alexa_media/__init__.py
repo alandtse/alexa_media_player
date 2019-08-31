@@ -479,8 +479,16 @@ async def setup_alexa(hass, config, login_obj):
         if 'bluetoothStates' in bluetooth:
             for b_state in bluetooth['bluetoothStates']:
                 if device_serial == b_state['deviceSerialNumber']:
+                    # _LOGGER.debug("%s: setting value for: %s to %s",
+                    #               hide_email(email),
+                    #               hide_serial(device_serial),
+                    #               hide_serial(b_state))
                     device['bluetooth_state'] = b_state
                     return device['bluetooth_state']
+        _LOGGER.debug("%s: get_bluetooth for: %s failed with %s",
+                      hide_email(email),
+                      hide_serial(device_serial),
+                      hide_serial(bluetooth))
         return None
 
     async def last_call_handler(call):
@@ -610,6 +618,8 @@ async def setup_alexa(hass, config, login_obj):
                                   hide_serial(json_payload))
                     bluetooth_state = await update_bluetooth_state(login_obj,
                                                                    serial)
+                    # _LOGGER.debug("bluetooth_state %s",
+                    #               hide_serial(bluetooth_state))
                     if bluetooth_state:
                         hass.bus.async_fire(
                             ('{}_{}'.format(DOMAIN,

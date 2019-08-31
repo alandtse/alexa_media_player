@@ -376,7 +376,7 @@ class AlexaClient(MediaPlayerDevice):
         elif self._bluetooth_state['pairedDeviceList'] is not None:
             for devices in self._bluetooth_state['pairedDeviceList']:
                 if devices['friendlyName'] == source:
-                    self.alexa_api.set_bluetooth(devices['address'])
+                    await self.alexa_api.set_bluetooth(devices['address'])
                     self._source = source
 
     async def _get_source(self):

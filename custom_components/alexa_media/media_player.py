@@ -218,12 +218,12 @@ class AlexaClient(MediaPlayerDevice):
                                   self.name,
                                   player_state['volumeSetting'])
                     self._media_vol_level = player_state['volumeSetting']/100
-                    if (self.hass and self.schedule_update_ha_state):
+                    if (self.hass and self.async_schedule_update_ha_state):
                         self.async_schedule_update_ha_state()
                 elif 'dopplerConnectionState' in player_state:
                     self._available = (player_state['dopplerConnectionState']
                                        == "ONLINE")
-                    if (self.hass and self.schedule_update_ha_state):
+                    if (self.hass and self.async_schedule_update_ha_state):
                         self.async_schedule_update_ha_state()
         if 'queue_state' in event.data:
             queue_state = event.data['queue_state']
@@ -375,7 +375,7 @@ class AlexaClient(MediaPlayerDevice):
         """List of available input sources."""
         return self._source_list
 
-    async def select_source(self, source):
+    async def async_select_source(self, source):
         """Select input source."""
         if source == 'Local Speaker':
             await self.alexa_api.disconnect_bluetooth()
@@ -573,7 +573,7 @@ class AlexaClient(MediaPlayerDevice):
         """Set the Do Not Disturb state."""
         self._dnd = state
 
-    async def set_shuffle(self, shuffle):
+    async def async_set_shuffle(self, shuffle):
         """Enable/disable shuffle mode."""
         await self.alexa_api.shuffle(shuffle)
         self.shuffle_state = shuffle
@@ -603,7 +603,7 @@ class AlexaClient(MediaPlayerDevice):
         """Flag media player features that are supported."""
         return SUPPORT_ALEXA
 
-    async def set_volume_level(self, volume):
+    async def async_set_volume_level(self, volume):
         """Set volume level, range 0..1."""
         if not self.available:
             return
@@ -625,7 +625,7 @@ class AlexaClient(MediaPlayerDevice):
             return True
         return False
 
-    async def mute_volume(self, mute):
+    async def async_mute_volume(self, mute):
         """Mute the volume.
 
         Since we can't actually mute, we'll:

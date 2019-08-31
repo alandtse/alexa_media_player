@@ -600,7 +600,12 @@ async def setup_alexa(hass, config, login_obj):
             elif command == 'PUSH_BLUETOOTH_STATE_CHANGE':
                 # Player bluetooth update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
-                if (serial and serial in existing_serials):
+                bt_event = json_payload['bluetoothEvent']
+                bt_success = json_payload['bluetoothEventSuccess']
+                if (serial and serial in existing_serials and
+                    bt_success and bt_event and bt_event in [
+                        'DEVICE_CONNECTED',
+                        'DEVICE_DISCONNECTED']):
                     _LOGGER.debug("Updating media_player bluetooth %s",
                                   hide_serial(json_payload))
                     bluetooth_state = await update_bluetooth_state(login_obj,

@@ -730,9 +730,10 @@ class AlexaClient(MediaPlayerDevice):
                                media_type, media_id, enqueue=None, **kwargs):
         """Send the play_media command to the media player."""
         if media_type == "music":
-            await self.alexa_api.send_tts(
-                "Sorry, text to speech can only be called "
-                " with the media player alexa tts service")
+            await self.async_send_tts(
+                "Sorry, text to speech can only be called"
+                " with the notify.alexa_media service."
+                " Please see the alexa_media wiki for details.")
         elif media_type == "sequence":
             await self.alexa_api.send_sequence(media_id,
                                                customer_id=self._customer_id,

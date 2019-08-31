@@ -467,7 +467,7 @@ async def setup_alexa(hass, config, login_obj):
             for b_state in bluetooth['bluetoothStates']:
                 if device_serial == b_state['deviceSerialNumber']:
                     device['bluetooth_state'] = b_state
-                return device['bluetooth_state']
+                    return device['bluetooth_state']
         return None
 
     async def last_call_handler(call):

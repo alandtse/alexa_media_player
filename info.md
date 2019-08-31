@@ -1,4 +1,4 @@
-[Alexa Media Player Custom Component](https://github.com/keatontaylor/alexa_media_player) for homeassistant
+[Alexa Media Player Custom Component](https://github.com/custom-components/alexa_media_player) for homeassistant
 
 This is a custom component to allow control of Amazon Alexa devices in [Homeassistant](https://home-assistant.io) using the unofficial Alexa API. Please note this mimics the Alexa app but Amazon may cut off access at anytime.
 
@@ -10,8 +10,8 @@ This is a custom component to allow control of Amazon Alexa devices in [Homeassi
 
 ## Useful links
 
-- [General documentation](https://github.com/keatontaylor/alexa_media_player/wiki)
-- [Installation and Configuration](https://github.com/keatontaylor/alexa_media_player/wiki/Installation-and-Configuration)
-- [FAQ](https://github.com/keatontaylor/alexa_media_player/wiki/FAQ)
-- [Repository](https://github.com/keatontaylor/alexa_media_player)
+- [General documentation](https://github.com/custom-components/alexa_media_player/wiki)
+- [Installation and Configuration](https://github.com/custom-components/alexa_media_player/wiki/Installation-and-Configuration)
+- [FAQ](https://github.com/custom-components/alexa_media_player/wiki/FAQ)
+- [Repository](https://github.com/custom-components/alexa_media_player)
 - [Forum post](https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639)

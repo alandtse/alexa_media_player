@@ -332,11 +332,11 @@ async def setup_alexa(hass, config, login_obj):
             return
 
         new_alexa_clients = []  # list of newly discovered device names
-        excluded = []
-        included = []
+        exclude_filter = []
+        include_filter = []
         for device in devices:
             if include and device['accountName'] not in include:
-                included.append(device['accountName'])
+                include_filter.append(device['accountName'])
                 if 'appDeviceList' in device:
                     for app in device['appDeviceList']:
                         (hass.data[DATA_ALEXAMEDIA]
@@ -351,7 +351,7 @@ async def setup_alexa(hass, config, login_obj):
                  [device['serialNumber']]) = device
                 continue
             elif exclude and device['accountName'] in exclude:
-                excluded.append(device['accountName'])
+                exclude_filter.append(device['accountName'])
                 if 'appDeviceList' in device:
                     for app in device['appDeviceList']:
                         (hass.data[DATA_ALEXAMEDIA]
@@ -397,12 +397,13 @@ async def setup_alexa(hass, config, login_obj):
             if device['serialNumber'] not in existing_serials:
                 new_alexa_clients.append(device['accountName'])
         _LOGGER.debug("%s: Existing: %s New: %s;"
-                      " Filtered by: include_devices: %s exclude_devices:%s",
+                      " Filtered out by not being in include: %s "
+                      "or in exclude: %s",
                       hide_email(email),
                       list(existing_entities),
                       new_alexa_clients,
-                      included,
-                      excluded)
+                      include_filter,
+                      exclude_filter)
 
         if new_alexa_clients:
             for component in ALEXA_COMPONENTS:

@@ -30,13 +30,13 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_SET)
 from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
                                  STATE_STANDBY)
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.discovery import async_load_platform
 
 from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL
+from .helpers import add_devices
 
 from . import (
     DOMAIN as ALEXA_DOMAIN,
@@ -73,18 +73,7 @@ async def async_setup_platform(hass, config, add_devices_callback,
                  [account]
                  ['entities']
                  ['media_player'][key]) = alexa_client
-    _LOGGER.debug("Adding %s", devices)
-    try:
-        add_devices_callback(devices, True)
-    except HomeAssistantError as exception_:
-        message = exception_.message  # type: str
-        if message.startswith("Entity id already exists"):
-            _LOGGER.debug("Device already added: %s",
-                          message)
-        else:
-            _LOGGER.debug("Unable to add devices: %s : %s",
-                          devices,
-                          message)
+    return await add_devices(devices, add_devices_callback)
 
 
 class AlexaClient(MediaPlayerDevice):

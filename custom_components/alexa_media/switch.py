@@ -21,6 +21,7 @@ from . import (
     MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
     hide_email, hide_serial
 )
+from .helpers import add_devices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,9 +76,7 @@ async def async_setup_platform(hass, config, add_devices_callback,
                                   switch_key,
                                   alexa_client.is_on)
                     devices.append(alexa_client)
-    if devices:
-        add_devices_callback(devices, True)
-    return True
+    return await add_devices(devices, add_devices_callback)
 
 
 class AlexaMediaSwitch(SwitchDevice):

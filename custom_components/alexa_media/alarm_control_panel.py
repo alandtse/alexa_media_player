@@ -14,12 +14,12 @@ from homeassistant import util
 from homeassistant.components.alarm_control_panel import AlarmControlPanel
 from homeassistant.const import (STATE_ALARM_ARMED_AWAY,
                                  STATE_ALARM_DISARMED)
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_call_later
 
 from . import DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
 from . import MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS, hide_email
+from .helpers import add_devices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,20 +48,7 @@ async def async_setup_platform(hass,
          [account]
          ['entities']
          ['alarm_control_panel']) = alexa_client
-    if devices:
-        _LOGGER.debug("Adding %s", devices)
-        try:
-            add_devices_callback(devices, True)
-        except HomeAssistantError as exception_:
-            message = exception_.message  # type: str
-            if message.startswith("Entity id already exists"):
-                _LOGGER.debug("Device already added: %s",
-                              message)
-            else:
-                _LOGGER.debug("Unable to add devices: %s : %s",
-                              devices,
-                              message)
-    return True
+    return await add_devices(devices, add_devices_callback)
 
 
 class AlexaAlarmControlPanel(AlarmControlPanel):

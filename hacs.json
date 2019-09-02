@@ -1,0 +1,7 @@
+{
+  "name": "Alexa Media Player",
+  "content_in_root": false,
+  "domains": ["media_player", "switch", "alarm_control_panel"],
+  "iot_class": "cloud_poll",
+  "homeassistant": "0.96.0"
+}

@@ -95,7 +95,6 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
                               self._guard_entity_id)
         if not self._appliance_id:
             _LOGGER.debug("%s: No Alexa Guard entity found", self.account)
-            return None
 
     async def async_added_to_hass(self):
         """Store register state change callback."""

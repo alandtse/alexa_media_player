@@ -173,6 +173,8 @@ class AlexaClient(MediaPlayerDevice):
         is self.update will pull data from Amazon, while schedule_update
         assumes the MediaClient state is already updated.
         """
+        if not self.enabled:
+            return
         if 'last_called_change' in event.data:
             event_serial = event.data['last_called_change']['serialNumber']
             if (event_serial == self.device_serial_number or
@@ -465,8 +467,9 @@ class AlexaClient(MediaPlayerDevice):
         every update. However, this quickly floods the network for every new
         device added. This should only call refresh() to call the AlexaAPI.
         """
-        if (self._device is None or self.entity_id is None):
-            # Device has not initialized yet
+        if (self._device is None or self.entity_id is None or
+                not self.enabled):
+            # Device has not initialized yet or is disabled
             return
         email = self._login.email
         device = (self.hass.data[DATA_ALEXAMEDIA]

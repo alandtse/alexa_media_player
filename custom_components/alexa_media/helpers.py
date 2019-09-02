@@ -33,4 +33,11 @@ async def add_devices(devices: List[EntityComponent],
                 _LOGGER.debug("Unable to add devices: %s : %s",
                               devices,
                               message)
+        except BaseException as ex:
+            template = ("An exception of type {0} occurred."
+                        " Arguments:\n{1!r}")
+            message = template.format(type(ex).__name__, ex.args)
+            _LOGGER.debug("Unable to add devices: %s",
+                          message)
+
     return False

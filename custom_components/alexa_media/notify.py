@@ -118,7 +118,7 @@ class AlexaNotificationService(BaseNotificationService):
                                      ['entities']['media_player'].values())
         return devices
 
-    async def send_message(self, message="", **kwargs):
+    async def async_send_message(self, message="", **kwargs):
         """Send a message to a Alexa device."""
         _LOGGER.debug("Message: %s, kwargs: %s",
                       message,

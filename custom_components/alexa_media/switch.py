@@ -122,6 +122,8 @@ class AlexaMediaSwitch(SwitchDevice):
 
     async def async_added_to_hass(self):
         """Store register state change callback."""
+        if not self.enabled:
+            return
         # Register event handler on bus
         self._listener = self.hass.bus.async_listen(
             ('{}_{}'.format(
@@ -140,6 +142,8 @@ class AlexaMediaSwitch(SwitchDevice):
         This will update PUSH_MEDIA_QUEUE_CHANGE events to see if the switch
         should be updated.
         """
+        if not self.enabled:
+            return
         if 'queue_state' in event.data:
             queue_state = event.data['queue_state']
             if (queue_state['dopplerId']
@@ -148,6 +152,8 @@ class AlexaMediaSwitch(SwitchDevice):
                 self.async_schedule_update_ha_state()
 
     async def _set_switch(self, state, **kwargs):
+        if not self.enabled:
+            return
         success = await self._switch_function(state)
         # if function returns  success, make immediate state change
         if success:
@@ -196,6 +202,8 @@ class AlexaMediaSwitch(SwitchDevice):
 
     async def async_update(self):
         """Update state."""
+        if not self.enabled:
+            return
         try:
             self.async_schedule_update_ha_state()
         except NoEntitySpecifiedError:

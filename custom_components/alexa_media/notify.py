@@ -98,6 +98,8 @@ class AlexaNotificationService(BaseNotificationService):
         devices = {}
         for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
                                       ['accounts'].items()):
+            if ('devices' not in account_dict):
+                return devices
             for serial, alexa in (account_dict
                                   ['devices']['media_player'].items()):
                 devices[alexa['accountName']] = serial

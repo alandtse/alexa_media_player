@@ -107,7 +107,7 @@ class AlexaNotificationService(BaseNotificationService):
 
     @property
     def devices(self):
-        """Return a dictionary of Alexa devices."""
+        """Return a list of Alexa devices."""
         devices = []
         if ('accounts' not in self.hass.data[DATA_ALEXAMEDIA] and
                 not self.hass.data[DATA_ALEXAMEDIA]['accounts'].items()):

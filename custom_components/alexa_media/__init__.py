@@ -284,7 +284,7 @@ async def test_login_status(hass, config, login,
 async def setup_alexa(hass, config, login_obj):
     """Set up a alexa api based on host parameter."""
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
-    async def update_devices():
+    async def update_devices(login_obj):
         """Ping Alexa API to identify all devices, bluetooth, and last called device.
 
         This will add new devices and services when discovered. By default this
@@ -298,6 +298,7 @@ async def setup_alexa(hass, config, login_obj):
         Each AlexaAPI call generally results in two webpage requests.
         """
         from alexapy import AlexaAPI
+        email: Text = login_obj.email
         existing_serials = (hass.data[DATA_ALEXAMEDIA]
                             ['accounts']
                             [email]
@@ -325,7 +326,8 @@ async def setup_alexa(hass, config, login_obj):
         if ((devices is None or bluetooth is None)
                 and not (hass.data[DATA_ALEXAMEDIA]
                          ['accounts'][email]['config'])):
-            _LOGGER.debug("Alexa API disconnected; attempting to relogin")
+            _LOGGER.debug("%s: Alexa API disconnected; attempting to relogin",
+                          hide_email(email))
             await login_obj.login()
             await test_login_status(hass,
                                     config, login_obj, setup_platform_callback)
@@ -418,7 +420,9 @@ async def setup_alexa(hass, config, login_obj):
         await update_last_called(login_obj)
         scan_interval = config.get(CONF_SCAN_INTERVAL)
         async_call_later(hass, scan_interval.total_seconds(), lambda _:
-                         hass.async_create_task(update_devices()))
+                         hass.async_create_task(
+                            update_devices(login_obj,
+                                           no_throttle=True)))
 
     async def update_last_called(login_obj, last_called=None):
         """Update the last called device for the login_obj.
@@ -615,7 +619,7 @@ async def setup_alexa(hass, config, login_obj):
                 _LOGGER.debug("Discovered new media_player %s", serial)
                 (hass.data[DATA_ALEXAMEDIA]
                  ['accounts'][email]['new_devices']) = True
-                await update_devices(no_throttle=True)
+                await update_devices(login_obj, no_throttle=True)
 
     async def ws_open_handler():
         """Handle websocket open."""
@@ -650,7 +654,7 @@ async def setup_alexa(hass, config, login_obj):
                           hide_email(email))
             (hass.data[DATA_ALEXAMEDIA]['accounts']
              [email]['websocket']) = None
-            await update_devices()
+            await update_devices(login_obj, no_throttle=True)
 
     async def ws_error_handler(message):
         """Handle websocket error.
@@ -686,7 +690,7 @@ async def setup_alexa(hass, config, login_obj):
          ['accounts'][email]['new_devices']) = True  # force initial update
     (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['websocket']) = \
         await ws_connect()
-    await update_devices()
+    await update_devices(login_obj, no_throttle=True)
     hass.services.async_register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
                                  last_call_handler,
                                  schema=LAST_CALL_UPDATE_SCHEMA)

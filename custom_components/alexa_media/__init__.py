@@ -255,7 +255,8 @@ async def test_login_status(hass, config, login,
     """Test the login status and spawn requests for info."""
     _LOGGER.debug("Testing login status: %s", login.status)
     if 'login_successful' in login.status and login.status['login_successful']:
-        _LOGGER.debug("Setting up Alexa devices")
+        _LOGGER.debug("Setting up Alexa devices for %s",
+                      hide_email(login.email))
         await hass.async_add_job(setup_alexa, hass, config,
                                  login)
         return
@@ -303,7 +304,11 @@ async def setup_alexa(hass, config, login_obj):
                             ['accounts']
                             [email]
                             ['entities']
-                            ['media_player'].keys())
+                            ['media_player'].keys() if 'entities' in (
+                                hass.data[DATA_ALEXAMEDIA]
+                                ['accounts']
+                                [email])
+                            else [])
         existing_entities = (hass.data[DATA_ALEXAMEDIA]
                              ['accounts']
                              [email]
@@ -413,7 +418,7 @@ async def setup_alexa(hass, config, login_obj):
                     async_load_platform(hass,
                                         component,
                                         DOMAIN,
-                                        {CONF_NAME: DOMAIN},
+                                        {CONF_NAME: DOMAIN, "config": config},
                                         config))
 
         # Process last_called data to fire events

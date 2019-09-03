@@ -40,7 +40,7 @@ from .helpers import add_devices
 
 from . import (
     DOMAIN as ALEXA_DOMAIN,
-    CONF_NAME,
+    CONF_NAME, CONF_EMAIL,
     DATA_ALEXAMEDIA,
     MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
     hide_email, hide_serial)
@@ -59,20 +59,27 @@ async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
-    for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
-                                  ['accounts'].items()):
-        for key, device in account_dict['devices']['media_player'].items():
-            if key not in account_dict['entities']['media_player']:
-                alexa_client = AlexaClient(device,
-                                           account_dict['login_obj']
-                                           )
-                await alexa_client.init(device)
-                devices.append(alexa_client)
-                (hass.data[DATA_ALEXAMEDIA]
-                 ['accounts']
-                 [account]
-                 ['entities']
-                 ['media_player'][key]) = alexa_client
+    config = discovery_info['config']
+    account = config[CONF_EMAIL]
+    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
+    for key, device in account_dict['devices']['media_player'].items():
+        if key not in account_dict['entities']['media_player']:
+            alexa_client = AlexaClient(device,
+                                       account_dict['login_obj']
+                                       )
+            await alexa_client.init(device)
+            devices.append(alexa_client)
+            (hass.data[DATA_ALEXAMEDIA]
+             ['accounts']
+             [account]
+             ['entities']
+             ['media_player'][key]) = alexa_client
+        else:
+            _LOGGER.debug("%s: Skipping already added device: %s:%s",
+                          hide_email(account),
+                          hide_serial(key),
+                          alexa_client
+                          )
     return await add_devices(devices, add_devices_callback)
 
 

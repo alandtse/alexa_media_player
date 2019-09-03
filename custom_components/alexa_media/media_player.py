@@ -192,7 +192,14 @@ class AlexaClient(MediaPlayerDevice):
         elif 'bluetooth_change' in event.data:
             if (event.data['bluetooth_change']['deviceSerialNumber'] ==
                     self.device_serial_number):
+                _LOGGER.debug("%s bluetooth_state update: %s",
+                              self.name,
+                              hide_serial(event.data['bluetooth_change']))
                 self._bluetooth_state = event.data['bluetooth_change']
+                # the setting of bluetooth_state is not consistent as this
+                # takes from the event instead of the hass storage. We're
+                # setting the value twice. Architectually we should have a
+                # single authorative source of truth.
                 self._source = await self._get_source()
                 self._source_list = await self._get_source_list()
                 if (self.hass and self.async_schedule_update_ha_state):
@@ -211,12 +218,12 @@ class AlexaClient(MediaPlayerDevice):
                                   self.name,
                                   player_state['volumeSetting'])
                     self._media_vol_level = player_state['volumeSetting']/100
-                    if (self.hass and self.schedule_update_ha_state):
+                    if (self.hass and self.async_schedule_update_ha_state):
                         self.async_schedule_update_ha_state()
                 elif 'dopplerConnectionState' in player_state:
                     self._available = (player_state['dopplerConnectionState']
                                        == "ONLINE")
-                    if (self.hass and self.schedule_update_ha_state):
+                    if (self.hass and self.async_schedule_update_ha_state):
                         self.async_schedule_update_ha_state()
         if 'queue_state' in event.data:
             queue_state = event.data['queue_state']
@@ -368,7 +375,7 @@ class AlexaClient(MediaPlayerDevice):
         """List of available input sources."""
         return self._source_list
 
-    async def select_source(self, source):
+    async def async_select_source(self, source):
         """Select input source."""
         if source == 'Local Speaker':
             await self.alexa_api.disconnect_bluetooth()
@@ -376,14 +383,18 @@ class AlexaClient(MediaPlayerDevice):
         elif self._bluetooth_state['pairedDeviceList'] is not None:
             for devices in self._bluetooth_state['pairedDeviceList']:
                 if devices['friendlyName'] == source:
-                    self.alexa_api.set_bluetooth(devices['address'])
+                    await self.alexa_api.set_bluetooth(devices['address'])
                     self._source = source
+        if not (self.hass.data[DATA_ALEXAMEDIA]
+                ['accounts'][self._login.email]['websocket']):
+            await self.async_update()
 
     async def _get_source(self):
         source = 'Local Speaker'
         if self._bluetooth_state['pairedDeviceList'] is not None:
             for device in self._bluetooth_state['pairedDeviceList']:
-                if device['connected'] is True:
+                if (device['connected'] is True and
+                        device['friendlyName'] in self.source_list):
                     return device['friendlyName']
         return source
 
@@ -563,7 +574,7 @@ class AlexaClient(MediaPlayerDevice):
         """Set the Do Not Disturb state."""
         self._dnd = state
 
-    async def set_shuffle(self, shuffle):
+    async def async_set_shuffle(self, shuffle):
         """Enable/disable shuffle mode."""
         await self.alexa_api.shuffle(shuffle)
         self.shuffle_state = shuffle
@@ -593,7 +604,7 @@ class AlexaClient(MediaPlayerDevice):
         """Flag media player features that are supported."""
         return SUPPORT_ALEXA
 
-    async def set_volume_level(self, volume):
+    async def async_set_volume_level(self, volume):
         """Set volume level, range 0..1."""
         if not self.available:
             return
@@ -615,7 +626,7 @@ class AlexaClient(MediaPlayerDevice):
             return True
         return False
 
-    async def mute_volume(self, mute):
+    async def async_mute_volume(self, mute):
         """Mute the volume.
 
         Since we can't actually mute, we'll:
@@ -720,9 +731,10 @@ class AlexaClient(MediaPlayerDevice):
                                media_type, media_id, enqueue=None, **kwargs):
         """Send the play_media command to the media player."""
         if media_type == "music":
-            await self.alexa_api.send_tts(
-                "Sorry, text to speech can only be called "
-                " with the media player alexa tts service")
+            await self.async_send_tts(
+                "Sorry, text to speech can only be called"
+                " with the notify.alexa_media service."
+                " Please see the alexa_media wiki for details.")
         elif media_type == "sequence":
             await self.alexa_api.send_sequence(media_id,
                                                customer_id=self._customer_id,

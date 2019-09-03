@@ -62,10 +62,13 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema({
 def hide_email(email):
     """Obfuscate email."""
     part = email.split('@')
-    return "{}{}{}@{}".format(part[0][0],
-                              "*" * (len(part[0]) - 2),
-                              part[0][-1],
-                              part[1])
+    return "{}{}{}@{}{}{}".format(part[0][0],
+                                  "*" * (len(part[0]) - 2),
+                                  part[0][-1],
+                                  part[1][0],
+                                  "*" * (len(part[1]) - 2),
+                                  part[1][-1]
+)
 
 
 def hide_serial(item):
@@ -74,12 +77,22 @@ def hide_serial(item):
         return ""
     if isinstance(item, dict):
         response = item.copy()
-        serial = item['serialNumber']
-        response['serialNumber'] = hide_serial(serial)
+        for key, value in item.items():
+            if (isinstance(value, dict) or isinstance(value, list) or
+                    key in ['deviceSerialNumber', 'serialNumber',
+                            'destinationUserId']):
+                response[key] = hide_serial(value)
     elif isinstance(item, str):
         response = "{}{}{}".format(item[0],
                                    "*" * (len(item) - 4),
                                    item[-3:])
+    elif isinstance(item, list):
+        response = []
+        for list_item in item:
+            if isinstance(list_item, dict):
+                response.append(hide_serial(list_item))
+            else:
+                response.append(list_item)
     return response
 
 
@@ -466,8 +479,16 @@ async def setup_alexa(hass, config, login_obj):
         if 'bluetoothStates' in bluetooth:
             for b_state in bluetooth['bluetoothStates']:
                 if device_serial == b_state['deviceSerialNumber']:
+                    # _LOGGER.debug("%s: setting value for: %s to %s",
+                    #               hide_email(email),
+                    #               hide_serial(device_serial),
+                    #               hide_serial(b_state))
                     device['bluetooth_state'] = b_state
-                return device['bluetooth_state']
+                    return device['bluetooth_state']
+        _LOGGER.debug("%s: get_bluetooth for: %s failed with %s",
+                      hide_email(email),
+                      hide_serial(device_serial),
+                      hide_serial(bluetooth))
         return None
 
     async def last_call_handler(call):
@@ -533,7 +554,7 @@ async def setup_alexa(hass, config, login_obj):
         if command and json_payload:
             _LOGGER.debug("%s: Received websocket command: %s : %s",
                           hide_email(email),
-                          command, json_payload)
+                          command, hide_serial(json_payload))
             serial = None
             if command == 'PUSH_ACTIVITY':
                 #  Last_Alexa Updated
@@ -558,7 +579,8 @@ async def setup_alexa(hass, config, login_obj):
                 # Player update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 if (serial and serial in existing_serials):
-                    _LOGGER.debug("Updating media_player: %s", json_payload)
+                    _LOGGER.debug("Updating media_player: %s",
+                                  hide_serial(json_payload))
                     hass.bus.async_fire(
                         ('{}_{}'.format(DOMAIN,
                                         hide_email(email)))[0:32],
@@ -568,7 +590,7 @@ async def setup_alexa(hass, config, login_obj):
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player volume: %s",
-                                  json_payload)
+                                  hide_serial(json_payload))
                     hass.bus.async_fire(
                         ('{}_{}'.format(DOMAIN,
                                         hide_email(email)))[0:32],
@@ -578,7 +600,7 @@ async def setup_alexa(hass, config, login_obj):
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player availability %s",
-                                  json_payload)
+                                  hide_serial(json_payload))
                     hass.bus.async_fire(
                         ('{}_{}'.format(DOMAIN,
                                         hide_email(email)))[0:32],
@@ -586,11 +608,18 @@ async def setup_alexa(hass, config, login_obj):
             elif command == 'PUSH_BLUETOOTH_STATE_CHANGE':
                 # Player bluetooth update
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
-                if (serial and serial in existing_serials):
+                bt_event = json_payload['bluetoothEvent']
+                bt_success = json_payload['bluetoothEventSuccess']
+                if (serial and serial in existing_serials and
+                    bt_success and bt_event and bt_event in [
+                        'DEVICE_CONNECTED',
+                        'DEVICE_DISCONNECTED']):
                     _LOGGER.debug("Updating media_player bluetooth %s",
-                                  json_payload)
+                                  hide_serial(json_payload))
                     bluetooth_state = await update_bluetooth_state(login_obj,
                                                                    serial)
+                    # _LOGGER.debug("bluetooth_state %s",
+                    #               hide_serial(bluetooth_state))
                     if bluetooth_state:
                         hass.bus.async_fire(
                             ('{}_{}'.format(DOMAIN,
@@ -601,7 +630,7 @@ async def setup_alexa(hass, config, login_obj):
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player queue %s",
-                                  json_payload)
+                                  hide_serial(json_payload))
                     hass.bus.async_fire(
                         ('{}_{}'.format(DOMAIN,
                                         hide_email(email)))[0:32],

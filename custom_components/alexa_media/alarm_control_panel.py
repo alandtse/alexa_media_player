@@ -21,7 +21,8 @@ from . import DOMAIN as ALEXA_DOMAIN
 from . import (
     CONF_EMAIL,
     MIN_TIME_BETWEEN_FORCED_SCANS,
-    MIN_TIME_BETWEEN_SCANS, hide_email
+    MIN_TIME_BETWEEN_SCANS, hide_email,
+    CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES
     )
 from .helpers import add_devices
 
@@ -38,6 +39,8 @@ async def async_setup_platform(hass,
     devices = []  # type: List[AlexaAlarmControlPanel]
     config = discovery_info['config']
     account = config[CONF_EMAIL]
+    include_filter = config.get(CONF_INCLUDE_DEVICES, [])
+    exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
     if 'alarm_control_panel' not in (account_dict
                                      ['entities']):
@@ -65,7 +68,9 @@ async def async_setup_platform(hass,
         _LOGGER.debug("%s: Skipping already added device: %s",
                       hide_email(account),
                       alexa_client)
-    return await add_devices(devices, add_devices_callback)
+    return await add_devices(hide_email(account),
+                             devices, add_devices_callback,
+                             include_filter, exclude_filter)
 
 
 class AlexaAlarmControlPanel(AlarmControlPanel):

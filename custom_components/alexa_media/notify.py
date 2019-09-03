@@ -98,6 +98,8 @@ class AlexaNotificationService(BaseNotificationService):
         devices = {}
         for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
                                       ['accounts'].items()):
+            if ('devices' not in account_dict):
+                return devices
             for serial, alexa in (account_dict
                                   ['devices']['media_player'].items()):
                 devices[alexa['accountName']] = serial
@@ -105,7 +107,7 @@ class AlexaNotificationService(BaseNotificationService):
 
     @property
     def devices(self):
-        """Return a dictionary of Alexa devices."""
+        """Return a list of Alexa devices."""
         devices = []
         if ('accounts' not in self.hass.data[DATA_ALEXAMEDIA] and
                 not self.hass.data[DATA_ALEXAMEDIA]['accounts'].items()):
@@ -116,7 +118,7 @@ class AlexaNotificationService(BaseNotificationService):
                                      ['entities']['media_player'].values())
         return devices
 
-    async def send_message(self, message="", **kwargs):
+    async def async_send_message(self, message="", **kwargs):
         """Send a message to a Alexa device."""
         _LOGGER.debug("Message: %s, kwargs: %s",
                       message,

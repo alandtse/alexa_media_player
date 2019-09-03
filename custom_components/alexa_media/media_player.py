@@ -30,17 +30,17 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_SET)
 from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
                                  STATE_STANDBY)
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.discovery import async_load_platform
 
 from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL
+from .helpers import add_devices
 
 from . import (
     DOMAIN as ALEXA_DOMAIN,
-    CONF_NAME,
+    CONF_NAME, CONF_EMAIL,
     DATA_ALEXAMEDIA,
     MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
     hide_email, hide_serial)
@@ -59,32 +59,28 @@ async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
-    for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
-                                  ['accounts'].items()):
-        for key, device in account_dict['devices']['media_player'].items():
-            if key not in account_dict['entities']['media_player']:
-                alexa_client = AlexaClient(device,
-                                           account_dict['login_obj']
-                                           )
-                await alexa_client.init(device)
-                devices.append(alexa_client)
-                (hass.data[DATA_ALEXAMEDIA]
-                 ['accounts']
-                 [account]
-                 ['entities']
-                 ['media_player'][key]) = alexa_client
-    _LOGGER.debug("Adding %s", devices)
-    try:
-        add_devices_callback(devices, True)
-    except HomeAssistantError as exception_:
-        message = exception_.message  # type: str
-        if message.startswith("Entity id already exists"):
-            _LOGGER.debug("Device already added: %s",
-                          message)
+    config = discovery_info['config']
+    account = config[CONF_EMAIL]
+    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
+    for key, device in account_dict['devices']['media_player'].items():
+        if key not in account_dict['entities']['media_player']:
+            alexa_client = AlexaClient(device,
+                                       account_dict['login_obj']
+                                       )
+            await alexa_client.init(device)
+            devices.append(alexa_client)
+            (hass.data[DATA_ALEXAMEDIA]
+             ['accounts']
+             [account]
+             ['entities']
+             ['media_player'][key]) = alexa_client
         else:
-            _LOGGER.debug("Unable to add devices: %s : %s",
-                          devices,
-                          message)
+            _LOGGER.debug("%s: Skipping already added device: %s:%s",
+                          hide_email(account),
+                          hide_serial(key),
+                          alexa_client
+                          )
+    return await add_devices(devices, add_devices_callback)
 
 
 class AlexaClient(MediaPlayerDevice):

@@ -80,7 +80,9 @@ async def async_setup_platform(hass, config, add_devices_callback,
                           hide_serial(key),
                           alexa_client
                           )
-    return await add_devices(devices, add_devices_callback)
+    return await add_devices(hide_email(account),
+                             devices,
+                             add_devices_callback)
 
 
 class AlexaClient(MediaPlayerDevice):

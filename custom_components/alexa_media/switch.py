@@ -19,7 +19,8 @@ from . import DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
 from . import (
     MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
-    hide_email, hide_serial, CONF_EMAIL
+    hide_email, hide_serial, CONF_EMAIL,
+    CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES
 )
 from .helpers import add_devices
 
@@ -38,6 +39,8 @@ async def async_setup_platform(hass, config, add_devices_callback,
     ]
     config = discovery_info['config']
     account = config[CONF_EMAIL]
+    include_filter = config.get(CONF_INCLUDE_DEVICES, [])
+    exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
     if 'switch' not in account_dict['entities']:
         (hass.data[DATA_ALEXAMEDIA]
@@ -88,8 +91,9 @@ async def async_setup_platform(hass, config, add_devices_callback,
                           hide_email(account),
                           key,
                           alexa_client)
-    return await add_devices(devices, add_devices_callback)
-
+    return await add_devices(hide_email(account),
+                             devices, add_devices_callback,
+                             include_filter, exclude_filter)
 
 class AlexaMediaSwitch(SwitchDevice):
     """Representation of a Alexa Media switch."""

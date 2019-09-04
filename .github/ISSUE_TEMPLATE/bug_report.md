@@ -29,5 +29,8 @@ If applicable, add screenshots to help explain your problem.
  - alexa_media  (version from `const.py` or HA startup):
  - alexapy (version from `pip show alexapy` or HA startup):
 
+**Logs**
+Please provide [logs](https://github.com/custom-components/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component). We'll be most likely asking for them anyway.
+
 **Additional context**
-Add any other context about the problem here.
+Add any other context about the problem here. 

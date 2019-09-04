@@ -426,12 +426,19 @@ async def setup_alexa(hass, config, login_obj):
                       exclude_filter)
 
         if new_alexa_clients:
+            cleaned_config = config.copy()
+            cleaned_config.pop(CONF_SCAN_INTERVAL, None)
+            # CONF_SCAN_INTERVAL causes a json error in the recorder because it
+            # is a timedelta object.
+            cleaned_config.pop(CONF_PASSWORD, None)
+            # CONF_PASSWORD contains sensitive info which is no longer needed
             for component in ALEXA_COMPONENTS:
                 hass.async_create_task(
                     async_load_platform(hass,
                                         component,
                                         DOMAIN,
-                                        {CONF_NAME: DOMAIN, "config": config},
+                                        {CONF_NAME: DOMAIN,
+                                         "config": cleaned_config},
                                         config))
 
         # Process last_called data to fire events

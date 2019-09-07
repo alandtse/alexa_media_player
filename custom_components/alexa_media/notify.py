@@ -18,17 +18,24 @@ from . import (
         DOMAIN as ALEXA_DOMAIN,
         DATA_ALEXAMEDIA,
         hide_email, hide_serial)
+from .helpers import retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
-DEPENDENCIES = [ALEXA_DOMAIN]
 
-EVENT_NOTIFY = "notify"
-
-
+@retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_get_service(hass, config, discovery_info=None):
     # pylint: disable=unused-argument
     """Get the demo notification service."""
+    for account, account_dict in (
+            hass.data[DATA_ALEXAMEDIA]['accounts'].items()):
+        for key, device in account_dict['devices']['media_player'].items():
+            if key not in account_dict['entities']['media_player']:
+                _LOGGER.debug(
+                    "%s: Media player %s not loaded yet; delaying load",
+                    hide_email(account),
+                    hide_serial(key))
+                return False
     return AlexaNotificationService(hass)
 
 

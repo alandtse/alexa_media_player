@@ -18,19 +18,13 @@ from homeassistant.helpers.event import async_call_later
 
 from . import DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
-from . import (
-    CONF_EMAIL,
-    MIN_TIME_BETWEEN_FORCED_SCANS,
-    MIN_TIME_BETWEEN_SCANS, hide_email,
-    CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES
-    )
-from .helpers import add_devices
+from .helpers import add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
 
-
+@retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass,
                                config,
                                add_devices_callback,

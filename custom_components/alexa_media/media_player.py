@@ -36,14 +36,8 @@ from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.discovery import async_load_platform
 
 from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL
-from .helpers import add_devices
+from .helpers import add_devices, retry_async
 
-from . import (
-    DOMAIN as ALEXA_DOMAIN,
-    CONF_NAME, CONF_EMAIL,
-    DATA_ALEXAMEDIA,
-    MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS,
-    hide_email, hide_serial)
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_NEXT_TRACK | SUPPORT_STOP |
                  SUPPORT_VOLUME_SET | SUPPORT_PLAY |
@@ -55,6 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 DEPENDENCIES = [ALEXA_DOMAIN]
 
 
+@retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa media player platform."""

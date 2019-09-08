@@ -9,15 +9,13 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import logging
 
-from homeassistant.components.notify import (
-    ATTR_DATA, ATTR_TARGET, ATTR_TITLE, ATTR_TITLE_DEFAULT,
-    BaseNotificationService
-)
+from homeassistant.components.notify import (ATTR_DATA, ATTR_TARGET,
+                                             ATTR_TITLE, ATTR_TITLE_DEFAULT,
+                                             BaseNotificationService)
 
-from . import (
-        DOMAIN as ALEXA_DOMAIN,
-        DATA_ALEXAMEDIA,
-        hide_email, hide_serial)
+from . import DATA_ALEXAMEDIA
+from . import DOMAIN as ALEXA_DOMAIN
+from . import hide_email, hide_serial
 from .helpers import retry_async
 
 _LOGGER = logging.getLogger(__name__)

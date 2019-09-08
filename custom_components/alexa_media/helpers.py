@@ -9,7 +9,8 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import logging
-from typing import List, Text, Callable
+from typing import Callable, List, Text
+
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import EntityComponent
 

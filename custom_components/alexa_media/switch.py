@@ -15,13 +15,11 @@ from homeassistant.components.switch import SwitchDevice
 from homeassistant.exceptions import NoEntitySpecifiedError
 from homeassistant.helpers.event import async_call_later
 
-from . import DATA_ALEXAMEDIA
+from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
+               DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
-from . import (
-    MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
-    hide_email, hide_serial, CONF_EMAIL,
-    CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES
-)
+from . import (MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
+               hide_email, hide_serial)
 from .helpers import add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)

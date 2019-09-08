@@ -8,25 +8,24 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 import logging
+from typing import Optional, Text
 
 import voluptuous as vol
 
-from typing import Optional, Text
-from homeassistant import util
-from homeassistant.const import (
-    CONF_EMAIL, CONF_NAME, CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_URL,
-    EVENT_HOMEASSISTANT_STOP)
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.event import async_call_later
-from homeassistant.helpers.discovery import async_load_platform
 from alexapy import WebsocketEchoClient
+from homeassistant import util
+from homeassistant.const import (CONF_EMAIL, CONF_NAME, CONF_PASSWORD,
+                                 CONF_SCAN_INTERVAL, CONF_URL,
+                                 EVENT_HOMEASSISTANT_STOP)
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.helpers.event import async_call_later
 
-from .const import (
-    ALEXA_COMPONENTS, CONF_DEBUG, CONF_ACCOUNTS, CONF_INCLUDE_DEVICES,
-    CONF_EXCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_SCANS,
-    MIN_TIME_BETWEEN_FORCED_SCANS, SCAN_INTERVAL, SERVICE_UPDATE_LAST_CALLED,
-    ATTR_EMAIL, STARTUP, __version__
-)
+from .const import (ALEXA_COMPONENTS, ATTR_EMAIL, CONF_ACCOUNTS, CONF_DEBUG,
+                    CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
+                    DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_FORCED_SCANS,
+                    MIN_TIME_BETWEEN_SCANS, SCAN_INTERVAL,
+                    SERVICE_UPDATE_LAST_CALLED, STARTUP, __version__)
 
 # from .config_flow import configured_instances
 
@@ -426,12 +425,19 @@ async def setup_alexa(hass, config, login_obj):
                       exclude_filter)
 
         if new_alexa_clients:
+            cleaned_config = config.copy()
+            cleaned_config.pop(CONF_SCAN_INTERVAL, None)
+            # CONF_SCAN_INTERVAL causes a json error in the recorder because it
+            # is a timedelta object.
+            cleaned_config.pop(CONF_PASSWORD, None)
+            # CONF_PASSWORD contains sensitive info which is no longer needed
             for component in ALEXA_COMPONENTS:
                 hass.async_create_task(
                     async_load_platform(hass,
                                         component,
                                         DOMAIN,
-                                        {CONF_NAME: DOMAIN, "config": config},
+                                        {CONF_NAME: DOMAIN,
+                                         "config": cleaned_config},
                                         config))
 
         # Process last_called data to fire events

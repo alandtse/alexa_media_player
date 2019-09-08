@@ -15,22 +15,20 @@ from homeassistant.components.switch import SwitchDevice
 from homeassistant.exceptions import NoEntitySpecifiedError
 from homeassistant.helpers.event import async_call_later
 
-from . import DATA_ALEXAMEDIA
+from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
+               DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
-from . import (
-    MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
-    hide_email, hide_serial, CONF_EMAIL,
-    CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES
-)
-from .helpers import add_devices
+from . import (MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
+               hide_email, hide_serial)
+from .helpers import add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
 
+@retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa switch platform."""
-    _LOGGER.debug("Loading switches")
     devices = []  # type: List[DNDSwitch]
     SWITCH_TYPES = [
         ('dnd', DNDSwitch),
@@ -42,6 +40,8 @@ async def async_setup_platform(hass, config, add_devices_callback,
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
+    _LOGGER.debug("%s: Loading switches",
+                  hide_email(account))
     if 'switch' not in account_dict['entities']:
         (hass.data[DATA_ALEXAMEDIA]
          ['accounts']
@@ -50,14 +50,10 @@ async def async_setup_platform(hass, config, add_devices_callback,
          ['switch']) = {}
     for key, device in account_dict['devices']['media_player'].items():
         if key not in account_dict['entities']['media_player']:
-            _LOGGER.debug("Media Players not loaded yet; delaying load")
-            async_call_later(hass, 5, lambda _:
-                             hass.async_create_task(
-                                async_setup_platform(hass,
-                                                     config,
-                                                     add_devices_callback,
-                                                     discovery_info)))
-            return True
+            _LOGGER.debug("%s: Media player %s not loaded yet; delaying load",
+                          hide_email(account),
+                          hide_serial(key))
+            return False
         if key not in (hass.data[DATA_ALEXAMEDIA]
                        ['accounts']
                        [account]
@@ -87,13 +83,19 @@ async def async_setup_platform(hass, config, add_devices_callback,
                  [key]
                  [switch_key]) = alexa_client
         else:
-            _LOGGER.debug("%s: Skipping already added device: %s:%s",
-                          hide_email(account),
-                          key,
-                          alexa_client)
+            for alexa_client in (hass.data[DATA_ALEXAMEDIA]
+                                             ['accounts']
+                                             [account]
+                                             ['entities']
+                                             ['switch']
+                                             [key].values()):
+                _LOGGER.debug("%s: Skipping already added device: %s",
+                              hide_email(account),
+                              alexa_client)
     return await add_devices(hide_email(account),
                              devices, add_devices_callback,
                              include_filter, exclude_filter)
+
 
 class AlexaMediaSwitch(SwitchDevice):
     """Representation of a Alexa Media switch."""

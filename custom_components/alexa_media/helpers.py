@@ -9,14 +9,16 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import logging
-from typing import List, Text
+from typing import Callable, List, Text
+
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import EntityComponent
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def add_devices(account: Text, devices: List[EntityComponent],
+async def add_devices(account: Text,
+                      devices: List[EntityComponent],
                       add_devices_callback: callable,
                       include_filter: List[Text] = [],
                       exclude_filter: List[Text] = []) -> bool:
@@ -56,3 +58,64 @@ async def add_devices(account: Text, devices: List[EntityComponent],
                           message)
 
     return False
+
+
+def retry_async(limit: int = 5,
+                delay: float = 1,
+                catch_exceptions: bool = True
+                ) -> Callable:
+    """Wrap function with retry logic.
+
+    The function will retry until true or the limit is reached. It will delay
+    for the period of time specified exponentialy increasing the delay.
+
+    Parameters
+    ----------
+    limit : int
+        The max number of retries.
+    delay : float
+        The delay in seconds between retries.
+    catch_exceptions : bool
+        Whether exceptions should be caught and treated as failures or thrown.
+    Returns
+    -------
+    def
+        Wrapped function.
+
+    """
+    def wrap(func) -> Callable:
+        import functools
+        import asyncio
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs) -> Callable:
+            _LOGGER.debug(
+                "%s: Trying with limit %s delay %s catch_exceptions %s",
+                func.__name__,
+                limit,
+                delay,
+                catch_exceptions)
+            retries: int = 0
+            result: bool = False
+            while (not result and retries < limit):
+                if retries != 0:
+                    await asyncio.sleep(delay * 2 ** retries)
+                retries += 1
+                try:
+                    result = await func(*args, **kwargs)
+                except Exception as ex:  # pylint: disable=broad-except
+                    if not catch_exceptions:
+                        raise
+                    template = ("An exception of type {0} occurred."
+                                " Arguments:\n{1!r}")
+                    message = template.format(type(ex).__name__, ex.args)
+                    _LOGGER.debug("%s: failure caught due to exception: %s",
+                                  func.__name__,
+                                  message)
+                _LOGGER.debug("%s: Try: %s/%s result: %s",
+                              func.__name__,
+                              retries,
+                              limit,
+                              result)
+            return result
+        return wrapper
+    return wrap

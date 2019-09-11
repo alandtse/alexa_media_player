@@ -56,7 +56,8 @@ async def add_devices(account: Text,
             _LOGGER.debug("%s: Unable to add devices: %s",
                           account,
                           message)
-
+    else:
+        return True
     return False
 
 

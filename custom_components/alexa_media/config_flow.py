@@ -233,6 +233,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         _LOGGER.debug("Testing login status: %s", login.status)
         if "login_successful" in login.status and login.status["login_successful"]:
             _LOGGER.debug("Setting up Alexa devices with %s", dict(config))
+            await login.close()
             return self.async_create_entry(
                 title="{} - {}".format(login.email, login.url), data=config
             )

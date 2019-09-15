@@ -479,7 +479,7 @@ class AlexaClient(MediaPlayerDevice):
             # Device has not initialized yet
             return
         email = self._login.email
-        if email not in hass.data[DATA_ALEXAMEDIA]['accounts']:
+        if email not in self.hass.data[DATA_ALEXAMEDIA]['accounts']:
             return
         device = (self.hass.data[DATA_ALEXAMEDIA]
                   ['accounts']

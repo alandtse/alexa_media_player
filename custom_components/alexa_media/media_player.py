@@ -766,3 +766,17 @@ class AlexaClient(MediaPlayerDevice):
     def should_poll(self):
         """Return the polling state."""
         return self._should_poll
+
+    @property
+    def device_info(self):
+        return {
+            'identifiers': {
+                # Serial numbers are unique identifiers within a specific domain
+                (self.unique_id)
+            },
+            'name': self.name,
+            'manufacturer': "Amazon",
+            'model': f"{self._device_family} {self._device_type}",
+            'sw_version': self._software_version,
+        }
+

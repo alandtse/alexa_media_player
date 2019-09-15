@@ -209,6 +209,15 @@ class AlexaMediaSwitch(SwitchDevice):
         except NoEntitySpecifiedError:
             pass  # we ignore this due to a harmless startup race condition
 
+    @property
+    def device_info(self):
+        return {
+            'identifiers': {
+                # Serial numbers are unique identifiers within a specific domain
+                (self._client.unique_id)
+            },
+            'via_device': (self._client.unique_id),
+        }
 
 class DNDSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Do Not Disturb switch."""

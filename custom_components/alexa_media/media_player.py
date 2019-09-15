@@ -772,7 +772,7 @@ class AlexaClient(MediaPlayerDevice):
         return {
             'identifiers': {
                 # Serial numbers are unique identifiers within a specific domain
-                (self.unique_id)
+                (ALEXA_DOMAIN, self.unique_id)
             },
             'name': self.name,
             'manufacturer': "Amazon",

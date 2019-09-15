@@ -214,9 +214,9 @@ class AlexaMediaSwitch(SwitchDevice):
         return {
             'identifiers': {
                 # Serial numbers are unique identifiers within a specific domain
-                (self._client.unique_id)
+                (ALEXA_DOMAIN, self._client.unique_id)
             },
-            'via_device': (self._client.unique_id),
+            'via_device': (ALEXA_DOMAIN, self._client.unique_id),
         }
 
 class DNDSwitch(AlexaMediaSwitch):

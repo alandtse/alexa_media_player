@@ -10,16 +10,13 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import logging
 from typing import List  # noqa pylint: disable=unused-import
 
-from homeassistant import util
 from homeassistant.components.switch import SwitchDevice
 from homeassistant.exceptions import NoEntitySpecifiedError
-from homeassistant.helpers.event import async_call_later
 
 from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
                DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
-from . import (MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
-               hide_email, hide_serial)
+from . import (hide_email, hide_serial)
 from .helpers import add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,7 +32,6 @@ async def async_setup_platform(hass, config, add_devices_callback,
         ('shuffle', ShuffleSwitch),
         ('repeat', RepeatSwitch)
     ]
-    config = discovery_info['config']
     account = config[CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
@@ -84,17 +80,26 @@ async def async_setup_platform(hass, config, add_devices_callback,
                  [switch_key]) = alexa_client
         else:
             for alexa_client in (hass.data[DATA_ALEXAMEDIA]
-                                             ['accounts']
-                                             [account]
-                                             ['entities']
-                                             ['switch']
-                                             [key].values()):
+                                          ['accounts']
+                                          [account]
+                                          ['entities']
+                                          ['switch']
+                                          [key].values()):
                 _LOGGER.debug("%s: Skipping already added device: %s",
                               hide_email(account),
                               alexa_client)
     return await add_devices(hide_email(account),
                              devices, add_devices_callback,
                              include_filter, exclude_filter)
+
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up the Alexa switch platform by config_entry."""
+    return await async_setup_platform(
+        hass,
+        config_entry.data,
+        async_add_devices,
+        discovery_info=None)
 
 
 class AlexaMediaSwitch(SwitchDevice):

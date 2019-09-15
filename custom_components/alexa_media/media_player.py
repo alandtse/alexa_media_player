@@ -10,27 +10,24 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import logging
 from typing import List  # noqa pylint: disable=unused-import
 
-import voluptuous as vol
-
 from homeassistant import util
 from homeassistant.components.media_player import MediaPlayerDevice
 from homeassistant.components.media_player.const import (
-    DOMAIN, MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PLAY,
+    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PLAY,
     SUPPORT_PLAY_MEDIA, SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE,
     SUPPORT_SHUFFLE_SET, SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
     SUPPORT_VOLUME_MUTE, SUPPORT_VOLUME_SET)
 from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
                                  STATE_STANDBY)
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.service import extract_entity_ids
 
-from . import CONF_EMAIL, CONF_NAME, DATA_ALEXAMEDIA
+from . import CONF_EMAIL, DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
 from . import (MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
                hide_email, hide_serial)
-from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL
+from .const import PLAY_SCAN_INTERVAL
 from .helpers import add_devices, retry_async
 
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
@@ -49,7 +46,6 @@ async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
-    config = discovery_info['config']
     account = config[CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
     for key, device in account_dict['devices']['media_player'].items():
@@ -73,6 +69,15 @@ async def async_setup_platform(hass, config, add_devices_callback,
     return await add_devices(hide_email(account),
                              devices,
                              add_devices_callback)
+
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up the Alexa media player platform by config_entry."""
+    return await async_setup_platform(
+        hass,
+        config_entry.data,
+        async_add_devices,
+        discovery_info=None)
 
 
 class AlexaClient(MediaPlayerDevice):
@@ -488,7 +493,7 @@ class AlexaClient(MediaPlayerDevice):
                               self.name, PLAY_SCAN_INTERVAL)
                 async_call_later(self.hass, PLAY_SCAN_INTERVAL, lambda _:
                                  self.async_schedule_update_ha_state(
-                                 force_refresh=True))
+                                    force_refresh=True))
         elif self._should_poll:  # Not playing, one last poll
             self._should_poll = False
             if not (self.hass.data[DATA_ALEXAMEDIA]

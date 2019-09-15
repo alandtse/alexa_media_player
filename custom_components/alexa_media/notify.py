@@ -14,7 +14,6 @@ from homeassistant.components.notify import (ATTR_DATA, ATTR_TARGET,
                                              BaseNotificationService)
 
 from . import DATA_ALEXAMEDIA
-from . import DOMAIN as ALEXA_DOMAIN
 from . import hide_email, hide_serial
 from .helpers import retry_async
 
@@ -27,7 +26,7 @@ async def async_get_service(hass, config, discovery_info=None):
     """Get the demo notification service."""
     for account, account_dict in (
             hass.data[DATA_ALEXAMEDIA]['accounts'].items()):
-        for key, device in account_dict['devices']['media_player'].items():
+        for key, _ in account_dict['devices']['media_player'].items():
             if key not in account_dict['entities']['media_player']:
                 _LOGGER.debug(
                     "%s: Media player %s not loaded yet; delaying load",
@@ -101,8 +100,8 @@ class AlexaNotificationService(BaseNotificationService):
     def targets(self):
         """Return a dictionary of Alexa devices."""
         devices = {}
-        for account, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
-                                      ['accounts'].items()):
+        for _, account_dict in (self.hass.data[DATA_ALEXAMEDIA]
+                                ['accounts'].items()):
             if ('devices' not in account_dict):
                 return devices
             for serial, alexa in (account_dict

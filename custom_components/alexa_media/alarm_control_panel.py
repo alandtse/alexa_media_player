@@ -25,6 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
 
+
 @retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass,
                                config,
@@ -32,7 +33,6 @@ async def async_setup_platform(hass,
                                discovery_info=None) -> bool:
     """Set up the Alexa alarm control panel platform."""
     devices = []  # type: List[AlexaAlarmControlPanel]
-    config = discovery_info['config']
     account = config[CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
@@ -66,6 +66,15 @@ async def async_setup_platform(hass,
     return await add_devices(hide_email(account),
                              devices, add_devices_callback,
                              include_filter, exclude_filter)
+
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up the Alexa alarm control panel platform by config_entry."""
+    return await async_setup_platform(
+        hass,
+        config_entry.data,
+        async_add_devices,
+        discovery_info=None)
 
 
 class AlexaAlarmControlPanel(AlarmControlPanel):

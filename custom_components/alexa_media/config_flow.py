@@ -89,7 +89,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     ) -> None:
         """Show the form to the user."""
         _LOGGER.debug("show_form %s %s %s %s", step, placeholders, errors, data_schema)
-        data_schema = data_schema or self.data_schema
+        data_schema = data_schema or vol.Schema(self.data_schema)
         if step == "user":
             return self.async_show_form(
                 step_id=step,

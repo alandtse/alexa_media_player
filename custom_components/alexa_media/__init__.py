@@ -146,19 +146,12 @@ async def async_setup(hass, config, discovery_info=None):
 
 async def async_setup_entry(hass, config_entry):
     """Set up Alexa Media Player as config entry."""
-    async def close_alexa_media(event) -> None:
+    async def close_alexa_media(event=None) -> None:
         """Clean up Alexa connections."""
         _LOGGER.debug("Received shutdown request: %s", event)
-        for email, account_dict in (hass.data
-                                    [DATA_ALEXAMEDIA]['accounts'].items()):
-            login_obj = account_dict['login_obj']
-            if not login_obj._session.closed:
-                if login_obj._session._connector_owner:
-                    await login_obj._session._connector.close()
-                login_obj._session._connector = None
-            _LOGGER.debug("%s: Connection closed: %s",
-                          hide_email(email),
-                          login_obj._session.closed)
+        for email, _ in (hass.data
+                         [DATA_ALEXAMEDIA]['accounts'].items()):
+            await close_connections(hass, email)
     _verify_domain_control = verify_domain_control(hass, DOMAIN)
     if DATA_ALEXAMEDIA not in hass.data:
         hass.data[DATA_ALEXAMEDIA] = {}
@@ -363,6 +356,8 @@ async def setup_alexa(hass, config_entry, login_obj):
         """
         from alexapy import AlexaAPI
         email: Text = login_obj.email
+        if email not in hass.data[DATA_ALEXAMEDIA]['accounts']:
+            return
         existing_serials = (hass.data[DATA_ALEXAMEDIA]
                             ['accounts']
                             [email]
@@ -796,9 +791,40 @@ async def setup_alexa(hass, config_entry, login_obj):
                                  schema=LAST_CALL_UPDATE_SCHEMA)
 
     # Clear configurator. We delay till here to avoid leaving a modal orphan
+    await clear_configurator(hass, email)
+    return True
+
+
+async def async_unload_entry(hass, entry) -> bool:
+    """Unload a config entry."""
+    email = entry.data['email']
+    await close_connections(hass, email)
+    await clear_configurator(hass, email)
+    hass.data[DATA_ALEXAMEDIA]['accounts'].pop(email)
+    _LOGGER.debug("Unloaded entry for %s", hide_email(email))
+    return True
+
+
+async def clear_configurator(hass, email: Text) -> None:
+    """Clear open configurators for email."""
+    if email not in hass.data[DATA_ALEXAMEDIA]['accounts']:
+        return
     if 'configurator' in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
         for config_id in hass.data[DATA_ALEXAMEDIA]['accounts'][email]['configurator']:
             configurator = hass.components.configurator
             configurator.async_request_done(config_id)
         hass.data[DATA_ALEXAMEDIA]['accounts'][email]['configurator'] = []
-    return True
+
+
+async def close_connections(hass, email: Text) -> None:
+    """Clear open aiohttp connections for email."""
+    if (email not in hass.data[DATA_ALEXAMEDIA]['accounts'] or
+            'login_obj' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]):
+        return
+    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+    login_obj = account_dict['login_obj']
+    await login_obj.close()
+    _LOGGER.debug("%s: Connection closed: %s",
+                  hide_email(email),
+                  login_obj._session.closed)
+    await clear_configurator(hass, email)

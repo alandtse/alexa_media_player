@@ -125,10 +125,15 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
     async def async_added_to_hass(self):
         """Store register state change callback."""
         # Register event handler on bus
-        self.hass.bus.async_listen(('{}_{}'.format(
+        self._listener = self.hass.bus.async_listen(('{}_{}'.format(
             ALEXA_DOMAIN,
             hide_email(self._login.email)))[0:32],
             self._handle_event)
+
+    async def async_will_remove_from_hass(self):
+        """Prepare to remove entity."""
+        # Register event handler on bus
+        self._listener()
 
     def _handle_event(self, event):
         """Handle websocket events.

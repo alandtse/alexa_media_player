@@ -325,4 +325,32 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         elif "login_failed" in login.status and login.status["login_failed"]:
             _LOGGER.debug("Login failed")
             return self.async_abort(reason="Login failed")
-        # return await self._show_form()
+        new_schema = self._update_ord_dict(
+            self.data_schema,
+            {
+                vol.Required(CONF_EMAIL, default=config[CONF_EMAIL]): str,
+                vol.Required(CONF_PASSWORD, default=config[CONF_PASSWORD]): str,
+                vol.Required(CONF_URL, default=config[CONF_URL]): str,
+                vol.Optional(CONF_DEBUG, default=config[CONF_DEBUG]): bool,
+                vol.Optional(
+                    CONF_INCLUDE_DEVICES,
+                    default=(
+                        config[CONF_INCLUDE_DEVICES]
+                        if isinstance(config[CONF_INCLUDE_DEVICES], str)
+                        else ",".join(map(str, config[CONF_INCLUDE_DEVICES]))
+                    ),
+                ): str,
+                vol.Optional(
+                    CONF_EXCLUDE_DEVICES,
+                    default=(
+                        config[CONF_EXCLUDE_DEVICES]
+                        if isinstance(config[CONF_EXCLUDE_DEVICES], str)
+                        else ",".join(map(str, config[CONF_EXCLUDE_DEVICES]))
+                    ),
+                ): str,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL, default=config[CONF_SCAN_INTERVAL]
+                ): int,
+            },
+        )
+        return await self._show_form(data_schema=vol.Schema(new_schema))

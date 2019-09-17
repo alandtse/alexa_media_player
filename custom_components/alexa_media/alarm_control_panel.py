@@ -133,8 +133,11 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
 
     async def async_added_to_hass(self):
         """Store register state change callback."""
-        if not self.enabled:
-            return
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         # Register event handler on bus
         self._listener = self.hass.bus.async_listen(('{}_{}'.format(
             ALEXA_DOMAIN,
@@ -151,8 +154,11 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
 
         Used instead of polling.
         """
-        if not self.enabled:
-            return
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         if 'push_activity' in event.data:
             async_call_later(self.hass, 2, lambda _:
                              self.hass.async_create_task(
@@ -161,8 +167,11 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     async def async_update(self):
         """Update Guard state."""
-        if not self.enabled:
-            return
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         import json
         _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
         state = None
@@ -202,14 +211,20 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
 
         We use the arm_home state as Alexa does not have disarm state.
         """
-        if not self.enabled:
-            return
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         await self.async_alarm_arm_home()
 
     async def async_alarm_arm_home(self, code=None) -> None:
         """Send arm home command."""
-        if not self.enabled:
-            return
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         await self.alexa_api.set_guard_state(self._login,
                                              self._guard_entity_id,
                                              "ARMED_STAY")
@@ -219,8 +234,11 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
     async def async_alarm_arm_away(self, code=None) -> None:
         """Send arm away command."""
         # pylint: disable=unexpected-keyword-arg
-        if not self.enabled:
-            return
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         await self.alexa_api.set_guard_state(self._login,
                                              self._guard_entity_id,
                                              "ARMED_AWAY")

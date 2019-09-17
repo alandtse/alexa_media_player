@@ -797,6 +797,12 @@ async def setup_alexa(hass, config_entry, login_obj):
 
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
+    hass.services.async_remove(DOMAIN, SERVICE_UPDATE_LAST_CALLED)
+    for component in ALEXA_COMPONENTS:
+        await hass.config_entries.async_forward_entry_unload(entry, component)
+    # notify has to be handled manually as the forward does not work yet
+    from .notify import async_unload_entry
+    await async_unload_entry(hass, entry)
     email = entry.data['email']
     await close_connections(hass, email)
     await clear_configurator(hass, email)

@@ -11,10 +11,10 @@ import logging
 
 from homeassistant.components.notify import (ATTR_DATA, ATTR_TARGET,
                                              ATTR_TITLE, ATTR_TITLE_DEFAULT,
+                                             SERVICE_NOTIFY,
                                              BaseNotificationService)
 
-from . import DATA_ALEXAMEDIA
-from . import hide_email, hide_serial
+from . import CONF_EMAIL, DATA_ALEXAMEDIA, DOMAIN, hide_email, hide_serial
 from .helpers import retry_async
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,6 +34,26 @@ async def async_get_service(hass, config, discovery_info=None):
                     hide_serial(key))
                 return False
     return AlexaNotificationService(hass)
+
+
+async def async_unload_entry(hass, entry) -> bool:
+    """Unload a config entry."""
+    target_account = entry.data[CONF_EMAIL]
+    other_accounts = False
+    for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
+                                  ['accounts'].items()):
+        if account == target_account:
+            for device in (account_dict['entities']
+                                       ['media_player'].values()):
+                entity_id = device.entity_id.split('.')
+                hass.services.async_remove(
+                    SERVICE_NOTIFY,
+                    f"{DOMAIN}_{entity_id[1]}")
+        else:
+            other_accounts = True
+    if not other_accounts:
+        hass.services.async_remove(SERVICE_NOTIFY, f"{DOMAIN}")
+    return True
 
 
 class AlexaNotificationService(BaseNotificationService):

@@ -102,6 +102,16 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         discovery_info=None)
 
 
+async def async_unload_entry(hass, entry) -> bool:
+    """Unload a config entry."""
+    account = entry.data[CONF_EMAIL]
+    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
+    for key, switches in (account_dict['entities']['switch'].items()):
+        for device in switches[key].values():
+            await device.async_remove()
+    return True
+
+
 class AlexaMediaSwitch(SwitchDevice):
     """Representation of a Alexa Media switch."""
 

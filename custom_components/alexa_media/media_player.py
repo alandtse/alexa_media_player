@@ -80,6 +80,15 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         discovery_info=None)
 
 
+async def async_unload_entry(hass, entry) -> bool:
+    """Unload a config entry."""
+    account = entry.data[CONF_EMAIL]
+    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
+    for device in account_dict['entities']['media_player'].values():
+        await device.async_remove()
+    return True
+
+
 class AlexaClient(MediaPlayerDevice):
     """Representation of a Alexa device."""
 

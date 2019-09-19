@@ -44,7 +44,7 @@
                 "data": {
                     "authselectoption": "Verifizierungs Methode"
                 },
-                "description": "**{email} - alexa.{url}**\nBitte Verifizierungs Method auswählen. (z.B., `sms` oder `email`)\n{message}",
+                "description": "**{email} - alexa.{url}**\nBitte Verifizierungs Methode auswählen. (z.B., `sms` oder `email`)\n{message}",
                 "title": "Alexa Media Player - Verifizierungs Methode"
             }
 

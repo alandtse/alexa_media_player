@@ -22,7 +22,7 @@ from .helpers import add_devices, retry_async
 _LOGGER = logging.getLogger(__name__)
 
 
-@retry_async(limit=5, delay=2, catch_exceptions=True)
+@retry_async(limit=5, delay=5, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa switch platform."""

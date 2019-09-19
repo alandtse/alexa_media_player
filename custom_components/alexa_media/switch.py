@@ -10,22 +10,19 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import logging
 from typing import List  # noqa pylint: disable=unused-import
 
-from homeassistant import util
 from homeassistant.components.switch import SwitchDevice
 from homeassistant.exceptions import NoEntitySpecifiedError
-from homeassistant.helpers.event import async_call_later
 
 from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
                DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
-from . import (MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
-               hide_email, hide_serial)
+from . import (hide_email, hide_serial)
 from .helpers import add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@retry_async(limit=5, delay=2, catch_exceptions=True)
+@retry_async(limit=5, delay=5, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa switch platform."""
@@ -35,7 +32,6 @@ async def async_setup_platform(hass, config, add_devices_callback,
         ('shuffle', ShuffleSwitch),
         ('repeat', RepeatSwitch)
     ]
-    config = discovery_info['config']
     account = config[CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
@@ -84,17 +80,36 @@ async def async_setup_platform(hass, config, add_devices_callback,
                  [switch_key]) = alexa_client
         else:
             for alexa_client in (hass.data[DATA_ALEXAMEDIA]
-                                             ['accounts']
-                                             [account]
-                                             ['entities']
-                                             ['switch']
-                                             [key].values()):
+                                          ['accounts']
+                                          [account]
+                                          ['entities']
+                                          ['switch']
+                                          [key].values()):
                 _LOGGER.debug("%s: Skipping already added device: %s",
                               hide_email(account),
                               alexa_client)
     return await add_devices(hide_email(account),
                              devices, add_devices_callback,
                              include_filter, exclude_filter)
+
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up the Alexa switch platform by config_entry."""
+    return await async_setup_platform(
+        hass,
+        config_entry.data,
+        async_add_devices,
+        discovery_info=None)
+
+
+async def async_unload_entry(hass, entry) -> bool:
+    """Unload a config entry."""
+    account = entry.data[CONF_EMAIL]
+    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
+    for key, switches in (account_dict['entities']['switch'].items()):
+        for device in switches[key].values():
+            await device.async_remove()
+    return True
 
 
 class AlexaMediaSwitch(SwitchDevice):
@@ -117,12 +132,22 @@ class AlexaMediaSwitch(SwitchDevice):
 
     async def async_added_to_hass(self):
         """Store register state change callback."""
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         # Register event handler on bus
-        self.hass.bus.async_listen(
+        self._listener = self.hass.bus.async_listen(
             ('{}_{}'.format(
                             ALEXA_DOMAIN,
                             hide_email(self._account)))[0:32],
             self._handle_event)
+
+    async def async_will_remove_from_hass(self):
+        """Prepare to remove entity."""
+        # Register event handler on bus
+        self._listener()
 
     def _handle_event(self, event):
         """Handle events.
@@ -130,6 +155,11 @@ class AlexaMediaSwitch(SwitchDevice):
         This will update PUSH_MEDIA_QUEUE_CHANGE events to see if the switch
         should be updated.
         """
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         if 'queue_state' in event.data:
             queue_state = event.data['queue_state']
             if (queue_state['dopplerId']
@@ -138,6 +168,11 @@ class AlexaMediaSwitch(SwitchDevice):
                 self.async_schedule_update_ha_state()
 
     async def _set_switch(self, state, **kwargs):
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         success = await self._switch_function(state)
         # if function returns  success, make immediate state change
         if success:
@@ -187,10 +222,24 @@ class AlexaMediaSwitch(SwitchDevice):
     async def async_update(self):
         """Update state."""
         try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
+        try:
             self.async_schedule_update_ha_state()
         except NoEntitySpecifiedError:
             pass  # we ignore this due to a harmless startup race condition
 
+    @property
+    def device_info(self):
+        return {
+            'identifiers': {
+                # Serial numbers are unique identifiers within a specific domain
+                (ALEXA_DOMAIN, self._client.unique_id)
+            },
+            'via_device': (ALEXA_DOMAIN, self._client.unique_id),
+        }
 
 class DNDSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Do Not Disturb switch."""

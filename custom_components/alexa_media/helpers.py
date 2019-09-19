@@ -56,7 +56,8 @@ async def add_devices(account: Text,
             _LOGGER.debug("%s: Unable to add devices: %s",
                           account,
                           message)
-
+    else:
+        return True
     return False
 
 
@@ -89,16 +90,19 @@ def retry_async(limit: int = 5,
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> Callable:
             _LOGGER.debug(
-                "%s: Trying with limit %s delay %s catch_exceptions %s",
+                "%s.%s: Trying with limit %s delay %s catch_exceptions %s",
+                func.__module__[func.__module__.find('.')+1:],
                 func.__name__,
                 limit,
                 delay,
                 catch_exceptions)
             retries: int = 0
             result: bool = False
+            next_try: int = 0
             while (not result and retries < limit):
                 if retries != 0:
-                    await asyncio.sleep(delay * 2 ** retries)
+                    next_try = delay * 2 ** retries
+                    await asyncio.sleep(next_try)
                 retries += 1
                 try:
                     result = await func(*args, **kwargs)
@@ -108,14 +112,18 @@ def retry_async(limit: int = 5,
                     template = ("An exception of type {0} occurred."
                                 " Arguments:\n{1!r}")
                     message = template.format(type(ex).__name__, ex.args)
-                    _LOGGER.debug("%s: failure caught due to exception: %s",
+                    _LOGGER.debug("%s.%s: failure caught due to exception: %s",
+                                  func.__module__[func.__module__.find('.')+1:],
                                   func.__name__,
                                   message)
-                _LOGGER.debug("%s: Try: %s/%s result: %s",
+                _LOGGER.debug("%s.%s: Try: %s/%s after waiting %s seconds result: %s",
+                              func.__module__[func.__module__.find('.')+1:],
                               func.__name__,
                               retries,
                               limit,
-                              result)
+                              next_try,
+                              result
+                              )
             return result
         return wrapper
     return wrap

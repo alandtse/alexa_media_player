@@ -25,6 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
 
+
 @retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass,
                                config,
@@ -32,7 +33,6 @@ async def async_setup_platform(hass,
                                discovery_info=None) -> bool:
     """Set up the Alexa alarm control panel platform."""
     devices = []  # type: List[AlexaAlarmControlPanel]
-    config = discovery_info['config']
     account = config[CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
@@ -66,6 +66,24 @@ async def async_setup_platform(hass,
     return await add_devices(hide_email(account),
                              devices, add_devices_callback,
                              include_filter, exclude_filter)
+
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up the Alexa alarm control panel platform by config_entry."""
+    return await async_setup_platform(
+        hass,
+        config_entry.data,
+        async_add_devices,
+        discovery_info=None)
+
+
+async def async_unload_entry(hass, entry) -> bool:
+    """Unload a config entry."""
+    account = entry.data[CONF_EMAIL]
+    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
+    for device in account_dict['entities']['alarm_control_panel'].values():
+        await device.async_remove()
+    return True
 
 
 class AlexaAlarmControlPanel(AlarmControlPanel):
@@ -115,17 +133,32 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
 
     async def async_added_to_hass(self):
         """Store register state change callback."""
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         # Register event handler on bus
-        self.hass.bus.async_listen(('{}_{}'.format(
+        self._listener = self.hass.bus.async_listen(('{}_{}'.format(
             ALEXA_DOMAIN,
             hide_email(self._login.email)))[0:32],
             self._handle_event)
+
+    async def async_will_remove_from_hass(self):
+        """Prepare to remove entity."""
+        # Register event handler on bus
+        self._listener()
 
     def _handle_event(self, event):
         """Handle websocket events.
 
         Used instead of polling.
         """
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         if 'push_activity' in event.data:
             async_call_later(self.hass, 2, lambda _:
                              self.hass.async_create_task(
@@ -134,6 +167,11 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     async def async_update(self):
         """Update Guard state."""
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         import json
         _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
         state = None
@@ -173,10 +211,20 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
 
         We use the arm_home state as Alexa does not have disarm state.
         """
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         await self.async_alarm_arm_home()
 
     async def async_alarm_arm_home(self, code=None) -> None:
         """Send arm home command."""
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         await self.alexa_api.set_guard_state(self._login,
                                              self._guard_entity_id,
                                              "ARMED_STAY")
@@ -186,6 +234,11 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
     async def async_alarm_arm_away(self, code=None) -> None:
         """Send arm away command."""
         # pylint: disable=unexpected-keyword-arg
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         await self.alexa_api.set_guard_state(self._login,
                                              self._guard_entity_id,
                                              "ARMED_AWAY")

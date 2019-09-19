@@ -10,27 +10,24 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import logging
 from typing import List  # noqa pylint: disable=unused-import
 
-import voluptuous as vol
-
 from homeassistant import util
 from homeassistant.components.media_player import MediaPlayerDevice
 from homeassistant.components.media_player.const import (
-    DOMAIN, MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PLAY,
+    MEDIA_TYPE_MUSIC, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PLAY,
     SUPPORT_PLAY_MEDIA, SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE,
     SUPPORT_SHUFFLE_SET, SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
     SUPPORT_VOLUME_MUTE, SUPPORT_VOLUME_SET)
 from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
                                  STATE_STANDBY)
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.service import extract_entity_ids
 
-from . import CONF_EMAIL, CONF_NAME, DATA_ALEXAMEDIA
+from . import CONF_EMAIL, DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
 from . import (MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
                hide_email, hide_serial)
-from .const import ATTR_MESSAGE, PLAY_SCAN_INTERVAL
+from .const import PLAY_SCAN_INTERVAL
 from .helpers import add_devices, retry_async
 
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
@@ -49,7 +46,6 @@ async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
-    config = discovery_info['config']
     account = config[CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
     for key, device in account_dict['devices']['media_player'].items():
@@ -73,6 +69,24 @@ async def async_setup_platform(hass, config, add_devices_callback,
     return await add_devices(hide_email(account),
                              devices,
                              add_devices_callback)
+
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up the Alexa media player platform by config_entry."""
+    return await async_setup_platform(
+        hass,
+        config_entry.data,
+        async_add_devices,
+        discovery_info=None)
+
+
+async def async_unload_entry(hass, entry) -> bool:
+    """Unload a config entry."""
+    account = entry.data[CONF_EMAIL]
+    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
+    for device in account_dict['entities']['media_player'].values():
+        await device.async_remove()
+    return True
 
 
 class AlexaClient(MediaPlayerDevice):
@@ -141,9 +155,15 @@ class AlexaClient(MediaPlayerDevice):
     async def async_added_to_hass(self):
         """Store register state change callback."""
         # Register event handler on bus
-        self.hass.bus.async_listen(('{}_{}'.format(ALEXA_DOMAIN,
-                                    hide_email(self._login.email)))[0:32],
-                                    self._handle_event)
+        self._listener = self.hass.bus.async_listen(
+            ('{}_{}'.format(ALEXA_DOMAIN,
+                            hide_email(self._login.email)))[0:32],
+                            self._handle_event)
+
+    async def async_will_remove_from_hass(self):
+        """Prepare to remove entity."""
+        # Register event handler on bus
+        self._listener()
 
     async def _handle_event(self, event):
         """Handle events.
@@ -161,6 +181,11 @@ class AlexaClient(MediaPlayerDevice):
         is self.update will pull data from Amazon, while schedule_update
         assumes the MediaClient state is already updated.
         """
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         if 'last_called_change' in event.data:
             event_serial = event.data['last_called_change']['serialNumber']
             if (event_serial == self.device_serial_number or
@@ -464,10 +489,17 @@ class AlexaClient(MediaPlayerDevice):
         every update. However, this quickly floods the network for every new
         device added. This should only call refresh() to call the AlexaAPI.
         """
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
         if (self._device is None or self.entity_id is None):
             # Device has not initialized yet
             return
         email = self._login.email
+        if email not in self.hass.data[DATA_ALEXAMEDIA]['accounts']:
+            return
         device = (self.hass.data[DATA_ALEXAMEDIA]
                   ['accounts']
                   [email]
@@ -488,7 +520,7 @@ class AlexaClient(MediaPlayerDevice):
                               self.name, PLAY_SCAN_INTERVAL)
                 async_call_later(self.hass, PLAY_SCAN_INTERVAL, lambda _:
                                  self.async_schedule_update_ha_state(
-                                 force_refresh=True))
+                                    force_refresh=True))
         elif self._should_poll:  # Not playing, one last poll
             self._should_poll = False
             if not (self.hass.data[DATA_ALEXAMEDIA]
@@ -750,3 +782,17 @@ class AlexaClient(MediaPlayerDevice):
     def should_poll(self):
         """Return the polling state."""
         return self._should_poll
+
+    @property
+    def device_info(self):
+        return {
+            'identifiers': {
+                # Serial numbers are unique identifiers within a specific domain
+                (ALEXA_DOMAIN, self.unique_id)
+            },
+            'name': self.name,
+            'manufacturer': "Amazon",
+            'model': f"{self._device_family} {self._device_type}",
+            'sw_version': self._software_version,
+        }
+

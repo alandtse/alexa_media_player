@@ -1,0 +1,54 @@
+{
+    "config": {
+        "error": {
+            "identifier_exists": "Email for Alexa URL already registered",
+            "invalid_credentials": "Invalid credentials"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "password": "Password",
+                    "email": "Email Address",
+                    "url": "Amazon region domain (e.g., amazon.co.uk)",
+                    "include_devices": "Included device (comma separated)",
+                    "exclude_devices": "Excluded device (comma separated)",
+                    "debug": "Advanced debugging",
+                    "scan_interval": "Seconds between scans"
+                },
+                "description": "Please enter your information.",
+                "title": "Alexa Media Player - Configuration"
+            },
+            "captcha": {
+                "data": {
+                    "password": "Password",
+                    "captcha": "Captcha"
+                },
+                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+                "title": "Alexa Media Player - Captcha"
+            },
+            "twofactor": {
+                "data": {
+                    "securitycode": "2FA Code"
+                },
+                "description": "**{email} - alexa.{url}**\nEnter the One Time Password (OTP).\n{message}",
+                "title": "Alexa Media Player - Two Factor Authentication"
+            },
+            "authselect": {
+                "data": {
+                    "authselectoption": "OTP method"
+                },
+                "description": "**{email} - alexa.{url}**\n{message}",
+                "title": "Alexa Media Player - One Time Password"
+            },
+            "claimspicker": {
+                "data": {
+                    "authselectoption": "Verification method"
+                },
+                "description": "**{email} - alexa.{url}**\nPlease select verification method. (e.g., `sms` or `email`)\n{message}",
+                "title": "Alexa Media Player - Verification Method"
+            }
+
+        },
+        "title": "Alexa Media Player"
+    }
+}

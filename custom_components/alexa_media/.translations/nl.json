@@ -1,0 +1,54 @@
+{
+    "config": {
+        "error": {
+            "identifier_exists": "Dit e-mailadres is reeds geregistreerd",
+            "invalid_credentials": "Ongeldige inloggegevens"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "password": "Paswoord",
+                    "email": "E-mailadres",
+                    "url": "Domeinnaam van Amazon regio (bv.: amazon.co.uk)",
+                    "include_devices": "Toe te voegen apparaten (Scheiden met komma)",
+                    "exclude_devices": "Uit te sluiten apparaten (Scheiden met komma)",
+                    "debug": "Geavanceerd debuggen",
+                    "scan_interval": "Seconden tussen scans"
+                },
+                "description": "Vul je gegevens in a.u.b.",
+                "title": "Alexa Media Player - Configuratie"
+            },
+            "captcha": {
+                "data": {
+                    "password": "Paswoord",
+                    "captcha": "Captcha"
+                },
+                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+                "title": "Alexa Media Player - Captcha"
+            },
+            "twofactor": {
+                "data": {
+                    "securitycode": "Verificatiecode"
+                },
+                "description": "**{email} - alexa.{url}**\nGeef de ontvangen verificatiecode in.\n{message}",
+                "title": "Alexa Media Player - Tweestapsverificatie"
+            },
+            "authselect": {
+                "data": {
+                    "authselectoption": "Eenmalige Pincode"
+                },
+                "description": "**{email} - alexa.{url}**\n{message}",
+                "title": "Alexa Media Player - Eenmalige Pincode"
+            },
+            "claimspicker": {
+                "data": {
+                    "authselectoption": "Verificatiemethode"
+                },
+                "description": "**{email} - alexa.{url}**\nSelecteer de verificatiemethode a.u.b. (bv.: `sms` of `email`)\n{message}",
+                "title": "Alexa Media Player - Verificatiemethode"
+            }
+
+        },
+        "title": "Alexa Media Player"
+    }
+}

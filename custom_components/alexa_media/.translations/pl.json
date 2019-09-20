@@ -31,7 +31,7 @@
                     "securitycode": "Kod uwierzytelniania dwuskładnikowego"
                 },
                 "description": "**{email} - alexa.{url}**\nWprowadź hasło jednorazowe (OTP).\n{message}",
-                "title": "Alexa Media Player - uwierzytelnienie dwuskładnikowe"
+                "title": "Alexa Media Player - uwierzytelnianie dwuskładnikowe"
             },
             "authselect": {
                 "data": {

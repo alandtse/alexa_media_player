@@ -371,11 +371,15 @@ class AlexaClient(MediaPlayerDevice):
             if self._session['transport'] is not None:
                 self._shuffle = (self._session['transport']
                                  ['shuffle'] == "SELECTED"
-                                 if ('shuffle' in self._session['transport'])
+                                 if ('shuffle' in self._session['transport']
+                                     and self._session['transport']['shuffle']
+                                     != 'DISABLED')
                                  else None)
                 self._repeat = (self._session['transport']
                                 ['repeat'] == "SELECTED"
-                                if ('repeat' in self._session['transport'])
+                                if ('repeat' in self._session['transport']
+                                    and self._session['transport']['repeat']
+                                    != 'DISABLED')
                                 else None)
 
     @property

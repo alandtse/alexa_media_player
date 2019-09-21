@@ -193,7 +193,7 @@ class AlexaMediaSwitch(SwitchDevice):
     @property
     def is_on(self):
         """Return true if on."""
-        return getattr(self._client, self._switch_property)
+        return self.available and getattr(self._client, self._switch_property)
 
     async def async_turn_on(self, **kwargs):
         """Turn on switch."""
@@ -202,6 +202,11 @@ class AlexaMediaSwitch(SwitchDevice):
     async def async_turn_off(self, **kwargs):
         """Turn off switch."""
         await self._set_switch(False, **kwargs)
+
+    @property
+    def available(self):
+        """Return the availabilty of the switch."""
+        return getattr(self._client, self._switch_property) is not None
 
     @property
     def unique_id(self):

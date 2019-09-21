@@ -163,7 +163,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if isinstance(user_input[CONF_INCLUDE_DEVICES], str):
             self.config[CONF_INCLUDE_DEVICES] = (
                 user_input[CONF_INCLUDE_DEVICES].split(",")
-                if "CONF_INCLUDE_DEVICES" in user_input
+                if CONF_INCLUDE_DEVICES in user_input and
+                user_input[CONF_INCLUDE_DEVICES] != ""
                 else []
             )
         else:
@@ -171,7 +172,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if isinstance(user_input[CONF_EXCLUDE_DEVICES], str):
             self.config[CONF_EXCLUDE_DEVICES] = (
                 user_input[CONF_EXCLUDE_DEVICES].split(",")
-                if "CONF_EXCLUDE_DEVICES" in user_input
+                if CONF_EXCLUDE_DEVICES in user_input and
+                user_input[CONF_EXCLUDE_DEVICES] != ""
                 else []
             )
         else:

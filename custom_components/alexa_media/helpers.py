@@ -36,7 +36,7 @@ async def add_devices(account: Text,
     if devices:
         _LOGGER.debug("%s: Adding %s", account, devices)
         try:
-            add_devices_callback(devices, True)
+            add_devices_callback(devices, False)
             return True
         except HomeAssistantError as exception_:
             message = exception_.message  # type: str

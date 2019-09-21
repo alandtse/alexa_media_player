@@ -246,6 +246,15 @@ class AlexaMediaSwitch(SwitchDevice):
             'via_device': (ALEXA_DOMAIN, self._client.unique_id),
         }
 
+    @property
+    def icon(self):
+        """Return the icon of the switch."""
+        return self._icon()
+
+    def _icon(self, on=None, off=None):
+        return on if self.is_on else off
+
+
 class DNDSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Do Not Disturb switch."""
 
@@ -259,6 +268,10 @@ class DNDSwitch(AlexaMediaSwitch):
             account,
             "do not disturb")
 
+    @property
+    def icon(self):
+        """Return the icon of the switch."""
+        return super()._icon("mdi:do-not-disturb", "mdi:do-not-disturb-off")
 
 class ShuffleSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Shuffle switch."""
@@ -273,6 +286,10 @@ class ShuffleSwitch(AlexaMediaSwitch):
             account,
             "shuffle")
 
+    @property
+    def icon(self):
+        """Return the icon of the switch."""
+        return super()._icon("mdi:shuffle", "mdi:shuffle-disabled")
 
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""
@@ -286,3 +303,8 @@ class RepeatSwitch(AlexaMediaSwitch):
             client.alexa_api.repeat,
             account,
             "repeat")
+
+    @property
+    def icon(self):
+        """Return the icon of the switch."""
+        return super()._icon("mdi:repeat", "mdi:repeat-off")

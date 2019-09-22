@@ -28,4 +28,4 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        DEBUG='*' semantic-release publish -noop
+        DEBUG='*' semantic-release publish --noop

@@ -9,11 +9,11 @@
                 "data": {
                     "password": "Paswoord",
                     "email": "E-mailadres",
-                    "url": "Domeinnaam van Amazon regio (bv.: amazon.co.uk)",
-                    "include_devices": "Toe te voegen apparaten (Scheiden met komma)",
-                    "exclude_devices": "Uit te sluiten apparaten (Scheiden met komma)",
+                    "url": "Domeinnaam van Amazon regio (bv.amazon.co.uk)",
+                    "include_devices": "Apparaten toevoegen (Scheiding: komma)",
+                    "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
                     "debug": "Geavanceerd debuggen",
-                    "scan_interval": "Seconden tussen scans"
+                    "scan_interval": "Aantal seconden tussen scans"
                 },
                 "description": "Vul je gegevens in a.u.b.",
                 "title": "Alexa Media Player - Configuratie"
@@ -30,7 +30,7 @@
                 "data": {
                     "securitycode": "Verificatiecode"
                 },
-                "description": "**{email} - alexa.{url}**\nGeef de ontvangen verificatiecode in.\n{message}",
+                "description": "**{email} - alexa.{url}**\nGeef de verificatiecode in.\n{message}",
                 "title": "Alexa Media Player - Tweestapsverificatie"
             },
             "authselect": {
@@ -44,7 +44,7 @@
                 "data": {
                     "authselectoption": "Verificatiemethode"
                 },
-                "description": "**{email} - alexa.{url}**\nSelecteer de verificatiemethode a.u.b. (bv.: `sms` of `email`)\n{message}",
+                "description": "**{email} - alexa.{url}**\nSelecteer de verificatiemethode (bv.`sms` of `email`)\n{message}",
                 "title": "Alexa Media Player - Verificatiemethode"
             }
 

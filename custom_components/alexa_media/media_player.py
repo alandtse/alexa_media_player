@@ -147,9 +147,6 @@ class AlexaClient(MediaPlayerDevice):
         self._last_update = 0
 
     async def init(self, device):
-        from alexapy import AlexaAPI
-        self.auth = await AlexaAPI.get_authentication(self._login)
-        await self._set_authentication_details(self.auth)
         await self.refresh(device)
 
     async def async_added_to_hass(self):
@@ -308,14 +305,16 @@ class AlexaClient(MediaPlayerDevice):
             self._bluetooth_state = device['bluetooth_state']
             self._locale = device['locale'] if 'locale' in device else 'en-US'
             self._dnd = device['dnd'] if 'dnd' in device else None
-        if self._available is True:
+            await self._set_authentication_details(device['auth_info'])
+        session = None
+        if self._available:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
-            self._source = await self._get_source()
-            self._source_list = await self._get_source_list()
+            if "PAIR_BT_SOURCE" in self._capabilities:
+                self._source = await self._get_source()
+                self._source_list = await self._get_source_list()
             self._last_called = await self._get_last_called()
-            session = await self.alexa_api.get_state()
-        else:
-            session = None
+            if "MUSIC_SKILL" in self._capabilities:
+                session = await self.alexa_api.get_state()
         await self._clear_media_details()
         # update the session if it exists; not doing relogin here
         if session is not None:
@@ -371,11 +370,15 @@ class AlexaClient(MediaPlayerDevice):
             if self._session['transport'] is not None:
                 self._shuffle = (self._session['transport']
                                  ['shuffle'] == "SELECTED"
-                                 if ('shuffle' in self._session['transport'])
+                                 if ('shuffle' in self._session['transport']
+                                     and self._session['transport']['shuffle']
+                                     != 'DISABLED')
                                  else None)
                 self._repeat = (self._session['transport']
                                 ['repeat'] == "SELECTED"
-                                if ('repeat' in self._session['transport'])
+                                if ('repeat' in self._session['transport']
+                                    and self._session['transport']['repeat']
+                                    != 'DISABLED')
                                 else None)
 
     @property

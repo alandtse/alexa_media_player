@@ -19,7 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def add_devices(account: Text,
                       devices: List[EntityComponent],
-                      add_devices_callback: callable,
+                      add_devices_callback: Callable,
                       include_filter: List[Text] = [],
                       exclude_filter: List[Text] = []) -> bool:
     """Add devices using add_devices_callback."""
@@ -36,7 +36,7 @@ async def add_devices(account: Text,
     if devices:
         _LOGGER.debug("%s: Adding %s", account, devices)
         try:
-            add_devices_callback(devices, True)
+            add_devices_callback(devices, False)
             return True
         except HomeAssistantError as exception_:
             message = exception_.message  # type: str

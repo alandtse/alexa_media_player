@@ -164,11 +164,14 @@ async def async_setup_entry(hass, config_entry):
     email = account.get(CONF_EMAIL)
     password = account.get(CONF_PASSWORD)
     url = account.get(CONF_URL)
-    login = AlexaLogin(url, email, password, hass.config.path,
-                       account.get(CONF_DEBUG))
     if email not in hass.data[DATA_ALEXAMEDIA]['accounts']:
         hass.data[DATA_ALEXAMEDIA]['accounts'][email] = {}
-    (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['login_obj']) = login
+    if 'login_obj' in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
+        login = hass.data[DATA_ALEXAMEDIA]['accounts'][email]['login_obj']
+    else:
+        login = AlexaLogin(url, email, password, hass.config.path,
+                           account.get(CONF_DEBUG))
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['login_obj']) = login
     await login.login_with_cookie()
     await test_login_status(hass, config_entry, login,
                             setup_platform_callback)

@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import Optional, Text
 
 import voluptuous as vol
+from alexapy import WebsocketEchoClient
 from homeassistant import util
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (CONF_EMAIL, CONF_NAME, CONF_PASSWORD,
@@ -22,14 +23,13 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.service import verify_domain_control
 
-from alexapy import WebsocketEchoClient
-
 from .config_flow import configured_instances
 from .const import (ALEXA_COMPONENTS, ATTR_EMAIL, CONF_ACCOUNTS, CONF_DEBUG,
                     CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
                     DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_FORCED_SCANS,
                     MIN_TIME_BETWEEN_SCANS, SCAN_INTERVAL,
                     SERVICE_UPDATE_LAST_CALLED, STARTUP)
+from .helpers import retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ async def async_setup(hass, config, discovery_info=None):
             )
     return True
 
-
+@retry_async(limit=5, delay=5, catch_exceptions=True)
 async def async_setup_entry(hass, config_entry):
     """Set up Alexa Media Player as config entry."""
     async def close_alexa_media(event=None) -> None:

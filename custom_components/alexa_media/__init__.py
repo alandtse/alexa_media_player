@@ -378,6 +378,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                          ['accounts'][email]['new_devices'])):
             return
         hass.data[DATA_ALEXAMEDIA]['accounts'][email]['new_devices'] = False
+        auth_info = await AlexaAPI.get_authentication(login_obj)
         devices = await AlexaAPI.get_devices(login_obj)
         bluetooth = await AlexaAPI.get_bluetooth(login_obj)
         preferences = await AlexaAPI.get_device_preferences(login_obj)
@@ -451,6 +452,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                         _LOGGER.debug("DND %s found for %s",
                                       device['dnd'],
                                       hide_serial(device['serialNumber']))
+            device['auth_info'] = auth_info
 
             (hass.data[DATA_ALEXAMEDIA]
              ['accounts']

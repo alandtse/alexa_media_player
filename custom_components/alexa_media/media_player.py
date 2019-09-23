@@ -798,4 +798,3 @@ class AlexaClient(MediaPlayerDevice):
             'model': f"{self._device_family} {self._device_type}",
             'sw_version': self._software_version,
         }
-

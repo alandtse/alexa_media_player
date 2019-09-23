@@ -106,6 +106,7 @@ async def async_setup(hass, config, discovery_info=None):
             )
     return True
 
+
 @retry_async(limit=5, delay=5, catch_exceptions=True)
 async def async_setup_entry(hass, config_entry):
     """Set up Alexa Media Player as config entry."""
@@ -736,7 +737,8 @@ async def setup_alexa(hass, config_entry, login_obj):
     email = config.get(CONF_EMAIL)
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
-    scan_interval: float = (config.get(CONF_SCAN_INTERVAL).total_seconds()
+    scan_interval: float = (
+        config.get(CONF_SCAN_INTERVAL).total_seconds()
         if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)
         else config.get(CONF_SCAN_INTERVAL)
     )

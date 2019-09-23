@@ -345,18 +345,21 @@ async def setup_alexa(hass, config_entry, login_obj):
                          ['accounts'][email]['new_devices'])):
             return
         hass.data[DATA_ALEXAMEDIA]['accounts'][email]['new_devices'] = False
-        auth_info = await AlexaAPI.get_authentication(login_obj)
-        devices = await AlexaAPI.get_devices(login_obj)
-        bluetooth = await AlexaAPI.get_bluetooth(login_obj)
-        preferences = await AlexaAPI.get_device_preferences(login_obj)
-        dnd = await AlexaAPI.get_dnd_state(login_obj)
-        _LOGGER.debug("%s: Found %s devices, %s bluetooth",
-                      hide_email(email),
-                      len(devices) if devices is not None else '',
-                      len(bluetooth) if bluetooth is not None else '')
-        if ((devices is None or bluetooth is None)
-                and not (hass.data[DATA_ALEXAMEDIA]
-                         ['accounts'][email]['configurator'])):
+        try:
+            auth_info = await AlexaAPI.get_authentication(login_obj)
+            devices = await AlexaAPI.get_devices(login_obj)
+            bluetooth = await AlexaAPI.get_bluetooth(login_obj)
+            preferences = await AlexaAPI.get_device_preferences(login_obj)
+            dnd = await AlexaAPI.get_dnd_state(login_obj)
+            _LOGGER.debug("%s: Found %s devices, %s bluetooth",
+                          hide_email(email),
+                          len(devices) if devices is not None else '',
+                          len(bluetooth) if bluetooth is not None else '')
+            if ((devices is None or bluetooth is None)
+                    and not (hass.data[DATA_ALEXAMEDIA]
+                                      ['accounts'][email]['configurator'])):
+                raise RuntimeError()
+        except RuntimeError:
             _LOGGER.debug("%s: Alexa API disconnected; attempting to relogin",
                           hide_email(email))
             await login_obj.login()

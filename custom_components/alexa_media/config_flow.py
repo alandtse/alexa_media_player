@@ -221,12 +221,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_process(self, user_input=None):
         """Handle the input processing of the config flow."""
-        if not user_input:
-            return await self._show_form()
-        await self.login.login(data=user_input)
-        if CONF_PASSWORD in user_input:
-            password = user_input[CONF_PASSWORD]
-            self.config[CONF_PASSWORD] = password
+        if user_input:
+            if CONF_PASSWORD in user_input:
+                password = user_input[CONF_PASSWORD]
+                self.config[CONF_PASSWORD] = password
+            await self.login.login(data=user_input)
         return await self._test_login()
 
     async def _test_login(self):

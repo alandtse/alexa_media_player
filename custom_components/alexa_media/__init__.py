@@ -742,6 +742,9 @@ async def setup_alexa(hass, config_entry, login_obj):
         if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)
         else config.get(CONF_SCAN_INTERVAL)
     )
+    if 'login_obj' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+         ['login_obj']) = login_obj
     if 'devices' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
         (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
          ['devices']) = {'media_player': {}}

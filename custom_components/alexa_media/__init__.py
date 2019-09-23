@@ -12,7 +12,7 @@ from datetime import timedelta
 from typing import Optional, Text
 
 import voluptuous as vol
-from alexapy import WebsocketEchoClient
+from alexapy import WebsocketEchoClient, hide_email, hide_serial
 from homeassistant import util
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (CONF_EMAIL, CONF_NAME, CONF_PASSWORD,
@@ -58,43 +58,6 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema({
     vol.Optional(ATTR_EMAIL, default=[]):
         vol.All(cv.ensure_list, [cv.string]),
 })
-
-
-def hide_email(email):
-    """Obfuscate email."""
-    part = email.split('@')
-    return "{}{}{}@{}{}{}".format(part[0][0],
-                                  "*" * (len(part[0]) - 2),
-                                  part[0][-1],
-                                  part[1][0],
-                                  "*" * (len(part[1]) - 2),
-                                  part[1][-1]
-                                  )
-
-
-def hide_serial(item):
-    """Obfuscate serial."""
-    if item is None:
-        return ""
-    if isinstance(item, dict):
-        response = item.copy()
-        for key, value in item.items():
-            if (isinstance(value, dict) or isinstance(value, list) or
-                    key in ['deviceSerialNumber', 'serialNumber',
-                            'destinationUserId']):
-                response[key] = hide_serial(value)
-    elif isinstance(item, str):
-        response = "{}{}{}".format(item[0],
-                                   "*" * (len(item) - 4),
-                                   item[-3:])
-    elif isinstance(item, list):
-        response = []
-        for list_item in item:
-            if isinstance(list_item, dict):
-                response.append(hide_serial(list_item))
-            else:
-                response.append(list_item)
-    return response
 
 
 async def async_setup(hass, config, discovery_info=None):

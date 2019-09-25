@@ -351,6 +351,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             bluetooth = await AlexaAPI.get_bluetooth(login_obj)
             preferences = await AlexaAPI.get_device_preferences(login_obj)
             dnd = await AlexaAPI.get_dnd_state(login_obj)
+            raw_notifications = await AlexaAPI.get_notifications(login_obj)
             _LOGGER.debug("%s: Found %s devices, %s bluetooth",
                           hide_email(email),
                           len(devices) if devices is not None else '',
@@ -370,6 +371,22 @@ async def setup_alexa(hass, config_entry, login_obj):
         new_alexa_clients = []  # list of newly discovered device names
         exclude_filter = []
         include_filter = []
+        notifications = {}
+        for notification in raw_notifications:
+            n_dev_id = notification['deviceSerialNumber']
+            n_type = notification['type']
+            n_id = notification['notificationIndex']
+            n_status = notification['status']
+            n_date = notification['originalDate']
+            n_time = notification['originalTime']
+            notification['date_time'] = f"{n_date} {n_time}"
+            if n_dev_id not in notifications:
+                notifications[n_dev_id] = {}
+            if n_type not in notifications[n_dev_id]:
+                notifications[n_dev_id][n_type] = {}
+            if n_status == 'ON':
+                notifications[n_dev_id][n_type][n_id] = notification
+
         for device in devices:
             if include and device['accountName'] not in include:
                 include_filter.append(device['accountName'])
@@ -423,6 +440,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                                       device['dnd'],
                                       hide_serial(device['serialNumber']))
             device['auth_info'] = auth_info
+            if device['serialNumber'] in notifications:
+                device['notifications'] = notifications[device['serialNumber']]
 
             (hass.data[DATA_ALEXAMEDIA]
              ['accounts']

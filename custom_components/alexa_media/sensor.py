@@ -14,19 +14,18 @@ from typing import List, Text  # noqa pylint: disable=unused-import
 from homeassistant.const import DEVICE_CLASS_TIMESTAMP
 from homeassistant.exceptions import NoEntitySpecifiedError
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt
 
 from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
                DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
-from . import (MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
-               hide_email, hide_serial)
+from . import (hide_email, hide_serial)
 from .helpers import add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
-LOCAL_TIMEZONE = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+LOCAL_TIMEZONE = datetime.datetime.now(
+    datetime.timezone.utc).astimezone().tzinfo
 
 RECURRING_PATTERN = {
     None: "Never Repeat",
@@ -247,7 +246,8 @@ class AlexaMediaSensor(Entity):
                 return
         except AttributeError:
             pass
-        account_dict = self.hass.data[DATA_ALEXAMEDIA]['accounts'][self._account]
+        account_dict = (self.hass.data[DATA_ALEXAMEDIA]['accounts']
+                        [self._account])
         self._n_dict = account_dict['notifications'][self._dev_id][self._type]
         self._all = (sorted(self._n_dict.items(),
                             key=lambda x: x[1][self._sensor_property])
@@ -265,7 +265,6 @@ class AlexaMediaSensor(Entity):
         """Return the device_info of the device."""
         return {
             'identifiers': {
-                # Serial numbers are unique identifiers within a specific domain
                 (ALEXA_DOMAIN, self._dev_id)
             },
             'via_device': (ALEXA_DOMAIN, self._dev_id),
@@ -279,7 +278,8 @@ class AlexaMediaSensor(Entity):
     @property
     def recurrence(self):
         """Return the icon of the sensor."""
-        return RECURRING_PATTERN[self._next['recurringPattern']] if self._next else None
+        return (RECURRING_PATTERN[self._next['recurringPattern']]
+                if self._next else None)
 
     @property
     def device_state_attributes(self):
@@ -342,6 +342,7 @@ class TimerSensor(AlexaMediaSensor):
     def icon(self):
         """Return the icon of the sensor."""
         return self._icon if not self.paused else "mdi:timer-off"
+
 
 class ReminderSensor(AlexaMediaSensor):
     """Representation of a Alexa Reminder sensor."""

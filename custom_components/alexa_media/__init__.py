@@ -165,7 +165,7 @@ async def setup_platform_callback(hass, config_entry, login, callback_data):
 
 
 async def request_configuration(hass, config_entry, login,
-                               setup_platform_callback):
+                                setup_platform_callback):
     """Request configuration steps from the user using the configurator."""
     async def configuration_callback(callback_data):
         """Handle the submitted configuration."""
@@ -270,7 +270,8 @@ async def request_configuration(hass, config_entry, login,
             status['error_message'])
     if len(hass.data[DATA_ALEXAMEDIA]['accounts'][email]['configurator']) > 1:
         configurator.async_request_done(
-            (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['configurator']).pop(0))
+            (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+                      ['configurator']).pop(0))
 
 
 async def test_login_status(hass, config_entry, login,
@@ -446,9 +447,6 @@ async def setup_alexa(hass, config_entry, login_obj):
 
         if new_alexa_clients:
             cleaned_config = config.copy()
-            # cleaned_config.pop(CONF_SCAN_INTERVAL, None)
-            # # CONF_SCAN_INTERVAL causes a json error in the recorder because it
-            # # is a timedelta object.
             cleaned_config.pop(CONF_PASSWORD, None)
             # CONF_PASSWORD contains sensitive info which is no longer needed
             for component in ALEXA_COMPONENTS:
@@ -830,7 +828,8 @@ async def clear_configurator(hass, email: Text) -> None:
     if email not in hass.data[DATA_ALEXAMEDIA]['accounts']:
         return
     if 'configurator' in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
-        for config_id in hass.data[DATA_ALEXAMEDIA]['accounts'][email]['configurator']:
+        for config_id in (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+                          ['configurator']):
             configurator = hass.components.configurator
             configurator.async_request_done(config_id)
         hass.data[DATA_ALEXAMEDIA]['accounts'][email]['configurator'] = []

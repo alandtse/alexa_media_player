@@ -248,7 +248,11 @@ class AlexaMediaSensor(Entity):
             pass
         account_dict = (self.hass.data[DATA_ALEXAMEDIA]['accounts']
                         [self._account])
-        self._n_dict = account_dict['notifications'][self._dev_id][self._type]
+        try:
+            self._n_dict = (account_dict['notifications'][self._dev_id]
+                            [self._type])
+        except KeyError:
+            self._n_dict = None
         self._all = (sorted(self._n_dict.items(),
                             key=lambda x: x[1][self._sensor_property])
                      if self._n_dict else [])

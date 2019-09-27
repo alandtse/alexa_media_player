@@ -365,7 +365,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                           hide_email(email))
             await login_obj.login()
             await test_login_status(hass,
-                                    config_entry, login_obj, setup_platform_callback)
+                                    config_entry, login_obj,
+                                    setup_platform_callback)
             return
 
         new_alexa_clients = []  # list of newly discovered device names
@@ -497,9 +498,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         to notify listeners.
         """
         from alexapy import AlexaAPI
-        if last_called:
-            last_called = last_called
-        else:
+        if not last_called:
             last_called = await AlexaAPI.get_last_device_serial(login_obj)
         _LOGGER.debug("%s: Updated last_called: %s",
                       hide_email(email),
@@ -614,18 +613,20 @@ async def setup_alexa(hass, config_entry, login_obj):
                           hide_email(email),
                           command, hide_serial(json_payload))
             serial = None
+            if ('dopplerId' in json_payload and
+                    'deviceSerialNumber' in json_payload['dopplerId']):
+                serial = (json_payload['dopplerId']['deviceSerialNumber'])
+            elif ('key' in json_payload and 'entryId' in json_payload['key']
+                  and json_payload['key']['entryId'].find('#') != -1):
+                serial = (json_payload['key']['entryId']).split('#')[2]
+            else:
+                serial = None
             if command == 'PUSH_ACTIVITY':
                 #  Last_Alexa Updated
-                if (json_payload
-                        ['key']
-                        ['entryId']).find('#') != -1:
-                    serial = (json_payload
-                              ['key']
-                              ['entryId']).split('#')[2]
-                    last_called = {
-                        'serialNumber': serial,
-                        'timestamp': json_payload['timestamp']
-                    }
+                last_called = {
+                    'serialNumber': serial,
+                    'timestamp': json_payload['timestamp']
+                }
                 if (serial and serial in existing_serials):
                     await update_last_called(login_obj,
                                              last_called)
@@ -635,7 +636,6 @@ async def setup_alexa(hass, config_entry, login_obj):
                     {'push_activity': json_payload})
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
-                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player: %s",
                                   hide_serial(json_payload))
@@ -645,7 +645,6 @@ async def setup_alexa(hass, config_entry, login_obj):
                         {'player_state': json_payload})
             elif command == 'PUSH_VOLUME_CHANGE':
                 # Player volume update
-                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player volume: %s",
                                   hide_serial(json_payload))
@@ -655,7 +654,6 @@ async def setup_alexa(hass, config_entry, login_obj):
                         {'player_state': json_payload})
             elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
                 # Player availability update
-                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player availability %s",
                                   hide_serial(json_payload))
@@ -665,7 +663,6 @@ async def setup_alexa(hass, config_entry, login_obj):
                         {'player_state': json_payload})
             elif command == 'PUSH_BLUETOOTH_STATE_CHANGE':
                 # Player bluetooth update
-                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 bt_event = json_payload['bluetoothEvent']
                 bt_success = json_payload['bluetoothEventSuccess']
                 if (serial and serial in existing_serials and
@@ -685,7 +682,6 @@ async def setup_alexa(hass, config_entry, login_obj):
                             {'bluetooth_change': bluetooth_state})
             elif command == 'PUSH_MEDIA_QUEUE_CHANGE':
                 # Player availability update
-                serial = (json_payload['dopplerId']['deviceSerialNumber'])
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player queue %s",
                                   hide_serial(json_payload))

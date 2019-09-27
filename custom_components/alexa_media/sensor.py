@@ -28,12 +28,25 @@ _LOGGER = logging.getLogger(__name__)
 
 LOCAL_TIMEZONE = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
+RECURRING_PATTERN = {
+    None: "Never Repeat",
+    "P1D": "Every day",
+    "XXXX-WE": "Weekends",
+    "XXXX-WD": "Weekdays",
+    "XXXX-WXX-1": "Every Monday",
+    "XXXX-WXX-2": "Every Tuesday",
+    "XXXX-WXX-3": "Every Wednesday",
+    "XXXX-WXX-4": "Every Thursday",
+    "XXXX-WXX-5": "Every Friday",
+    "XXXX-WXX-6": "Every Saturday",
+    "XXXX-WXX-7": "Every Sunday"
+}
+
 
 @retry_async(limit=5, delay=5, catch_exceptions=False)
 async def async_setup_platform(hass, config, add_devices_callback,
                                discovery_info=None):
     """Set up the Alexa sensor platform."""
-    _LOGGER.debug("Loading sensors")
     devices: List[AlexaMediaSensor] = []
     SENSOR_TYPES = {
         'Alarm': AlarmSensor,
@@ -58,53 +71,47 @@ async def async_setup_platform(hass, config, add_devices_callback,
                           hide_email(account),
                           hide_serial(key))
             return False
-        if key not in (hass.data[DATA_ALEXAMEDIA]
-                       ['accounts']
-                       [account]
+        if key not in (account_dict
                        ['entities']
                        ['sensor']):
-            (hass.data[DATA_ALEXAMEDIA]
-             ['accounts']
-             [account]
+            (account_dict
              ['entities']
              ['sensor'][key]) = {}
-            if 'notifications' in (account_dict['devices']
-                                              ['media_player']
-                                              [key]):
-                # _LOGGER.debug("notifications %s", account_dict['devices']
-                #                                 ['media_player']
-                #                                 [key]
-                #                                 ['notifications'])
-                for n_type, n_type_dict in (account_dict['devices']
-                                                ['media_player']
-                                                [key]
-                                            ['notifications'].items()):
-                    class_ = SENSOR_TYPES[n_type]
+            for (n_type, class_) in SENSOR_TYPES.items():
+                n_type_dict = (
+                    account_dict['notifications'][key][n_type]
+                    if key in account_dict['notifications'] and
+                    n_type in account_dict['notifications'][key] else {})
+                if (n_type in ('Alarm, Timer') and
+                        'TIMERS_AND_ALARMS' in device['capabilities']):
                     alexa_client = class_(
                         account_dict['entities']['media_player'][key],
                         n_type_dict,
-                        account)  # type: AlexaMediaSensor
-                    _LOGGER.debug("%s: Found %s %s sensor (%s) with next: %s",
-                                  hide_email(account),
-                                  hide_serial(key),
-                                  n_type,
-                                  len(n_type_dict.keys()),
-                                  alexa_client.state)
-                    devices.append(alexa_client)
-                    (hass.data[DATA_ALEXAMEDIA]
-                        ['accounts']
-                        [account]
-                        ['entities']
-                        ['sensor']
-                        [key]
-                        [n_type]) = alexa_client
+                        account)
+                elif (n_type in ('Reminder') and
+                        'REMINDERS' in device['capabilities']):
+                    alexa_client = class_(
+                        account_dict['entities']['media_player'][key],
+                        n_type_dict,
+                        account)
+                else:
+                    continue
+                _LOGGER.debug("%s: Found %s %s sensor (%s) with next: %s",
+                              hide_email(account),
+                              hide_serial(key),
+                              n_type,
+                              len(n_type_dict.keys()),
+                              alexa_client.state)
+                devices.append(alexa_client)
+                (account_dict
+                    ['entities']
+                    ['sensor']
+                    [key]
+                    [n_type]) = alexa_client
         else:
-            for alexa_client in (hass.data[DATA_ALEXAMEDIA]
-                                          ['accounts']
-                                          [account]
-                                          ['entities']
-                                          ['sensor']
-                                          [key].values()):
+            for alexa_client in (account_dict['entities']
+                                             ['sensor']
+                                             [key].values()):
                 _LOGGER.debug("%s: Skipping already added device: %s",
                               hide_email(account),
                               alexa_client)
@@ -140,25 +147,25 @@ class AlexaMediaSensor(Entity):
                  n_dict,
                  sensor_property: Text,
                  account,
-                 name="Next Notification Sensor",
+                 name="Next Notification",
                  icon=None):
         """Initialize the Alexa sensor device."""
         # Class info
         self._client = client
         self._n_dict = n_dict
         self._sensor_property = sensor_property
-        self._sorted = sorted(self._n_dict.items(),
-                              key=lambda x: x[1][self._sensor_property])
-        self._next = self._sorted[0][1] if len(self._sorted) else None
         self._account = account
         self._dev_id = client.unique_id
-        self._unique_id = None
-        if self._next:
-            self._unique_id = self._next['id']
         self._name = name
         self._unit = None
         self._device_class = DEVICE_CLASS_TIMESTAMP
         self._icon = icon
+        self._all = (sorted(self._n_dict.items(),
+                            key=lambda x: x[1][self._sensor_property])
+                     if self._n_dict else [])
+        self._sorted = list(filter(lambda x: x[1]['status'] == 'ON',
+                            self._all)) if self._all else []
+        self._next = self._sorted[0][1] if self._sorted else None
 
     async def async_added_to_hass(self):
         """Store register state change callback."""
@@ -190,13 +197,11 @@ class AlexaMediaSensor(Entity):
                 return
         except AttributeError:
             pass
-        if 'PUSH_NOTIFICATION_CHANGE' in event.data:
-            n_id = event.data['notificationId']
-            # if (event.data['dopplerId']
-            #         ['deviceSerialNumber'] == self._dev_id):
-                # self._state = getattr(self._client[self._type][n_id],
-                #                       self._sensor_property)
-                # self.async_schedule_update_ha_state()
+        if 'notification_update' in event.data:
+            if (event.data['notification_update']['dopplerId']
+                    ['deviceSerialNumber'] == self._client.unique_id):
+                _LOGGER.debug("Updating sensor %s", self.name)
+                self.async_schedule_update_ha_state(True)
 
     @property
     def available(self):
@@ -206,7 +211,7 @@ class AlexaMediaSensor(Entity):
     @property
     def unique_id(self):
         """Return the unique ID."""
-        return f"{self._client.unique_id}_{self._unique_id}"
+        return f"{self._client.unique_id}_{self._name}"
 
     @property
     def name(self):
@@ -223,7 +228,7 @@ class AlexaMediaSensor(Entity):
     def state(self):
         """Return the state of the sensor."""
         return dt.parse_datetime(self._next[self._sensor_property]).replace(
-            tzinfo=LOCAL_TIMEZONE) if self._next else None
+            tzinfo=LOCAL_TIMEZONE) if self._next else 'None'
 
     @property
     def unit_of_measurement(self):
@@ -242,6 +247,14 @@ class AlexaMediaSensor(Entity):
                 return
         except AttributeError:
             pass
+        account_dict = self.hass.data[DATA_ALEXAMEDIA]['accounts'][self._account]
+        self._n_dict = account_dict['notifications'][self._dev_id][self._type]
+        self._all = (sorted(self._n_dict.items(),
+                            key=lambda x: x[1][self._sensor_property])
+                     if self._n_dict else [])
+        self._sorted = list(filter(lambda x: x[1]['status'] == 'ON',
+                            self._all)) if self._all else []
+        self._next = self._sorted[0][1] if self._sorted else None
         try:
             self.async_schedule_update_ha_state()
         except NoEntitySpecifiedError:
@@ -264,12 +277,20 @@ class AlexaMediaSensor(Entity):
         return self._icon
 
     @property
+    def recurrence(self):
+        """Return the icon of the sensor."""
+        return RECURRING_PATTERN[self._next['recurringPattern']] if self._next else None
+
+    @property
     def device_state_attributes(self):
-        """Return the scene state attributes."""
+        """Return additional attributes."""
         import json
         attr = {
-            'total': len(self._sorted),
-            'sorted_list': json.dumps(self._sorted)
+            'recurrence': self.recurrence,
+            'total_active': len(self._sorted),
+            'total_all': len(self._all),
+            'sorted_active': json.dumps(self._sorted),
+            'sorted_all': json.dumps(self._all),
         }
         return attr
 
@@ -306,12 +327,21 @@ class TimerSensor(AlexaMediaSensor):
             "mdi:timer")
 
     @property
-    def state(self):
+    def state(self) -> datetime.datetime:
         """Return the state of the sensor."""
         return dt.as_local(dt.utc_from_timestamp(
             dt.utcnow().timestamp() +
-            self._next[self._sensor_property]/1000)) if self._next else None
+            self._next[self._sensor_property]/1000)) if self._next else 'None'
 
+    @property
+    def paused(self) -> bool:
+        """Return the paused state of the sensor."""
+        return self._next['status'] == 'PAUSED' if self._next else None
+
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return self._icon if not self.paused else "mdi:timer-off"
 
 class ReminderSensor(AlexaMediaSensor):
     """Representation of a Alexa Reminder sensor."""
@@ -333,7 +363,7 @@ class ReminderSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return dt.as_local(datetime.datetime.fromtimestamp(
             self._next[self._sensor_property]/1000,
-            tz=LOCAL_TIMEZONE)) if self._next else None
+            tz=LOCAL_TIMEZONE)) if self._next else 'None'
 
     @property
     def reminder(self):

@@ -702,6 +702,16 @@ async def setup_alexa(hass, config_entry, login_obj):
                         ('{}_{}'.format(DOMAIN,
                                         hide_email(email)))[0:32],
                         {'queue_state': json_payload})
+            elif command == 'PUSH_NOTIFICATION_CHANGE':
+                # Player update
+                await process_notifications(login_obj)
+                if (serial and serial in existing_serials):
+                    _LOGGER.debug("Updating mediaplayer notifications: %s",
+                                  hide_serial(json_payload))
+                    hass.bus.async_fire(
+                        ('{}_{}'.format(DOMAIN,
+                                        hide_email(email)))[0:32],
+                        {'notification_update': json_payload})
             if (serial and serial not in existing_serials
                     and serial not in (hass.data[DATA_ALEXAMEDIA]
                                        ['accounts']

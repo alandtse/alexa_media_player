@@ -431,7 +431,7 @@ class AlexaClient(MediaPlayerDevice):
                                    [self._login.email]
                                    ['last_called']
                                    ['serialNumber']))
-        except TypeError:
+        except (TypeError, KeyError):
             last_called_serial = None
         _LOGGER.debug("%s: Last_called check: self: %s reported: %s",
                       self._device_name,

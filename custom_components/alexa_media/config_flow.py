@@ -12,6 +12,7 @@ from collections import OrderedDict
 from typing import Text
 
 import voluptuous as vol
+from alexapy import AlexapyConnectionError
 from homeassistant import config_entries
 from homeassistant.const import (CONF_EMAIL, CONF_NAME, CONF_PASSWORD,
                                  CONF_SCAN_INTERVAL, CONF_URL,
@@ -178,10 +179,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             )
         else:
             self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
-
-        if not self.login:
-            _LOGGER.debug("Creating new login")
-            try:
+        try:
+            if not self.login:
+                _LOGGER.debug("Creating new login")
                 self.login = AlexaLogin(
                     self.config[CONF_URL],
                     self.config[CONF_EMAIL],
@@ -191,13 +191,15 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
                 await self.login.login_with_cookie()
                 return await self._test_login()
-            except BaseException:
-                raise
-                return await self._show_form(errors={"base": "invalid_credentials"})
-        else:
-            _LOGGER.debug("Using existing login")
-            await self.login.login(data=user_input)
-            return await self._test_login()
+            else:
+                _LOGGER.debug("Using existing login")
+                await self.login.login(data=user_input)
+                return await self._test_login()
+        except AlexapyConnectionError:
+            return await self._show_form(errors={"base": "connection_error"})
+        except BaseException as ex:
+            _LOGGER.warning("Unknown error: %s", ex)
+            return await self._show_form(errors={"base": "unknown_error"})
 
     async def async_step_captcha(self, user_input=None):
         """Handle the input processing of the config flow."""
@@ -221,12 +223,18 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_process(self, user_input=None):
         """Handle the input processing of the config flow."""
-        if not user_input:
-            return await self._show_form()
-        await self.login.login(data=user_input)
-        if CONF_PASSWORD in user_input:
-            password = user_input[CONF_PASSWORD]
-            self.config[CONF_PASSWORD] = password
+        if user_input:
+            if CONF_PASSWORD in user_input:
+                password = user_input[CONF_PASSWORD]
+                self.config[CONF_PASSWORD] = password
+            try:
+                await self.login.login(data=user_input)
+            except AlexapyConnectionError:
+                return await self._show_form(
+                    errors={"base": "connection_error"})
+            except BaseException as ex:
+                _LOGGER.warning("Unknown error: %s", ex)
+                return await self._show_form(errors={"base": "unknown_error"})
         return await self._test_login()
 
     async def _test_login(self):

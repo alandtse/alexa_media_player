@@ -12,7 +12,7 @@ from datetime import timedelta
 from typing import Optional, Text
 
 import voluptuous as vol
-from alexapy import WebsocketEchoClient
+from alexapy import WebsocketEchoClient, hide_email, hide_serial
 from homeassistant import util
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (CONF_EMAIL, CONF_NAME, CONF_PASSWORD,
@@ -60,43 +60,6 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema({
 })
 
 
-def hide_email(email):
-    """Obfuscate email."""
-    part = email.split('@')
-    return "{}{}{}@{}{}{}".format(part[0][0],
-                                  "*" * (len(part[0]) - 2),
-                                  part[0][-1],
-                                  part[1][0],
-                                  "*" * (len(part[1]) - 2),
-                                  part[1][-1]
-                                  )
-
-
-def hide_serial(item):
-    """Obfuscate serial."""
-    if item is None:
-        return ""
-    if isinstance(item, dict):
-        response = item.copy()
-        for key, value in item.items():
-            if (isinstance(value, dict) or isinstance(value, list) or
-                    key in ['deviceSerialNumber', 'serialNumber',
-                            'destinationUserId']):
-                response[key] = hide_serial(value)
-    elif isinstance(item, str):
-        response = "{}{}{}".format(item[0],
-                                   "*" * (len(item) - 4),
-                                   item[-3:])
-    elif isinstance(item, list):
-        response = []
-        for list_item in item:
-            if isinstance(list_item, dict):
-                response.append(hide_serial(list_item))
-            else:
-                response.append(list_item)
-    return response
-
-
 async def async_setup(hass, config, discovery_info=None):
     """Set up the Alexa domain."""
     if DOMAIN not in config:
@@ -142,6 +105,7 @@ async def async_setup(hass, config, discovery_info=None):
                 )
             )
     return True
+
 
 @retry_async(limit=5, delay=5, catch_exceptions=True)
 async def async_setup_entry(hass, config_entry):
@@ -381,18 +345,21 @@ async def setup_alexa(hass, config_entry, login_obj):
                          ['accounts'][email]['new_devices'])):
             return
         hass.data[DATA_ALEXAMEDIA]['accounts'][email]['new_devices'] = False
-        auth_info = await AlexaAPI.get_authentication(login_obj)
-        devices = await AlexaAPI.get_devices(login_obj)
-        bluetooth = await AlexaAPI.get_bluetooth(login_obj)
-        preferences = await AlexaAPI.get_device_preferences(login_obj)
-        dnd = await AlexaAPI.get_dnd_state(login_obj)
-        _LOGGER.debug("%s: Found %s devices, %s bluetooth",
-                      hide_email(email),
-                      len(devices) if devices is not None else '',
-                      len(bluetooth) if bluetooth is not None else '')
-        if ((devices is None or bluetooth is None)
-                and not (hass.data[DATA_ALEXAMEDIA]
-                         ['accounts'][email]['configurator'])):
+        try:
+            auth_info = await AlexaAPI.get_authentication(login_obj)
+            devices = await AlexaAPI.get_devices(login_obj)
+            bluetooth = await AlexaAPI.get_bluetooth(login_obj)
+            preferences = await AlexaAPI.get_device_preferences(login_obj)
+            dnd = await AlexaAPI.get_dnd_state(login_obj)
+            _LOGGER.debug("%s: Found %s devices, %s bluetooth",
+                          hide_email(email),
+                          len(devices) if devices is not None else '',
+                          len(bluetooth) if bluetooth is not None else '')
+            if ((devices is None or bluetooth is None)
+                    and not (hass.data[DATA_ALEXAMEDIA]
+                                      ['accounts'][email]['configurator'])):
+                raise RuntimeError()
+        except RuntimeError:
             _LOGGER.debug("%s: Alexa API disconnected; attempting to relogin",
                           hide_email(email))
             await login_obj.login()
@@ -773,10 +740,14 @@ async def setup_alexa(hass, config_entry, login_obj):
     email = config.get(CONF_EMAIL)
     include = config.get(CONF_INCLUDE_DEVICES)
     exclude = config.get(CONF_EXCLUDE_DEVICES)
-    scan_interval: float = (config.get(CONF_SCAN_INTERVAL).total_seconds()
+    scan_interval: float = (
+        config.get(CONF_SCAN_INTERVAL).total_seconds()
         if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)
         else config.get(CONF_SCAN_INTERVAL)
     )
+    if 'login_obj' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+         ['login_obj']) = login_obj
     if 'devices' not in hass.data[DATA_ALEXAMEDIA]['accounts'][email]:
         (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
          ['devices']) = {'media_player': {}}

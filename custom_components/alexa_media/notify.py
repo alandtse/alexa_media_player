@@ -43,6 +43,8 @@ async def async_unload_entry(hass, entry) -> bool:
     for account, account_dict in (hass.data[DATA_ALEXAMEDIA]
                                   ['accounts'].items()):
         if account == target_account:
+            if 'entities' not in account_dict:
+                continue
             for device in (account_dict['entities']
                                        ['media_player'].values()):
                 entity_id = device.entity_id.split('.')

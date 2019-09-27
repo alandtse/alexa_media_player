@@ -372,21 +372,6 @@ async def setup_alexa(hass, config_entry, login_obj):
         new_alexa_clients = []  # list of newly discovered device names
         exclude_filter = []
         include_filter = []
-        notifications = {}
-        for notification in raw_notifications:
-            n_dev_id = notification['deviceSerialNumber']
-            n_type = notification['type']
-            n_id = notification['notificationIndex']
-            n_status = notification['status']
-            n_date = notification['originalDate']
-            n_time = notification['originalTime']
-            notification['date_time'] = f"{n_date} {n_time}"
-            if n_dev_id not in notifications:
-                notifications[n_dev_id] = {}
-            if n_type not in notifications[n_dev_id]:
-                notifications[n_dev_id][n_type] = {}
-            if n_status == 'ON':
-                notifications[n_dev_id][n_type][n_id] = notification
 
         for device in devices:
             if include and device['accountName'] not in include:
@@ -441,9 +426,6 @@ async def setup_alexa(hass, config_entry, login_obj):
                                       device['dnd'],
                                       hide_serial(device['serialNumber']))
             device['auth_info'] = auth_info
-            if device['serialNumber'] in notifications:
-                device['notifications'] = notifications[device['serialNumber']]
-
             (hass.data[DATA_ALEXAMEDIA]
              ['accounts']
              [email]
@@ -484,12 +466,43 @@ async def setup_alexa(hass, config_entry, login_obj):
                                 config_entry,
                                 component))
 
+        await process_notifications(login_obj, raw_notifications)
         # Process last_called data to fire events
         await update_last_called(login_obj)
         async_call_later(hass, scan_interval, lambda _:
                          hass.async_create_task(
                             update_devices(login_obj,
                                            no_throttle=True)))
+
+    async def process_notifications(login_obj, raw_notifications=None):
+        """Process raw notifications json."""
+        from alexapy import AlexaAPI
+        if not raw_notifications:
+            raw_notifications = await AlexaAPI.get_notifications(login_obj)
+        email: Text = login_obj.email
+        notifications = {}
+        for notification in raw_notifications:
+            n_dev_id = notification['deviceSerialNumber']
+            n_type = notification['type']
+            n_id = notification['notificationIndex']
+            n_date = notification['originalDate']
+            n_time = notification['originalTime']
+            notification['date_time'] = f"{n_date} {n_time}"
+            if n_dev_id not in notifications:
+                notifications[n_dev_id] = {}
+            if n_type not in notifications[n_dev_id]:
+                notifications[n_dev_id][n_type] = {}
+            notifications[n_dev_id][n_type][n_id] = notification
+        (hass.data[DATA_ALEXAMEDIA]
+                  ['accounts']
+                  [email]
+                  ['notifications']) = notifications
+        _LOGGER.debug(
+            "%s: Updated %s notifications for %s devices",
+            hide_email(email),
+            len(raw_notifications),
+            len(notifications)
+        )
 
     async def update_last_called(login_obj, last_called=None):
         """Update the last called device for the login_obj.

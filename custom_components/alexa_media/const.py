@@ -25,17 +25,20 @@ ALEXA_COMPONENTS = [
     'media_player',
     'notify',
     'alarm_control_panel',
-    'switch'
+    'switch',
+    'sensor'
 ]
 
 CONF_ACCOUNTS = 'accounts'
 CONF_DEBUG = 'debug'
 CONF_INCLUDE_DEVICES = 'include_devices'
 CONF_EXCLUDE_DEVICES = 'exclude_devices'
+
+SERVICE_CLEAR_HISTORY = 'clear_history'
 SERVICE_UPDATE_LAST_CALLED = 'update_last_called'
 ATTR_MESSAGE = 'message'
 ATTR_EMAIL = 'email'
-
+ATTR_NUM_ENTRIES = 'entries'
 STARTUP = """
 -------------------------------------------------------------------
 {}

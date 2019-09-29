@@ -17,7 +17,7 @@ from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
                DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
 from . import (hide_email, hide_serial)
-from .helpers import add_devices, retry_async
+from .helpers import _catch_login_errors, add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ async def async_setup_platform(hass, config, add_devices_callback,
          [account]
          ['entities']
          ['switch']) = {}
-    for key, device in account_dict['devices']['media_player'].items():
+    for key, _ in account_dict['devices']['media_player'].items():
         if key not in account_dict['entities']['media_player']:
             _LOGGER.debug("%s: Media player %s not loaded yet; delaying load",
                           hide_email(account),
@@ -124,6 +124,7 @@ class AlexaMediaSwitch(SwitchDevice):
         """Initialize the Alexa Switch device."""
         # Class info
         self._client = client
+        self._login = client._login
         self._account = account
         self._name = name
         self._switch_property = switch_property
@@ -139,9 +140,7 @@ class AlexaMediaSwitch(SwitchDevice):
             pass
         # Register event handler on bus
         self._listener = self.hass.bus.async_listen(
-            ('{}_{}'.format(
-                            ALEXA_DOMAIN,
-                            hide_email(self._account)))[0:32],
+            f'{ALEXA_DOMAIN}_{hide_email(self._login.email)}'[0:32],
             self._handle_event)
 
     async def async_will_remove_from_hass(self):
@@ -167,6 +166,7 @@ class AlexaMediaSwitch(SwitchDevice):
                 self._state = getattr(self._client, self._switch_property)
                 self.async_schedule_update_ha_state()
 
+    @_catch_login_errors
     async def _set_switch(self, state, **kwargs):
         try:
             if not self.enabled:
@@ -238,9 +238,9 @@ class AlexaMediaSwitch(SwitchDevice):
 
     @property
     def device_info(self):
+        """Return device_info for device registry."""
         return {
             'identifiers': {
-                # Serial numbers are unique identifiers within a specific domain
                 (ALEXA_DOMAIN, self._client.unique_id)
             },
             'via_device': (ALEXA_DOMAIN, self._client.unique_id),
@@ -273,6 +273,7 @@ class DNDSwitch(AlexaMediaSwitch):
         """Return the icon of the switch."""
         return super()._icon("mdi:do-not-disturb", "mdi:do-not-disturb-off")
 
+
 class ShuffleSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Shuffle switch."""
 
@@ -281,7 +282,7 @@ class ShuffleSwitch(AlexaMediaSwitch):
         # Class info
         super().__init__(
             client,
-            'shuffle_state',
+            'shuffle',
             client.alexa_api.shuffle,
             account,
             "shuffle")
@@ -290,6 +291,7 @@ class ShuffleSwitch(AlexaMediaSwitch):
     def icon(self):
         """Return the icon of the switch."""
         return super()._icon("mdi:shuffle", "mdi:shuffle-disabled")
+
 
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""

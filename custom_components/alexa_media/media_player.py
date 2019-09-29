@@ -20,7 +20,6 @@ from homeassistant.components.media_player.const import (
 from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
                                  STATE_STANDBY)
 from homeassistant.helpers.event import async_call_later
-from homeassistant.helpers.service import extract_entity_ids
 
 from . import CONF_EMAIL, DATA_ALEXAMEDIA
 from . import DOMAIN as ALEXA_DOMAIN
@@ -154,7 +153,7 @@ class AlexaClient(MediaPlayerDevice):
         # Register event handler on bus
         self._listener = self.hass.bus.async_listen(
             f'{ALEXA_DOMAIN}_{hide_email(self._login.email)}'[0:32],
-                            self._handle_event)
+            self._handle_event)
 
     async def async_will_remove_from_hass(self):
         """Prepare to remove entity."""
@@ -183,10 +182,11 @@ class AlexaClient(MediaPlayerDevice):
         except AttributeError:
             pass
         if 'last_called_change' in event.data:
-            event_serial = event.data['last_called_change']['serialNumber']
-            if (event_serial == self.device_serial_number or
-                    any(item['serialNumber'] ==
-                        event_serial for item in self._app_device_list)):
+            event_serial = (event.data['last_called_change']['serialNumber']
+                            if event.data['last_called_change'] else None)
+            if (event_serial and (event_serial == self.device_serial_number or
+                any(item['serialNumber'] ==
+                    event_serial for item in self._app_device_list))):
                 _LOGGER.debug("%s is last_called: %s", self.name,
                               hide_serial(self.device_serial_number))
                 self._last_called = True
@@ -538,7 +538,7 @@ class AlexaClient(MediaPlayerDevice):
                     self.hass,
                     300,
                     lambda _:
-                           self.async_schedule_update_ha_state(
+                        self.async_schedule_update_ha_state(
                             force_refresh=True))
             else:
                 _LOGGER.debug("Disabling polling for %s",

@@ -21,7 +21,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install git+https://github.com/relekang/python-semantic-release.git@700e9f18dafde1833f482272a72bb80b54d56bb3    
+        pip install git+https://github.com/alandtse/python-semantic-release.git    
     - name: Setup Git
       run: |
         git config --global user.name "semantic-release (via GitHub)"

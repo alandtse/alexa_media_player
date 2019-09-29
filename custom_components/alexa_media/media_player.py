@@ -582,6 +582,11 @@ class AlexaClient(MediaPlayerDevice):
         return self._media_image_url
 
     @property
+    def media_image_remotely_accessible(self):
+        """Return whether image is accessible outside of the home network."""
+        return bool(self._media_image_url)
+
+    @property
     def media_title(self):
         """Return the title of current playing media."""
         return self._media_title

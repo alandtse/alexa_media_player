@@ -280,7 +280,7 @@ class ShuffleSwitch(AlexaMediaSwitch):
         # Class info
         super().__init__(
             client,
-            'shuffle_state',
+            'shuffle',
             client.alexa_api.shuffle,
             account,
             "shuffle")

@@ -612,12 +612,12 @@ class AlexaClient(MediaPlayerDevice):
         self.shuffle_state = shuffle
 
     @property
-    def shuffle_state(self):
+    def shuffle(self):
         """Return the Shuffle state."""
         return self._shuffle
 
-    @shuffle_state.setter
-    def shuffle_state(self, state):
+    @shuffle.setter
+    def shuffle(self, state):
         """Set the Shuffle state."""
         self._shuffle = state
 

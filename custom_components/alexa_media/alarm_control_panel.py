@@ -19,7 +19,7 @@ from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
                DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
 from . import MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS, hide_email
-from .helpers import add_devices, retry_async
+from .helpers import _catch_login_errors, add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -165,6 +165,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
                                 self.async_update(no_throttle=True)))
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+    @_catch_login_errors
     async def async_update(self):
         """Update Guard state."""
         try:
@@ -205,6 +206,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         _LOGGER.debug("%s: Alarm State: %s", self.account, self.state)
         self.async_schedule_update_ha_state()
 
+    @_catch_login_errors
     async def async_alarm_disarm(self, code=None) -> None:
         # pylint: disable=unexpected-keyword-arg
         """Send disarm command.
@@ -218,6 +220,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
             pass
         await self.async_alarm_arm_home()
 
+    @_catch_login_errors
     async def async_alarm_arm_home(self, code=None) -> None:
         """Send arm home command."""
         try:
@@ -231,6 +234,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         await self.async_update(no_throttle=True)
         self.async_schedule_update_ha_state()
 
+    @_catch_login_errors
     async def async_alarm_arm_away(self, code=None) -> None:
         """Send arm away command."""
         # pylint: disable=unexpected-keyword-arg

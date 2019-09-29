@@ -12,7 +12,8 @@ from datetime import timedelta
 from typing import Optional, Text
 
 import voluptuous as vol
-from alexapy import WebsocketEchoClient, hide_email, hide_serial
+from alexapy import (AlexapyLoginError, WebsocketEchoClient, hide_email,
+                     hide_serial)
 from homeassistant import util
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (CONF_EMAIL, CONF_NAME, CONF_PASSWORD,
@@ -134,6 +135,12 @@ async def async_setup_entry(hass, config_entry):
         login = AlexaLogin(url, email, password, hass.config.path,
                            account.get(CONF_DEBUG))
         (hass.data[DATA_ALEXAMEDIA]['accounts'][email]['login_obj']) = login
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+                  ['config_entry']) = config_entry
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+                  ['setup_platform_callback']) = setup_platform_callback
+        (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+                  ['test_login_status']) = test_login_status
     await login.login_with_cookie()
     await test_login_status(hass, config_entry, login,
                             setup_platform_callback)
@@ -146,6 +153,7 @@ async def setup_platform_callback(hass, config_entry, login, callback_data):
     Args:
     callback_data (json): Returned data from configurator passed through
                           request_configuration and configuration_callback
+
     """
     _LOGGER.debug(("Configurator closed for Status: %s\n"
                    " got captcha: %s securitycode: %s"
@@ -358,11 +366,11 @@ async def setup_alexa(hass, config_entry, login_obj):
             if ((devices is None or bluetooth is None)
                     and not (hass.data[DATA_ALEXAMEDIA]
                                       ['accounts'][email]['configurator'])):
-                raise RuntimeError()
-        except RuntimeError:
+                raise AlexapyLoginError()
+        except (AlexapyLoginError, RuntimeError):
             _LOGGER.debug("%s: Alexa API disconnected; attempting to relogin",
                           hide_email(email))
-            await login_obj.login()
+            await login_obj.login_with_cookie()
             await test_login_status(hass,
                                     config_entry, login_obj,
                                     setup_platform_callback)

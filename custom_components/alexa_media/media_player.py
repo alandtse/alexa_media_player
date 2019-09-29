@@ -27,7 +27,7 @@ from . import DOMAIN as ALEXA_DOMAIN
 from . import (MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
                hide_email, hide_serial)
 from .const import PLAY_SCAN_INTERVAL
-from .helpers import add_devices, retry_async
+from .helpers import _catch_login_errors, add_devices, retry_async
 
 SUPPORT_ALEXA = (SUPPORT_PAUSE | SUPPORT_PREVIOUS_TRACK |
                  SUPPORT_NEXT_TRACK | SUPPORT_STOP |
@@ -278,6 +278,7 @@ class AlexaClient(MediaPlayerDevice):
         self._customer_name = auth['customerName']
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+    @_catch_login_errors
     async def refresh(self, device=None):
         """Refresh device data.
 
@@ -392,6 +393,7 @@ class AlexaClient(MediaPlayerDevice):
         """List of available input sources."""
         return self._source_list
 
+    @_catch_login_errors
     async def async_select_source(self, source):
         """Select input source."""
         if source == 'Local Speaker':
@@ -606,6 +608,7 @@ class AlexaClient(MediaPlayerDevice):
         """Set the Do Not Disturb state."""
         self._dnd = state
 
+    @_catch_login_errors
     async def async_set_shuffle(self, shuffle):
         """Enable/disable shuffle mode."""
         await self.alexa_api.shuffle(shuffle)
@@ -636,6 +639,7 @@ class AlexaClient(MediaPlayerDevice):
         """Flag media player features that are supported."""
         return SUPPORT_ALEXA
 
+    @_catch_login_errors
     async def async_set_volume_level(self, volume):
         """Set volume level, range 0..1."""
         if not self.available:
@@ -658,6 +662,7 @@ class AlexaClient(MediaPlayerDevice):
             return True
         return False
 
+    @_catch_login_errors
     async def async_mute_volume(self, mute):
         """Mute the volume.
 
@@ -681,6 +686,7 @@ class AlexaClient(MediaPlayerDevice):
                 ['accounts'][self._login.email]['websocket']):
             await self.async_update()
 
+    @_catch_login_errors
     async def async_media_play(self):
         """Send play command."""
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
@@ -691,6 +697,7 @@ class AlexaClient(MediaPlayerDevice):
                 ['accounts'][self._login.email]['websocket']):
             await self.async_update()
 
+    @_catch_login_errors
     async def async_media_pause(self):
         """Send pause command."""
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
@@ -701,6 +708,7 @@ class AlexaClient(MediaPlayerDevice):
                 ['accounts'][self._login.email]['websocket']):
             await self.async_update()
 
+    @_catch_login_errors
     async def async_turn_off(self):
         """Turn the client off.
 
@@ -711,6 +719,7 @@ class AlexaClient(MediaPlayerDevice):
         await self.async_media_pause()
         await self._clear_media_details()
 
+    @_catch_login_errors
     async def async_turn_on(self):
         """Turn the client on.
 
@@ -720,6 +729,7 @@ class AlexaClient(MediaPlayerDevice):
         self._should_poll = True
         await self.async_media_pause()
 
+    @_catch_login_errors
     async def async_media_next_track(self):
         """Send next track command."""
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
@@ -730,6 +740,7 @@ class AlexaClient(MediaPlayerDevice):
                 ['accounts'][self._login.email]['websocket']):
             await self.async_update()
 
+    @_catch_login_errors
     async def async_media_previous_track(self):
         """Send previous track command."""
         if not (self.state in [STATE_PLAYING, STATE_PAUSED]
@@ -740,6 +751,7 @@ class AlexaClient(MediaPlayerDevice):
                 ['accounts'][self._login.email]['websocket']):
             await self.async_update()
 
+    @_catch_login_errors
     async def async_send_tts(self, message):
         """Send TTS to Device.
 
@@ -747,18 +759,21 @@ class AlexaClient(MediaPlayerDevice):
         """
         await self.alexa_api.send_tts(message, customer_id=self._customer_id)
 
+    @_catch_login_errors
     async def async_send_announcement(self, message, **kwargs):
         """Send announcement to the media player."""
         await self.alexa_api.send_announcement(message,
                                                customer_id=self._customer_id,
                                                **kwargs)
 
+    @_catch_login_errors
     async def async_send_mobilepush(self, message, **kwargs):
         """Send push to the media player's associated mobile devices."""
         await self.alexa_api.send_mobilepush(message,
                                              customer_id=self._customer_id,
                                              **kwargs)
 
+    @_catch_login_errors
     async def async_play_media(self,
                                media_type, media_id, enqueue=None, **kwargs):
         """Send the play_media command to the media player."""

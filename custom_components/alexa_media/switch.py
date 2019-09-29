@@ -17,7 +17,7 @@ from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
                DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
 from . import (hide_email, hide_serial)
-from .helpers import add_devices, retry_async
+from .helpers import _catch_login_errors, add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -124,6 +124,7 @@ class AlexaMediaSwitch(SwitchDevice):
         """Initialize the Alexa Switch device."""
         # Class info
         self._client = client
+        self._login = client._login
         self._account = account
         self._name = name
         self._switch_property = switch_property
@@ -165,6 +166,7 @@ class AlexaMediaSwitch(SwitchDevice):
                 self._state = getattr(self._client, self._switch_property)
                 self.async_schedule_update_ha_state()
 
+    @_catch_login_errors
     async def _set_switch(self, state, **kwargs):
         try:
             if not self.enabled:

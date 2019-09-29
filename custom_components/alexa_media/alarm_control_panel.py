@@ -8,7 +8,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 import logging
-from typing import List  # noqa pylint: disable=unused-import
+from typing import Dict, List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant import util
 from homeassistant.components.alarm_control_panel import AlarmControlPanel
@@ -19,7 +19,7 @@ from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
                DATA_ALEXAMEDIA)
 from . import DOMAIN as ALEXA_DOMAIN
 from . import MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS, hide_email
-from .helpers import add_devices, retry_async
+from .helpers import _catch_login_errors, add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,9 +105,10 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._friendly_name = "Alexa Guard"
         self._state = None
         self._should_poll = False
-        self._attrs = {}
+        self._attrs: Dict[Text, Text] = {}
 
     async def init(self):
+        """Initialize."""
         try:
             from simplejson import JSONDecodeError
             data = await self.alexa_api.get_guard_details(self._login)
@@ -118,7 +119,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
                           ['applianceDetails']['applianceDetails'])
         except (KeyError, TypeError, JSONDecodeError):
             guard_dict = {}
-        for key, value in guard_dict.items():
+        for _, value in guard_dict.items():
             if value['modelName'] == "REDROCK_GUARD_PANEL":
                 self._appliance_id = value['applianceId']
                 self._guard_entity_id = value['entityId']
@@ -139,9 +140,8 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         except AttributeError:
             pass
         # Register event handler on bus
-        self._listener = self.hass.bus.async_listen(('{}_{}'.format(
-            ALEXA_DOMAIN,
-            hide_email(self._login.email)))[0:32],
+        self._listener = self.hass.bus.async_listen(
+            f'{ALEXA_DOMAIN}_{hide_email(self._login.email)}'[0:32],
             self._handle_event)
 
     async def async_will_remove_from_hass(self):
@@ -165,6 +165,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
                                 self.async_update(no_throttle=True)))
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+    @_catch_login_errors
     async def async_update(self):
         """Update Guard state."""
         try:
@@ -205,6 +206,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         _LOGGER.debug("%s: Alarm State: %s", self.account, self.state)
         self.async_schedule_update_ha_state()
 
+    @_catch_login_errors
     async def async_alarm_disarm(self, code=None) -> None:
         # pylint: disable=unexpected-keyword-arg
         """Send disarm command.
@@ -218,6 +220,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
             pass
         await self.async_alarm_arm_home()
 
+    @_catch_login_errors
     async def async_alarm_arm_home(self, code=None) -> None:
         """Send arm home command."""
         try:
@@ -231,6 +234,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         await self.async_update(no_throttle=True)
         self.async_schedule_update_ha_state()
 
+    @_catch_login_errors
     async def async_alarm_arm_away(self, code=None) -> None:
         """Send arm away command."""
         # pylint: disable=unexpected-keyword-arg

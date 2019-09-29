@@ -25,7 +25,8 @@ ALEXA_COMPONENTS = [
     'media_player',
     'notify',
     'alarm_control_panel',
-    'switch'
+    'switch',
+    'sensor'
 ]
 
 CONF_ACCOUNTS = 'accounts'

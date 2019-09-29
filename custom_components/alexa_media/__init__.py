@@ -523,8 +523,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                                       'last_called' in stored_data else None),
                           hide_serial(last_called))
             hass.bus.async_fire(
-                ('{}_{}'.format(DOMAIN,
-                                hide_email(email)))[0:32],
+                f'{DOMAIN}_{hide_email(email)}'[0:32],
                 {'last_called_change': last_called})
         (hass.data[DATA_ALEXAMEDIA]
          ['accounts']
@@ -641,8 +640,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                     await update_last_called(login_obj,
                                              last_called)
                 hass.bus.async_fire(
-                    ('{}_{}'.format(DOMAIN,
-                                    hide_email(email)))[0:32],
+                    f'{DOMAIN}_{hide_email(email)}'[0:32],
                     {'push_activity': json_payload})
             elif command == 'PUSH_AUDIO_PLAYER_STATE':
                 # Player update
@@ -650,8 +648,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                     _LOGGER.debug("Updating media_player: %s",
                                   hide_serial(json_payload))
                     hass.bus.async_fire(
-                        ('{}_{}'.format(DOMAIN,
-                                        hide_email(email)))[0:32],
+                        f'{DOMAIN}_{hide_email(email)}'[0:32],
                         {'player_state': json_payload})
             elif command == 'PUSH_VOLUME_CHANGE':
                 # Player volume update
@@ -659,8 +656,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                     _LOGGER.debug("Updating media_player volume: %s",
                                   hide_serial(json_payload))
                     hass.bus.async_fire(
-                        ('{}_{}'.format(DOMAIN,
-                                        hide_email(email)))[0:32],
+                        f'{DOMAIN}_{hide_email(email)}'[0:32],
                         {'player_state': json_payload})
             elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
                 # Player availability update
@@ -668,8 +664,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                     _LOGGER.debug("Updating media_player availability %s",
                                   hide_serial(json_payload))
                     hass.bus.async_fire(
-                        ('{}_{}'.format(DOMAIN,
-                                        hide_email(email)))[0:32],
+                        f'{DOMAIN}_{hide_email(email)}'[0:32],
                         {'player_state': json_payload})
             elif command == 'PUSH_BLUETOOTH_STATE_CHANGE':
                 # Player bluetooth update
@@ -687,8 +682,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                     #               hide_serial(bluetooth_state))
                     if bluetooth_state:
                         hass.bus.async_fire(
-                            ('{}_{}'.format(DOMAIN,
-                                            hide_email(email)))[0:32],
+                            f'{DOMAIN}_{hide_email(email)}'[0:32],
                             {'bluetooth_change': bluetooth_state})
             elif command == 'PUSH_MEDIA_QUEUE_CHANGE':
                 # Player availability update
@@ -696,8 +690,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                     _LOGGER.debug("Updating media_player queue %s",
                                   hide_serial(json_payload))
                     hass.bus.async_fire(
-                        ('{}_{}'.format(DOMAIN,
-                                        hide_email(email)))[0:32],
+                        f'{DOMAIN}_{hide_email(email)}'[0:32],
                         {'queue_state': json_payload})
             elif command == 'PUSH_NOTIFICATION_CHANGE':
                 # Player update
@@ -706,8 +699,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                     _LOGGER.debug("Updating mediaplayer notifications: %s",
                                   hide_serial(json_payload))
                     hass.bus.async_fire(
-                        ('{}_{}'.format(DOMAIN,
-                                        hide_email(email)))[0:32],
+                        f'{DOMAIN}_{hide_email(email)}'[0:32],
                         {'notification_update': json_payload})
             if (serial and serial not in existing_serials
                     and serial not in (hass.data[DATA_ALEXAMEDIA]

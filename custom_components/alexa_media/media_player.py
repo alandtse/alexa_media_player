@@ -153,8 +153,7 @@ class AlexaClient(MediaPlayerDevice):
         """Store register state change callback."""
         # Register event handler on bus
         self._listener = self.hass.bus.async_listen(
-            ('{}_{}'.format(ALEXA_DOMAIN,
-                            hide_email(self._login.email)))[0:32],
+            f'{ALEXA_DOMAIN}_{hide_email(self._login.email)}'[0:32],
                             self._handle_event)
 
     async def async_will_remove_from_hass(self):

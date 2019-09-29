@@ -24,10 +24,11 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.event import async_call_later
 
 from .config_flow import configured_instances
-from .const import (ALEXA_COMPONENTS, ATTR_EMAIL, CONF_ACCOUNTS, CONF_DEBUG,
-                    CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
-                    DATA_ALEXAMEDIA, DOMAIN, MIN_TIME_BETWEEN_FORCED_SCANS,
-                    MIN_TIME_BETWEEN_SCANS, SCAN_INTERVAL,
+from .const import (ALEXA_COMPONENTS, ATTR_EMAIL, ATTR_NUM_ENTRIES,
+                    CONF_ACCOUNTS, CONF_DEBUG, CONF_EXCLUDE_DEVICES,
+                    CONF_INCLUDE_DEVICES, DATA_ALEXAMEDIA, DOMAIN,
+                    MIN_TIME_BETWEEN_FORCED_SCANS, MIN_TIME_BETWEEN_SCANS,
+                    SCAN_INTERVAL, SERVICE_CLEAR_HISTORY,
                     SERVICE_UPDATE_LAST_CALLED, STARTUP)
 from .helpers import retry_async
 
@@ -53,6 +54,13 @@ CONFIG_SCHEMA = vol.Schema({
             vol.All(cv.ensure_list, [ACCOUNT_CONFIG_SCHEMA]),
     }),
 }, extra=vol.ALLOW_EXTRA)
+
+CLEAR_HISTORY_SCHEMA = vol.Schema({
+    vol.Optional(ATTR_EMAIL, default=[]):
+        vol.All(cv.ensure_list, [cv.string]),
+    vol.Optional(ATTR_NUM_ENTRIES, default=50):
+        vol.All(int, vol.Range(min=1, max=50))
+})
 
 LAST_CALL_UPDATE_SCHEMA = vol.Schema({
     vol.Optional(ATTR_EMAIL, default=[]):
@@ -564,6 +572,32 @@ async def setup_alexa(hass, config_entry, login_obj):
                       hide_serial(bluetooth))
         return None
 
+    async def clear_history(call):
+        """Handle clear history service request.
+
+        Arguments:
+            call.ATTR_EMAIL {List[str: None]} -- Case-sensitive Alexa emails.
+                                                 Default is all known emails.
+            call.ATTR_NUM_ENTRIES {int: 50} -- Number of entries to delete.
+
+        Returns:
+            bool -- True if deletion successful
+
+        """
+        from alexapy import AlexaAPI
+        requested_emails = call.data.get(ATTR_EMAIL)
+        items: int = int(call.data.get(ATTR_NUM_ENTRIES))
+
+        _LOGGER.debug("Service clear_history called for: %i items for %s",
+                      items,
+                      requested_emails)
+        for email, account_dict in (hass.data
+                                    [DATA_ALEXAMEDIA]['accounts'].items()):
+            if requested_emails and email not in requested_emails:
+                continue
+            login_obj = account_dict['login_obj']
+        return await AlexaAPI.clear_history(login_obj, items)
+
     async def last_call_handler(call):
         """Handle last call service request.
 
@@ -800,7 +834,8 @@ async def setup_alexa(hass, config_entry, login_obj):
     hass.services.async_register(DOMAIN, SERVICE_UPDATE_LAST_CALLED,
                                  last_call_handler,
                                  schema=LAST_CALL_UPDATE_SCHEMA)
-
+    hass.services.async_register(DOMAIN, SERVICE_CLEAR_HISTORY, clear_history,
+                                 schema=CLEAR_HISTORY_SCHEMA)
     # Clear configurator. We delay till here to avoid leaving a modal orphan
     await clear_configurator(hass, email)
     return True
@@ -809,6 +844,7 @@ async def setup_alexa(hass, config_entry, login_obj):
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     hass.services.async_remove(DOMAIN, SERVICE_UPDATE_LAST_CALLED)
+    hass.services.async_remove(DOMAIN, SERVICE_CLEAR_HISTORY)
     for component in ALEXA_COMPONENTS:
         await hass.config_entries.async_forward_entry_unload(entry, component)
     # notify has to be handled manually as the forward does not work yet

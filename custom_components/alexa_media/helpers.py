@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import logging
-from typing import Callable, List, Text
+from typing import Any, Callable, List, Text
 
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import EntityComponent
@@ -88,7 +88,7 @@ def retry_async(limit: int = 5,
         import functools
         import asyncio
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs) -> Callable:
+        async def wrapper(*args, **kwargs) -> Any:
             _LOGGER.debug(
                 "%s.%s: Trying with limit %s delay %s catch_exceptions %s",
                 func.__module__[func.__module__.find('.')+1:],
@@ -112,11 +112,13 @@ def retry_async(limit: int = 5,
                     template = ("An exception of type {0} occurred."
                                 " Arguments:\n{1!r}")
                     message = template.format(type(ex).__name__, ex.args)
-                    _LOGGER.debug("%s.%s: failure caught due to exception: %s",
+                    _LOGGER.debug(
+                        "%s.%s: failure caught due to exception: %s",
                                   func.__module__[func.__module__.find('.')+1:],
                                   func.__name__,
                                   message)
-                _LOGGER.debug("%s.%s: Try: %s/%s after waiting %s seconds result: %s",
+                _LOGGER.debug(
+                    "%s.%s: Try: %s/%s after waiting %s seconds result: %s",
                               func.__module__[func.__module__.find('.')+1:],
                               func.__name__,
                               retries,

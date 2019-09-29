@@ -21,7 +21,6 @@ from homeassistant.const import (CONF_EMAIL, CONF_NAME, CONF_PASSWORD,
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.event import async_call_later
-from homeassistant.helpers.service import verify_domain_control
 
 from .config_flow import configured_instances
 from .const import (ALEXA_COMPONENTS, ATTR_EMAIL, CONF_ACCOUNTS, CONF_DEBUG,
@@ -116,7 +115,6 @@ async def async_setup_entry(hass, config_entry):
         for email, _ in (hass.data
                          [DATA_ALEXAMEDIA]['accounts'].items()):
             await close_connections(hass, email)
-    _verify_domain_control = verify_domain_control(hass, DOMAIN)
     if DATA_ALEXAMEDIA not in hass.data:
         hass.data[DATA_ALEXAMEDIA] = {}
         hass.data[DATA_ALEXAMEDIA]['accounts'] = {}
@@ -565,6 +563,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         Args:
         call.ATTR_EMAIL: List of case-sensitive Alexa email addresses. If None
                          all accounts are updated.
+
         """
         requested_emails = call.data.get(ATTR_EMAIL)
         _LOGGER.debug("Service update_last_called for: %s", requested_emails)

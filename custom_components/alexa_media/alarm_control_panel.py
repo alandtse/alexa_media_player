@@ -8,7 +8,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 import logging
-from typing import List  # noqa pylint: disable=unused-import
+from typing import Dict, List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant import util
 from homeassistant.components.alarm_control_panel import AlarmControlPanel
@@ -105,9 +105,10 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._friendly_name = "Alexa Guard"
         self._state = None
         self._should_poll = False
-        self._attrs = {}
+        self._attrs: Dict[Text, Text] = {}
 
     async def init(self):
+        """Initialize."""
         try:
             from simplejson import JSONDecodeError
             data = await self.alexa_api.get_guard_details(self._login)
@@ -118,7 +119,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
                           ['applianceDetails']['applianceDetails'])
         except (KeyError, TypeError, JSONDecodeError):
             guard_dict = {}
-        for key, value in guard_dict.items():
+        for _, value in guard_dict.items():
             if value['modelName'] == "REDROCK_GUARD_PANEL":
                 self._appliance_id = value['applianceId']
                 self._guard_entity_id = value['entityId']

@@ -19,7 +19,6 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_MUTE, SUPPORT_VOLUME_SET)
 from homeassistant.const import (STATE_IDLE, STATE_PAUSED, STATE_PLAYING,
                                  STATE_STANDBY)
-from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.service import extract_entity_ids
 
@@ -147,6 +146,7 @@ class AlexaClient(MediaPlayerDevice):
         self._last_update = 0
 
     async def init(self, device):
+        """Initialize."""
         await self.refresh(device)
 
     async def async_added_to_hass(self):
@@ -222,7 +222,8 @@ class AlexaClient(MediaPlayerDevice):
                     _LOGGER.debug("%s state update: %s",
                                   self.name,
                                   player_state['audioPlayerState'])
-                    await self.async_update()  # refresh is necessary to pull all data
+                    await self.async_update()
+                    # refresh is necessary to pull all data
                 elif 'volumeSetting' in player_state:
                     _LOGGER.debug("%s volume updated: %s",
                                   self.name,
@@ -289,6 +290,7 @@ class AlexaClient(MediaPlayerDevice):
         device (json): A refreshed device json from Amazon. For efficiency,
                        an individual device does not refresh if it's reported
                        as offline.
+
         """
         if device is not None:
             self._device = device
@@ -531,7 +533,10 @@ class AlexaClient(MediaPlayerDevice):
                 _LOGGER.debug("Disabling polling and scheduling last update in"
                               " 300 seconds for %s",
                               self.name)
-                async_call_later(self.hass, 300, lambda _:
+                async_call_later(
+                    self.hass,
+                    300,
+                    lambda _:
                            self.async_schedule_update_ha_state(
                             force_refresh=True))
             else:
@@ -788,9 +793,9 @@ class AlexaClient(MediaPlayerDevice):
 
     @property
     def device_info(self):
+        """Return the device_info of the device."""
         return {
             'identifiers': {
-                # Serial numbers are unique identifiers within a specific domain
                 (ALEXA_DOMAIN, self.unique_id)
             },
             'name': self.name,

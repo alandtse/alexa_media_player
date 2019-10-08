@@ -779,9 +779,6 @@ async def setup_alexa(hass, config_entry, login_obj):
         last_attempt = (hass.data[DATA_ALEXAMEDIA]['accounts']
                         [email]['websocket_lastattempt'])
         now = time.time()
-        _LOGGER.debug("diff %s: delay %s",
-                      (now - last_attempt),
-                      delay)
         if ((now - last_attempt) < delay):
             return
         while (errors < 5 and not (hass.data[DATA_ALEXAMEDIA]['accounts']

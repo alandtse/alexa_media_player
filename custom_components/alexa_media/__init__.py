@@ -429,8 +429,10 @@ async def setup_alexa(hass, config_entry, login_obj):
                 for dev in preferences['devicePreferences']:
                     if dev['deviceSerialNumber'] == device['serialNumber']:
                         device['locale'] = dev['locale']
-                        _LOGGER.debug("Locale %s found for %s",
+                        device['timeZoneId'] = dev['timeZoneId']
+                        _LOGGER.debug("Locale %s timezone %s found for %s",
                                       device['locale'],
+                                      device['timeZoneId'],
                                       hide_serial(device['serialNumber']))
 
             if 'doNotDisturbDeviceStatusList' in dnd:

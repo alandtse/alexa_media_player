@@ -496,6 +496,8 @@ async def setup_alexa(hass, config_entry, login_obj):
         for notification in raw_notifications:
             n_dev_id = notification['deviceSerialNumber']
             n_type = notification['type']
+            if n_type == "MusicAlarm":
+                n_type = "Alarm"
             n_id = notification['notificationIndex']
             n_date = notification['originalDate']
             n_time = notification['originalTime']

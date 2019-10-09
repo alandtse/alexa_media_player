@@ -306,6 +306,8 @@ class AlexaClient(MediaPlayerDevice):
             self._cluster_members = device['clusterMembers']
             self._bluetooth_state = device['bluetooth_state']
             self._locale = device['locale'] if 'locale' in device else 'en-US'
+            self._timezone = (device['timeZoneId']
+                              if 'timeZoneId' in device else 'UTC')
             self._dnd = device['dnd'] if 'dnd' in device else None
             await self._set_authentication_details(device['auth_info'])
         session = None

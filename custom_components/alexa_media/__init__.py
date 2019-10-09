@@ -794,8 +794,8 @@ async def setup_alexa(hass, config_entry, login_obj):
             await sleep(delay)
             (hass.data[DATA_ALEXAMEDIA]['accounts']
              [email]['websocket_lastattempt']) = time.time()
-                (hass.data[DATA_ALEXAMEDIA]['accounts']
-                 [email]['websocket']) = await ws_connect()
+            (hass.data[DATA_ALEXAMEDIA]['accounts']
+             [email]['websocket']) = await ws_connect()
             errors += 1
             delay = 5 * 2 ** errors
         else:

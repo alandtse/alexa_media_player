@@ -276,7 +276,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         ):
             _LOGGER.debug("Creating config_flow to request 2FA")
             message = "> {0}".format(
-                login.status["error_message"] if "error_message" in login.status else ""
+                login.status["error_message"]
+                if "error_message" in login.status else ""
             )
             return await self._show_form(
                 "twofactor",
@@ -315,7 +316,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         ):
             _LOGGER.debug("Creating config_flow to select OTA method")
             error_message = (
-                login.status["error_message"] if "error_message" in login.status else ""
+                login.status["error_message"]
+                if "error_message" in login.status else ""
             )
             authselect_message = login.status["authselect_message"]
             return await self._show_form(
@@ -324,7 +326,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": "> {0}\n> {1}".format(authselect_message, error_message),
+                    "message": "> {0}\n> {1}".format(authselect_message,
+                                                     error_message),
                 },
             )
         elif (

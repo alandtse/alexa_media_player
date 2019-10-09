@@ -276,7 +276,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         ):
             _LOGGER.debug("Creating config_flow to request 2FA")
             message = "> {0}".format(
-                login.status["error_message"] if "error_message" in login.status else ""
+                login.status["error_message"]
+                if "error_message" in login.status else ""
             )
             return await self._show_form(
                 "twofactor",
@@ -292,10 +293,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             "claimspicker_required" in login.status
             and login.status["claimspicker_required"]
         ):
-            message = "> {0}".format(
-                login.status["error_message"] if "error_message" in login.status else ""
+            error_message = "> {0}".format(
+                login.status["error_message"]
+                if "error_message" in login.status else ""
             )
             _LOGGER.debug("Creating config_flow to select verification method")
+            claimspicker_message = login.status["claimspicker_message"]
             return await self._show_form(
                 "claimspicker",
                 data_schema=vol.Schema(self.claimspicker_schema),
@@ -303,7 +306,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": message,
+                    "message": "> {0}\n> {1}".format(claimspicker_message,
+                                                     error_message),
                 },
             )
         elif (
@@ -312,7 +316,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         ):
             _LOGGER.debug("Creating config_flow to select OTA method")
             error_message = (
-                login.status["error_message"] if "error_message" in login.status else ""
+                login.status["error_message"]
+                if "error_message" in login.status else ""
             )
             authselect_message = login.status["authselect_message"]
             return await self._show_form(
@@ -321,7 +326,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": "> {0}\n> {1}".format(authselect_message, error_message),
+                    "message": "> {0}\n> {1}".format(authselect_message,
+                                                     error_message),
                 },
             )
         elif (

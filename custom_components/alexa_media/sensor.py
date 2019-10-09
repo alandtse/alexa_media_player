@@ -162,9 +162,19 @@ class AlexaMediaSensor(Entity):
         self._all = (sorted(self._n_dict.items(),
                             key=lambda x: x[1][self._sensor_property])
                      if self._n_dict else [])
+        self._all = list(map(self._fix_alarm_date_time, self._all))
         self._sorted = list(filter(lambda x: x[1]['status'] == 'ON',
                             self._all)) if self._all else []
         self._next = self._sorted[0][1] if self._sorted else None
+
+    def _fix_alarm_date_time(self, value):
+        import pytz
+        if self._sensor_property != "date_time" or not value:
+            return value
+        naive_time = dt.parse_datetime(value[1][self._sensor_property])
+        timezone = pytz.timezone(self._client._timezone)
+        value[1][self._sensor_property] = timezone.localize(naive_time)
+        return value
 
     async def async_added_to_hass(self):
         """Store register state change callback."""
@@ -224,7 +234,7 @@ class AlexaMediaSensor(Entity):
     @property
     def state(self):
         """Return the state of the sensor."""
-        return dt.parse_datetime(self._next[self._sensor_property]).replace(
+        return self._next[self._sensor_property].replace(
             tzinfo=LOCAL_TIMEZONE) if self._next else 'None'
 
     @property
@@ -254,6 +264,7 @@ class AlexaMediaSensor(Entity):
         self._all = (sorted(self._n_dict.items(),
                             key=lambda x: x[1][self._sensor_property])
                      if self._n_dict else [])
+        self._all = list(map(self._fix_alarm_date_time, self._all))
         self._sorted = list(filter(lambda x: x[1]['status'] == 'ON',
                             self._all)) if self._all else []
         self._next = self._sorted[0][1] if self._sorted else None
@@ -291,8 +302,8 @@ class AlexaMediaSensor(Entity):
             'recurrence': self.recurrence,
             'total_active': len(self._sorted),
             'total_all': len(self._all),
-            'sorted_active': json.dumps(self._sorted),
-            'sorted_all': json.dumps(self._all),
+            'sorted_active': json.dumps(self._sorted, default=str),
+            'sorted_all': json.dumps(self._all, default=str),
         }
         return attr
 

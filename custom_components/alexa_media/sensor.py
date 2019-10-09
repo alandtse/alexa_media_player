@@ -163,7 +163,6 @@ class AlexaMediaSensor(Entity):
                             key=lambda x: x[1][self._sensor_property])
                      if self._n_dict else [])
         self._all = list(map(self._fix_alarm_date_time, self._all))
-        _LOGGER.debug("sorting %s", self._all)
         self._sorted = list(filter(lambda x: x[1]['status'] == 'ON',
                             self._all)) if self._all else []
         self._next = self._sorted[0][1] if self._sorted else None

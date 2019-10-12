@@ -154,9 +154,11 @@ def _catch_login_errors(func) -> Callable:
                 login = instance._login
                 email = login.email
                 hass = instance.hass if instance.hass else None
-                if (hass and not
-                    (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
-                     ['configurator'])):
+                if (hass and (
+                    'configurator' not in (hass.data[DATA_ALEXAMEDIA]
+                                           ['accounts'][email])
+                    or not (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
+                        ['configurator']))):
                     config_entry = (
                         hass.data[DATA_ALEXAMEDIA]
                         ['accounts']

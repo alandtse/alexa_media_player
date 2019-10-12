@@ -176,11 +176,24 @@ class AlexaClient(MediaPlayerDevice):
         is self.update will pull data from Amazon, while schedule_update
         assumes the MediaClient state is already updated.
         """
+        async def _refresh_if_no_audiopush():
+            email = self._login.email
+            seen_commands = ((self.hass.data[DATA_ALEXAMEDIA]['accounts']
+                              [email]['websocket_commands'].keys())
+                             if 'websocket_commands' in (
+                                    self.hass.data[DATA_ALEXAMEDIA]
+                                    ['accounts']
+                                    [email]['websocket_commands']) else None)
+            if (not already_refreshed and seen_commands and
+                    'PUSH_AUDIO_PLAYER_STATE' not in seen_commands):
+                # force refresh if player_state update not found, see #397
+                await self.async_update()
         try:
             if not self.enabled:
                 return
         except AttributeError:
             pass
+        already_refreshed = False
         if 'last_called_change' in event.data:
             event_serial = (event.data['last_called_change']['serialNumber']
                             if event.data['last_called_change'] else None)
@@ -222,6 +235,14 @@ class AlexaClient(MediaPlayerDevice):
                                   self.name,
                                   player_state['audioPlayerState'])
                     await self.async_update()
+                    already_refreshed = True
+                    # refresh is necessary to pull all data
+                elif 'mediaReferenceId' in player_state:
+                    _LOGGER.debug("%s media update: %s",
+                                  self.name,
+                                  player_state['mediaReferenceId'])
+                    await self.async_update()
+                    already_refreshed = True
                     # refresh is necessary to pull all data
                 elif 'volumeSetting' in player_state:
                     _LOGGER.debug("%s volume updated: %s",
@@ -235,6 +256,7 @@ class AlexaClient(MediaPlayerDevice):
                                        == "ONLINE")
                     if (self.hass and self.async_schedule_update_ha_state):
                         self.async_schedule_update_ha_state()
+                await _refresh_if_no_audiopush()
         if 'queue_state' in event.data:
             queue_state = event.data['queue_state']
             if (queue_state['dopplerId']
@@ -255,6 +277,7 @@ class AlexaClient(MediaPlayerDevice):
                                   self.name,
                                   self._shuffle,
                                   queue_state['playBackOrder'])
+                await _refresh_if_no_audiopush()
 
     async def _clear_media_details(self):
         """Set all Media Items to None."""

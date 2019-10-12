@@ -235,7 +235,7 @@ class AlexaMediaSensor(Entity):
     def state(self):
         """Return the state of the sensor."""
         return self._next[self._sensor_property].replace(
-            tzinfo=LOCAL_TIMEZONE) if self._next else 'None'
+            tzinfo=LOCAL_TIMEZONE) if self._next else None
 
     @property
     def unit_of_measurement(self):
@@ -344,7 +344,7 @@ class TimerSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return dt.as_local(dt.utc_from_timestamp(
             dt.utcnow().timestamp() +
-            self._next[self._sensor_property]/1000)) if self._next else 'None'
+            self._next[self._sensor_property]/1000)) if self._next else None
 
     @property
     def paused(self) -> bool:
@@ -377,7 +377,7 @@ class ReminderSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return dt.as_local(datetime.datetime.fromtimestamp(
             self._next[self._sensor_property]/1000,
-            tz=LOCAL_TIMEZONE)) if self._next else 'None'
+            tz=LOCAL_TIMEZONE)) if self._next else None
 
     @property
     def reminder(self):

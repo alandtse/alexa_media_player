@@ -664,11 +664,20 @@ async def setup_alexa(hass, config_entry, login_obj):
                                 ['accounts']
                                 [email])
                             else [])
+        if 'websocket_commands' not in (hass.data[DATA_ALEXAMEDIA]['accounts']
+                                        [email]):
+            (hass.data[DATA_ALEXAMEDIA]['accounts']
+                      [email]['websocket_commands']) = {}
+        seen_commands = (hass.data[DATA_ALEXAMEDIA]['accounts']
+                         [email]['websocket_commands'])
         if command and json_payload:
+            import time
             _LOGGER.debug("%s: Received websocket command: %s : %s",
                           hide_email(email),
                           command, hide_serial(json_payload))
             serial = None
+            if command not in seen_commands:
+                seen_commands[command] = time.time()
             if ('dopplerId' in json_payload and
                     'deviceSerialNumber' in json_payload['dopplerId']):
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
@@ -689,8 +698,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                 hass.bus.async_fire(
                     f'{DOMAIN}_{hide_email(email)}'[0:32],
                     {'push_activity': json_payload})
-            elif command == 'PUSH_AUDIO_PLAYER_STATE':
-                # Player update
+            elif command in ('PUSH_AUDIO_PLAYER_STATE', 'PUSH_MEDIA_CHANGE'):
+                # Player update/ Push_media from tune_in
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player: %s",
                                   hide_serial(json_payload))

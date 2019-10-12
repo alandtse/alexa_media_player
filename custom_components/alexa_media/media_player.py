@@ -189,7 +189,8 @@ class AlexaClient(MediaPlayerDevice):
                 # force refresh if player_state update not found, see #397
                 _LOGGER.debug(
                     "%s: No PUSH_AUDIO_PLAYER_STATE in %s; forcing refresh",
-                    email, seen_commands)
+                    hide_email(email),
+                    seen_commands)
                 await self.async_update()
         try:
             if not self.enabled:

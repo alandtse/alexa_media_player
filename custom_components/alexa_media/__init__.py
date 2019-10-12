@@ -714,7 +714,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                     hass.bus.async_fire(
                         f'{DOMAIN}_{hide_email(email)}'[0:32],
                         {'player_state': json_payload})
-            elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
+            elif command in ('PUSH_DOPPLER_CONNECTION_CHANGE',
+                             'PUSH_EQUALIZER_STATE_CHANGE'):
                 # Player availability update
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player availability %s",

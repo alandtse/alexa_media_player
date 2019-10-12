@@ -194,12 +194,29 @@ class AlexaClient(MediaPlayerDevice):
         except AttributeError:
             pass
         already_refreshed = False
+        event_serial = None
         if 'last_called_change' in event.data:
             event_serial = (event.data['last_called_change']['serialNumber']
                             if event.data['last_called_change'] else None)
-            if (event_serial and (event_serial == self.device_serial_number or
+        elif 'bluetooth_change' in event.data:
+            event_serial = (event.data['bluetooth_change']['deviceSerialNumber']
+                            if event.data['bluetooth_change'] else None)
+        elif 'player_state' in event.data:
+            event_serial = (event.data['player_state']['dopplerId']
+                            ['deviceSerialNumber']
+                            if event.data['player_state'] else None)
+        elif 'queue_state' in event.data:
+            event_serial = (event.data['queue_state']['dopplerId']
+                            ['deviceSerialNumber']
+                            if event.data['queue_state'] else None)
+        if not event_serial:
+            return
+        self._available = True
+        await self.async_update()
+        if 'last_called_change' in event.data:
+            if (event_serial == self.device_serial_number or
                 any(item['serialNumber'] ==
-                    event_serial for item in self._app_device_list))):
+                    event_serial for item in self._app_device_list)):
                 _LOGGER.debug("%s is last_called: %s", self.name,
                               hide_serial(self.device_serial_number))
                 self._last_called = True
@@ -212,8 +229,7 @@ class AlexaClient(MediaPlayerDevice):
                 self.async_schedule_update_ha_state(
                     force_refresh=force_refresh)
         elif 'bluetooth_change' in event.data:
-            if (event.data['bluetooth_change']['deviceSerialNumber'] ==
-                    self.device_serial_number):
+            if event_serial == self.device_serial_number:
                 _LOGGER.debug("%s bluetooth_state update: %s",
                               self.name,
                               hide_serial(event.data['bluetooth_change']))
@@ -228,8 +244,7 @@ class AlexaClient(MediaPlayerDevice):
                     self.async_schedule_update_ha_state()
         elif 'player_state' in event.data:
             player_state = event.data['player_state']
-            if (player_state['dopplerId']
-                    ['deviceSerialNumber'] == self.device_serial_number):
+            if event_serial == self.device_serial_number:
                 if 'audioPlayerState' in player_state:
                     _LOGGER.debug("%s state update: %s",
                                   self.name,
@@ -259,8 +274,7 @@ class AlexaClient(MediaPlayerDevice):
                 await _refresh_if_no_audiopush()
         if 'queue_state' in event.data:
             queue_state = event.data['queue_state']
-            if (queue_state['dopplerId']
-                    ['deviceSerialNumber'] == self.device_serial_number):
+            if event_serial == self.device_serial_number:
                 if ('trackOrderChanged' in queue_state and
                         not queue_state['trackOrderChanged'] and
                         'loopMode' in queue_state):

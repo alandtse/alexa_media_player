@@ -257,7 +257,7 @@ async def request_configuration(hass, config_entry, login,
             await configuration_callback({})
     elif (status and 'verificationcode_required' in status and
           status['verificationcode_required']):  # Get picker method
-        config_id = configurator.request_config(
+        config_id = configurator.async_request_config(
             "Alexa Media Player - Verification Code - {}".format(email),
             configuration_callback,
             description=('Please enter received verification code.'

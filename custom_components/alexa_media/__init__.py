@@ -678,6 +678,10 @@ async def setup_alexa(hass, config_entry, login_obj):
             serial = None
             if command not in seen_commands:
                 seen_commands[command] = time.time()
+                _LOGGER.debug(
+                    "Adding %s to seen_commands: %s",
+                    command,
+                    seen_commands)
             if ('dopplerId' in json_payload and
                     'deviceSerialNumber' in json_payload['dopplerId']):
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])

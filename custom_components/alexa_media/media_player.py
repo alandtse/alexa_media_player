@@ -179,14 +179,17 @@ class AlexaClient(MediaPlayerDevice):
         async def _refresh_if_no_audiopush():
             email = self._login.email
             seen_commands = ((self.hass.data[DATA_ALEXAMEDIA]['accounts']
-                              [email]['websocket_commands'].keys())
+                              [email]['websocket_commands'].keys()
                              if 'websocket_commands' in (
                                     self.hass.data[DATA_ALEXAMEDIA]
                                     ['accounts']
-                                    [email]['websocket_commands']) else None)
+                                    [email]) else None))
             if (not already_refreshed and seen_commands and
                     'PUSH_AUDIO_PLAYER_STATE' not in seen_commands):
                 # force refresh if player_state update not found, see #397
+                _LOGGER.debug(
+                    "%s: No PUSH_AUDIO_PLAYER_STATE in %s; forcing refresh",
+                    email, seen_commands)
                 await self.async_update()
         try:
             if not self.enabled:

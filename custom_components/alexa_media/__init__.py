@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import logging
 from datetime import timedelta
-from typing import Optional, Text
+from typing import List, Optional, Text
 
 import voluptuous as vol
 from alexapy import (AlexapyLoginError, WebsocketEchoClient, hide_email,
@@ -257,7 +257,7 @@ async def request_configuration(hass, config_entry, login,
             await configuration_callback({})
     elif (status and 'verificationcode_required' in status and
           status['verificationcode_required']):  # Get picker method
-        config_id = configurator.request_config(
+        config_id = configurator.async_request_config(
             "Alexa Media Player - Verification Code - {}".format(email),
             configuration_callback,
             description=('Please enter received verification code.'
@@ -322,6 +322,35 @@ async def test_login_status(hass, config_entry, login,
 
 async def setup_alexa(hass, config_entry, login_obj):
     """Set up a alexa api based on host parameter."""
+    def _existing_serials() -> List:
+        email: Text = login_obj.email
+        existing_serials = (list(hass.data[DATA_ALEXAMEDIA]
+                            ['accounts']
+                            [email]
+                            ['entities']
+                            ['media_player'].keys()) if 'entities' in (
+                                hass.data[DATA_ALEXAMEDIA]
+                                ['accounts']
+                                [email])
+                            else [])
+        for serial in existing_serials:
+            device = (
+                hass.data[DATA_ALEXAMEDIA]
+                ['accounts']
+                [email]
+                ['devices']
+                ['media_player']
+                [serial])
+            if 'appDeviceList' in device and device['appDeviceList']:
+                apps = list(map(
+                    lambda x: x['serialNumber'] if 'serialNumber' in x
+                    else None,
+                    device['appDeviceList']))
+                # _LOGGER.debug("Combining %s with %s",
+                #               existing_serials, apps)
+                existing_serials = existing_serials + apps
+        return existing_serials
+
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     async def update_devices(login_obj):
         """Ping Alexa API to identify all devices, bluetooth, and last called device.
@@ -340,15 +369,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         email: Text = login_obj.email
         if email not in hass.data[DATA_ALEXAMEDIA]['accounts']:
             return
-        existing_serials = (hass.data[DATA_ALEXAMEDIA]
-                            ['accounts']
-                            [email]
-                            ['entities']
-                            ['media_player'].keys() if 'entities' in (
-                                hass.data[DATA_ALEXAMEDIA]
-                                ['accounts']
-                                [email])
-                            else [])
+        existing_serials = _existing_serials()
         existing_entities = (hass.data[DATA_ALEXAMEDIA]
                              ['accounts']
                              [email]
@@ -655,15 +676,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                         if isinstance(message_obj.json_payload, dict) and
                         'payload' in message_obj.json_payload
                         else None)
-        existing_serials = (hass.data[DATA_ALEXAMEDIA]
-                            ['accounts']
-                            [email]
-                            ['entities']
-                            ['media_player'].keys() if 'entities' in (
-                                hass.data[DATA_ALEXAMEDIA]
-                                ['accounts']
-                                [email])
-                            else [])
+        existing_serials = _existing_serials()
         if 'websocket_commands' not in (hass.data[DATA_ALEXAMEDIA]['accounts']
                                         [email]):
             (hass.data[DATA_ALEXAMEDIA]['accounts']
@@ -678,6 +691,10 @@ async def setup_alexa(hass, config_entry, login_obj):
             serial = None
             if command not in seen_commands:
                 seen_commands[command] = time.time()
+                _LOGGER.debug(
+                    "Adding %s to seen_commands: %s",
+                    command,
+                    seen_commands)
             if ('dopplerId' in json_payload and
                     'deviceSerialNumber' in json_payload['dopplerId']):
                 serial = (json_payload['dopplerId']['deviceSerialNumber'])
@@ -698,7 +715,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                 hass.bus.async_fire(
                     f'{DOMAIN}_{hide_email(email)}'[0:32],
                     {'push_activity': json_payload})
-            elif command in ('PUSH_AUDIO_PLAYER_STATE', 'PUSH_MEDIA_CHANGE'):
+            elif command in ('PUSH_AUDIO_PLAYER_STATE', 'PUSH_MEDIA_CHANGE',
+                             'PUSH_MEDIA_PROGRESS_CHANGE'):
                 # Player update/ Push_media from tune_in
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player: %s",
@@ -714,7 +732,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                     hass.bus.async_fire(
                         f'{DOMAIN}_{hide_email(email)}'[0:32],
                         {'player_state': json_payload})
-            elif command == 'PUSH_DOPPLER_CONNECTION_CHANGE':
+            elif command in ('PUSH_DOPPLER_CONNECTION_CHANGE',
+                             'PUSH_EQUALIZER_STATE_CHANGE'):
                 # Player availability update
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player availability %s",

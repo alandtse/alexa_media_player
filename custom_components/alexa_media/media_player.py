@@ -216,7 +216,7 @@ class AlexaClient(MediaPlayerDevice):
         if not event_serial:
             return
         self._available = True
-        await self.async_update()
+        self.async_schedule_update_ha_state()
         if 'last_called_change' in event.data:
             if (event_serial == self.device_serial_number or
                 any(item['serialNumber'] ==

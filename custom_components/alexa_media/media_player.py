@@ -176,7 +176,7 @@ class AlexaClient(MediaPlayerDevice):
         is self.update will pull data from Amazon, while schedule_update
         assumes the MediaClient state is already updated.
         """
-        async def _refresh_if_no_audiopush():
+        async def _refresh_if_no_audiopush(already_refreshed=False):
             email = self._login.email
             seen_commands = ((self.hass.data[DATA_ALEXAMEDIA]['accounts']
                               [email]['websocket_commands'].keys()
@@ -275,7 +275,7 @@ class AlexaClient(MediaPlayerDevice):
                                        == "ONLINE")
                     if (self.hass and self.async_schedule_update_ha_state):
                         self.async_schedule_update_ha_state()
-                await _refresh_if_no_audiopush()
+                await _refresh_if_no_audiopush(already_refreshed)
         if 'queue_state' in event.data:
             queue_state = event.data['queue_state']
             if event_serial == self.device_serial_number:
@@ -295,7 +295,7 @@ class AlexaClient(MediaPlayerDevice):
                                   self.name,
                                   self._shuffle,
                                   queue_state['playBackOrder'])
-                await _refresh_if_no_audiopush()
+                await _refresh_if_no_audiopush(already_refreshed)
 
     async def _clear_media_details(self):
         """Set all Media Items to None."""

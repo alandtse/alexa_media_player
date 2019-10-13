@@ -676,7 +676,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                         if isinstance(message_obj.json_payload, dict) and
                         'payload' in message_obj.json_payload
                         else None)
-        existing_serials = existing_serials = _existing_serials()
+        existing_serials = _existing_serials()
         if 'websocket_commands' not in (hass.data[DATA_ALEXAMEDIA]['accounts']
                                         [email]):
             (hass.data[DATA_ALEXAMEDIA]['accounts']

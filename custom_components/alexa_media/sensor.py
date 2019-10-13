@@ -11,7 +11,7 @@ import datetime
 import logging
 from typing import List, Text  # noqa pylint: disable=unused-import
 
-from homeassistant.const import DEVICE_CLASS_TIMESTAMP
+from homeassistant.const import DEVICE_CLASS_TIMESTAMP, STATE_UNKNOWN
 from homeassistant.exceptions import NoEntitySpecifiedError
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
@@ -235,7 +235,7 @@ class AlexaMediaSensor(Entity):
     def state(self):
         """Return the state of the sensor."""
         return self._next[self._sensor_property].replace(
-            tzinfo=LOCAL_TIMEZONE) if self._next else None
+            tzinfo=LOCAL_TIMEZONE) if self._next else STATE_UNKNOWN
 
     @property
     def unit_of_measurement(self):
@@ -342,9 +342,11 @@ class TimerSensor(AlexaMediaSensor):
     @property
     def state(self) -> datetime.datetime:
         """Return the state of the sensor."""
-        return dt.as_local(dt.utc_from_timestamp(
-            dt.utcnow().timestamp() +
-            self._next[self._sensor_property]/1000)) if self._next else None
+        return (
+            dt.as_local(dt.utc_from_timestamp(
+                dt.utcnow().timestamp() +
+                self._next[self._sensor_property]/1000))
+            if self._next else STATE_UNKNOWN)
 
     @property
     def paused(self) -> bool:
@@ -377,7 +379,7 @@ class ReminderSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return dt.as_local(datetime.datetime.fromtimestamp(
             self._next[self._sensor_property]/1000,
-            tz=LOCAL_TIMEZONE)) if self._next else None
+            tz=LOCAL_TIMEZONE)) if self._next else STATE_UNKNOWN
 
     @property
     def reminder(self):

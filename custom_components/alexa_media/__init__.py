@@ -702,7 +702,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                 hass.bus.async_fire(
                     f'{DOMAIN}_{hide_email(email)}'[0:32],
                     {'push_activity': json_payload})
-            elif command in ('PUSH_AUDIO_PLAYER_STATE', 'PUSH_MEDIA_CHANGE'):
+            elif command in ('PUSH_AUDIO_PLAYER_STATE', 'PUSH_MEDIA_CHANGE',
+                             'PUSH_MEDIA_PROGRESS_CHANGE'):
                 # Player update/ Push_media from tune_in
                 if (serial and serial in existing_serials):
                     _LOGGER.debug("Updating media_player: %s",

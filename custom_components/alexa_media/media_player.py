@@ -541,12 +541,21 @@ class AlexaClient(MediaPlayerDevice):
                   ['devices']
                   ['media_player']
                   [self.unique_id])
+        seen_commands = ((self.hass.data[DATA_ALEXAMEDIA]['accounts']
+                          [email]['websocket_commands'].keys()
+                          if 'websocket_commands' in (
+                                self.hass.data[DATA_ALEXAMEDIA]
+                                ['accounts']
+                                [email]) else None))
         await self.refresh(device,  # pylint: disable=unexpected-keyword-arg
                            no_throttle=True)
         if (self.state in [STATE_PLAYING] and
                 #  only enable polling if websocket not connected
                 (not self.hass.data[DATA_ALEXAMEDIA]
-                 ['accounts'][email]['websocket'])):
+                 ['accounts'][email]['websocket'] or
+                 # or if no PUSH_AUDIO_PLAYER_STATE
+                 not seen_commands or
+                 'PUSH_AUDIO_PLAYER_STATE' not in seen_commands)):
             self._should_poll = False  # disable polling since manual update
             if(self._last_update == 0 or util.dt.as_timestamp(util.utcnow()) -
                util.dt.as_timestamp(self._last_update)

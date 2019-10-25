@@ -11,7 +11,7 @@ import datetime
 import logging
 from typing import List, Text  # noqa pylint: disable=unused-import
 
-from homeassistant.const import DEVICE_CLASS_TIMESTAMP
+from homeassistant.const import DEVICE_CLASS_TIMESTAMP, STATE_UNAVAILABLE
 from homeassistant.exceptions import NoEntitySpecifiedError
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
@@ -173,7 +173,14 @@ class AlexaMediaSensor(Entity):
             return value
         naive_time = dt.parse_datetime(value[1][self._sensor_property])
         timezone = pytz.timezone(self._client._timezone)
-        value[1][self._sensor_property] = timezone.localize(naive_time)
+        if timezone:
+            value[1][self._sensor_property] = timezone.localize(naive_time)
+        else:
+            _LOGGER.warning(
+                "%s does not have a timezone set. "
+                "Returned times may be wrong. "
+                "Please set the timezone in the Alexa app.",
+                self._client.name)
         return value
 
     async def async_added_to_hass(self):
@@ -235,7 +242,7 @@ class AlexaMediaSensor(Entity):
     def state(self):
         """Return the state of the sensor."""
         return self._next[self._sensor_property].replace(
-            tzinfo=LOCAL_TIMEZONE) if self._next else None
+            tzinfo=LOCAL_TIMEZONE).isoformat() if self._next else STATE_UNAVAILABLE
 
     @property
     def unit_of_measurement(self):
@@ -342,9 +349,11 @@ class TimerSensor(AlexaMediaSensor):
     @property
     def state(self) -> datetime.datetime:
         """Return the state of the sensor."""
-        return dt.as_local(dt.utc_from_timestamp(
-            dt.utcnow().timestamp() +
-            self._next[self._sensor_property]/1000)) if self._next else None
+        return (
+            dt.as_local(dt.utc_from_timestamp(
+                dt.utcnow().timestamp() +
+                self._next[self._sensor_property]/1000)).isoformat()
+            if self._next else STATE_UNAVAILABLE)
 
     @property
     def paused(self) -> bool:
@@ -377,7 +386,7 @@ class ReminderSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return dt.as_local(datetime.datetime.fromtimestamp(
             self._next[self._sensor_property]/1000,
-            tz=LOCAL_TIMEZONE)) if self._next else None
+            tz=LOCAL_TIMEZONE)).isoformat() if self._next else STATE_UNAVAILABLE
 
     @property
     def reminder(self):

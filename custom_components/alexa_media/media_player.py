@@ -840,6 +840,10 @@ class AlexaClient(MediaPlayerDevice):
                                                **kwargs)
         elif media_type == "routine":
             await self.alexa_api.run_routine(media_id)
+        elif media_type == "sound":
+            await self.alexa_api.play_sound(
+                media_id,
+                customer_id=self._customer_id, **kwargs)
         else:
             await self.alexa_api.play_music(
                 media_type, media_id,

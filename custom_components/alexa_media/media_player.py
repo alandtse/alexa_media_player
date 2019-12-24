@@ -188,7 +188,7 @@ class AlexaClient(MediaPlayerDevice):
                                     [email]) else None))
             if (not already_refreshed and seen_commands and
                     ('PUSH_AUDIO_PLAYER_STATE' not in seen_commands
-                     or 'PUSH_MEDIA_CHANGE' not in seen_commands)):
+                     and 'PUSH_MEDIA_CHANGE' not in seen_commands)):
                 # force refresh if player_state update not found, see #397
                 _LOGGER.debug(
                     "%s: No PUSH_AUDIO_PLAYER_STATE in %s; forcing refresh",

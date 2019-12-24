@@ -149,7 +149,7 @@ class AlexaClient(MediaPlayerDevice):
         await self.refresh(device)
 
     async def async_added_to_hass(self):
-        """Store register state change callback."""
+        """Perform tasks after loading."""
         # Register event handler on bus
         self._listener = self.hass.bus.async_listen(
             f'{ALEXA_DOMAIN}_{hide_email(self._login.email)}'[0:32],
@@ -510,7 +510,7 @@ class AlexaClient(MediaPlayerDevice):
 
     @property
     def device(self):
-        """Return the device, if any."""
+        """Return the device json, if any."""
         return self._device
 
     @property

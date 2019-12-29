@@ -312,7 +312,8 @@ class AlexaClient(MediaPlayerDevice):
         self._media_artist = None
         self._media_player_state = None
         self._media_is_muted = None
-        self._media_vol_level = None
+        # volume is also used for announce/tts so state should remain
+        # self._media_vol_level = None
 
     async def _set_authentication_details(self, auth):
         """Set Authentication based off auth."""
@@ -396,7 +397,10 @@ class AlexaClient(MediaPlayerDevice):
                     session["lemurVolume"] = None
                     session["volume"] = (
                         parent_session["lemurVolume"]["memberVolume"]
-                        [self.device_serial_number])
+                        [self.device_serial_number] if
+                        parent_session["lemurVolume"]
+                        and "memberVolume" in parent_session["lemurVolume"]
+                        else session["volume"])
                     session = {"playerInfo": session}
                 else:
                     self._playing_parent = None
@@ -463,24 +467,36 @@ class AlexaClient(MediaPlayerDevice):
                     self._media_vol_level = (
                         self._session['volume']
                         ['volume'] / 100
-                        if(self._session['volume'] is not None
-                        and 'volume' in
-                        self._session['volume'])
-                        else None)
+                        if (
+                            self._session['volume'] is not None
+                            and 'volume' in
+                            self._session['volume'])
+                        else self._media_vol_level)
                 else:
                     self._media_is_muted = (
                         self._session['lemurVolume']['compositeVolume']['muted']
-                        if (self._session['lemurVolume']['compositeVolume'] is not None
+                        if (self._session['lemurVolume'] and
+                            'compositeVolume' in self._session['lemurVolume']
+                            and
+                            self._session['lemurVolume']['compositeVolume']
                             and 'muted' in
                             self._session['lemurVolume']['compositeVolume'])
                         else None)
                     self._media_vol_level = (
                         self._session['lemurVolume']['compositeVolume']
                         ['volume'] / 100
-                        if (self._session['lemurVolume']['compositeVolume']['volume'] is not None
-                        and 'volume' in
-                        self._session['lemurVolume']['compositeVolume'])
-                        else None)
+                        if (
+                            self._session['lemurVolume'] and
+                            'compositeVolume' in self._session['lemurVolume']
+                            and
+                            'volume' in
+                            self._session['lemurVolume']['compositeVolume']
+                            and
+                            (self._session['lemurVolume']['compositeVolume']
+                             ['volume']
+                             )
+                        )
+                        else self._media_vol_level)
                     if not self.hass:
                         return
                     asyncio.gather(
@@ -493,13 +509,20 @@ class AlexaClient(MediaPlayerDevice):
                                 ['media_player'][x].async_update()),
                             filter(
                                 lambda x: (
-                                    x in self._cluster_members and x in (
+                                    x in (
                                         self.hass.data[DATA_ALEXAMEDIA]
                                         ['accounts']
                                         [self._login.email]
                                         ['entities']
-                                        ['media_player'])),
-                                self._session['lemurVolume']['memberVolume'].keys()
+                                        ['media_player'])
+                                    and
+                                    self.hass.data[DATA_ALEXAMEDIA]
+                                    ['accounts']
+                                    [self._login.email]
+                                    ['entities']
+                                    ['media_player'][x].available
+                                    ),
+                                self._cluster_members
                                 )
                             )
                     )

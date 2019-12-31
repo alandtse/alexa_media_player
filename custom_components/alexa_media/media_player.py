@@ -529,6 +529,7 @@ class AlexaClient(MediaPlayerDevice):
             return STATE_IDLE
         return STATE_STANDBY
 
+    @_catch_login_errors
     async def async_update(self):
         """Get the latest details on a media player.
 

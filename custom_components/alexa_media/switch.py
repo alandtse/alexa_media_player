@@ -224,6 +224,7 @@ class AlexaMediaSwitch(SwitchDevice):
         return not (self.hass.data[DATA_ALEXAMEDIA]
                     ['accounts'][self._account]['websocket'])
 
+    @_catch_login_errors
     async def async_update(self):
         """Update state."""
         try:

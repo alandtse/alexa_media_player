@@ -415,6 +415,10 @@ class AlexaClient(MediaPlayerDevice):
                         lambda x: (
                             self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                                 self._login.email
+                            ]["entities"]["media_player"].get(x)
+                            and
+                            self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                self._login.email
                             ]["entities"]["media_player"][x].state
                             == STATE_PLAYING
                         ),

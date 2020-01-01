@@ -13,100 +13,99 @@ from typing import List  # noqa pylint: disable=unused-import
 from homeassistant.components.switch import SwitchDevice
 from homeassistant.exceptions import NoEntitySpecifiedError
 
-from . import (CONF_EMAIL, CONF_EXCLUDE_DEVICES, CONF_INCLUDE_DEVICES,
-               DATA_ALEXAMEDIA)
-from . import DOMAIN as ALEXA_DOMAIN
-from . import (hide_email, hide_serial)
+from . import (
+    CONF_EMAIL,
+    CONF_EXCLUDE_DEVICES,
+    CONF_INCLUDE_DEVICES,
+    DATA_ALEXAMEDIA,
+    DOMAIN as ALEXA_DOMAIN,
+    hide_email,
+    hide_serial,
+)
 from .helpers import _catch_login_errors, add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @retry_async(limit=5, delay=5, catch_exceptions=True)
-async def async_setup_platform(hass, config, add_devices_callback,
-                               discovery_info=None):
+async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa switch platform."""
     devices = []  # type: List[DNDSwitch]
     SWITCH_TYPES = [
-        ('dnd', DNDSwitch),
-        ('shuffle', ShuffleSwitch),
-        ('repeat', RepeatSwitch)
+        ("dnd", DNDSwitch),
+        ("shuffle", ShuffleSwitch),
+        ("repeat", RepeatSwitch),
     ]
     account = config[CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
-    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
-    _LOGGER.debug("%s: Loading switches",
-                  hide_email(account))
-    if 'switch' not in account_dict['entities']:
-        (hass.data[DATA_ALEXAMEDIA]
-         ['accounts']
-         [account]
-         ['entities']
-         ['switch']) = {}
-    for key, _ in account_dict['devices']['media_player'].items():
-        if key not in account_dict['entities']['media_player']:
-            _LOGGER.debug("%s: Media player %s not loaded yet; delaying load",
-                          hide_email(account),
-                          hide_serial(key))
+    account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    _LOGGER.debug("%s: Loading switches", hide_email(account))
+    if "switch" not in account_dict["entities"]:
+        (hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]) = {}
+    for key, _ in account_dict["devices"]["media_player"].items():
+        if key not in account_dict["entities"]["media_player"]:
+            _LOGGER.debug(
+                "%s: Media player %s not loaded yet; delaying load",
+                hide_email(account),
+                hide_serial(key),
+            )
             return False
-        if key not in (hass.data[DATA_ALEXAMEDIA]
-                       ['accounts']
-                       [account]
-                       ['entities']
-                       ['switch']):
-            (hass.data[DATA_ALEXAMEDIA]
-             ['accounts']
-             [account]
-             ['entities']
-             ['switch'][key]) = {}
+        if key not in (
+            hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
+        ):
+            (
+                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"][
+                    key
+                ]
+            ) = {}
             for (switch_key, class_) in SWITCH_TYPES:
-                alexa_client = class_(account_dict['entities']
-                                      ['media_player']
-                                      [key],
-                                      account)  # type: AlexaMediaSwitch
-                _LOGGER.debug("%s: Found %s %s switch with status: %s",
-                              hide_email(account),
-                              hide_serial(key),
-                              switch_key,
-                              alexa_client.is_on)
+                alexa_client = class_(
+                    account_dict["entities"]["media_player"][key], account
+                )  # type: AlexaMediaSwitch
+                _LOGGER.debug(
+                    "%s: Found %s %s switch with status: %s",
+                    hide_email(account),
+                    hide_serial(key),
+                    switch_key,
+                    alexa_client.is_on,
+                )
                 devices.append(alexa_client)
-                (hass.data[DATA_ALEXAMEDIA]
-                 ['accounts']
-                 [account]
-                 ['entities']
-                 ['switch']
-                 [key]
-                 [switch_key]) = alexa_client
+                (
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"][
+                        "switch"
+                    ][key][switch_key]
+                ) = alexa_client
         else:
-            for alexa_client in (hass.data[DATA_ALEXAMEDIA]
-                                          ['accounts']
-                                          [account]
-                                          ['entities']
-                                          ['switch']
-                                          [key].values()):
-                _LOGGER.debug("%s: Skipping already added device: %s",
-                              hide_email(account),
-                              alexa_client)
-    return await add_devices(hide_email(account),
-                             devices, add_devices_callback,
-                             include_filter, exclude_filter)
+            for alexa_client in hass.data[DATA_ALEXAMEDIA]["accounts"][account][
+                "entities"
+            ]["switch"][key].values():
+                _LOGGER.debug(
+                    "%s: Skipping already added device: %s",
+                    hide_email(account),
+                    alexa_client,
+                )
+    return await add_devices(
+        hide_email(account),
+        devices,
+        add_devices_callback,
+        include_filter,
+        exclude_filter,
+    )
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa switch platform by config_entry."""
     return await async_setup_platform(
-        hass,
-        config_entry.data,
-        async_add_devices,
-        discovery_info=None)
+        hass, config_entry.data, async_add_devices, discovery_info=None
+    )
 
 
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     account = entry.data[CONF_EMAIL]
-    account_dict = hass.data[DATA_ALEXAMEDIA]['accounts'][account]
-    for key, switches in (account_dict['entities']['switch'].items()):
+    account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    for key, switches in account_dict["entities"]["switch"].items():
         for device in switches[key].values():
             await device.async_remove()
     return True
@@ -115,12 +114,7 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaMediaSwitch(SwitchDevice):
     """Representation of a Alexa Media switch."""
 
-    def __init__(self,
-                 client,
-                 switch_property,
-                 switch_function,
-                 account,
-                 name="Alexa"):
+    def __init__(self, client, switch_property, switch_function, account, name="Alexa"):
         """Initialize the Alexa Switch device."""
         # Class info
         self._client = client
@@ -140,8 +134,8 @@ class AlexaMediaSwitch(SwitchDevice):
             pass
         # Register event handler on bus
         self._listener = self.hass.bus.async_listen(
-            f'{ALEXA_DOMAIN}_{hide_email(self._login.email)}'[0:32],
-            self._handle_event)
+            f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32], self._handle_event
+        )
 
     async def async_will_remove_from_hass(self):
         """Prepare to remove entity."""
@@ -159,10 +153,9 @@ class AlexaMediaSwitch(SwitchDevice):
                 return
         except AttributeError:
             pass
-        if 'queue_state' in event.data:
-            queue_state = event.data['queue_state']
-            if (queue_state['dopplerId']
-                    ['deviceSerialNumber'] == self._client.unique_id):
+        if "queue_state" in event.data:
+            queue_state = event.data["queue_state"]
+            if queue_state["dopplerId"]["deviceSerialNumber"] == self._client.unique_id:
                 self._state = getattr(self._client, self._switch_property)
                 self.async_schedule_update_ha_state()
 
@@ -177,17 +170,20 @@ class AlexaMediaSwitch(SwitchDevice):
         # if function returns  success, make immediate state change
         if success:
             setattr(self._client, self._switch_property, state)
-            _LOGGER.debug("Switch set to %s based on %s",
-                          getattr(self._client,
-                                  self._switch_property),
-                          state)
+            _LOGGER.debug(
+                "Switch set to %s based on %s",
+                getattr(self._client, self._switch_property),
+                state,
+            )
             self.async_schedule_update_ha_state()
         elif self.should_poll:
             # if we need to poll, refresh media_client
-            _LOGGER.debug("Requesting update of %s due to %s switch to %s",
-                          self._client,
-                          self._name,
-                          state)
+            _LOGGER.debug(
+                "Requesting update of %s due to %s switch to %s",
+                self._client,
+                self._name,
+                state,
+            )
             await self._client.async_update()
 
     @property
@@ -211,7 +207,7 @@ class AlexaMediaSwitch(SwitchDevice):
     @property
     def unique_id(self):
         """Return the unique ID."""
-        return self._client.unique_id + '_' + self._name
+        return self._client.unique_id + "_" + self._name
 
     @property
     def name(self):
@@ -221,8 +217,9 @@ class AlexaMediaSwitch(SwitchDevice):
     @property
     def should_poll(self):
         """Return the polling state."""
-        return not (self.hass.data[DATA_ALEXAMEDIA]
-                    ['accounts'][self._account]['websocket'])
+        return not (
+            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["websocket"]
+        )
 
     @_catch_login_errors
     async def async_update(self):
@@ -241,10 +238,8 @@ class AlexaMediaSwitch(SwitchDevice):
     def device_info(self):
         """Return device_info for device registry."""
         return {
-            'identifiers': {
-                (ALEXA_DOMAIN, self._client.unique_id)
-            },
-            'via_device': (ALEXA_DOMAIN, self._client.unique_id),
+            "identifiers": {(ALEXA_DOMAIN, self._client.unique_id)},
+            "via_device": (ALEXA_DOMAIN, self._client.unique_id),
         }
 
     @property
@@ -264,10 +259,11 @@ class DNDSwitch(AlexaMediaSwitch):
         # Class info
         super().__init__(
             client,
-            'dnd_state',
+            "dnd_state",
             client.alexa_api.set_dnd_state,
             account,
-            "do not disturb")
+            "do not disturb",
+        )
 
     @property
     def icon(self):
@@ -282,11 +278,8 @@ class ShuffleSwitch(AlexaMediaSwitch):
         """Initialize the Alexa Switch."""
         # Class info
         super().__init__(
-            client,
-            'shuffle',
-            client.alexa_api.shuffle,
-            account,
-            "shuffle")
+            client, "shuffle", client.alexa_api.shuffle, account, "shuffle"
+        )
 
     @property
     def icon(self):
@@ -301,11 +294,8 @@ class RepeatSwitch(AlexaMediaSwitch):
         """Initialize the Alexa Switch."""
         # Class info
         super().__init__(
-            client,
-            'repeat_state',
-            client.alexa_api.repeat,
-            account,
-            "repeat")
+            client, "repeat_state", client.alexa_api.repeat, account, "repeat"
+        )
 
     @property
     def icon(self):

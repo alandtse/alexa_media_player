@@ -576,8 +576,7 @@ class AlexaClient(MediaPlayerDevice):
                         )
                         else self._media_vol_level
                     )
-                    if not self.hass:
-                        return
+                if self.hass and self._session.get("isPlayingInLemur"):
                     asyncio.gather(
                         *map(
                             lambda x: (

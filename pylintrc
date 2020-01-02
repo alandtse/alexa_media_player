@@ -1,0 +1,17 @@
+[MASTER]
+
+[MESSAGES CONTROL]
+# Reasons disabled:
+# format - handled by black
+# unnecessary-pass - This can hurt readability
+# too-many-instance-attributes - This should be refactored later
+# duplicate-code - This should be refactored later as architecture has redundant Home-assistant devices.
+# too-many-arguments
+disable=
+  format,unnecessary-pass,too-many-instance-attributes,duplicate-code,too-many-arguments,too-many-boolean-expressions
+
+[REPORTS]
+reports=no
+
+[FORMAT]
+expected-line-ending-format=LF

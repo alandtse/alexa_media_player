@@ -20,19 +20,23 @@ from . import DATA_ALEXAMEDIA
 _LOGGER = logging.getLogger(__name__)
 
 
-async def add_devices(account: Text,
-                      devices: List[EntityComponent],
-                      add_devices_callback: Callable,
-                      include_filter: List[Text] = [],
-                      exclude_filter: List[Text] = []) -> bool:
+async def add_devices(
+    account: Text,
+    devices: List[EntityComponent],
+    add_devices_callback: Callable,
+    include_filter: List[Text] = [],
+    exclude_filter: List[Text] = [],
+) -> bool:
     """Add devices using add_devices_callback."""
     new_devices = []
     for device in devices:
-        if (include_filter and device.name not in include_filter
-                or exclude_filter and device.name in exclude_filter):
-            _LOGGER.debug("%s: Excluding device: %s",
-                          account,
-                          device)
+        if (
+            include_filter
+            and device.name not in include_filter
+            or exclude_filter
+            and device.name in exclude_filter
+        ):
+            _LOGGER.debug("%s: Excluding device: %s", account, device)
             continue
         new_devices.append(device)
     devices = new_devices
@@ -44,30 +48,23 @@ async def add_devices(account: Text,
         except HomeAssistantError as exception_:
             message = exception_.message  # type: str
             if message.startswith("Entity id already exists"):
-                _LOGGER.debug("%s: Device already added: %s",
-                              account,
-                              message)
+                _LOGGER.debug("%s: Device already added: %s", account, message)
             else:
-                _LOGGER.debug("%s: Unable to add devices: %s : %s",
-                              account,
-                              devices,
-                              message)
+                _LOGGER.debug(
+                    "%s: Unable to add devices: %s : %s", account, devices, message
+                )
         except BaseException as ex:
-            template = ("An exception of type {0} occurred."
-                        " Arguments:\n{1!r}")
+            template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.debug("%s: Unable to add devices: %s",
-                          account,
-                          message)
+            _LOGGER.debug("%s: Unable to add devices: %s", account, message)
     else:
         return True
     return False
 
 
-def retry_async(limit: int = 5,
-                delay: float = 1,
-                catch_exceptions: bool = True
-                ) -> Callable:
+def retry_async(
+    limit: int = 5, delay: float = 1, catch_exceptions: bool = True
+) -> Callable:
     """Wrap function with retry logic.
 
     The function will retry until true or the limit is reached. It will delay
@@ -87,22 +84,25 @@ def retry_async(limit: int = 5,
         Wrapped function.
 
     """
+
     def wrap(func) -> Callable:
         import functools
         import asyncio
+
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
             _LOGGER.debug(
                 "%s.%s: Trying with limit %s delay %s catch_exceptions %s",
-                func.__module__[func.__module__.find('.')+1:],
+                func.__module__[func.__module__.find(".") + 1 :],
                 func.__name__,
                 limit,
                 delay,
-                catch_exceptions)
+                catch_exceptions,
+            )
             retries: int = 0
             result: bool = False
             next_try: int = 0
-            while (not result and retries < limit):
+            while not result and retries < limit:
                 if retries != 0:
                     next_try = delay * 2 ** retries
                     await asyncio.sleep(next_try)
@@ -112,75 +112,75 @@ def retry_async(limit: int = 5,
                 except Exception as ex:  # pylint: disable=broad-except
                     if not catch_exceptions:
                         raise
-                    template = ("An exception of type {0} occurred."
-                                " Arguments:\n{1!r}")
+                    template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
                     message = template.format(type(ex).__name__, ex.args)
                     _LOGGER.debug(
                         "%s.%s: failure caught due to exception: %s",
-                        func.__module__[func.__module__.find('.')+1:],
+                        func.__module__[func.__module__.find(".") + 1 :],
                         func.__name__,
-                        message)
+                        message,
+                    )
                 _LOGGER.debug(
                     "%s.%s: Try: %s/%s after waiting %s seconds result: %s",
-                    func.__module__[func.__module__.find('.')+1:],
+                    func.__module__[func.__module__.find(".") + 1 :],
                     func.__name__,
                     retries,
                     limit,
                     next_try,
-                    result
-                    )
+                    result,
+                )
             return result
+
         return wrapper
+
     return wrap
 
 
 def _catch_login_errors(func) -> Callable:
     """Detect AlexapyLoginError and attempt relogin."""
     import functools
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
         try:
             result = await func(*args, **kwargs)
         except AlexapyLoginError as ex:  # pylint: disable=broad-except
-            template = ("An exception of type {0} occurred."
-                        " Arguments:\n{1!r}")
+            template = "An exception of type {0} occurred." " Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ex.args)
-            _LOGGER.debug("%s.%s: detected bad login: %s",
-                          func.__module__[func.__module__.find('.')+1:],
-                          func.__name__,
-                          message)
+            _LOGGER.debug(
+                "%s.%s: detected bad login: %s",
+                func.__module__[func.__module__.find(".") + 1 :],
+                func.__name__,
+                message,
+            )
             instance = args[0]
-            if hasattr(instance, '_login'):
+            if hasattr(instance, "_login"):
                 login = instance._login
                 email = login.email
                 hass = instance.hass if instance.hass else None
-                if (hass and (
-                    'configurator' not in (hass.data[DATA_ALEXAMEDIA]
-                                           ['accounts'][email])
-                    or not (hass.data[DATA_ALEXAMEDIA]['accounts'][email]
-                        ['configurator']))):
-                    config_entry = (
-                        hass.data[DATA_ALEXAMEDIA]
-                        ['accounts']
-                        [email]
-                        ['config_entry'])
-                    callback = (
-                        hass.data[DATA_ALEXAMEDIA]
-                        ['accounts']
-                        [email]
-                        ['setup_platform_callback'])
-                    test_login_status = (
-                        hass.data[DATA_ALEXAMEDIA]
-                        ['accounts']
-                        [email]
-                        ['test_login_status'])
+                if hass and (
+                    "configurator"
+                    not in (hass.data[DATA_ALEXAMEDIA]["accounts"][email])
+                    or not (
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["configurator"]
+                    )
+                ):
+                    config_entry = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "config_entry"
+                    ]
+                    callback = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "setup_platform_callback"
+                    ]
+                    test_login_status = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "test_login_status"
+                    ]
                     _LOGGER.debug(
                         "%s: Alexa API disconnected; attempting to relogin",
-                        hide_email(email))
+                        hide_email(email),
+                    )
                     await login.login_with_cookie()
-                    await test_login_status(hass,
-                                            config_entry, login,
-                                            callback)
+                    await test_login_status(hass, config_entry, login, callback)
             return None
         return result
+
     return wrapper

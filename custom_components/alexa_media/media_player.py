@@ -450,7 +450,9 @@ class AlexaClient(MediaPlayerDevice):
                         parent_session["lemurVolume"]["memberVolume"][
                             self.device_serial_number
                         ]
-                        if parent_session.get("lemurVolume", {}).get("memberVolume")
+                        if parent_session.get("lemurVolume", {})
+                        .get("memberVolume", {})
+                        .get(self.device_serial_number)
                         else session["volume"]
                     )
                     session = {"playerInfo": session}

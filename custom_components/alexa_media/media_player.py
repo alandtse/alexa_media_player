@@ -450,7 +450,8 @@ class AlexaClient(MediaPlayerDevice):
                         parent_session["lemurVolume"]["memberVolume"][
                             self.device_serial_number
                         ]
-                        if parent_session.get("lemurVolume", {})
+                        if parent_session.get("lemurVolume")
+                        and parent_session.get("lemurVolume", {})
                         .get("memberVolume", {})
                         .get(self.device_serial_number)
                         else session["volume"]
@@ -495,10 +496,15 @@ class AlexaClient(MediaPlayerDevice):
                     "mediaLength"
                 )
                 if not self._session.get("lemurVolume"):
-                    self._media_is_muted = self._session.get("volume", {}).get("muted")
+                    self._media_is_muted = (
+                        self._session.get("volume", {}).get("muted")
+                        if self._session.get("volume")
+                        else self._media_is_muted
+                    )
                     self._media_vol_level = (
                         self._session["volume"]["volume"] / 100
-                        if self._session.get("volume", {}).get("volume")
+                        if self._session.get("volume")
+                        and self._session.get("volume", {}).get("volume")
                         else self._media_vol_level
                     )
                 else:

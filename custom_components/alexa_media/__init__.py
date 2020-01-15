@@ -73,9 +73,9 @@ CONFIG_SCHEMA = vol.Schema(
             {
                 vol.Optional(CONF_ACCOUNTS): vol.All(
                     cv.ensure_list, [ACCOUNT_CONFIG_SCHEMA]
-                ),
+                )
             }
-        ),
+        )
     },
     extra=vol.ALLOW_EXTRA,
 )

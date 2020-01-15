@@ -216,14 +216,17 @@ class AlexaClient(MediaPlayerDevice):
             if (
                 not already_refreshed
                 and seen_commands
-                and (
-                    "PUSH_AUDIO_PLAYER_STATE" not in seen_commands
-                    and "PUSH_MEDIA_CHANGE" not in seen_commands
+                and not (
+                    "PUSH_AUDIO_PLAYER_STATE" in seen_commands
+                    or "PUSH_MEDIA_CHANGE" in seen_commands
+                    or "PUSH_MEDIA_PROGRESS_CHANGE" in seen_commands
                 )
             ):
                 # force refresh if player_state update not found, see #397
                 _LOGGER.debug(
-                    "%s: No PUSH_AUDIO_PLAYER_STATE in %s; forcing refresh",
+                    "%s: No PUSH_AUDIO_PLAYER_STATE/"
+                    "PUSH_MEDIA_CHANGE/PUSH_MEDIA_PROGRESS_CHANGE in %s;"
+                    "forcing refresh",
                     hide_email(email),
                     seen_commands,
                 )
@@ -715,16 +718,21 @@ class AlexaClient(MediaPlayerDevice):
         await self.refresh(
             device, no_throttle=True  # pylint: disable=unexpected-keyword-arg
         )
+        websocket_enabled = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+            "websocket"
+        )
         if (
             self.state in [STATE_PLAYING]
             and
             #  only enable polling if websocket not connected
             (
-                not self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]
-                or
-                # or if no PUSH_AUDIO_PLAYER_STATE
-                not seen_commands
-                or "PUSH_AUDIO_PLAYER_STATE" not in seen_commands
+                not websocket_enabled
+                or not seen_commands
+                or not (
+                    "PUSH_AUDIO_PLAYER_STATE" in seen_commands
+                    or "PUSH_MEDIA_CHANGE" in seen_commands
+                    or "PUSH_MEDIA_PROGRESS_CHANGE" in seen_commands
+                )
             )
         ):
             self._should_poll = False  # disable polling since manual update
@@ -746,7 +754,7 @@ class AlexaClient(MediaPlayerDevice):
                 )
         elif self._should_poll:  # Not playing, one last poll
             self._should_poll = False
-            if not (self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]):
+            if not websocket_enabled:
                 _LOGGER.debug(
                     "Disabling polling and scheduling last update in"
                     " 300 seconds for %s",

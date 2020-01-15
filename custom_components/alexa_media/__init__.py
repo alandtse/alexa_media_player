@@ -508,6 +508,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                 for b_state in bluetooth["bluetoothStates"]:
                     if device["serialNumber"] == b_state["deviceSerialNumber"]:
                         device["bluetooth_state"] = b_state
+                        break
 
             if "devicePreferences" in preferences:
                 for dev in preferences["devicePreferences"]:
@@ -520,6 +521,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                             device["timeZoneId"],
                             hide_serial(device["serialNumber"]),
                         )
+                        break
 
             if "doNotDisturbDeviceStatusList" in dnd:
                 for dev in dnd["doNotDisturbDeviceStatusList"]:
@@ -530,6 +532,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                             device["dnd"],
                             hide_serial(device["serialNumber"]),
                         )
+                        break
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["auth_info"] = device[
                 "auth_info"
             ] = auth_info

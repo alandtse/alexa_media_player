@@ -321,7 +321,7 @@ class AlexaClient(MediaPlayerDevice):
                         player_state["audioPlayerState"],
                     )
                     # allow delay before trying to refresh to avoid http 400 errors
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(2)
                     await self.async_update()
                     already_refreshed = True
                 elif "mediaReferenceId" in player_state:
@@ -486,8 +486,7 @@ class AlexaClient(MediaPlayerDevice):
                     session = await self.alexa_api.get_state()
         await self._clear_media_details()
         # update the session if it exists
-        if session:
-            self._session = session
+        self._session = session if session else None
         if self._session and self._session.get("playerInfo"):
             self._session = self._session["playerInfo"]
             if self._session.get("transport"):

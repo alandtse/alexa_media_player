@@ -148,9 +148,7 @@ async def async_setup_entry(hass, config_entry):
         for email, _ in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
             await close_connections(hass, email)
 
-    if DATA_ALEXAMEDIA not in hass.data:
-        hass.data[DATA_ALEXAMEDIA] = {}
-        hass.data[DATA_ALEXAMEDIA]["accounts"] = {}
+    hass.data.setdefault(DATA_ALEXAMEDIA, {"accounts": {}})
     from alexapy import AlexaLogin, __version__ as alexapy_version
 
     _LOGGER.info(STARTUP)
@@ -160,22 +158,29 @@ async def async_setup_entry(hass, config_entry):
     email = account.get(CONF_EMAIL)
     password = account.get(CONF_PASSWORD)
     url = account.get(CONF_URL)
-    if email not in hass.data[DATA_ALEXAMEDIA]["accounts"]:
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email] = {}
-    if "login_obj" in hass.data[DATA_ALEXAMEDIA]["accounts"][email]:
-        login = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
-    else:
-        login = AlexaLogin(
-            url, email, password, hass.config.path, account.get(CONF_DEBUG)
+    hass.data[DATA_ALEXAMEDIA]["accounts"].setdefault(
+        email,
+        {
+            "config_entry": config_entry,
+            "setup_platform_callback": setup_platform_callback,
+            "test_login_status": test_login_status,
+            "devices": {"media_player": {}},
+            "entities": {"media_player": {}},
+            "excluded": {},
+            "new_devices": True,
+            "websocket_lastattempt": 0,
+            "websocketerror": 0,
+            "websocket_commands": {},
+            "websocket_activity": {"serials": {}, "refreshed": {}},
+            "websocket": None,
+            "auth_info": None,
+            "configurator": [],
+        },
         )
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]) = login
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["config_entry"]) = config_entry
-        (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["setup_platform_callback"]
-        ) = setup_platform_callback
-        (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["test_login_status"]
-        ) = test_login_status
+    login = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+        "login_obj",
+        AlexaLogin(url, email, password, hass.config.path, account.get(CONF_DEBUG)),
+    )
     await login.login_with_cookie()
     await test_login_status(hass, config_entry, login, setup_platform_callback)
     return True
@@ -324,8 +329,6 @@ async def request_configuration(hass, config_entry, login, setup_platform_callba
             submit_caption="Confirm",
             fields=[],
         )
-    if "configurator" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]:
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email] = {"configurator": []}
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["configurator"].append(config_id)
     if "error_message" in status and status["error_message"]:
         configurator.async_notify_errors(config_id, status["error_message"])
@@ -421,13 +424,17 @@ async def setup_alexa(hass, config_entry, login_obj):
         existing_entities = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "media_player"
         ].values()
-        if (
-            "websocket" in hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-            and hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]
-            and not (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"])
+        if hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("websocket") and not (
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
         ):
             return
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
+        auth_info = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("auth_info")
+        new_devices = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
+        devices = {}
+        bluetooth = {}
+        preferences = {}
+        dnd = {}
+        raw_notifications = {}
         try:
             auth_info = await AlexaAPI.get_authentication(login_obj)
             devices = await AlexaAPI.get_devices(login_obj)
@@ -454,6 +461,9 @@ async def setup_alexa(hass, config_entry, login_obj):
                 hass, config_entry, login_obj, setup_platform_callback
             )
             return
+        await process_notifications(login_obj, raw_notifications)
+        # Process last_called data to fire events
+        await update_last_called(login_obj)
 
         new_alexa_clients = []  # list of newly discovered device names
         exclude_filter = []
@@ -517,7 +527,9 @@ async def setup_alexa(hass, config_entry, login_obj):
                             device["dnd"],
                             hide_serial(device["serialNumber"]),
                         )
-            device["auth_info"] = auth_info
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["auth_info"] = device[
+                "auth_info"
+            ] = auth_info
             (
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
                     "media_player"
@@ -559,9 +571,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                         )
                     )
 
-        await process_notifications(login_obj, raw_notifications)
-        # Process last_called data to fire events
-        await update_last_called(login_obj)
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         async_call_later(
             hass,
             scan_interval,
@@ -728,6 +738,8 @@ async def setup_alexa(hass, config_entry, login_obj):
         This allows push notifications from Alexa to update last_called
         and media state.
         """
+        import time
+
         command = (
             message_obj.json_payload["command"]
             if isinstance(message_obj.json_payload, dict)
@@ -741,13 +753,10 @@ async def setup_alexa(hass, config_entry, login_obj):
             else None
         )
         existing_serials = _existing_serials()
-        if "websocket_commands" not in (hass.data[DATA_ALEXAMEDIA]["accounts"][email]):
-            (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket_commands"]) = {}
         seen_commands = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "websocket_commands"
         ]
         if command and json_payload:
-            import time
 
             _LOGGER.debug(
                 "%s: Received websocket command: %s : %s",
@@ -957,26 +966,8 @@ async def setup_alexa(hass, config_entry, login_obj):
         if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)
         else config.get(CONF_SCAN_INTERVAL)
     )
-    if "login_obj" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]:
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]) = login_obj
-    if "devices" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]:
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"]) = {
-            "media_player": {}
-        }
-    if "excluded" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]:
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"]) = {}
-    if "entities" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]:
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]) = {
-            "media_player": {}
-        }
-        (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
-        ) = True  # force initial update
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket_lastattempt"]) = 0
-        (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
-        ) = 0  # set errors to 0
-    (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]) = await ws_connect()
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = await ws_connect()
     await update_devices(login_obj, no_throttle=True)
     hass.services.async_register(
         DOMAIN,

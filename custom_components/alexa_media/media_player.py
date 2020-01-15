@@ -168,7 +168,7 @@ class AlexaClient(MediaPlayerDevice):
         self._dnd = None
         # Polling state
         self._should_poll = True
-        self._last_update = 0
+        self._last_update = util.utcnow()
 
     async def init(self, device):
         """Initialize."""

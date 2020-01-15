@@ -95,6 +95,7 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema(
 
 
 async def async_setup(hass, config, discovery_info=None):
+    # pylint: disable=unused-argument
     """Set up the Alexa domain."""
     if DOMAIN not in config:
         return True
@@ -582,7 +583,9 @@ async def setup_alexa(hass, config_entry, login_obj):
             hass,
             scan_interval,
             lambda _: hass.async_create_task(
-                update_devices(login_obj, no_throttle=True)
+                update_devices(  # pylint: disable=unexpected-keyword-arg
+                    login_obj, no_throttle=True
+                )
             ),
         )
 
@@ -676,12 +679,12 @@ async def setup_alexa(hass, config_entry, login_obj):
     async def clear_history(call):
         """Handle clear history service request.
 
-        Arguments:
+        Arguments
             call.ATTR_EMAIL {List[str: None]} -- Case-sensitive Alexa emails.
                                                  Default is all known emails.
             call.ATTR_NUM_ENTRIES {int: 50} -- Number of entries to delete.
 
-        Returns:
+        Returns
             bool -- True if deletion successful
 
         """
@@ -731,7 +734,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             )
             _LOGGER.debug("%s: Websocket created: %s", hide_email(email), websocket)
             await websocket.async_run()
-        except BaseException as exception_:
+        except BaseException as exception_:  # pylint: disable=broad-except
             _LOGGER.debug(
                 "%s: Websocket creation failed: %s", hide_email(email), exception_
             )
@@ -898,7 +901,9 @@ async def setup_alexa(hass, config_entry, login_obj):
             ):
                 _LOGGER.debug("Discovered new media_player %s", serial)
                 (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]) = True
-                await update_devices(login_obj, no_throttle=True)
+                await update_devices(  # pylint: disable=unexpected-keyword-arg
+                    login_obj, no_throttle=True
+                )
 
     async def ws_open_handler():
         """Handle websocket open."""
@@ -948,12 +953,13 @@ async def setup_alexa(hass, config_entry, login_obj):
             ) = await ws_connect()
             errors += 1
             delay = 5 * 2 ** errors
-        else:
             _LOGGER.debug(
                 "%s: Websocket closed; retries exceeded; polling", hide_email(email)
             )
             (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]) = None
-            await update_devices(login_obj, no_throttle=True)
+        await update_devices(  # pylint: disable=unexpected-keyword-arg
+            login_obj, no_throttle=True
+        )
 
     async def ws_error_handler(message):
         """Handle websocket error.
@@ -981,7 +987,9 @@ async def setup_alexa(hass, config_entry, login_obj):
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = await ws_connect()
-    await update_devices(login_obj, no_throttle=True)
+    await update_devices(  # pylint: disable=unexpected-keyword-arg
+        login_obj, no_throttle=True
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_UPDATE_LAST_CALLED,
@@ -1003,9 +1011,9 @@ async def async_unload_entry(hass, entry) -> bool:
     for component in ALEXA_COMPONENTS:
         await hass.config_entries.async_forward_entry_unload(entry, component)
     # notify has to be handled manually as the forward does not work yet
-    from .notify import async_unload_entry
+    from .notify import notify_async_unload_entry
 
-    await async_unload_entry(hass, entry)
+    await notify_async_unload_entry(hass, entry)
     email = entry.data["email"]
     await close_connections(hass, email)
     await clear_configurator(hass, email)

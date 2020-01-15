@@ -69,8 +69,9 @@ _LOGGER = logging.getLogger(__name__)
 DEPENDENCIES = [ALEXA_DOMAIN]
 
 
-@retry_async(limit=5, delay=2, catch_exceptions=True)
+@retry_async(limit=5, delay=2, catch_exceptions=False)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
+    # pylint: disable=unused-argument
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
     account = config[CONF_EMAIL]
@@ -115,6 +116,7 @@ class AlexaClient(MediaPlayerDevice):
     """Representation of a Alexa device."""
 
     def __init__(self, device, login):
+        # pylint: disable=unused-argument
         """Initialize the Alexa device."""
         from alexapy import AlexaAPI
 
@@ -169,6 +171,11 @@ class AlexaClient(MediaPlayerDevice):
         # Polling state
         self._should_poll = True
         self._last_update = util.utcnow()
+        self._listener = None
+        self._bluetooth_state = None
+        self._app_device_list = None
+        self._parent_clusters = None
+        self._timezone = None
 
     async def init(self, device):
         """Initialize."""
@@ -713,8 +720,8 @@ class AlexaClient(MediaPlayerDevice):
             in (self.hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             else None
         )
-        await self.refresh(
-            device, no_throttle=True  # pylint: disable=unexpected-keyword-arg
+        await self.refresh(  # pylint: disable=unexpected-keyword-arg
+            device, no_throttle=True
         )
         websocket_enabled = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
             "websocket"
@@ -1013,6 +1020,7 @@ class AlexaClient(MediaPlayerDevice):
 
     @_catch_login_errors
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):
+        # pylint: disable=unused-argument
         """Send the play_media command to the media player."""
         if media_type == "music":
             await self.async_send_tts(

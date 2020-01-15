@@ -447,7 +447,9 @@ async def setup_alexa(hass, config_entry, login_obj):
                 "%s: Found %s devices, %s bluetooth",
                 hide_email(email),
                 len(devices) if devices is not None else "",
-                len(bluetooth) if bluetooth is not None else "",
+                len(bluetooth.get("bluetoothStates", []))
+                if bluetooth is not None
+                else "",
             )
             if (devices is None or bluetooth is None) and not (
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["configurator"]

@@ -33,14 +33,14 @@ jobs:
       # Pack the alexa_media_player dir as a zip and upload to the release
       - name: Zip alexa_media dir
         run: |
-          cd /home/runner/work/integration/integration/custom_components/alexa_media
+          cd /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media
           zip alexa_media.zip -r ./
       - name: Upload zip to release
         uses: svenstaro/upload-release-action@v1-release
 
         with:
           repo_token: ${{ secrets.GH_TOKEN }}
-          file: /home/runner/work/integration/integration/custom_components/alexa_media/alexa_media.zip
+          file: /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/alexa_media.zip
           asset_name: alexa_media.zip
           tag: ${{ github.ref }}
           overwrite: true

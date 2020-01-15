@@ -300,6 +300,8 @@ class AlexaClient(MediaPlayerDevice):
                         self.name,
                         player_state["audioPlayerState"],
                     )
+                    # allow delay before trying to refresh to avoid http 400 errors
+                    await asyncio.sleep(0.5)
                     await self.async_update()
                     already_refreshed = True
                     # refresh is necessary to pull all data

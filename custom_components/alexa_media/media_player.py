@@ -28,7 +28,13 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_MUTE,
     SUPPORT_VOLUME_SET,
 )
-from homeassistant.const import STATE_IDLE, STATE_PAUSED, STATE_PLAYING, STATE_STANDBY
+from homeassistant.const import (
+    STATE_IDLE,
+    STATE_PAUSED,
+    STATE_PLAYING,
+    STATE_STANDBY,
+    STATE_UNAVAILABLE,
+)
 from homeassistant.helpers.event import async_call_later
 
 from . import (
@@ -65,6 +71,7 @@ DEPENDENCIES = [ALEXA_DOMAIN]
 
 @retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
+    # pylint: disable=unused-argument
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
     account = config[CONF_EMAIL]
@@ -109,6 +116,7 @@ class AlexaClient(MediaPlayerDevice):
     """Representation of a Alexa device."""
 
     def __init__(self, device, login):
+        # pylint: disable=unused-argument
         """Initialize the Alexa device."""
         from alexapy import AlexaAPI
 
@@ -157,11 +165,17 @@ class AlexaClient(MediaPlayerDevice):
         self._playing_parent = None
         # Last Device
         self._last_called = None
+        self._last_called_timestamp = None
         # Do not Disturb state
         self._dnd = None
         # Polling state
         self._should_poll = True
-        self._last_update = 0
+        self._last_update = util.utcnow()
+        self._listener = None
+        self._bluetooth_state = None
+        self._app_device_list = None
+        self._parent_clusters = None
+        self._timezone = None
 
     async def init(self, device):
         """Initialize."""
@@ -209,14 +223,17 @@ class AlexaClient(MediaPlayerDevice):
             if (
                 not already_refreshed
                 and seen_commands
-                and (
-                    "PUSH_AUDIO_PLAYER_STATE" not in seen_commands
-                    and "PUSH_MEDIA_CHANGE" not in seen_commands
+                and not (
+                    "PUSH_AUDIO_PLAYER_STATE" in seen_commands
+                    or "PUSH_MEDIA_CHANGE" in seen_commands
+                    or "PUSH_MEDIA_PROGRESS_CHANGE" in seen_commands
                 )
             ):
                 # force refresh if player_state update not found, see #397
                 _LOGGER.debug(
-                    "%s: No PUSH_AUDIO_PLAYER_STATE in %s; forcing refresh",
+                    "%s: No PUSH_AUDIO_PLAYER_STATE/"
+                    "PUSH_MEDIA_CHANGE/PUSH_MEDIA_PROGRESS_CHANGE in %s;"
+                    "forcing refresh",
                     hide_email(email),
                     seen_commands,
                 )
@@ -253,9 +270,9 @@ class AlexaClient(MediaPlayerDevice):
                 if event.data["queue_state"]
                 else None
             )
-        if not event_serial:
+        if not event_serial or event_serial != self.device_serial_number:
             return
-        self._available = True
+        self.available = True
         self.async_schedule_update_ha_state()
         if "last_called_change" in event.data:
             if event_serial == self.device_serial_number or any(
@@ -267,6 +284,9 @@ class AlexaClient(MediaPlayerDevice):
                     hide_serial(self.device_serial_number),
                 )
                 self._last_called = True
+                self._last_called_timestamp = event.data["last_called_change"][
+                    "timestamp"
+                ]
             else:
                 self._last_called = False
             if self.hass and self.async_schedule_update_ha_state:
@@ -300,9 +320,10 @@ class AlexaClient(MediaPlayerDevice):
                         self.name,
                         player_state["audioPlayerState"],
                     )
+                    # allow delay before trying to refresh to avoid http 400 errors
+                    await asyncio.sleep(2)
                     await self.async_update()
                     already_refreshed = True
-                    # refresh is necessary to pull all data
                 elif "mediaReferenceId" in player_state:
                     _LOGGER.debug(
                         "%s media update: %s",
@@ -311,7 +332,6 @@ class AlexaClient(MediaPlayerDevice):
                     )
                     await self.async_update()
                     already_refreshed = True
-                    # refresh is necessary to pull all data
                 elif "volumeSetting" in player_state:
                     _LOGGER.debug(
                         "%s volume updated: %s",
@@ -322,7 +342,7 @@ class AlexaClient(MediaPlayerDevice):
                     if self.hass and self.async_schedule_update_ha_state:
                         self.async_schedule_update_ha_state()
                 elif "dopplerConnectionState" in player_state:
-                    self._available = player_state["dopplerConnectionState"] == "ONLINE"
+                    self.available = player_state["dopplerConnectionState"] == "ONLINE"
                     if self.hass and self.async_schedule_update_ha_state:
                         self.async_schedule_update_ha_state()
                 await _refresh_if_no_audiopush(already_refreshed)
@@ -407,7 +427,7 @@ class AlexaClient(MediaPlayerDevice):
             self._dnd = device["dnd"] if "dnd" in device else None
             await self._set_authentication_details(device["auth_info"])
         session = None
-        if self._available:
+        if self.available:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             if self._parent_clusters and self.hass:
                 playing_parents = list(
@@ -416,8 +436,7 @@ class AlexaClient(MediaPlayerDevice):
                             self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                                 self._login.email
                             ]["entities"]["media_player"].get(x)
-                            and
-                            self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                            and self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                                 self._login.email
                             ]["entities"]["media_player"][x].state
                             == STATE_PLAYING
@@ -431,6 +450,10 @@ class AlexaClient(MediaPlayerDevice):
                 self._source = await self._get_source()
                 self._source_list = await self._get_source_list()
             self._last_called = await self._get_last_called()
+            if self._last_called:
+                self._last_called_timestamp = self.hass.data[DATA_ALEXAMEDIA][
+                    "accounts"
+                ][self._login.email]["last_called"]["timestamp"]
             if "MUSIC_SKILL" in self._capabilities:
                 parent_session = {}
                 if playing_parents:
@@ -451,8 +474,10 @@ class AlexaClient(MediaPlayerDevice):
                         parent_session["lemurVolume"]["memberVolume"][
                             self.device_serial_number
                         ]
-                        if parent_session["lemurVolume"]
-                        and "memberVolume" in parent_session["lemurVolume"]
+                        if parent_session.get("lemurVolume")
+                        and parent_session.get("lemurVolume", {})
+                        .get("memberVolume", {})
+                        .get(self.device_serial_number)
                         else session["volume"]
                     )
                     session = {"playerInfo": session}
@@ -460,12 +485,11 @@ class AlexaClient(MediaPlayerDevice):
                     self._playing_parent = None
                     session = await self.alexa_api.get_state()
         await self._clear_media_details()
-        # update the session if it exists; not doing relogin here
-        if session:
-            self._session = session
-        if self._session and "playerInfo" in self._session:
+        # update the session if it exists
+        self._session = session if session else None
+        if self._session and self._session.get("playerInfo"):
             self._session = self._session["playerInfo"]
-            if self._session["transport"] is not None:
+            if self._session.get("transport"):
                 self._shuffle = (
                     self._session["transport"]["shuffle"] == "SELECTED"
                     if (
@@ -482,102 +506,46 @@ class AlexaClient(MediaPlayerDevice):
                     )
                     else None
                 )
-            if self._session["state"] is not None:
+            if self._session.get("state"):
                 self._media_player_state = self._session["state"]
-                self._media_pos = (
-                    self._session["progress"]["mediaProgress"]
-                    if (
-                        self._session["progress"] is not None
-                        and "mediaProgress" in self._session["progress"]
-                    )
-                    else None
+                self._media_pos = self._session.get("progress", {}).get("mediaProgress")
+                self._media_title = self._session.get("infoText", {}).get("title")
+                self._media_artist = self._session.get("infoText", {}).get("subText1")
+                self._media_album_name = self._session.get("infoText", {}).get(
+                    "subText2"
                 )
-                self._media_title = (
-                    self._session["infoText"]["title"]
-                    if (
-                        self._session["infoText"] is not None
-                        and "title" in self._session["infoText"]
-                    )
-                    else None
+                self._media_image_url = self._session.get("mainArt", {}).get("url")
+                self._media_duration = self._session.get("progress", {}).get(
+                    "mediaLength"
                 )
-                self._media_artist = (
-                    self._session["infoText"]["subText1"]
-                    if (
-                        self._session["infoText"] is not None
-                        and "subText1" in self._session["infoText"]
-                    )
-                    else None
-                )
-                self._media_album_name = (
-                    self._session["infoText"]["subText2"]
-                    if (
-                        self._session["infoText"] is not None
-                        and "subText2" in self._session["infoText"]
-                    )
-                    else None
-                )
-                self._media_image_url = (
-                    self._session["mainArt"]["url"]
-                    if (
-                        self._session["mainArt"] is not None
-                        and "url" in self._session["mainArt"]
-                    )
-                    else None
-                )
-                self._media_duration = (
-                    self._session["progress"]["mediaLength"]
-                    if (
-                        self._session["progress"] is not None
-                        and "mediaLength" in self._session["progress"]
-                    )
-                    else None
-                )
-                if not self._session["lemurVolume"]:
+                if not self._session.get("lemurVolume"):
                     self._media_is_muted = (
-                        self._session["volume"]["muted"]
-                        if (
-                            self._session["volume"] is not None
-                            and "muted" in self._session["volume"]
-                        )
-                        else None
+                        self._session.get("volume", {}).get("muted")
+                        if self._session.get("volume")
+                        else self._media_is_muted
                     )
                     self._media_vol_level = (
                         self._session["volume"]["volume"] / 100
-                        if (
-                            self._session["volume"] is not None
-                            and "volume" in self._session["volume"]
-                        )
+                        if self._session.get("volume")
+                        and self._session.get("volume", {}).get("volume")
                         else self._media_vol_level
                     )
                 else:
                     self._media_is_muted = (
-                        self._session["lemurVolume"]["compositeVolume"]["muted"]
-                        if (
-                            self._session["lemurVolume"]
-                            and "compositeVolume" in self._session["lemurVolume"]
-                            and self._session["lemurVolume"]["compositeVolume"]
-                            and "muted"
-                            in self._session["lemurVolume"]["compositeVolume"]
-                        )
-                        else None
+                        self._session.get("lemurVolume", {})
+                        .get("compositeVolume", {})
+                        .get("muted")
                     )
                     self._media_vol_level = (
                         self._session["lemurVolume"]["compositeVolume"]["volume"] / 100
                         if (
-                            self._session["lemurVolume"]
-                            and "compositeVolume" in self._session["lemurVolume"]
-                            and "volume"
-                            in self._session["lemurVolume"]["compositeVolume"]
-                            and (
-                                self._session["lemurVolume"]["compositeVolume"][
-                                    "volume"
-                                ]
-                            )
+                            self._session.get("lemurVolume", {})
+                            .get("compositeVolume", {})
+                            .get("volume")
                         )
                         else self._media_vol_level
                     )
-                    if not self.hass:
-                        return
+                if self.hass and self._session.get("isPlayingInLemur"):
                     asyncio.gather(
                         *map(
                             lambda x: (
@@ -587,12 +555,9 @@ class AlexaClient(MediaPlayerDevice):
                             ),
                             filter(
                                 lambda x: (
-                                    x
-                                    in (
-                                        self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                                            self._login.email
-                                        ]["entities"]["media_player"]
-                                    )
+                                    self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                        self._login.email
+                                    ]["entities"]["media_player"].get(x)
                                     and self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                                         self._login.email
                                     ]["entities"]["media_player"][x].available
@@ -630,7 +595,7 @@ class AlexaClient(MediaPlayerDevice):
 
     async def _get_source(self):
         source = "Local Speaker"
-        if self._bluetooth_state["pairedDeviceList"] is not None:
+        if self._bluetooth_state.get("pairedDeviceList"):
             for device in self._bluetooth_state["pairedDeviceList"]:
                 if (
                     device["connected"] is True
@@ -641,7 +606,7 @@ class AlexaClient(MediaPlayerDevice):
 
     async def _get_source_list(self):
         sources = []
-        if self._bluetooth_state["pairedDeviceList"] is not None:
+        if self._bluetooth_state.get("pairedDeviceList"):
             for devices in self._bluetooth_state["pairedDeviceList"]:
                 if devices["profiles"] and "A2DP-SOURCE" in devices["profiles"]:
                     sources.append(devices["friendlyName"])
@@ -679,6 +644,11 @@ class AlexaClient(MediaPlayerDevice):
         """Return the availability of the client."""
         return self._available
 
+    @available.setter
+    def available(self, state):
+        """Set the availability state."""
+        self._available = self._device["online"] = state
+
     @property
     def unique_id(self):
         """Return the id of this Alexa client."""
@@ -707,6 +677,8 @@ class AlexaClient(MediaPlayerDevice):
     @property
     def state(self):
         """Return the state of the device."""
+        if not self.available:
+            return STATE_UNAVAILABLE
         if self._media_player_state == "PLAYING":
             return STATE_PLAYING
         if self._media_player_state == "PAUSED":
@@ -747,19 +719,24 @@ class AlexaClient(MediaPlayerDevice):
             in (self.hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             else None
         )
-        await self.refresh(
-            device, no_throttle=True  # pylint: disable=unexpected-keyword-arg
+        await self.refresh(  # pylint: disable=unexpected-keyword-arg
+            device, no_throttle=True
+        )
+        websocket_enabled = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+            "websocket"
         )
         if (
             self.state in [STATE_PLAYING]
             and
             #  only enable polling if websocket not connected
             (
-                not self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]
-                or
-                # or if no PUSH_AUDIO_PLAYER_STATE
-                not seen_commands
-                or "PUSH_AUDIO_PLAYER_STATE" not in seen_commands
+                not websocket_enabled
+                or not seen_commands
+                or not (
+                    "PUSH_AUDIO_PLAYER_STATE" in seen_commands
+                    or "PUSH_MEDIA_CHANGE" in seen_commands
+                    or "PUSH_MEDIA_PROGRESS_CHANGE" in seen_commands
+                )
             )
         ):
             self._should_poll = False  # disable polling since manual update
@@ -781,7 +758,7 @@ class AlexaClient(MediaPlayerDevice):
                 )
         elif self._should_poll:  # Not playing, one last poll
             self._should_poll = False
-            if not (self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]):
+            if not websocket_enabled:
                 _LOGGER.debug(
                     "Disabling polling and scheduling last update in"
                     " 300 seconds for %s",
@@ -863,7 +840,7 @@ class AlexaClient(MediaPlayerDevice):
     async def async_set_shuffle(self, shuffle):
         """Enable/disable shuffle mode."""
         await self.alexa_api.shuffle(shuffle)
-        self.shuffle_state = shuffle
+        self._shuffle = shuffle
 
     @property
     def shuffle(self):
@@ -874,6 +851,7 @@ class AlexaClient(MediaPlayerDevice):
     def shuffle(self, state):
         """Set the Shuffle state."""
         self._shuffle = state
+        self.async_schedule_update_ha_state()
 
     @property
     def repeat_state(self):
@@ -884,6 +862,7 @@ class AlexaClient(MediaPlayerDevice):
     def repeat_state(self, state):
         """Set the Repeat state."""
         self._repeat = state
+        self.async_schedule_update_ha_state()
 
     @property
     def supported_features(self):
@@ -922,7 +901,7 @@ class AlexaClient(MediaPlayerDevice):
         - On mute, store volume and set volume to 0
         - On unmute, set volume to previously stored volume
         """
-        if not (self.state == STATE_PLAYING and self.available):
+        if not self.available:
             return
 
         self._media_is_muted = mute
@@ -1040,12 +1019,19 @@ class AlexaClient(MediaPlayerDevice):
 
     @_catch_login_errors
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):
+        # pylint: disable=unused-argument
         """Send the play_media command to the media player."""
         if media_type == "music":
             await self.async_send_tts(
                 "Sorry, text to speech can only be called"
                 " with the notify.alexa_media service."
                 " Please see the alexa_media wiki for details."
+            )
+            _LOGGER.warning(
+                "Sorry, text to speech can only be called"
+                " with the notify.alexa_media service."
+                " Please see the alexa_media wiki for details."
+                "https://github.com/custom-components/alexa_media_player/wiki/Notification-Component#use-the-notifyalexa_media-service"
             )
         elif media_type == "sequence":
             await self.alexa_api.send_sequence(
@@ -1068,8 +1054,12 @@ class AlexaClient(MediaPlayerDevice):
 
     @property
     def device_state_attributes(self):
-        """Return the scene state attributes."""
-        attr = {"available": self._available, "last_called": self._last_called}
+        """Return the state attributes."""
+        attr = {
+            "available": self.available,
+            "last_called": self._last_called,
+            "last_called_timestamp": self._last_called_timestamp,
+        }
         return attr
 
     @property

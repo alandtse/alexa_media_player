@@ -157,6 +157,7 @@ class AlexaClient(MediaPlayerDevice):
         self._playing_parent = None
         # Last Device
         self._last_called = None
+        self._last_called_timestamp = None
         # Do not Disturb state
         self._dnd = None
         # Polling state
@@ -267,6 +268,9 @@ class AlexaClient(MediaPlayerDevice):
                     hide_serial(self.device_serial_number),
                 )
                 self._last_called = True
+                self._last_called_timestamp = event.data["last_called_change"][
+                    "timestamp"
+                ]
             else:
                 self._last_called = False
             if self.hass and self.async_schedule_update_ha_state:
@@ -432,6 +436,10 @@ class AlexaClient(MediaPlayerDevice):
                 self._source = await self._get_source()
                 self._source_list = await self._get_source_list()
             self._last_called = await self._get_last_called()
+            if self._last_called:
+                self._last_called_timestamp = self.hass.data[DATA_ALEXAMEDIA][
+                    "accounts"
+                ][self._login.email]["last_called"]["timestamp"]
             if "MUSIC_SKILL" in self._capabilities:
                 parent_session = {}
                 if playing_parents:
@@ -1019,8 +1027,12 @@ class AlexaClient(MediaPlayerDevice):
 
     @property
     def device_state_attributes(self):
-        """Return the scene state attributes."""
-        attr = {"available": self._available, "last_called": self._last_called}
+        """Return the state attributes."""
+        attr = {
+            "available": self.available,
+            "last_called": self._last_called,
+            "last_called_timestamp": self._last_called_timestamp,
+        }
         return attr
 
     @property

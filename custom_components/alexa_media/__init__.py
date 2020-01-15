@@ -38,6 +38,7 @@ from .const import (
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
     DOMAIN,
+    ISSUE_URL,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
     SCAN_INTERVAL,
@@ -875,6 +876,13 @@ async def setup_alexa(hass, config_entry, login_obj):
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"notification_update": json_payload},
                     )
+            else:
+                _LOGGER.warning(
+                    "Unhandled command: %s with data %s. Please report at %s",
+                    command,
+                    hide_serial(json_payload),
+                    ISSUE_URL,
+                )
             if (
                 serial
                 and serial not in existing_serials

@@ -892,6 +892,10 @@ async def setup_alexa(hass, config_entry, login_obj):
                     hide_serial(json_payload),
                     ISSUE_URL,
                 )
+            if serial in existing_serials:
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket_activity"][
+                    "serials"
+                ][serial] = time.time()
             if (
                 serial
                 and serial not in existing_serials

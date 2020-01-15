@@ -889,7 +889,7 @@ class AlexaClient(MediaPlayerDevice):
         - On mute, store volume and set volume to 0
         - On unmute, set volume to previously stored volume
         """
-        if not (self.state == STATE_PLAYING and self.available):
+        if not self.available:
             return
 
         self._media_is_muted = mute

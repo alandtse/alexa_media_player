@@ -178,7 +178,7 @@ async def async_setup_entry(hass, config_entry):
             "auth_info": None,
             "configurator": [],
         },
-        )
+    )
     login = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
         "login_obj",
         AlexaLogin(url, email, password, hass.config.path, account.get(CONF_DEBUG)),
@@ -438,7 +438,8 @@ async def setup_alexa(hass, config_entry, login_obj):
         dnd = {}
         raw_notifications = {}
         try:
-            auth_info = await AlexaAPI.get_authentication(login_obj)
+            if new_devices:
+                auth_info = await AlexaAPI.get_authentication(login_obj)
             devices = await AlexaAPI.get_devices(login_obj)
             bluetooth = await AlexaAPI.get_bluetooth(login_obj)
             preferences = await AlexaAPI.get_device_preferences(login_obj)

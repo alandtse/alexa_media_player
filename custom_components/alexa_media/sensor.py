@@ -178,7 +178,11 @@ class AlexaMediaSensor(Entity):
     def _fix_alarm_date_time(self, value):
         import pytz
 
-        if self._sensor_property != "date_time" or not value:
+        if (
+            self._sensor_property != "date_time"
+            or not value
+            or isinstance(value[1][self._sensor_property], datetime.datetime)
+        ):
             return value
         naive_time = dt.parse_datetime(value[1][self._sensor_property])
         timezone = pytz.timezone(self._client._timezone)

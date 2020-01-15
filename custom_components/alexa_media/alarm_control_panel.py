@@ -159,6 +159,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._listener = self.hass.bus.async_listen(
             f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32], self._handle_event
         )
+        await self.async_update()
 
     async def async_will_remove_from_hass(self):
         """Prepare to remove entity."""

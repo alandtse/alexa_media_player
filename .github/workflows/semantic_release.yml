@@ -35,6 +35,9 @@ jobs:
         run: |
           cd /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media
           zip alexa_media.zip -r ./
+      - name: Set release variable
+        run: |
+          echo "::set-env name=release_version::`git describe --abbrev=0`"
       - name: Upload zip to release
         uses: svenstaro/upload-release-action@v1-release
 
@@ -42,5 +45,5 @@ jobs:
           repo_token: ${{ secrets.GH_TOKEN }}
           file: /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/alexa_media.zip
           asset_name: alexa_media.zip
-          tag: ${{ github.ref }}
+          tag: ${{ release_version }}
           overwrite: true

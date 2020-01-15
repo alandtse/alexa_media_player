@@ -317,7 +317,6 @@ class AlexaClient(MediaPlayerDevice):
                     await asyncio.sleep(0.5)
                     await self.async_update()
                     already_refreshed = True
-                    # refresh is necessary to pull all data
                 elif "mediaReferenceId" in player_state:
                     _LOGGER.debug(
                         "%s media update: %s",
@@ -326,7 +325,6 @@ class AlexaClient(MediaPlayerDevice):
                     )
                     await self.async_update()
                     already_refreshed = True
-                    # refresh is necessary to pull all data
                 elif "volumeSetting" in player_state:
                     _LOGGER.debug(
                         "%s volume updated: %s",

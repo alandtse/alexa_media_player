@@ -3,5 +3,7 @@
   "content_in_root": false,
   "domains": ["media_player", "switch", "alarm_control_panel", "sensor"],
   "iot_class": "cloud_poll",
+  "zip_release": true,
+  "filename": "alexa_media.zip",
   "homeassistant": "0.96.0"
 }

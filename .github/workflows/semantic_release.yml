@@ -45,5 +45,5 @@ jobs:
           repo_token: ${{ secrets.GH_TOKEN }}
           file: /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/alexa_media.zip
           asset_name: alexa_media.zip
-          tag: ${{ release_version }}
+          tag: $release_version
           overwrite: true

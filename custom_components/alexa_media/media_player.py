@@ -837,6 +837,7 @@ class AlexaClient(MediaPlayerDevice):
     def repeat_state(self, state):
         """Set the Repeat state."""
         self._repeat = state
+        self.async_schedule_update_ha_state()
 
     @property
     def supported_features(self):

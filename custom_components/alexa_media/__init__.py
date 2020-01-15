@@ -409,8 +409,7 @@ async def setup_alexa(hass, config_entry, login_obj):
 
         This will add new devices and services when discovered. By default this
         runs every SCAN_INTERVAL seconds unless another method calls it. if
-        websockets is connected, it will return immediately unless
-        'new_devices' has been set to True.
+        websockets is connected, it will increase the delay 10-fold between updates.
         While throttled at MIN_TIME_BETWEEN_SCANS, care should be taken to
         reduce the number of runs to avoid flooding. Slow changing states
         should be checked here instead of in spawned components like
@@ -426,10 +425,9 @@ async def setup_alexa(hass, config_entry, login_obj):
         existing_entities = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "media_player"
         ].values()
-        if hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("websocket") and not (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
-        ):
-            return
+        websocket_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+            "websocket"
+        )
         auth_info = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("auth_info")
         new_devices = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
         devices = {}
@@ -582,7 +580,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         async_call_later(
             hass,
-            scan_interval,
+            scan_interval if not websocket_enabled else scan_interval * 10,
             lambda _: hass.async_create_task(
                 update_devices(  # pylint: disable=unexpected-keyword-arg
                     login_obj, no_throttle=True

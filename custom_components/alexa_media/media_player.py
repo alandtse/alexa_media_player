@@ -807,7 +807,7 @@ class AlexaClient(MediaPlayerDevice):
     async def async_set_shuffle(self, shuffle):
         """Enable/disable shuffle mode."""
         await self.alexa_api.shuffle(shuffle)
-        self.shuffle_state = shuffle
+        self._shuffle = shuffle
 
     @property
     def shuffle(self):
@@ -818,6 +818,7 @@ class AlexaClient(MediaPlayerDevice):
     def shuffle(self, state):
         """Set the Shuffle state."""
         self._shuffle = state
+        self.async_schedule_update_ha_state()
 
     @property
     def repeat_state(self):

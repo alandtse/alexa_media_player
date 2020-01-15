@@ -28,7 +28,13 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_MUTE,
     SUPPORT_VOLUME_SET,
 )
-from homeassistant.const import STATE_IDLE, STATE_PAUSED, STATE_PLAYING, STATE_STANDBY
+from homeassistant.const import (
+    STATE_IDLE,
+    STATE_PAUSED,
+    STATE_PLAYING,
+    STATE_STANDBY,
+    STATE_UNAVAILABLE,
+)
 from homeassistant.helpers.event import async_call_later
 
 from . import (
@@ -256,7 +262,7 @@ class AlexaClient(MediaPlayerDevice):
             )
         if not event_serial:
             return
-        self._available = True
+        self.available = True
         self.async_schedule_update_ha_state()
         if "last_called_change" in event.data:
             if event_serial == self.device_serial_number or any(
@@ -328,7 +334,7 @@ class AlexaClient(MediaPlayerDevice):
                     if self.hass and self.async_schedule_update_ha_state:
                         self.async_schedule_update_ha_state()
                 elif "dopplerConnectionState" in player_state:
-                    self._available = player_state["dopplerConnectionState"] == "ONLINE"
+                    self.available = player_state["dopplerConnectionState"] == "ONLINE"
                     if self.hass and self.async_schedule_update_ha_state:
                         self.async_schedule_update_ha_state()
                 await _refresh_if_no_audiopush(already_refreshed)
@@ -413,7 +419,7 @@ class AlexaClient(MediaPlayerDevice):
             self._dnd = device["dnd"] if "dnd" in device else None
             await self._set_authentication_details(device["auth_info"])
         session = None
-        if self._available:
+        if self.available:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             if self._parent_clusters and self.hass:
                 playing_parents = list(
@@ -631,6 +637,11 @@ class AlexaClient(MediaPlayerDevice):
         """Return the availability of the client."""
         return self._available
 
+    @available.setter
+    def available(self, state):
+        """Set the availability state."""
+        self._available = self._device["online"] = state
+
     @property
     def unique_id(self):
         """Return the id of this Alexa client."""
@@ -659,6 +670,8 @@ class AlexaClient(MediaPlayerDevice):
     @property
     def state(self):
         """Return the state of the device."""
+        if not self.available:
+            return STATE_UNAVAILABLE
         if self._media_player_state == "PLAYING":
             return STATE_PLAYING
         if self._media_player_state == "PAUSED":

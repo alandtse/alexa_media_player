@@ -1014,7 +1014,7 @@ async def async_unload_entry(hass, entry) -> bool:
     for component in ALEXA_COMPONENTS:
         await hass.config_entries.async_forward_entry_unload(entry, component)
     # notify has to be handled manually as the forward does not work yet
-    from .notify import notify_async_unload_entry
+    from .notify import async_unload_entry as notify_async_unload_entry
 
     await notify_async_unload_entry(hass, entry)
     email = entry.data["email"]

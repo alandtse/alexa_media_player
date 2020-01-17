@@ -270,7 +270,7 @@ class AlexaClient(MediaPlayerDevice):
                 if event.data["queue_state"]
                 else None
             )
-        if not event_serial or event_serial != self.device_serial_number:
+        if not event_serial:
             return
         self.available = True
         self.async_schedule_update_ha_state()

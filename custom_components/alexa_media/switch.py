@@ -237,6 +237,11 @@ class AlexaMediaSwitch(SwitchDevice):
         return "switch"
 
     @property
+    def hidden(self):
+        """Return whether the switch should be hidden from the UI."""
+        return not self.available
+
+    @property
     def should_poll(self):
         """Return the polling state."""
         return not (

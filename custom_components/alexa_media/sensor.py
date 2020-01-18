@@ -244,6 +244,11 @@ class AlexaMediaSensor(Entity):
         return True
 
     @property
+    def hidden(self):
+        """Return whether the sensor should be hidden."""
+        return self.state == STATE_UNAVAILABLE
+
+    @property
     def unique_id(self):
         """Return the unique ID."""
         return f"{self._client.unique_id}_{self._name}"

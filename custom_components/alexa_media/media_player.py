@@ -651,6 +651,11 @@ class AlexaClient(MediaPlayerDevice):
         self._available = state
 
     @property
+    def hidden(self):
+        """Return whether the sensor should be hidden."""
+        return "MUSIC_SKILL" not in self._capabilities
+
+    @property
     def unique_id(self):
         """Return the id of this Alexa client."""
         return self.device_serial_number

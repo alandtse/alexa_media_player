@@ -473,8 +473,10 @@ async def setup_alexa(hass, config_entry, login_obj):
         include_filter = []
 
         for device in devices:
-            if include and device["accountName"] not in include:
-                include_filter.append(device["accountName"])
+            serial = device["serialNumber"]
+            dev_name = device["accountName"]
+            if include and dev_name not in include:
+                include_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:
                         (
@@ -482,14 +484,12 @@ async def setup_alexa(hass, config_entry, login_obj):
                                 app["serialNumber"]
                             ]
                         ) = device
-                (
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
-                        device["serialNumber"]
-                    ]
-                ) = device
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
+                    serial
+                ] = device
                 continue
-            elif exclude and device["accountName"] in exclude:
-                exclude_filter.append(device["accountName"])
+            elif exclude and dev_name in exclude:
+                exclude_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:
                         (
@@ -497,53 +497,46 @@ async def setup_alexa(hass, config_entry, login_obj):
                                 app["serialNumber"]
                             ]
                         ) = device
-                (
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
-                        device["serialNumber"]
-                    ]
-                ) = device
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
+                    serial
+                ] = device
                 continue
 
             if "bluetoothStates" in bluetooth:
                 for b_state in bluetooth["bluetoothStates"]:
-                    if device["serialNumber"] == b_state["deviceSerialNumber"]:
+                    if serial == b_state["deviceSerialNumber"]:
                         device["bluetooth_state"] = b_state
                         break
 
             if "devicePreferences" in preferences:
                 for dev in preferences["devicePreferences"]:
-                    if dev["deviceSerialNumber"] == device["serialNumber"]:
+                    if dev["deviceSerialNumber"] == serial:
                         device["locale"] = dev["locale"]
                         device["timeZoneId"] = dev["timeZoneId"]
                         _LOGGER.debug(
-                            "Locale %s timezone %s found for %s",
+                            "%s: Locale %s timezone %s",
+                            dev_name,
                             device["locale"],
                             device["timeZoneId"],
-                            hide_serial(device["serialNumber"]),
                         )
                         break
 
             if "doNotDisturbDeviceStatusList" in dnd:
                 for dev in dnd["doNotDisturbDeviceStatusList"]:
-                    if dev["deviceSerialNumber"] == device["serialNumber"]:
+                    if dev["deviceSerialNumber"] == serial:
                         device["dnd"] = dev["enabled"]
-                        _LOGGER.debug(
-                            "DND %s found for %s",
-                            device["dnd"],
-                            hide_serial(device["serialNumber"]),
-                        )
+                        _LOGGER.debug("%s: DND %s", dev_name, device["dnd"])
                         break
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["auth_info"] = device[
                 "auth_info"
             ] = auth_info
-            (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
-                    "media_player"
-                ][device["serialNumber"]]
-            ) = device
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"]["media_player"][
+                serial
+            ] = device
 
-            if device["serialNumber"] not in existing_serials:
-                new_alexa_clients.append(device["accountName"])
+            if serial not in existing_serials:
+                new_alexa_clients.append(dev_name)
+
         _LOGGER.debug(
             "%s: Existing: %s New: %s;"
             " Filtered out by not being in include: %s "

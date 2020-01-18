@@ -395,7 +395,7 @@ class AlexaClient(MediaPlayerDevice):
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     @_catch_login_errors
-    async def refresh(self, device=None):
+    async def refresh(self, device=None, skip_api: bool = False):
         """Refresh device data.
 
         This is a per device refresh and for many Alexa devices can result in
@@ -406,6 +406,7 @@ class AlexaClient(MediaPlayerDevice):
         device (json): A refreshed device json from Amazon. For efficiency,
                        an individual device does not refresh if it's reported
                        as offline.
+        no_api (bool): Whether to only due a device json update and not hit the API
 
         """
         if device is not None:
@@ -429,23 +430,6 @@ class AlexaClient(MediaPlayerDevice):
         session = None
         if self.available:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
-            if self._parent_clusters and self.hass:
-                playing_parents = list(
-                    filter(
-                        lambda x: (
-                            self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                                self._login.email
-                            ]["entities"]["media_player"].get(x)
-                            and self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                                self._login.email
-                            ]["entities"]["media_player"][x].state
-                            == STATE_PLAYING
-                        ),
-                        self._parent_clusters,
-                    )
-                )
-            else:
-                playing_parents = []
             if "PAIR_BT_SOURCE" in self._capabilities:
                 self._source = await self._get_source()
                 self._source_list = await self._get_source_list()
@@ -454,7 +438,26 @@ class AlexaClient(MediaPlayerDevice):
                 self._last_called_timestamp = self.hass.data[DATA_ALEXAMEDIA][
                     "accounts"
                 ][self._login.email]["last_called"]["timestamp"]
+            if skip_api:
+                return
             if "MUSIC_SKILL" in self._capabilities:
+                if self._parent_clusters and self.hass:
+                    playing_parents = list(
+                        filter(
+                            lambda x: (
+                                self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                    self._login.email
+                                ]["entities"]["media_player"].get(x)
+                                and self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                    self._login.email
+                                ]["entities"]["media_player"][x].state
+                                == STATE_PLAYING
+                            ),
+                            self._parent_clusters,
+                        )
+                    )
+                else:
+                    playing_parents = []
                 parent_session = {}
                 if playing_parents:
                     if len(playing_parents) > 1:

@@ -166,8 +166,8 @@ async def async_setup_entry(hass, config_entry):
             "config_entry": config_entry,
             "setup_platform_callback": setup_platform_callback,
             "test_login_status": test_login_status,
-            "devices": {"media_player": {}},
-            "entities": {"media_player": {}},
+            "devices": {"media_player": {}, "switch": {}},
+            "entities": {"media_player": {}, "switch": {}},
             "excluded": {},
             "new_devices": True,
             "websocket_lastattempt": 0,
@@ -526,6 +526,10 @@ async def setup_alexa(hass, config_entry, login_obj):
                     if dev["deviceSerialNumber"] == serial:
                         device["dnd"] = dev["enabled"]
                         _LOGGER.debug("%s: DND %s", dev_name, device["dnd"])
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                            "switch"
+                        ].setdefault(serial, {"dnd": True})
+
                         break
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["auth_info"] = device[
                 "auth_info"

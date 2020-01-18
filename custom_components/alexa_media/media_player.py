@@ -135,7 +135,6 @@ class AlexaClient(MediaPlayerDevice):
         self._customer_name = None
 
         # Device info
-        self._device = None
         self._device_name = None
         self._device_serial_number = None
         self._device_type = None
@@ -410,7 +409,6 @@ class AlexaClient(MediaPlayerDevice):
 
         """
         if device is not None:
-            self._device = device
             self._device_name = device["accountName"]
             self._device_family = device["deviceFamily"]
             self._device_type = device["deviceType"]
@@ -650,7 +648,7 @@ class AlexaClient(MediaPlayerDevice):
     @available.setter
     def available(self, state):
         """Set the availability state."""
-        self._available = self._device["online"] = state
+        self._available = state
 
     @property
     def unique_id(self):
@@ -666,11 +664,6 @@ class AlexaClient(MediaPlayerDevice):
     def device_serial_number(self):
         """Return the machine identifier of the device."""
         return self._device_serial_number
-
-    @property
-    def device(self):
-        """Return the device json, if any."""
-        return self._device
 
     @property
     def session(self):
@@ -705,7 +698,7 @@ class AlexaClient(MediaPlayerDevice):
                 return
         except AttributeError:
             pass
-        if self._device is None or self.entity_id is None:
+        if self.entity_id is None:
             # Device has not initialized yet
             return
         email = self._login.email

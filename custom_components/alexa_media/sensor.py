@@ -328,7 +328,7 @@ class AlexaMediaSensor(Entity):
 
     @property
     def recurrence(self):
-        """Return the icon of the sensor."""
+        """Return the recurrence pattern of the sensor."""
         return RECURRING_PATTERN[self._next["recurringPattern"]] if self._next else None
 
     @property

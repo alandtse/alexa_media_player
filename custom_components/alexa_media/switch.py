@@ -232,6 +232,11 @@ class AlexaMediaSwitch(SwitchDevice):
         return "{} {} switch".format(self._client.name, self._name)
 
     @property
+    def device_class(self):
+        """Return the device_class of the switch."""
+        return "switch"
+
+    @property
     def should_poll(self):
         """Return the polling state."""
         return not (

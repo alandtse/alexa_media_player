@@ -202,6 +202,13 @@ class AlexaMediaSensor(Entity):
             )
         return value
 
+    @staticmethod
+    def _round_time(value: datetime.datetime) -> datetime.datetime:
+        precision = datetime.timedelta(seconds=1).total_seconds()
+        seconds = (value - value.min.replace(tzinfo=value.tzinfo)).seconds
+        rounding = (seconds + precision / 2) // precision * precision
+        return value + datetime.timedelta(0, rounding - seconds, -value.microsecond)
+
     async def async_added_to_hass(self):
         """Store register state change callback."""
         try:
@@ -369,8 +376,11 @@ class TimerSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return (
             dt.as_local(
-                dt.utc_from_timestamp(
-                    dt.utcnow().timestamp() + self._next[self._sensor_property] / 1000
+                super()._round_time(
+                    dt.utc_from_timestamp(
+                        dt.utcnow().timestamp()
+                        + self._next[self._sensor_property] / 1000
+                    )
                 )
             ).isoformat()
             if self._next
@@ -404,8 +414,10 @@ class ReminderSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return (
             dt.as_local(
-                datetime.datetime.fromtimestamp(
-                    self._next[self._sensor_property] / 1000, tz=LOCAL_TIMEZONE
+                super()._round_time(
+                    datetime.datetime.fromtimestamp(
+                        self._next[self._sensor_property] / 1000, tz=LOCAL_TIMEZONE
+                    )
                 )
             ).isoformat()
             if self._next

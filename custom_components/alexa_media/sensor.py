@@ -188,9 +188,14 @@ class AlexaMediaSensor(Entity):
         timezone = pytz.timezone(self._client._timezone)
         if timezone and naive_time:
             value[1][self._sensor_property] = timezone.localize(naive_time)
+        elif not naive_time:
+            # this is typically an older alarm
+            value[1][self._sensor_property] = datetime.datetime.fromtimestamp(
+                value[1]["alarmTime"] / 1000, tz=LOCAL_TIMEZONE
+            )
         else:
             _LOGGER.warning(
-                "%s is returning erroneous data."
+                "%s is returning erroneous data. "
                 "Returned times may be wrong. "
                 "Please confirm the timezone in the Alexa app is correct. "
                 "Debugging info: \nRaw: %s \nNaive Time: %s "

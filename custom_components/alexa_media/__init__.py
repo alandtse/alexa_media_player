@@ -883,6 +883,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"notification_update": json_payload},
                     )
+            elif command in ["PUSH_DELETE_DOPPLER_ACTIVITIES"]:
+                pass
             else:
                 _LOGGER.warning(
                     "Unhandled command: %s with data %s. Please report at %s",

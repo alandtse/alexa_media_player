@@ -174,6 +174,7 @@ class AlexaMediaSensor(Entity):
             else []
         )
         self._next = self._sorted[0][1] if self._sorted else None
+        self._timestamp: datetime.datetime = None
 
     def _fix_alarm_date_time(self, value):
         import pytz
@@ -225,6 +226,7 @@ class AlexaMediaSensor(Entity):
         self._listener = self.hass.bus.async_listen(
             f"{ALEXA_DOMAIN}_{hide_email(self._account)}"[0:32], self._handle_event
         )
+        await self.async_update()
 
     async def async_will_remove_from_hass(self):
         """Prepare to remove entity."""
@@ -299,6 +301,7 @@ class AlexaMediaSensor(Entity):
         except AttributeError:
             pass
         account_dict = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]
+        self._timestamp = account_dict["notifications"]["process_timestamp"]
         try:
             self._n_dict = account_dict["notifications"][self._dev_id][self._type]
         except KeyError:
@@ -383,12 +386,12 @@ class TimerSensor(AlexaMediaSensor):
             dt.as_local(
                 super()._round_time(
                     dt.utc_from_timestamp(
-                        dt.utcnow().timestamp()
+                        self._timestamp.timestamp()
                         + self._next[self._sensor_property] / 1000
                     )
                 )
             ).isoformat()
-            if self._next
+            if self._next and self._timestamp
             else STATE_UNAVAILABLE
         )
 

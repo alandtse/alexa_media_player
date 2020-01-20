@@ -390,7 +390,7 @@ class TimerSensor(AlexaMediaSensor):
         return (
             dt.as_local(
                 super()._round_time(
-                    dt.utc_from_timestamp(
+                    datetime.datetime.fromtimestamp(
                         self._timestamp.timestamp()
                         + self._next[self._sensor_property] / 1000
                     )

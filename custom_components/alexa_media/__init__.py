@@ -7,7 +7,7 @@ Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from typing import List, Optional, Text
 
@@ -25,6 +25,7 @@ from homeassistant.const import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.event import async_call_later
+from homeassistant.util import dt
 import voluptuous as vol
 
 from .config_flow import configured_instances
@@ -595,7 +596,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         if not raw_notifications:
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
         email: Text = login_obj.email
-        notifications = {}
+        notifications = {"process_timestamp": datetime.utcnow()}
         for notification in raw_notifications:
             n_dev_id = notification["deviceSerialNumber"]
             n_type = notification["type"]
@@ -610,12 +611,17 @@ async def setup_alexa(hass, config_entry, login_obj):
             if n_type not in notifications[n_dev_id]:
                 notifications[n_dev_id][n_type] = {}
             notifications[n_dev_id][n_type][n_id] = notification
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"]) = notifications
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"] = notifications
         _LOGGER.debug(
-            "%s: Updated %s notifications for %s devices",
+            "%s: Updated %s notifications for %s devices at %s",
             hide_email(email),
             len(raw_notifications),
             len(notifications),
+            dt.as_local(
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"][
+                    "process_timestamp"
+                ]
+            ),
         )
 
     async def update_last_called(login_obj, last_called=None):

@@ -194,6 +194,12 @@ class AlexaMediaSensor(Entity):
             value[1][self._sensor_property] = datetime.datetime.fromtimestamp(
                 value[1]["alarmTime"] / 1000, tz=LOCAL_TIMEZONE
             )
+            _LOGGER.warning(
+                "There is an old format alarm on %s set for %s. "
+                " This alarm should be removed in the Alexa app and recreated. ",
+                self._client.name,
+                dt.as_local(value[1][self._sensor_property]),
+            )
         else:
             _LOGGER.warning(
                 "%s is returning erroneous data. "

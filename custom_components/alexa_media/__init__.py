@@ -883,7 +883,10 @@ async def setup_alexa(hass, config_entry, login_obj):
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"notification_update": json_payload},
                     )
-            elif command in ["PUSH_DELETE_DOPPLER_ACTIVITIES"]:
+            elif command in [
+                "PUSH_DELETE_DOPPLER_ACTIVITIES",  # delete Alexa history
+                "PUSH_LIST_ITEM_CHANGE",  # update shopping list
+            ]:
                 pass
             else:
                 _LOGGER.warning(

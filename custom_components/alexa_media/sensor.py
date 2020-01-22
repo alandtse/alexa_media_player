@@ -174,6 +174,7 @@ class AlexaMediaSensor(Entity):
             else []
         )
         self._next = self._sorted[0][1] if self._sorted else None
+        self._timestamp: datetime.datetime = None
 
     def _fix_alarm_date_time(self, value):
         import pytz
@@ -188,9 +189,14 @@ class AlexaMediaSensor(Entity):
         timezone = pytz.timezone(self._client._timezone)
         if timezone and naive_time:
             value[1][self._sensor_property] = timezone.localize(naive_time)
+        elif not naive_time:
+            # this is typically an older alarm
+            value[1][self._sensor_property] = datetime.datetime.fromtimestamp(
+                value[1]["alarmTime"] / 1000, tz=LOCAL_TIMEZONE
+            )
         else:
             _LOGGER.warning(
-                "%s is returning erroneous data."
+                "%s is returning erroneous data. "
                 "Returned times may be wrong. "
                 "Please confirm the timezone in the Alexa app is correct. "
                 "Debugging info: \nRaw: %s \nNaive Time: %s "
@@ -201,6 +207,13 @@ class AlexaMediaSensor(Entity):
                 self._client._timezone,
             )
         return value
+
+    @staticmethod
+    def _round_time(value: datetime.datetime) -> datetime.datetime:
+        precision = datetime.timedelta(seconds=1).total_seconds()
+        seconds = (value - value.min.replace(tzinfo=value.tzinfo)).seconds
+        rounding = (seconds + precision / 2) // precision * precision
+        return value + datetime.timedelta(0, rounding - seconds, -value.microsecond)
 
     async def async_added_to_hass(self):
         """Store register state change callback."""
@@ -213,6 +226,7 @@ class AlexaMediaSensor(Entity):
         self._listener = self.hass.bus.async_listen(
             f"{ALEXA_DOMAIN}_{hide_email(self._account)}"[0:32], self._handle_event
         )
+        await self.async_update()
 
     async def async_will_remove_from_hass(self):
         """Prepare to remove entity."""
@@ -242,6 +256,11 @@ class AlexaMediaSensor(Entity):
     def available(self):
         """Return the availabilty of the sensor."""
         return True
+
+    @property
+    def hidden(self):
+        """Return whether the sensor should be hidden."""
+        return self.state == STATE_UNAVAILABLE
 
     @property
     def unique_id(self):
@@ -287,6 +306,7 @@ class AlexaMediaSensor(Entity):
         except AttributeError:
             pass
         account_dict = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]
+        self._timestamp = account_dict["notifications"]["process_timestamp"]
         try:
             self._n_dict = account_dict["notifications"][self._dev_id][self._type]
         except KeyError:
@@ -323,7 +343,7 @@ class AlexaMediaSensor(Entity):
 
     @property
     def recurrence(self):
-        """Return the icon of the sensor."""
+        """Return the recurrence pattern of the sensor."""
         return RECURRING_PATTERN[self._next["recurringPattern"]] if self._next else None
 
     @property
@@ -369,11 +389,14 @@ class TimerSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return (
             dt.as_local(
-                dt.utc_from_timestamp(
-                    dt.utcnow().timestamp() + self._next[self._sensor_property] / 1000
+                super()._round_time(
+                    dt.utc_from_timestamp(
+                        self._timestamp.timestamp()
+                        + self._next[self._sensor_property] / 1000
+                    )
                 )
             ).isoformat()
-            if self._next
+            if self._next and self._timestamp
             else STATE_UNAVAILABLE
         )
 
@@ -404,8 +427,10 @@ class ReminderSensor(AlexaMediaSensor):
         """Return the state of the sensor."""
         return (
             dt.as_local(
-                datetime.datetime.fromtimestamp(
-                    self._next[self._sensor_property] / 1000, tz=LOCAL_TIMEZONE
+                super()._round_time(
+                    datetime.datetime.fromtimestamp(
+                        self._next[self._sensor_property] / 1000, tz=LOCAL_TIMEZONE
+                    )
                 )
             ).isoformat()
             if self._next

@@ -135,7 +135,6 @@ class AlexaClient(MediaPlayerDevice):
         self._customer_name = None
 
         # Device info
-        self._device = None
         self._device_name = None
         self._device_serial_number = None
         self._device_type = None
@@ -395,7 +394,7 @@ class AlexaClient(MediaPlayerDevice):
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     @_catch_login_errors
-    async def refresh(self, device=None):
+    async def refresh(self, device=None, skip_api: bool = False):
         """Refresh device data.
 
         This is a per device refresh and for many Alexa devices can result in
@@ -406,10 +405,10 @@ class AlexaClient(MediaPlayerDevice):
         device (json): A refreshed device json from Amazon. For efficiency,
                        an individual device does not refresh if it's reported
                        as offline.
+        no_api (bool): Whether to only due a device json update and not hit the API
 
         """
         if device is not None:
-            self._device = device
             self._device_name = device["accountName"]
             self._device_family = device["deviceFamily"]
             self._device_type = device["deviceType"]
@@ -429,23 +428,6 @@ class AlexaClient(MediaPlayerDevice):
         session = None
         if self.available:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
-            if self._parent_clusters and self.hass:
-                playing_parents = list(
-                    filter(
-                        lambda x: (
-                            self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                                self._login.email
-                            ]["entities"]["media_player"].get(x)
-                            and self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                                self._login.email
-                            ]["entities"]["media_player"][x].state
-                            == STATE_PLAYING
-                        ),
-                        self._parent_clusters,
-                    )
-                )
-            else:
-                playing_parents = []
             if "PAIR_BT_SOURCE" in self._capabilities:
                 self._source = await self._get_source()
                 self._source_list = await self._get_source_list()
@@ -454,7 +436,26 @@ class AlexaClient(MediaPlayerDevice):
                 self._last_called_timestamp = self.hass.data[DATA_ALEXAMEDIA][
                     "accounts"
                 ][self._login.email]["last_called"]["timestamp"]
+            if skip_api:
+                return
             if "MUSIC_SKILL" in self._capabilities:
+                if self._parent_clusters and self.hass:
+                    playing_parents = list(
+                        filter(
+                            lambda x: (
+                                self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                    self._login.email
+                                ]["entities"]["media_player"].get(x)
+                                and self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                    self._login.email
+                                ]["entities"]["media_player"][x].state
+                                == STATE_PLAYING
+                            ),
+                            self._parent_clusters,
+                        )
+                    )
+                else:
+                    playing_parents = []
                 parent_session = {}
                 if playing_parents:
                     if len(playing_parents) > 1:
@@ -647,7 +648,12 @@ class AlexaClient(MediaPlayerDevice):
     @available.setter
     def available(self, state):
         """Set the availability state."""
-        self._available = self._device["online"] = state
+        self._available = state
+
+    @property
+    def hidden(self):
+        """Return whether the sensor should be hidden."""
+        return "MUSIC_SKILL" not in self._capabilities
 
     @property
     def unique_id(self):
@@ -663,11 +669,6 @@ class AlexaClient(MediaPlayerDevice):
     def device_serial_number(self):
         """Return the machine identifier of the device."""
         return self._device_serial_number
-
-    @property
-    def device(self):
-        """Return the device json, if any."""
-        return self._device
 
     @property
     def session(self):
@@ -702,7 +703,7 @@ class AlexaClient(MediaPlayerDevice):
                 return
         except AttributeError:
             pass
-        if self._device is None or self.entity_id is None:
+        if self.entity_id is None:
             # Device has not initialized yet
             return
         email = self._login.email

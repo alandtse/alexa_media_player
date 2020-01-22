@@ -7,7 +7,7 @@ Support to interface with Alexa Devices.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from typing import List, Optional, Text
 
@@ -25,6 +25,7 @@ from homeassistant.const import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.event import async_call_later
+from homeassistant.util import dt
 import voluptuous as vol
 
 from .config_flow import configured_instances
@@ -166,8 +167,8 @@ async def async_setup_entry(hass, config_entry):
             "config_entry": config_entry,
             "setup_platform_callback": setup_platform_callback,
             "test_login_status": test_login_status,
-            "devices": {"media_player": {}},
-            "entities": {"media_player": {}},
+            "devices": {"media_player": {}, "switch": {}},
+            "entities": {"media_player": {}, "switch": {}},
             "excluded": {},
             "new_devices": True,
             "websocket_lastattempt": 0,
@@ -473,8 +474,10 @@ async def setup_alexa(hass, config_entry, login_obj):
         include_filter = []
 
         for device in devices:
-            if include and device["accountName"] not in include:
-                include_filter.append(device["accountName"])
+            serial = device["serialNumber"]
+            dev_name = device["accountName"]
+            if include and dev_name not in include:
+                include_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:
                         (
@@ -482,14 +485,12 @@ async def setup_alexa(hass, config_entry, login_obj):
                                 app["serialNumber"]
                             ]
                         ) = device
-                (
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
-                        device["serialNumber"]
-                    ]
-                ) = device
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
+                    serial
+                ] = device
                 continue
-            elif exclude and device["accountName"] in exclude:
-                exclude_filter.append(device["accountName"])
+            elif exclude and dev_name in exclude:
+                exclude_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:
                         (
@@ -497,53 +498,53 @@ async def setup_alexa(hass, config_entry, login_obj):
                                 app["serialNumber"]
                             ]
                         ) = device
-                (
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
-                        device["serialNumber"]
-                    ]
-                ) = device
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
+                    serial
+                ] = device
                 continue
 
             if "bluetoothStates" in bluetooth:
                 for b_state in bluetooth["bluetoothStates"]:
-                    if device["serialNumber"] == b_state["deviceSerialNumber"]:
+                    if serial == b_state["deviceSerialNumber"]:
                         device["bluetooth_state"] = b_state
                         break
 
             if "devicePreferences" in preferences:
                 for dev in preferences["devicePreferences"]:
-                    if dev["deviceSerialNumber"] == device["serialNumber"]:
+                    if dev["deviceSerialNumber"] == serial:
                         device["locale"] = dev["locale"]
                         device["timeZoneId"] = dev["timeZoneId"]
                         _LOGGER.debug(
-                            "Locale %s timezone %s found for %s",
+                            "%s: Locale %s timezone %s",
+                            dev_name,
                             device["locale"],
                             device["timeZoneId"],
-                            hide_serial(device["serialNumber"]),
                         )
                         break
 
             if "doNotDisturbDeviceStatusList" in dnd:
                 for dev in dnd["doNotDisturbDeviceStatusList"]:
-                    if dev["deviceSerialNumber"] == device["serialNumber"]:
+                    if dev["deviceSerialNumber"] == serial:
                         device["dnd"] = dev["enabled"]
-                        _LOGGER.debug(
-                            "DND %s found for %s",
-                            device["dnd"],
-                            hide_serial(device["serialNumber"]),
-                        )
+                        _LOGGER.debug("%s: DND %s", dev_name, device["dnd"])
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                            "switch"
+                        ].setdefault(serial, {"dnd": True})
+
                         break
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["auth_info"] = device[
                 "auth_info"
             ] = auth_info
-            (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
-                    "media_player"
-                ][device["serialNumber"]]
-            ) = device
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"]["media_player"][
+                serial
+            ] = device
 
-            if device["serialNumber"] not in existing_serials:
-                new_alexa_clients.append(device["accountName"])
+            if serial not in existing_serials:
+                new_alexa_clients.append(dev_name)
+            elif serial in existing_entities:
+                await hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
+                    "media_player"
+                ].get(serial).refresh(device, no_api=True)
         _LOGGER.debug(
             "%s: Existing: %s New: %s;"
             " Filtered out by not being in include: %s "
@@ -595,7 +596,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         if not raw_notifications:
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
         email: Text = login_obj.email
-        notifications = {}
+        notifications = {"process_timestamp": datetime.utcnow()}
         for notification in raw_notifications:
             n_dev_id = notification["deviceSerialNumber"]
             n_type = notification["type"]
@@ -610,12 +611,17 @@ async def setup_alexa(hass, config_entry, login_obj):
             if n_type not in notifications[n_dev_id]:
                 notifications[n_dev_id][n_type] = {}
             notifications[n_dev_id][n_type][n_id] = notification
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"]) = notifications
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"] = notifications
         _LOGGER.debug(
-            "%s: Updated %s notifications for %s devices",
+            "%s: Updated %s notifications for %s devices at %s",
             hide_email(email),
             len(raw_notifications),
             len(notifications),
+            dt.as_local(
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"][
+                    "process_timestamp"
+                ]
+            ),
         )
 
     async def update_last_called(login_obj, last_called=None):
@@ -883,6 +889,11 @@ async def setup_alexa(hass, config_entry, login_obj):
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"notification_update": json_payload},
                     )
+            elif command in [
+                "PUSH_DELETE_DOPPLER_ACTIVITIES",  # delete Alexa history
+                "PUSH_LIST_ITEM_CHANGE",  # update shopping list
+            ]:
+                pass
             else:
                 _LOGGER.warning(
                     "Unhandled command: %s with data %s. Please report at %s",

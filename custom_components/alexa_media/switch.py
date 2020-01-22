@@ -60,6 +60,23 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 ]
             ) = {}
             for (switch_key, class_) in SWITCH_TYPES:
+                if (
+                    switch_key == "dnd"
+                    and not account_dict["devices"]["switch"][key].get("dnd")
+                ) or (
+                    switch_key in ["shuffle", "repeat"]
+                    and "MUSIC_SKILL"
+                    not in account_dict["devices"]["media_player"][key].get(
+                        "capabilities"
+                    )
+                ):
+                    _LOGGER.debug(
+                        "%s: Skipping %s for %s",
+                        hide_email(account),
+                        switch_key,
+                        hide_serial(key),
+                    )
+                    continue
                 alexa_client = class_(
                     account_dict["entities"]["media_player"][key], account
                 )  # type: AlexaMediaSwitch
@@ -215,6 +232,16 @@ class AlexaMediaSwitch(SwitchDevice):
         return "{} {} switch".format(self._client.name, self._name)
 
     @property
+    def device_class(self):
+        """Return the device_class of the switch."""
+        return "switch"
+
+    @property
+    def hidden(self):
+        """Return whether the switch should be hidden from the UI."""
+        return not self.available
+
+    @property
     def should_poll(self):
         """Return the polling state."""
         return not (
@@ -269,6 +296,23 @@ class DNDSwitch(AlexaMediaSwitch):
     def icon(self):
         """Return the icon of the switch."""
         return super()._icon("mdi:do-not-disturb", "mdi:do-not-disturb-off")
+
+    def _handle_event(self, event):
+        """Handle events.
+
+        This will update PUSH_EQUALIZER_STATE_CHANGE events to see if the DND switch
+        should be updated.
+        """
+        try:
+            if not self.enabled:
+                return
+        except AttributeError:
+            pass
+        if "player_state" in event.data:
+            queue_state = event.data["player_state"]
+            if queue_state["dopplerId"]["deviceSerialNumber"] == self._client.unique_id:
+                self._state = getattr(self._client, self._switch_property)
+                self.async_schedule_update_ha_state()
 
 
 class ShuffleSwitch(AlexaMediaSwitch):

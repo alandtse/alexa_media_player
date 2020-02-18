@@ -4,7 +4,12 @@
   "config_flow": true,
   "documentation": "https://github.com/custom-components/alexa_media_player/wiki",
   "dependencies": [],
-  "codeowners": ["@keatontaylor", "@alandtse"],
-  "requirements": ["alexapy==1.4.2"],
+  "codeowners": [
+    "keatontaylor",
+    "alandtse"
+  ],
+  "requirements": [
+    "alexapy==1.5.0"
+  ],
   "homeassistant": "0.96.0"
 }

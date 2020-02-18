@@ -892,6 +892,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             elif command in [
                 "PUSH_DELETE_DOPPLER_ACTIVITIES",  # delete Alexa history
                 "PUSH_LIST_ITEM_CHANGE",  # update shopping list
+                "PUSH_CONTENT_FOCUS_CHANGE",  # likely prime related refocus
             ]:
                 pass
             else:

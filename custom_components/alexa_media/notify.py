@@ -7,6 +7,7 @@ Alexa Devices notification service.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
+import asyncio
 import logging
 
 from homeassistant.components.notify import (
@@ -65,7 +66,7 @@ class AlexaNotificationService(BaseNotificationService):
         """Initialize the service."""
         self.hass = hass
 
-    async def convert(self, names, type_="entities", filter_matches=False):
+    def convert(self, names, type_="entities", filter_matches=False):
         """Return a list of converted Alexa devices based on names.
 
         Names may be matched either by serialNumber, accountName, or
@@ -149,23 +150,20 @@ class AlexaNotificationService(BaseNotificationService):
         data = kwargs.get(ATTR_DATA)
         if isinstance(targets, str):
             targets = [targets]
-        entities = await self.convert(targets, type_="entities")
+        entities = self.convert(targets, type_="entities")
         try:
             entities.extend(self.hass.components.group.expand_entity_ids(entities))
         except ValueError:
             _LOGGER.debug("Invalid Home Assistant entity in %s", entities)
+        tasks = []
         if data["type"] == "tts":
-            targets = await self.convert(
-                entities, type_="entities", filter_matches=True
-            )
+            targets = self.convert(entities, type_="entities", filter_matches=True)
             _LOGGER.debug("TTS entities: %s", targets)
             for alexa in targets:
                 _LOGGER.debug("TTS by %s : %s", alexa, message)
-                await alexa.async_send_tts(message)
+                tasks.append(alexa.async_send_tts(message))
         elif data["type"] == "announce":
-            targets = await self.convert(
-                entities, type_="serialnumbers", filter_matches=True
-            )
+            targets = self.convert(entities, type_="serialnumbers", filter_matches=True)
             _LOGGER.debug(
                 "Announce targets: %s entities: %s",
                 list(map(hide_serial, targets)),
@@ -183,17 +181,18 @@ class AlexaNotificationService(BaseNotificationService):
                             list(map(hide_serial, targets)),
                             message,
                         )
-                        await alexa.async_send_announcement(
-                            message,
-                            targets=targets,
-                            title=title,
-                            method=(data["method"] if "method" in data else "all"),
+                        tasks.append(
+                            alexa.async_send_announcement(
+                                message,
+                                targets=targets,
+                                title=title,
+                                method=(data["method"] if "method" in data else "all"),
+                            )
                         )
                         break
         elif data["type"] == "push":
-            targets = await self.convert(
-                entities, type_="entities", filter_matches=True
-            )
+            targets = self.convert(entities, type_="entities", filter_matches=True)
             for alexa in targets:
                 _LOGGER.debug("Push by %s : %s %s", alexa, title, message)
-                await alexa.async_send_mobilepush(message, title=title)
+                tasks.append(alexa.async_send_mobilepush(message, title=title))
+        await asyncio.gather(*tasks)

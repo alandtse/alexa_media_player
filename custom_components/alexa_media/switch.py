@@ -50,6 +50,14 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 hide_email(account),
                 hide_serial(key),
             )
+            if devices:
+                await add_devices(
+                    hide_email(account),
+                    devices,
+                    add_devices_callback,
+                    include_filter,
+                    exclude_filter,
+                )
             return False
         if key not in (
             hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]

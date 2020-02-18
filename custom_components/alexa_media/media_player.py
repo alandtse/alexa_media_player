@@ -997,12 +997,12 @@ class AlexaClient(MediaPlayerDevice):
             await self.async_update()
 
     @_catch_login_errors
-    async def async_send_tts(self, message):
+    async def async_send_tts(self, message, **kwargs):
         """Send TTS to Device.
 
         NOTE: Does not work on WHA Groups.
         """
-        await self.alexa_api.send_tts(message, customer_id=self._customer_id)
+        await self.alexa_api.send_tts(message, customer_id=self._customer_id, **kwargs)
 
     @_catch_login_errors
     async def async_send_announcement(self, message, **kwargs):

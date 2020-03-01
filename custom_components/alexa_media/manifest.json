@@ -9,7 +9,7 @@
     "alandtse"
   ],
   "requirements": [
-    "alexapy==1.5.0"
+    "alexapy==1.5.1"
   ],
   "homeassistant": "0.96.0"
 }

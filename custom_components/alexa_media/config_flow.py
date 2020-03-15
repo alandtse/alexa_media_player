@@ -90,7 +90,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         )
         self.twofactor_schema = OrderedDict([(vol.Required("securitycode"), str)])
         self.claimspicker_schema = OrderedDict([(vol.Required("claimsoption"), str)])
-        self.authselect_schema = OrderedDict([(vol.Required("authselectoption"), int)])
+        self.authselect_schema = OrderedDict(
+            [
+                (
+                    vol.Required("authselectoption", default=0),
+                    vol.All(cv.positive_int, vol.Clamp(min=0)),
+                )
+            ]
+        )
         self.verificationcode_schema = OrderedDict(
             [(vol.Required("verificationcode"), str)]
         )

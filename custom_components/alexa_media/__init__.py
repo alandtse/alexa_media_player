@@ -9,6 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from datetime import datetime, timedelta
 import logging
+import time
 from typing import List, Optional, Text
 
 from alexapy import AlexapyLoginError, WebsocketEchoClient, hide_email, hide_serial
@@ -653,7 +654,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                 f"{DOMAIN}_{hide_email(email)}"[0:32],
                 {"last_called_change": last_called},
             )
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called"]) = last_called
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called"] = last_called
 
     async def update_bluetooth_state(login_obj, device_serial):
         """Update the bluetooth state on ws bluetooth event."""
@@ -752,7 +753,6 @@ async def setup_alexa(hass, config_entry, login_obj):
         This allows push notifications from Alexa to update last_called
         and media state.
         """
-        import time
 
         command = (
             message_obj.json_payload["command"]
@@ -926,12 +926,12 @@ async def setup_alexa(hass, config_entry, login_obj):
 
         email: Text = login_obj.email
         _LOGGER.debug("%s: Websocket succesfully connected", hide_email(email))
-        (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
-        ) = 0  # set errors to 0
-        (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket_lastattempt"]
-        ) = time.time()
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "websocketerror"
+        ] = 0  # set errors to 0
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "websocket_lastattempt"
+        ] = time.time()
 
     async def ws_close_handler():
         """Handle websocket close.
@@ -960,18 +960,18 @@ async def setup_alexa(hass, config_entry, login_obj):
                 delay,
             )
             await sleep(delay)
-            (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket_lastattempt"]
-            ) = time.time()
-            (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]
-            ) = await ws_connect()
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                "websocket_lastattempt"
+            ] = time.time()
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                "websocket"
+            ] = await ws_connect()
             errors += 1
             delay = 5 * 2 ** errors
             _LOGGER.debug(
                 "%s: Websocket closed; retries exceeded; polling", hide_email(email)
             )
-            (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]) = None
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
         await update_devices(  # pylint: disable=unexpected-keyword-arg
             login_obj, no_throttle=True
         )
@@ -988,8 +988,8 @@ async def setup_alexa(hass, config_entry, login_obj):
         _LOGGER.debug(
             "%s: Received websocket error #%i %s", hide_email(email), errors, message
         )
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]) = None
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]) = errors + 1
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = errors + 1
 
     config = config_entry.data
     email = config.get(CONF_EMAIL)

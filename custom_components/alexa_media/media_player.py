@@ -9,7 +9,8 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import asyncio
 import logging
-from typing import List  # noqa pylint: disable=unused-import
+import re
+from typing import List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant import util
 from homeassistant.components.media_player import MediaPlayerDevice
@@ -808,9 +809,12 @@ class AlexaClient(MediaPlayerDevice):
         return self._last_update
 
     @property
-    def media_image_url(self):
+    def media_image_url(self) -> Text:
         """Return the image URL of current playing media."""
-        return self._media_image_url
+        if self._media_image_url:
+            return re.sub("\\(", "%28", re.sub("\\)", "%29", self._media_image_url))
+            # fix failure of HA media player ui to quote "(" or ")"
+        return None
 
     @property
     def media_image_remotely_accessible(self):

@@ -15,6 +15,7 @@ from homeassistant.const import DEVICE_CLASS_TIMESTAMP, STATE_UNAVAILABLE
 from homeassistant.exceptions import NoEntitySpecifiedError
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
+import pytz
 
 from . import (
     CONF_EMAIL,
@@ -43,6 +44,20 @@ RECURRING_PATTERN = {
     "XXXX-WXX-5": "Every Friday",
     "XXXX-WXX-6": "Every Saturday",
     "XXXX-WXX-7": "Every Sunday",
+}
+
+RECURRING_PATTERN_ISO_SET = {
+    None: (),
+    "P1D": (1, 2, 3, 4, 5, 6, 7),
+    "XXXX-WE": (6, 7),
+    "XXXX-WD": (1, 2, 3, 4, 5),
+    "XXXX-WXX-1": (1),
+    "XXXX-WXX-2": (2),
+    "XXXX-WXX-3": (3),
+    "XXXX-WXX-4": (4),
+    "XXXX-WXX-5": (5),
+    "XXXX-WXX-6": (6),
+    "XXXX-WXX-7": (7),
 }
 
 
@@ -170,23 +185,28 @@ class AlexaMediaSensor(Entity):
         self._unit = None
         self._device_class = DEVICE_CLASS_TIMESTAMP
         self._icon = icon
+        self._all = []
+        self._active = []
+        self._next = None
+        self._timestamp: datetime.datetime = None
+        self._process_raw_notifications()
+
+    def _process_raw_notifications(self):
         self._all = (
-            sorted(self._n_dict.items(), key=lambda x: x[1][self._sensor_property])
+            list(map(self._fix_alarm_date_time, self._n_dict.items()))
             if self._n_dict
             else []
         )
-        self._all = list(map(self._fix_alarm_date_time, self._all))
-        self._sorted = (
+        self._all = list(map(self._update_recurring_alarm, self._all))
+        self._all = sorted(self._all, key=lambda x: x[1][self._sensor_property])
+        self._active = (
             list(filter(lambda x: x[1]["status"] == "ON", self._all))
             if self._all
             else []
         )
-        self._next = self._sorted[0][1] if self._sorted else None
-        self._timestamp: datetime.datetime = None
+        self._next = self._active[0][1] if self._active else None
 
     def _fix_alarm_date_time(self, value):
-        import pytz
-
         if (
             self._sensor_property != "date_time"
             or not value
@@ -220,6 +240,25 @@ class AlexaMediaSensor(Entity):
                 naive_time,
                 self._client._timezone,
             )
+        return value
+
+    def _update_recurring_alarm(self, value):
+        _LOGGER.debug("value %s", value)
+        alarm = value[1][self._sensor_property]
+        recurring_pattern = value[1]["recurringPattern"]
+        while (
+            recurring_pattern
+            and alarm < dt.now()
+            and alarm.isoweekday not in RECURRING_PATTERN_ISO_SET[recurring_pattern]
+        ):
+            alarm += datetime.timedelta(days=1)
+        if alarm != value[1][self._sensor_property]:
+            _LOGGER.debug(
+                "Alarm with recurrence %s set to %s",
+                RECURRING_PATTERN[recurring_pattern],
+                alarm,
+            )
+            value[1][self._sensor_property] = alarm
         return value
 
     @staticmethod
@@ -325,18 +364,7 @@ class AlexaMediaSensor(Entity):
             self._n_dict = account_dict["notifications"][self._dev_id][self._type]
         except KeyError:
             self._n_dict = None
-        self._all = (
-            sorted(self._n_dict.items(), key=lambda x: x[1][self._sensor_property])
-            if self._n_dict
-            else []
-        )
-        self._all = list(map(self._fix_alarm_date_time, self._all))
-        self._sorted = (
-            list(filter(lambda x: x[1]["status"] == "ON", self._all))
-            if self._all
-            else []
-        )
-        self._next = self._sorted[0][1] if self._sorted else None
+        self._process_raw_notifications()
         try:
             self.async_schedule_update_ha_state()
         except NoEntitySpecifiedError:
@@ -367,9 +395,9 @@ class AlexaMediaSensor(Entity):
 
         attr = {
             "recurrence": self.recurrence,
-            "total_active": len(self._sorted),
+            "total_active": len(self._active),
             "total_all": len(self._all),
-            "sorted_active": json.dumps(self._sorted, default=str),
+            "sorted_active": json.dumps(self._active, default=str),
             "sorted_all": json.dumps(self._all, default=str),
         }
         return attr

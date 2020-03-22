@@ -47,17 +47,17 @@ RECURRING_PATTERN = {
 }
 
 RECURRING_PATTERN_ISO_SET = {
-    None: (),
-    "P1D": (1, 2, 3, 4, 5, 6, 7),
-    "XXXX-WE": (6, 7),
-    "XXXX-WD": (1, 2, 3, 4, 5),
-    "XXXX-WXX-1": (1),
-    "XXXX-WXX-2": (2),
-    "XXXX-WXX-3": (3),
-    "XXXX-WXX-4": (4),
-    "XXXX-WXX-5": (5),
-    "XXXX-WXX-6": (6),
-    "XXXX-WXX-7": (7),
+    None: {},
+    "P1D": {1, 2, 3, 4, 5, 6, 7},
+    "XXXX-WE": {6, 7},
+    "XXXX-WD": {1, 2, 3, 4, 5},
+    "XXXX-WXX-1": {1},
+    "XXXX-WXX-2": {2},
+    "XXXX-WXX-3": {3},
+    "XXXX-WXX-4": {4},
+    "XXXX-WXX-5": {5},
+    "XXXX-WXX-6": {6},
+    "XXXX-WXX-7": {7},
 }
 
 
@@ -245,10 +245,13 @@ class AlexaMediaSensor(Entity):
     def _update_recurring_alarm(self, value):
         _LOGGER.debug("value %s", value)
         alarm = value[1][self._sensor_property]
+        alarm_on = value[1]["status"] == "ON"
         recurring_pattern = value[1]["recurringPattern"]
         while (
-            recurring_pattern
+            alarm_on
+            and recurring_pattern
             and alarm < dt.now()
+            and RECURRING_PATTERN_ISO_SET[recurring_pattern]
             and alarm.isoweekday not in RECURRING_PATTERN_ISO_SET[recurring_pattern]
         ):
             alarm += datetime.timedelta(days=1)

@@ -8,6 +8,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 from datetime import datetime, timedelta
+import aiohttp
 import logging
 import time
 from typing import List, Optional, Text
@@ -959,19 +960,21 @@ async def setup_alexa(hass, config_entry, login_obj):
                 errors,
                 delay,
             )
-            await sleep(delay)
             hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "websocket_lastattempt"
             ] = time.time()
             hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "websocket"
             ] = await ws_connect()
-            errors += 1
-            delay = 5 * 2 ** errors
-            _LOGGER.debug(
-                "%s: Websocket closed; retries exceeded; polling", hide_email(email)
+            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = (
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] + 1
             )
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
+            delay = 5 * 2 ** errors
+            await sleep(delay)
+        _LOGGER.debug(
+            "%s: Websocket closed; retries exceeded; polling", hide_email(email)
+        )
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
         await update_devices(  # pylint: disable=unexpected-keyword-arg
             login_obj, no_throttle=True
         )
@@ -986,9 +989,19 @@ async def setup_alexa(hass, config_entry, login_obj):
         email = login_obj.email
         errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
         _LOGGER.debug(
-            "%s: Received websocket error #%i %s", hide_email(email), errors, message
+            "%s: Received websocket error #%i %s: type %s",
+            hide_email(email),
+            errors,
+            message,
+            type(message),
         )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
+        if (
+            isinstance(message, aiohttp.streams.EofStream)
+            or message == "<class 'aiohttp.streams.EofStream'>"
+        ):
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = 5
+            _LOGGER.debug("%s: Immediate abort on EoFstream", hide_email(email))
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = errors + 1
 
     config = config_entry.data

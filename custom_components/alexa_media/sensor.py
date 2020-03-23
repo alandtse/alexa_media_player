@@ -64,7 +64,7 @@ RECURRING_PATTERN_ISO_SET = {
 @retry_async(limit=5, delay=5, catch_exceptions=False)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa sensor platform."""
-    devices: List[AlexaMediaSensor] = []
+    devices: List[AlexaMediaNotificationSensor] = []
     SENSOR_TYPES = {
         "Alarm": AlarmSensor,
         "Timer": TimerSensor,
@@ -162,7 +162,7 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-class AlexaMediaSensor(Entity):
+class AlexaMediaNotificationSensor(Entity):
     """Representation of Alexa Media sensors."""
 
     def __init__(
@@ -406,7 +406,7 @@ class AlexaMediaSensor(Entity):
         return attr
 
 
-class AlarmSensor(AlexaMediaSensor):
+class AlarmSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Alarm sensor."""
 
     def __init__(self, client, n_json, account):
@@ -418,7 +418,7 @@ class AlarmSensor(AlexaMediaSensor):
         )
 
 
-class TimerSensor(AlexaMediaSensor):
+class TimerSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Timer sensor."""
 
     def __init__(self, client, n_json, account):
@@ -456,7 +456,7 @@ class TimerSensor(AlexaMediaSensor):
         return self._icon if not self.paused else "mdi:timer-off"
 
 
-class ReminderSensor(AlexaMediaSensor):
+class ReminderSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Reminder sensor."""
 
     def __init__(self, client, n_json, account):

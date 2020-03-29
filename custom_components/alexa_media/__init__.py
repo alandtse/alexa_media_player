@@ -8,7 +8,6 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 from datetime import datetime, timedelta
-import aiohttp
 import logging
 import time
 from typing import List, Optional, Text
@@ -971,6 +970,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             )
             delay = 5 * 2 ** errors
             await sleep(delay)
+            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
         _LOGGER.debug(
             "%s: Websocket closed; retries exceeded; polling", hide_email(email)
         )
@@ -996,10 +996,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             type(message),
         )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
-        if (
-            isinstance(message, aiohttp.streams.EofStream)
-            or message == "<class 'aiohttp.streams.EofStream'>"
-        ):
+        if message == "<class 'aiohttp.streams.EofStream'>":
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = 5
             _LOGGER.debug("%s: Immediate abort on EoFstream", hide_email(email))
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = errors + 1

@@ -999,6 +999,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         if message == "<class 'aiohttp.streams.EofStream'>":
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = 5
             _LOGGER.debug("%s: Immediate abort on EoFstream", hide_email(email))
+            return
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = errors + 1
 
     config = config_entry.data

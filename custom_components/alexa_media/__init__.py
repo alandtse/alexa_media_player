@@ -793,6 +793,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                 and json_payload["key"]["entryId"].find("#") != -1
             ):
                 serial = (json_payload["key"]["entryId"]).split("#")[2]
+                json_payload["key"]["serialNumber"] = serial
             else:
                 serial = None
             if command == "PUSH_ACTIVITY":

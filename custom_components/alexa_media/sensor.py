@@ -254,7 +254,7 @@ class AlexaMediaNotificationSensor(Entity):
                 )
             )
         alarm_on = value[1]["status"] == "ON"
-        recurring_pattern = value[1]["recurringPattern"]
+        recurring_pattern = value[1].get("recurringPattern")
         while (
             alarm_on
             and recurring_pattern
@@ -400,7 +400,11 @@ class AlexaMediaNotificationSensor(Entity):
     @property
     def recurrence(self):
         """Return the recurrence pattern of the sensor."""
-        return RECURRING_PATTERN[self._next["recurringPattern"]] if self._next else None
+        return (
+            RECURRING_PATTERN[self._next.get("recurringPattern")]
+            if self._next
+            else None
+        )
 
     @property
     def device_state_attributes(self):

@@ -604,9 +604,10 @@ async def setup_alexa(hass, config_entry, login_obj):
             if n_type == "MusicAlarm":
                 n_type = "Alarm"
             n_id = notification["notificationIndex"]
-            n_date = notification["originalDate"]
-            n_time = notification["originalTime"]
-            notification["date_time"] = f"{n_date} {n_time}"
+            if n_type != "Timer":
+                n_date = notification["originalDate"]
+                n_time = notification["originalTime"]
+                notification["date_time"] = f"{n_date} {n_time}"
             if n_dev_id not in notifications:
                 notifications[n_dev_id] = {}
             if n_type not in notifications[n_dev_id]:

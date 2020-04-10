@@ -16,7 +16,7 @@ Allows for control of Amazon Echo products as home assistant media devices with 
   * Album Image
 
 # Installation and Configuration
-Please see the [wiki.](https://github.com/custom-components/alexa_media_player/wiki/Installation-and-Configuration)
+Please see the [wiki.](https://github.com/custom-components/alexa_media_player/wiki/Configuration)
 
 
 # Further Documentation

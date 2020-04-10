@@ -1051,7 +1051,7 @@ class AlexaClient(MediaPlayerDevice):
                 "Sorry, text to speech can only be called"
                 " with the notify.alexa_media service."
                 " Please see the alexa_media wiki for details."
-                "https://github.com/custom-components/alexa_media_player/wiki/Notification-Component#use-the-notifyalexa_media-service"
+                "https://github.com/custom-components/alexa_media_player/wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
             )
         elif media_type == "sequence":
             await self.alexa_api.send_sequence(

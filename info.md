@@ -11,7 +11,7 @@ This is a custom component to allow control of Amazon Alexa devices in [Homeassi
 ## Useful links
 
 - [General documentation](https://github.com/custom-components/alexa_media_player/wiki)
-- [Installation and Configuration](https://github.com/custom-components/alexa_media_player/wiki/Installation-and-Configuration)
+- [Installation and Configuration](https://github.com/custom-components/alexa_media_player/wiki/Configuration)
 - [FAQ](https://github.com/custom-components/alexa_media_player/wiki/FAQ)
 - [Repository](https://github.com/custom-components/alexa_media_player)
 - [Forum post](https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639)

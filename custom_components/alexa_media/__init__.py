@@ -604,14 +604,18 @@ async def setup_alexa(hass, config_entry, login_obj):
                 # skip notifications untied to a device for now
                 # https://github.com/custom-components/alexa_media_player/issues/633#issuecomment-610705651
                 continue
-            n_type = notification["type"]
+            n_type = notification.get("type")
+            if n_type is None:
+                continue
             if n_type == "MusicAlarm":
                 n_type = "Alarm"
             n_id = notification["notificationIndex"]
-            if n_type != "Timer":
-                n_date = notification["originalDate"]
-                n_time = notification["originalTime"]
-                notification["date_time"] = f"{n_date} {n_time}"
+            if n_type == "Alarm":
+                n_date = notification.get("originalDate")
+                n_time = notification.get("originalTime")
+                notification["date_time"] = (
+                    f"{n_date} {n_time}" if n_date and n_time else None
+                )
             if n_dev_id not in notifications:
                 notifications[n_dev_id] = {}
             if n_type not in notifications[n_dev_id]:

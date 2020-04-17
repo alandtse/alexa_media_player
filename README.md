@@ -1,3 +1,6 @@
+![Validate with hassfest](https://github.com/custom-components/alexa_media_player/workflows/Validate%20with%20hassfest/badge.svg)
+![semantic_release](https://github.com/custom-components/alexa_media_player/workflows/semantic_release/badge.svg)
+
 [Alexa Media Player Custom Component](https://github.com/custom-components/alexa_media_player) for homeassistant
 
 # What This Is:

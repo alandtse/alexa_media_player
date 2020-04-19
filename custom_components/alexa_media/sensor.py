@@ -13,6 +13,7 @@ from typing import List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant.const import DEVICE_CLASS_TIMESTAMP, STATE_UNAVAILABLE
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
 import pytz
@@ -281,8 +282,10 @@ class AlexaMediaNotificationSensor(Entity):
         except AttributeError:
             pass
         # Register event handler on bus
-        self._listener = self.hass.bus.async_listen(
-            f"{ALEXA_DOMAIN}_{hide_email(self._account)}"[0:32], self._handle_event
+        self._listener = async_dispatcher_connect(
+            self.hass,
+            f"{ALEXA_DOMAIN}_{hide_email(self._account)}"[0:32],
+            self._handle_event,
         )
         await self.async_update()
 
@@ -302,9 +305,9 @@ class AlexaMediaNotificationSensor(Entity):
                 return
         except AttributeError:
             pass
-        if "notification_update" in event.data:
+        if "notification_update" in event:
             if (
-                event.data["notification_update"]["dopplerId"]["deviceSerialNumber"]
+                event["notification_update"]["dopplerId"]["deviceSerialNumber"]
                 == self._client.unique_id
             ):
                 _LOGGER.debug("Updating sensor %s", self.name)

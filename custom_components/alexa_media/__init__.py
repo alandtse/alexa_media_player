@@ -29,6 +29,7 @@ from homeassistant.const import (
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, entity
 from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt
@@ -470,7 +471,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                 ),
                 hide_serial(last_called),
             )
-            hass.bus.async_fire(
+            async_dispatcher_send(
+                hass,
                 f"{DOMAIN}_{hide_email(email)}"[0:32],
                 {"last_called_change": last_called},
             )
@@ -624,7 +626,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                 }
                 if serial and serial in existing_serials:
                     await update_last_called(login_obj, last_called)
-                hass.bus.async_fire(
+                async_dispatcher_send(
+                    hass,
                     f"{DOMAIN}_{hide_email(email)}"[0:32],
                     {"push_activity": json_payload},
                 )
@@ -638,7 +641,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                     _LOGGER.debug(
                         "Updating media_player: %s", hide_serial(json_payload)
                     )
-                    hass.bus.async_fire(
+                    async_dispatcher_send(
+                        hass,
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"player_state": json_payload},
                     )
@@ -648,7 +652,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                     _LOGGER.debug(
                         "Updating media_player volume: %s", hide_serial(json_payload)
                     )
-                    hass.bus.async_fire(
+                    async_dispatcher_send(
+                        hass,
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"player_state": json_payload},
                     )
@@ -662,7 +667,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                         "Updating media_player availability %s",
                         hide_serial(json_payload),
                     )
-                    hass.bus.async_fire(
+                    async_dispatcher_send(
+                        hass,
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"player_state": json_payload},
                     )
@@ -684,7 +690,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                     # _LOGGER.debug("bluetooth_state %s",
                     #               hide_serial(bluetooth_state))
                     if bluetooth_state:
-                        hass.bus.async_fire(
+                        async_dispatcher_send(
+                            hass,
                             f"{DOMAIN}_{hide_email(email)}"[0:32],
                             {"bluetooth_change": bluetooth_state},
                         )
@@ -694,7 +701,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                     _LOGGER.debug(
                         "Updating media_player queue %s", hide_serial(json_payload)
                     )
-                    hass.bus.async_fire(
+                    async_dispatcher_send(
+                        hass,
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"queue_state": json_payload},
                     )
@@ -706,7 +714,8 @@ async def setup_alexa(hass, config_entry, login_obj):
                         "Updating mediaplayer notifications: %s",
                         hide_serial(json_payload),
                     )
-                    hass.bus.async_fire(
+                    async_dispatcher_send(
+                        hass,
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"notification_update": json_payload},
                     )

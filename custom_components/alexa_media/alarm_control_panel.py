@@ -13,6 +13,7 @@ from typing import Dict, List, Text  # noqa pylint: disable=unused-import
 from homeassistant import util
 from homeassistant.components.alarm_control_panel import AlarmControlPanel
 from homeassistant.const import STATE_ALARM_ARMED_AWAY, STATE_ALARM_DISARMED
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later
 
 from . import (
@@ -156,8 +157,10 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         except AttributeError:
             pass
         # Register event handler on bus
-        self._listener = self.hass.bus.async_listen(
-            f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32], self._handle_event
+        self._listener = async_dispatcher_connect(
+            self.hass,
+            f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32],
+            self._handle_event,
         )
         await self.async_update()
 
@@ -176,7 +179,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
                 return
         except AttributeError:
             pass
-        if "push_activity" in event.data:
+        if "push_activity" in event:
             async_call_later(
                 self.hass,
                 2,

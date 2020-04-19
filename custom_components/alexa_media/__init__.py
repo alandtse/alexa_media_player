@@ -106,11 +106,19 @@ async def async_setup(hass, config, discovery_info=None):
     # pylint: disable=unused-argument
     """Set up the Alexa domain."""
     if DOMAIN not in config:
+        _LOGGER.debug(
+            "Nothing to import from configuration.yaml, loading from Integrations",
+        )
         return True
 
     domainconfig = config.get(DOMAIN)
     for account in domainconfig[CONF_ACCOUNTS]:
         entry_title = "{} - {}".format(account[CONF_EMAIL], account[CONF_URL])
+        _LOGGER.debug(
+            "Importing config information for %s - %s from configuration.yaml",
+            hide_email(account[CONF_EMAIL]),
+            account[CONF_URL],
+        )
         if entry_title in configured_instances(hass):
             for entry in hass.config_entries.async_entries(DOMAIN):
                 if entry_title == entry.title:

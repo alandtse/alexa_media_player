@@ -202,7 +202,6 @@ async def async_setup_entry(hass, config_entry):
     )
     await login.login_with_cookie()
     if await test_login_status(hass, config_entry, login, setup_alexa):
-        await hass.async_add_job(setup_alexa, hass, config_entry, login)
         return True
     return False
 
@@ -292,8 +291,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                 "%s: Alexa API disconnected; attempting to relogin", hide_email(email)
             )
             await login_obj.login_with_cookie()
-            if await test_login_status(hass, config_entry, login_obj, setup_alexa):
-                await hass.async_add_job(setup_alexa, hass, config_entry, login_obj)
+            await test_login_status(hass, config_entry, login_obj, setup_alexa)
             return
         except BaseException as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
@@ -394,22 +392,12 @@ async def setup_alexa(hass, config_entry, login_obj):
             cleaned_config.pop(CONF_PASSWORD, None)
             # CONF_PASSWORD contains sensitive info which is no longer needed
             for component in ALEXA_COMPONENTS:
-                if component == "notify":
-                    hass.async_create_task(
-                        async_load_platform(
-                            hass,
-                            component,
-                            DOMAIN,
-                            {CONF_NAME: DOMAIN, "config": cleaned_config},
-                            config,
-                        )
+                _LOGGER.debug("Loading %s", component)
+                hass.async_add_job(
+                    hass.config_entries.async_forward_entry_setup(
+                        config_entry, component
                     )
-                else:
-                    hass.async_add_job(
-                        hass.config_entries.async_forward_entry_setup(
-                            config_entry, component
-                        )
-                    )
+                )
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
 

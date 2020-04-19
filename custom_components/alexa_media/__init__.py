@@ -737,9 +737,11 @@ async def setup_alexa(hass, config_entry, login_obj):
             ):
                 _LOGGER.debug("Discovered new media_player %s", serial)
                 (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]) = True
-                await hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
                     "coordinator"
-                ].async_request_refresh()
+                )
+                if coordinator:
+                    await coordinator.async_request_refresh()
 
     async def ws_open_handler():
         """Handle websocket open."""
@@ -796,12 +798,10 @@ async def setup_alexa(hass, config_entry, login_obj):
             "%s: Websocket closed; retries exceeded; polling", hide_email(email)
         )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "coordinator"
-        ].update_interval = scan_interval
-        await hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "coordinator"
-        ].async_request_refresh()
+        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
+        if coordinator:
+            coordinator.update_interval = scan_interval
+            await coordinator.async_request_refresh()
 
     async def ws_error_handler(message):
         """Handle websocket error.
@@ -839,20 +839,24 @@ async def setup_alexa(hass, config_entry, login_obj):
     websocket_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
         "websocket"
     ] = await ws_connect()
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-        "coordinator"
-    ] = coordinator = DataUpdateCoordinator(
-        hass,
-        _LOGGER,
-        # Name of the data. For logging purposes.
-        name="alexa_media",
-        update_method=async_update_data,
-        # Polling interval. Will only be polled if there are subscribers.
-        update_interval=timedelta(
-            seconds=scan_interval * 10 if websocket_enabled else scan_interval
-        ),
-    )
+    coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
+    if coordinator is None:
+        _LOGGER.debug("Creating coordinator")
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "coordinator"
+        ] = coordinator = DataUpdateCoordinator(
+            hass,
+            _LOGGER,
+            # Name of the data. For logging purposes.
+            name="alexa_media",
+            update_method=async_update_data,
+            # Polling interval. Will only be polled if there are subscribers.
+            update_interval=timedelta(
+                seconds=scan_interval * 10 if websocket_enabled else scan_interval
+            ),
+        )
     # Fetch initial data so we have data when entities subscribe
+    _LOGGER.debug("Refreshing coordinator")
     await coordinator.async_refresh()
 
     hass.services.async_register(

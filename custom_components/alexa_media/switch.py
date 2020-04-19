@@ -11,7 +11,7 @@ import logging
 from typing import List  # noqa pylint: disable=unused-import
 
 from homeassistant.components.switch import SwitchDevice
-from homeassistant.exceptions import NoEntitySpecifiedError
+from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 
 from . import (
     CONF_EMAIL,
@@ -27,7 +27,6 @@ from .helpers import _catch_login_errors, add_devices, retry_async
 _LOGGER = logging.getLogger(__name__)
 
 
-@retry_async(limit=5, delay=5, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa switch platform."""
     devices = []  # type: List[DNDSwitch]
@@ -50,15 +49,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 hide_email(account),
                 hide_serial(key),
             )
-            if devices:
-                await add_devices(
-                    hide_email(account),
-                    devices,
-                    add_devices_callback,
-                    include_filter,
-                    exclude_filter,
-                )
-            return False
+            raise ConfigEntryNotReady
         if key not in (
             hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
         ):

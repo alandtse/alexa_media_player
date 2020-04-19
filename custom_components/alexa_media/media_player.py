@@ -36,18 +36,22 @@ from homeassistant.const import (
     STATE_STANDBY,
     STATE_UNAVAILABLE,
 )
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.event import async_call_later
 
 from . import (
     CONF_EMAIL,
+    CONF_NAME,
+    CONF_PASSWORD,
     DATA_ALEXAMEDIA,
     DOMAIN as ALEXA_DOMAIN,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
+    async_load_platform,
     hide_email,
     hide_serial,
 )
-from .const import PLAY_SCAN_INTERVAL
+from .const import DEPENDENT_ALEXA_COMPONENTS, PLAY_SCAN_INTERVAL
 from .helpers import _catch_login_errors, add_devices, retry_async
 
 SUPPORT_ALEXA = (
@@ -70,7 +74,7 @@ _LOGGER = logging.getLogger(__name__)
 DEPENDENCIES = [ALEXA_DOMAIN]
 
 
-@retry_async(limit=5, delay=2, catch_exceptions=True)
+# @retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     # pylint: disable=unused-argument
     """Set up the Alexa media player platform."""
@@ -99,9 +103,31 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa media player platform by config_entry."""
-    return await async_setup_platform(
+    if await async_setup_platform(
         hass, config_entry.data, async_add_devices, discovery_info=None
-    )
+    ):
+        for component in DEPENDENT_ALEXA_COMPONENTS:
+            if component == "notify":
+                cleaned_config = config_entry.data.copy()
+                cleaned_config.pop(CONF_PASSWORD, None)
+                # CONF_PASSWORD contains sensitive info which is no longer needed
+                hass.async_create_task(
+                    async_load_platform(
+                        hass,
+                        component,
+                        ALEXA_DOMAIN,
+                        {CONF_NAME: ALEXA_DOMAIN, "config": cleaned_config},
+                        cleaned_config,
+                    )
+                )
+            else:
+                hass.async_add_job(
+                    hass.config_entries.async_forward_entry_setup(
+                        config_entry, component
+                    )
+                )
+        return True
+    raise ConfigEntryNotReady
 
 
 async def async_unload_entry(hass, entry) -> bool:

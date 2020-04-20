@@ -21,8 +21,10 @@ SCAN_INTERVAL = timedelta(seconds=60)
 MIN_TIME_BETWEEN_SCANS = SCAN_INTERVAL
 MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 
-ALEXA_COMPONENTS = ["media_player", "alarm_control_panel"]
-DEPENDENT_ALEXA_COMPONENTS = ["notify", "switch", "sensor"]
+ALEXA_COMPONENTS = [
+    "media_player",
+]
+DEPENDENT_ALEXA_COMPONENTS = ["notify", "switch", "sensor", "alarm_control_panel"]
 
 CONF_ACCOUNTS = "accounts"
 CONF_DEBUG = "debug"

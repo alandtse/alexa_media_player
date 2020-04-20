@@ -12,7 +12,8 @@ import logging
 from typing import List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant.const import DEVICE_CLASS_TIMESTAMP, STATE_UNAVAILABLE
-from homeassistant.exceptions import NoEntitySpecifiedError
+from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
 import pytz
@@ -61,7 +62,6 @@ RECURRING_PATTERN_ISO_SET = {
 }
 
 
-@retry_async(limit=5, delay=5, catch_exceptions=False)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa sensor platform."""
     devices: List[AlexaMediaNotificationSensor] = []
@@ -84,15 +84,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 hide_email(account),
                 hide_serial(key),
             )
-            if devices:
-                await add_devices(
-                    hide_email(account),
-                    devices,
-                    add_devices_callback,
-                    include_filter,
-                    exclude_filter,
-                )
-            return False
+            raise ConfigEntryNotReady
         if key not in (account_dict["entities"]["sensor"]):
             (account_dict["entities"]["sensor"][key]) = {}
             for (n_type, class_) in SENSOR_TYPES.items():
@@ -243,7 +235,7 @@ class AlexaMediaNotificationSensor(Entity):
         return value
 
     def _update_recurring_alarm(self, value):
-        _LOGGER.debug("value %s", value)
+        _LOGGER.debug("Sensor value %s", value)
         alarm = value[1][self._sensor_property]
         reminder = None
         if isinstance(value[1][self._sensor_property], int):
@@ -290,8 +282,10 @@ class AlexaMediaNotificationSensor(Entity):
         except AttributeError:
             pass
         # Register event handler on bus
-        self._listener = self.hass.bus.async_listen(
-            f"{ALEXA_DOMAIN}_{hide_email(self._account)}"[0:32], self._handle_event
+        self._listener = async_dispatcher_connect(
+            self.hass,
+            f"{ALEXA_DOMAIN}_{hide_email(self._account)}"[0:32],
+            self._handle_event,
         )
         await self.async_update()
 
@@ -311,9 +305,9 @@ class AlexaMediaNotificationSensor(Entity):
                 return
         except AttributeError:
             pass
-        if "notification_update" in event.data:
+        if "notification_update" in event:
             if (
-                event.data["notification_update"]["dopplerId"]["deviceSerialNumber"]
+                event["notification_update"]["dopplerId"]["deviceSerialNumber"]
                 == self._client.unique_id
             ):
                 _LOGGER.debug("Updating sensor %s", self.name)

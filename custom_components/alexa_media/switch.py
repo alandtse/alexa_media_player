@@ -60,13 +60,13 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             for (switch_key, class_) in SWITCH_TYPES:
                 if (
                     switch_key == "dnd"
-                    and not account_dict["devices"]["switch"][key].get("dnd")
+                    and not account_dict["devices"]["switch"].get(key, {}).get("dnd")
                 ) or (
                     switch_key in ["shuffle", "repeat"]
                     and "MUSIC_SKILL"
-                    not in account_dict["devices"]["media_player"][key].get(
-                        "capabilities"
-                    )
+                    not in account_dict["devices"]["media_player"]
+                    .get(key, {})
+                    .get("capabilities", {})
                 ):
                     _LOGGER.debug(
                         "%s: Skipping %s for %s",

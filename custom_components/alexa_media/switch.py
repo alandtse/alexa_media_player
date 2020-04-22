@@ -54,11 +54,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         if key not in (
             hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
         ):
-            (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"][
-                    key
-                ]
-            ) = {}
+            hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"][
+                key
+            ] = {}
             for (switch_key, class_) in SWITCH_TYPES:
                 if (
                     switch_key == "dnd"

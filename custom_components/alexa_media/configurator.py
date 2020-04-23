@@ -87,8 +87,8 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
                     "Alexa Media Player - Verification Method - {}".format(email),
                     configuration_callback,
                     description=(
-                        "Please select the verification method. "
-                        "(e.g., `sms` or `email`).\n{}".format(options)
+                        "Please select the verification method by number. "
+                        "(e.g., `0` or `1`).\n{}".format(options)
                         # + links
                         + footer
                     ),
@@ -106,7 +106,7 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
                     "Alexa Media Player - OTP Method - {}".format(email),
                     configuration_callback,
                     description=(
-                        "Please select the OTP method. "
+                        "Please select the OTP method by number. "
                         "(e.g., `0`, `1`).<br />{}".format(options)
                         # + links
                         + footer

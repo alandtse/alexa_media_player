@@ -1,54 +1,53 @@
 {
-    "config": {
-        "error": {
-            "identifier_exists": "Adres email dla Alexy już jest zarejestrowany",
-            "invalid_credentials": "Nieprawidłowe dane logowania"
+  "config": {
+    "error": {
+      "identifier_exists": "Adres email dla Alexy już jest zarejestrowany",
+      "invalid_credentials": "Nieprawidłowe dane logowania"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Hasło",
+          "email": "Adres email",
+          "url": "Region/domena Amazon (np. amazon.co.uk)",
+          "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
+          "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
+          "debug": "Zaawansowane debugowanie",
+          "scan_interval": "Interwał skanowania (sekundy)"
         },
-        "step": {
-            "user": {
-                "data": {
-                    "password": "Hasło",
-                    "email": "Adres email",
-                    "url": "Region/domena Amazon (np. amazon.co.uk)",
-                    "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
-                    "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
-                    "debug": "Zaawansowane debugowanie",
-                    "scan_interval": "Interwał skanowania (sekundy)"
-                },
-                "description": "Wprowadź dane",
-                "title": "Alexa Media Player - konfiguracja"
-            },
-            "captcha": {
-                "data": {
-                    "password": "Hasło",
-                    "captcha": "Kod Captcha"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-                "title": "Alexa Media Player - kod Captcha"
-            },
-            "twofactor": {
-                "data": {
-                    "securitycode": "Kod uwierzytelniania dwuskładnikowego"
-                },
-                "description": "**{email} - alexa.{url}**\nWprowadź hasło jednorazowe (OTP).\n{message}",
-                "title": "Alexa Media Player - uwierzytelnianie dwuskładnikowe"
-            },
-            "authselect": {
-                "data": {
-                    "authselectoption": "Metoda OTP"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}",
-                "title": "Alexa Media Player - hasło jednorazowe"
-            },
-            "claimspicker": {
-                "data": {
-                    "authselectoption": "Metoda weryfikacji"
-                },
-                "description": "**{email} - alexa.{url}**\nWybierz metodę weryfikacji. (np., `sms` lub `email`)\n{message}",
-                "title": "Alexa Media Player - metoda weryfikacji"
-            }
-
+        "description": "Wprowadź dane",
+        "title": "Alexa Media Player - konfiguracja"
+      },
+      "captcha": {
+        "data": {
+          "password": "Hasło",
+          "captcha": "Kod Captcha"
         },
-        "title": "Alexa Media Player"
-    }
+        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "title": "Alexa Media Player - kod Captcha"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "Kod uwierzytelniania dwuskładnikowego"
+        },
+        "description": "**{email} - alexa.{url}**\nWprowadź hasło jednorazowe (OTP).\n{message}",
+        "title": "Alexa Media Player - uwierzytelnianie dwuskładnikowe"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "Metoda OTP"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}",
+        "title": "Alexa Media Player - hasło jednorazowe"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Metoda weryfikacji"
+        },
+        "description": "**{email} - alexa.{url}**\nWybierz metodę weryfikacji. (np., `0` lub `1`)\n{message}",
+        "title": "Alexa Media Player - metoda weryfikacji"
+      }
+    },
+    "title": "Alexa Media Player"
+  }
 }

@@ -1,54 +1,53 @@
 {
-    "config": {
-        "error": {
-            "identifier_exists": "Dit e-mailadres is reeds geregistreerd",
-            "invalid_credentials": "Ongeldige inloggegevens"
+  "config": {
+    "error": {
+      "identifier_exists": "Dit e-mailadres is reeds geregistreerd",
+      "invalid_credentials": "Ongeldige inloggegevens"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Paswoord",
+          "email": "E-mailadres",
+          "url": "Domeinnaam van Amazon regio (bv.amazon.co.uk)",
+          "include_devices": "Apparaten toevoegen (Scheiding: komma)",
+          "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
+          "debug": "Geavanceerd debuggen",
+          "scan_interval": "Aantal seconden tussen scans"
         },
-        "step": {
-            "user": {
-                "data": {
-                    "password": "Paswoord",
-                    "email": "E-mailadres",
-                    "url": "Domeinnaam van Amazon regio (bv.amazon.co.uk)",
-                    "include_devices": "Apparaten toevoegen (Scheiding: komma)",
-                    "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
-                    "debug": "Geavanceerd debuggen",
-                    "scan_interval": "Aantal seconden tussen scans"
-                },
-                "description": "Vul je gegevens in a.u.b.",
-                "title": "Alexa Media Player - Configuratie"
-            },
-            "captcha": {
-                "data": {
-                    "password": "Paswoord",
-                    "captcha": "Captcha"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-                "title": "Alexa Media Player - Captcha"
-            },
-            "twofactor": {
-                "data": {
-                    "securitycode": "Verificatiecode"
-                },
-                "description": "**{email} - alexa.{url}**\nGeef de verificatiecode in.\n{message}",
-                "title": "Alexa Media Player - Tweestapsverificatie"
-            },
-            "authselect": {
-                "data": {
-                    "authselectoption": "Eenmalige Pincode"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}",
-                "title": "Alexa Media Player - Eenmalige Pincode"
-            },
-            "claimspicker": {
-                "data": {
-                    "authselectoption": "Verificatiemethode"
-                },
-                "description": "**{email} - alexa.{url}**\nSelecteer de verificatiemethode (bv.`sms` of `email`)\n{message}",
-                "title": "Alexa Media Player - Verificatiemethode"
-            }
-
+        "description": "Vul je gegevens in a.u.b.",
+        "title": "Alexa Media Player - Configuratie"
+      },
+      "captcha": {
+        "data": {
+          "password": "Paswoord",
+          "captcha": "Captcha"
         },
-        "title": "Alexa Media Player"
-    }
+        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "title": "Alexa Media Player - Captcha"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "Verificatiecode"
+        },
+        "description": "**{email} - alexa.{url}**\nGeef de verificatiecode in.\n{message}",
+        "title": "Alexa Media Player - Tweestapsverificatie"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "Eenmalige Pincode"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}",
+        "title": "Alexa Media Player - Eenmalige Pincode"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Verificatiemethode"
+        },
+        "description": "**{email} - alexa.{url}**\nSelecteer de verificatiemethode (bv.`0` of `1`)\n{message}",
+        "title": "Alexa Media Player - Verificatiemethode"
+      }
+    },
+    "title": "Alexa Media Player"
+  }
 }

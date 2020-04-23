@@ -1,54 +1,53 @@
 {
-    "config": {
-        "error": {
-            "identifier_exists": "L'Email per l'URL di Alexa è già stata registrata",
-            "invalid_credentials": "Credenziali non valide"
+  "config": {
+    "error": {
+      "identifier_exists": "L'Email per l'URL di Alexa è già stata registrata",
+      "invalid_credentials": "Credenziali non valide"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Password",
+          "email": "Indirizzo email",
+          "url": "Regione del dominio Amazon (e.g., amazon.it)",
+          "include_devices": "Dispositivi da includere (separati da virgola)",
+          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
+          "debug": "Debug avanzato",
+          "scan_interval": "Tempo in secondi fra le scansioni"
         },
-        "step": {
-            "user": {
-                "data": {
-                    "password": "Password",
-                    "email": "Indirizzo email",
-                    "url": "Regione del dominio Amazon (e.g., amazon.it)",
-                    "include_devices": "Dispositivi da includere (separati da virgola)",
-                    "exclude_devices": "Dispositivi da escludere (separati da virgola)",
-                    "debug": "Debug avanzato",
-                    "scan_interval": "Tempo in secondi fra le scansioni"
-                },
-                "description": "Prego inserisci le tue informazioni.",
-                "title": "Alexa Media Player - Configurazione"
-            },
-            "captcha": {
-                "data": {
-                    "password": "Password",
-                    "captcha": "Captcha"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-                "title": "Alexa Media Player - Captcha"
-            },
-            "twofactor": {
-                "data": {
-                    "securitycode": "Codice autenticazione a 2 fattori (2FA)"
-                },
-                "description": "**{email} - alexa.{url}**\nInserisci la password usa e getta (OTP).\n{message}",
-                "title": "Alexa Media Player - Autenticazione a Due Fattori"
-            },
-            "authselect": {
-                "data": {
-                    "authselectoption": "Metodo password usa e getta (OTP)"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}",
-                "title": "Alexa Media Player - Password Usa e Getta (One Time Password)"
-            },
-            "claimspicker": {
-                "data": {
-                    "authselectoption": "Metodi di Verifica"
-                },
-                "description": "**{email} - alexa.{url}**\nPrego selezionare un metodo di verifica. (e.g., `sms` or `email`)\n{message}",
-                "title": "Alexa Media Player - Metodi di Verifica"
-            }
-
+        "description": "Prego inserisci le tue informazioni.",
+        "title": "Alexa Media Player - Configurazione"
+      },
+      "captcha": {
+        "data": {
+          "password": "Password",
+          "captcha": "Captcha"
         },
-        "title": "Alexa Media Player"
-    }
+        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "title": "Alexa Media Player - Captcha"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "Codice autenticazione a 2 fattori (2FA)"
+        },
+        "description": "**{email} - alexa.{url}**\nInserisci la password usa e getta (OTP).\n{message}",
+        "title": "Alexa Media Player - Autenticazione a Due Fattori"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "Metodo password usa e getta (OTP)"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}",
+        "title": "Alexa Media Player - Password Usa e Getta (One Time Password)"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Metodi di Verifica"
+        },
+        "description": "**{email} - alexa.{url}**\nPrego selezionare un metodo di verifica. (e.g., `0` or `1`)\n{message}",
+        "title": "Alexa Media Player - Metodi di Verifica"
+      }
+    },
+    "title": "Alexa Media Player"
+  }
 }

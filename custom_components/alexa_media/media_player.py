@@ -44,6 +44,7 @@ from . import (
     CONF_EMAIL,
     CONF_NAME,
     CONF_PASSWORD,
+    CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DOMAIN as ALEXA_DOMAIN,
     MIN_TIME_BETWEEN_FORCED_SCANS,
@@ -153,6 +154,7 @@ class AlexaClient(MediaPlayerDevice):
         self.alexa_api = AlexaAPI(self, login)
         self.auth = None
         self.alexa_api_session = login.session
+        self.email = login.email
         self.account = hide_email(login.email)
 
         # Logged in info
@@ -1082,17 +1084,38 @@ class AlexaClient(MediaPlayerDevice):
             )
         elif media_type == "sequence":
             await self.alexa_api.send_sequence(
-                media_id, customer_id=self._customer_id, **kwargs
+                media_id,
+                customer_id=self._customer_id,
+                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
+                    "options"
+                ][CONF_QUEUE_DELAY],
+                **kwargs,
             )
         elif media_type == "routine":
-            await self.alexa_api.run_routine(media_id)
+            await self.alexa_api.run_routine(
+                media_id,
+                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
+                    "options"
+                ][CONF_QUEUE_DELAY],
+            )
         elif media_type == "sound":
             await self.alexa_api.play_sound(
-                media_id, customer_id=self._customer_id, **kwargs
+                media_id,
+                customer_id=self._customer_id,
+                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
+                    "options"
+                ][CONF_QUEUE_DELAY],
+                **kwargs,
             )
         else:
             await self.alexa_api.play_music(
-                media_type, media_id, customer_id=self._customer_id, **kwargs
+                media_type,
+                media_id,
+                customer_id=self._customer_id,
+                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
+                    "options"
+                ][CONF_QUEUE_DELAY],
+                **kwargs,
             )
         if not (
             self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["websocket"]

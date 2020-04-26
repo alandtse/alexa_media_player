@@ -51,5 +51,14 @@
       }
     },
     "title": "Alexa Media Player"
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "queue_delay": "Seconds to wait to queue commands together"
+        }
+      }
+    }
   }
 }

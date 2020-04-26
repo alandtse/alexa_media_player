@@ -30,7 +30,11 @@ CONF_ACCOUNTS = "accounts"
 CONF_DEBUG = "debug"
 CONF_INCLUDE_DEVICES = "include_devices"
 CONF_EXCLUDE_DEVICES = "exclude_devices"
+CONF_QUEUE_DELAY = "queue_delay"
 
+DATA_LISTENER = "listener"
+
+DEFAULT_QUEUE_DELAY = 1.5
 SERVICE_CLEAR_HISTORY = "clear_history"
 SERVICE_UPDATE_LAST_CALLED = "update_last_called"
 ATTR_MESSAGE = "message"

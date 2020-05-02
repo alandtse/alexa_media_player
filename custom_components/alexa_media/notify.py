@@ -178,7 +178,7 @@ class AlexaNotificationService(BaseNotificationService):
                             alexa.async_send_tts(
                                 message,
                                 queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                                    self.email
+                                    account
                                 ]["options"][CONF_QUEUE_DELAY],
                             )
                         )
@@ -206,7 +206,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 title=title,
                                 method=(data["method"] if "method" in data else "all"),
                                 queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                                    self.email
+                                    account
                                 ]["options"][CONF_QUEUE_DELAY],
                             )
                         )
@@ -222,7 +222,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 message,
                                 title=title,
                                 queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                                    self.email
+                                    account
                                 ]["options"][CONF_QUEUE_DELAY],
                             )
                         )

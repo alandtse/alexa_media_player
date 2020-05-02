@@ -29,7 +29,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          DEBUG='*' semantic-release publish
+          semantic-release publish --verbosity DEBUG
       # Pack the alexa_media_player dir as a zip and upload to the release
       - name: Zip alexa_media dir
         run: |

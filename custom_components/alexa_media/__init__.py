@@ -45,7 +45,10 @@ from .const import (
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
+    CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
+    DATA_LISTENER,
+    DEFAULT_QUEUE_DELAY,
     DOMAIN,
     ISSUE_URL,
     MIN_TIME_BETWEEN_FORCED_SCANS,
@@ -114,15 +117,20 @@ async def async_setup(hass, config, discovery_info=None):
 
     domainconfig = config.get(DOMAIN)
     for account in domainconfig[CONF_ACCOUNTS]:
-        entry_title = "{} - {}".format(account[CONF_EMAIL], account[CONF_URL])
+        entry_found = False
         _LOGGER.debug(
             "Importing config information for %s - %s from configuration.yaml",
             hide_email(account[CONF_EMAIL]),
             account[CONF_URL],
         )
-        if entry_title in configured_instances(hass):
+        if hass.config_entries.async_entries(DOMAIN):
+            _LOGGER.debug("Found existing config entries")
             for entry in hass.config_entries.async_entries(DOMAIN):
-                if entry_title == entry.title:
+                if (
+                    entry.data.get(CONF_EMAIL) == account[CONF_EMAIL]
+                    and entry.data.get(CONF_URL) == account[CONF_URL]
+                ):
+                    _LOGGER.debug("Updating existing entry")
                     hass.config_entries.async_update_entry(
                         entry,
                         data={
@@ -137,8 +145,10 @@ async def async_setup(hass, config, discovery_info=None):
                             ].total_seconds(),
                         },
                     )
+                    entry_found = True
                     break
-        else:
+        if not entry_found:
+            _LOGGER.debug("Creating new config entry")
             hass.async_create_task(
                 hass.config_entries.flow.async_init(
                     DOMAIN,
@@ -195,6 +205,12 @@ async def async_setup_entry(hass, config_entry):
             "websocket": None,
             "auth_info": None,
             "configurator": [],
+            "options": {
+                CONF_QUEUE_DELAY: config_entry.options.get(
+                    CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
+                )
+            },
+            DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         },
     )
     login = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
@@ -895,6 +911,8 @@ async def async_unload_entry(hass, entry) -> bool:
     email = entry.data["email"]
     await close_connections(hass, email)
     await clear_configurator(hass, email)
+    for listener in hass.data[DATA_ALEXAMEDIA]["accounts"][email][DATA_LISTENER]:
+        listener()
     hass.data[DATA_ALEXAMEDIA]["accounts"].pop(email)
     _LOGGER.debug("Unloaded entry for %s", hide_email(email))
     return True
@@ -914,3 +932,22 @@ async def close_connections(hass, email: Text) -> None:
         "%s: Connection closed: %s", hide_email(email), login_obj._session.closed
     )
     await clear_configurator(hass, email)
+
+
+async def update_listener(hass, config_entry):
+    """Update when config_entry options update."""
+    account = config_entry.data
+    email = account.get(CONF_EMAIL)
+    for key, old_value in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+        "options"
+    ].items():
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][
+            key
+        ] = new_value = config_entry.options.get(key)
+        if new_value != old_value:
+            _LOGGER.debug(
+                "Changing option %s from %s to %s",
+                key,
+                old_value,
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key],
+            )

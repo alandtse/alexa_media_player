@@ -4,7 +4,7 @@
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
-      "unknown_error": "Unknown error, please report with logs"
+      "unknown_error": "Unknown error, please report log info"
     },
     "step": {
       "user": {
@@ -51,5 +51,14 @@
       }
     },
     "title": "Alexa Media Player"
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "queue_delay": "Seconds to wait to queue commands together"
+        }
+      }
+    }
   }
 }

@@ -29,6 +29,8 @@ from .const import (
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
+    CONF_QUEUE_DELAY,
+    DEFAULT_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DOMAIN,
 )
@@ -390,3 +392,34 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             },
         )
         return await self._show_form(data_schema=vol.Schema(new_schema))
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle a option flow for Alexa Media."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry):
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Handle options flow."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_QUEUE_DELAY,
+                    default=self.config_entry.options.get(
+                        CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
+                    ),
+                ): vol.All(vol.Coerce(float), vol.Clamp(min=0))
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=data_schema)

@@ -26,6 +26,7 @@ from . import (
     CONF_EMAIL,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
+    CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DOMAIN as ALEXA_DOMAIN,
     MIN_TIME_BETWEEN_FORCED_SCANS,
@@ -126,6 +127,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._login = login
         self.alexa_api = AlexaAPI(self, login)
         self.alexa_api_session = login.session
+        self.email = login.email
         self.account = hide_email(login.email)
 
         # Guard info
@@ -269,7 +271,11 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         if available_media_players:
             _LOGGER.debug("Sending guard command to: %s", available_media_players[0])
             await available_media_players[0].alexa_api.set_guard_state(
-                self._appliance_id.split("_")[2], command_map[command]
+                self._appliance_id.split("_")[2],
+                command_map[command],
+                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
+                    "options"
+                ][CONF_QUEUE_DELAY],
             )
             await sleep(2)  # delay
         else:

@@ -117,15 +117,20 @@ async def async_setup(hass, config, discovery_info=None):
 
     domainconfig = config.get(DOMAIN)
     for account in domainconfig[CONF_ACCOUNTS]:
-        entry_title = "{} - {}".format(account[CONF_EMAIL], account[CONF_URL])
+        entry_found = False
         _LOGGER.debug(
             "Importing config information for %s - %s from configuration.yaml",
             hide_email(account[CONF_EMAIL]),
             account[CONF_URL],
         )
-        if entry_title in configured_instances(hass):
+        if hass.config_entries.async_entries(DOMAIN):
+            _LOGGER.debug("Found existing config entries")
             for entry in hass.config_entries.async_entries(DOMAIN):
-                if entry_title == entry.title:
+                if (
+                    entry.data.get(CONF_EMAIL) == account[CONF_EMAIL]
+                    and entry.data.get(CONF_URL) == account[CONF_URL]
+                ):
+                    _LOGGER.debug("Updating existing entry")
                     hass.config_entries.async_update_entry(
                         entry,
                         data={
@@ -140,8 +145,10 @@ async def async_setup(hass, config, discovery_info=None):
                             ].total_seconds(),
                         },
                     )
+                    entry_found = True
                     break
-        else:
+        if not entry_found:
+            _LOGGER.debug("Creating new config entry")
             hass.async_create_task(
                 hass.config_entries.flow.async_init(
                     DOMAIN,

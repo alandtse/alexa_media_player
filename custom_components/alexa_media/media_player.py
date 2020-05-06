@@ -1107,6 +1107,11 @@ class AlexaClient(MediaPlayerDevice):
                 ][CONF_QUEUE_DELAY],
                 **kwargs,
             )
+        elif media_type == "skill":
+            await self.alexa_api.run_skill(
+                media_id,
+                queue_delay=0,
+            )
         else:
             await self.alexa_api.play_music(
                 media_type,

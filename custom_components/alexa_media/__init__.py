@@ -32,6 +32,7 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.util import dt
 import voluptuous as vol
 
@@ -879,6 +880,12 @@ async def setup_alexa(hass, config_entry, login_obj):
             update_interval=timedelta(
                 seconds=scan_interval * 10 if websocket_enabled else scan_interval
             ),
+            request_refresh_debouncer = Debouncer(
+                hass,
+                _LOGGER,
+                10,
+                True,
+            )
         )
     # Fetch initial data so we have data when entities subscribe
     _LOGGER.debug("Refreshing coordinator")

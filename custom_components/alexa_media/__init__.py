@@ -247,7 +247,10 @@ async def setup_alexa(hass, config_entry, login_obj):
         from alexapy import AlexaAPI
 
         email: Text = login_obj.email
-        if email not in hass.data[DATA_ALEXAMEDIA]["accounts"]:
+        if (
+            email not in hass.data[DATA_ALEXAMEDIA]["accounts"]
+            or "login_successful" not in login_obj.status
+        ):
             return
         existing_serials = _existing_serials(hass, login_obj)
         existing_entities = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
@@ -305,10 +308,15 @@ async def setup_alexa(hass, config_entry, login_obj):
                     raise AlexapyLoginError()
         except (AlexapyLoginError, RuntimeError, JSONDecodeError):
             _LOGGER.debug(
-                "%s: Alexa API disconnected; attempting to relogin", hide_email(email)
+                "%s: Alexa API disconnected; attempting to relogin : status %s",
+                hide_email(email),
+                login_obj.status,
             )
-            await login_obj.login_with_cookie()
-            await test_login_status(hass, config_entry, login_obj, setup_alexa)
+            if login_obj.status and not await test_login_status(
+                hass, config_entry, login_obj, setup_alexa
+            ):
+                login_obj.status = {}
+                await login_obj.login()
             return
         except BaseException as err:
             raise UpdateFailed(f"Error communicating with API: {err}")

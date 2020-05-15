@@ -560,7 +560,11 @@ class AlexaClient(MediaPlayerDevice):
                 self._media_album_name = self._session.get("infoText", {}).get(
                     "subText2"
                 )
-                self._media_image_url = self._session.get("mainArt", {}).get("url")
+                self._media_image_url = (
+                    self._session.get("mainArt", {}).get("url")
+                    if self._session.get("mainArt")
+                    else None
+                )
                 self._media_duration = self._session.get("progress", {}).get(
                     "mediaLength"
                 )

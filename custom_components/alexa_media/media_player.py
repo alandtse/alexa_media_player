@@ -340,8 +340,8 @@ class AlexaClient(MediaPlayerDevice):
                 # takes from the event instead of the hass storage. We're
                 # setting the value twice. Architectually we should have a
                 # single authorative source of truth.
-                self._source = await self._get_source()
-                self._source_list = await self._get_source_list()
+                self._source = self._get_source()
+                self._source_list = self._get_source_list()
                 if self.hass and self.async_schedule_update_ha_state:
                     self.async_schedule_update_ha_state()
         elif "player_state" in event:
@@ -474,8 +474,8 @@ class AlexaClient(MediaPlayerDevice):
         if self.available:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
             if "PAIR_BT_SOURCE" in self._capabilities:
-                self._source = await self._get_source()
-                self._source_list = await self._get_source_list()
+                self._source = self._get_source()
+                self._source_list = self._get_source_list()
             self._last_called = await self._get_last_called()
             if self._last_called:
                 self._last_called_timestamp = self.hass.data[DATA_ALEXAMEDIA][
@@ -639,7 +639,7 @@ class AlexaClient(MediaPlayerDevice):
         ):
             await self.async_update()
 
-    async def _get_source(self):
+    def _get_source(self):
         source = "Local Speaker"
         if self._bluetooth_state.get("pairedDeviceList"):
             for device in self._bluetooth_state["pairedDeviceList"]:
@@ -650,7 +650,7 @@ class AlexaClient(MediaPlayerDevice):
                     return device["friendlyName"]
         return source
 
-    async def _get_source_list(self):
+    def _get_source_list(self):
         sources = []
         if self._bluetooth_state.get("pairedDeviceList"):
             for devices in self._bluetooth_state["pairedDeviceList"]:

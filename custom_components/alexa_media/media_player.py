@@ -189,6 +189,8 @@ class AlexaClient(MediaPlayerDevice):
         self._previous_volume = None
         self._source = None
         self._source_list = []
+        self._connected_bluetooth = None
+        self._bluetooth_list = []
         self._shuffle = None
         self._repeat = None
         self._playing_parent = None
@@ -342,6 +344,8 @@ class AlexaClient(MediaPlayerDevice):
                 # single authorative source of truth.
                 self._source = self._get_source()
                 self._source_list = self._get_source_list()
+                self._connected_bluetooth = self._get_connected_bluetooth()
+                self._bluetooth_list = self._get_bluetooth_list()
                 if self.hass and self.async_schedule_update_ha_state:
                     self.async_schedule_update_ha_state()
         elif "player_state" in event:
@@ -476,6 +480,8 @@ class AlexaClient(MediaPlayerDevice):
             if "PAIR_BT_SOURCE" in self._capabilities:
                 self._source = self._get_source()
                 self._source_list = self._get_source_list()
+                self._connected_bluetooth = self._get_connected_bluetooth()
+                self._bluetooth_list = self._get_bluetooth_list()
             self._last_called = await self._get_last_called()
             if self._last_called:
                 self._last_called_timestamp = self.hass.data[DATA_ALEXAMEDIA][
@@ -657,6 +663,21 @@ class AlexaClient(MediaPlayerDevice):
                 if devices["profiles"] and "A2DP-SOURCE" in devices["profiles"]:
                     sources.append(devices["friendlyName"])
         return ["Local Speaker"] + sources
+
+    def _get_connected_bluetooth(self):
+        source = None
+        if self._bluetooth_state.get("pairedDeviceList"):
+            for device in self._bluetooth_state["pairedDeviceList"]:
+                if device["connected"] is True:
+                    return device["friendlyName"]
+        return source
+
+    def _get_bluetooth_list(self):
+        sources = []
+        if self._bluetooth_state.get("pairedDeviceList"):
+            for devices in self._bluetooth_state["pairedDeviceList"]:
+                sources.append(devices["friendlyName"])
+        return sources
 
     async def _get_last_called(self):
         try:
@@ -1136,6 +1157,8 @@ class AlexaClient(MediaPlayerDevice):
             "available": self.available,
             "last_called": self._last_called,
             "last_called_timestamp": self._last_called_timestamp,
+            "connected_bluetooth": self._connected_bluetooth,
+            "bluetooth_list": self._bluetooth_list,
         }
         return attr
 

@@ -180,6 +180,7 @@ class AlexaMediaNotificationSensor(Entity):
         self._all = []
         self._active = []
         self._next = None
+        self._prior_value = None
         self._timestamp: datetime.datetime = None
         self._process_raw_notifications()
 
@@ -196,6 +197,7 @@ class AlexaMediaNotificationSensor(Entity):
             if self._all
             else []
         )
+        self._prior_value = self._next if self._active else None
         self._next = self._active[0][1] if self._active else None
 
     def _fix_alarm_date_time(self, value):
@@ -343,9 +345,12 @@ class AlexaMediaNotificationSensor(Entity):
     @property
     def state(self):
         """Return the state of the sensor."""
+        return self._process_state(self._next)
+
+    def _process_state(self, value):
         return (
-            self._next[self._sensor_property].replace(tzinfo=LOCAL_TIMEZONE).isoformat()
-            if self._next
+            value[self._sensor_property].replace(tzinfo=LOCAL_TIMEZONE).isoformat()
+            if value
             else STATE_UNAVAILABLE
         )
 
@@ -407,6 +412,7 @@ class AlexaMediaNotificationSensor(Entity):
 
         attr = {
             "recurrence": self.recurrence,
+            "prior_value": self._process_state(self._prior_value),
             "total_active": len(self._active),
             "total_all": len(self._all),
             "sorted_active": json.dumps(self._active, default=str),
@@ -441,16 +447,19 @@ class TimerSensor(AlexaMediaNotificationSensor):
     @property
     def state(self) -> datetime.datetime:
         """Return the state of the sensor."""
+        return self._process_state(self._next)
+
+    def _process_state(self, value):
         return (
             dt.as_local(
                 super()._round_time(
                     datetime.datetime.fromtimestamp(
                         self._timestamp.timestamp()
-                        + self._next[self._sensor_property] / 1000
+                        + value[self._sensor_property] / 1000
                     )
                 )
             ).isoformat()
-            if self._next and self._timestamp
+            if value and self._timestamp
             else STATE_UNAVAILABLE
         )
 
@@ -479,15 +488,18 @@ class ReminderSensor(AlexaMediaNotificationSensor):
     @property
     def state(self):
         """Return the state of the sensor."""
+        return self._process_state(self._next)
+
+    def _process_state(self, value):
         return (
             dt.as_local(
                 super()._round_time(
                     datetime.datetime.fromtimestamp(
-                        self._next[self._sensor_property] / 1000, tz=LOCAL_TIMEZONE
+                        value[self._sensor_property] / 1000, tz=LOCAL_TIMEZONE
                     )
                 )
             ).isoformat()
-            if self._next
+            if value
             else STATE_UNAVAILABLE
         )
 

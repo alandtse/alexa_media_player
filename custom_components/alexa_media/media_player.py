@@ -779,11 +779,12 @@ class AlexaClient(MediaPlayerDevice):
                 return
         except AttributeError:
             pass
-        if self.entity_id is None:
-            # Device has not initialized yet
-            return
         email = self._login.email
-        if email not in self.hass.data[DATA_ALEXAMEDIA]["accounts"]:
+        if (
+            self.entity_id is None  # Device has not initialized yet
+            or email not in self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+            or self._login.session.closed
+        ):
             return
         device = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
             "media_player"

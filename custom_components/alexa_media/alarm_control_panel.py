@@ -226,6 +226,8 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
             pass
         import json
 
+        if self._login.session.closed:
+            return
         _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
         state = None
         state_json = await self.alexa_api.get_guard_state(

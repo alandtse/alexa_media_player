@@ -13,7 +13,7 @@ import re
 from typing import List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant import util
-from homeassistant.components.media_player import MediaPlayerDevice
+from homeassistant.components.media_player import MediaPlayerEntity
 from homeassistant.components.media_player.const import (
     MEDIA_TYPE_MUSIC,
     SUPPORT_NEXT_TRACK,
@@ -141,7 +141,7 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-class AlexaClient(MediaPlayerDevice):
+class AlexaClient(MediaPlayerEntity):
     """Representation of a Alexa device."""
 
     def __init__(self, device, login):

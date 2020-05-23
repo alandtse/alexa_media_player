@@ -10,7 +10,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import logging
 from typing import List  # noqa pylint: disable=unused-import
 
-from homeassistant.components.switch import SwitchDevice
+from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
@@ -126,7 +126,7 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-class AlexaMediaSwitch(SwitchDevice):
+class AlexaMediaSwitch(SwitchEntity):
     """Representation of a Alexa Media switch."""
 
     def __init__(self, client, switch_property, switch_function, account, name="Alexa"):

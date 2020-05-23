@@ -460,7 +460,7 @@ class AlexaClient(MediaPlayerDevice):
         device (json): A refreshed device json from Amazon. For efficiency,
                        an individual device does not refresh if it's reported
                        as offline.
-        no_api (bool): Whether to only due a device json update and not hit the API
+        skip_api (bool): Whether to only due a device json update and not hit the API
 
         """
         if device is not None:

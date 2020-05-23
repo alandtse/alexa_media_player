@@ -13,7 +13,6 @@ import re
 from typing import List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant import util
-from homeassistant.components.media_player import MediaPlayerDevice
 from homeassistant.components.media_player.const import (
     MEDIA_TYPE_MUSIC,
     SUPPORT_NEXT_TRACK,
@@ -55,6 +54,13 @@ from . import (
 )
 from .const import DEPENDENT_ALEXA_COMPONENTS, PLAY_SCAN_INTERVAL
 from .helpers import _catch_login_errors, add_devices, retry_async
+
+try:
+    from homeassistant.components.media_player import (
+        MediaPlayerEntity as MediaPlayerDevice,
+    )
+except ImportError:
+    from homeassistant.components.media_player import MediaPlayerDevice
 
 SUPPORT_ALEXA = (
     SUPPORT_PAUSE

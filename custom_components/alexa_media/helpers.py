@@ -184,6 +184,7 @@ def _catch_login_errors(func) -> Callable:
                         hass, config_entry, login, setup_alexa
                     ):
                         login.status = {}
+                        await login.reset()
                         await login.login()
             return None
         return result

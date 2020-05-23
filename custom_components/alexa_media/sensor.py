@@ -27,39 +27,12 @@ from . import (
     hide_email,
     hide_serial,
 )
+from .const import RECURRING_PATTERN, RECURRING_PATTERN_ISO_SET
 from .helpers import add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
 
 LOCAL_TIMEZONE = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
-
-RECURRING_PATTERN = {
-    None: "Never Repeat",
-    "P1D": "Every day",
-    "XXXX-WE": "Weekends",
-    "XXXX-WD": "Weekdays",
-    "XXXX-WXX-1": "Every Monday",
-    "XXXX-WXX-2": "Every Tuesday",
-    "XXXX-WXX-3": "Every Wednesday",
-    "XXXX-WXX-4": "Every Thursday",
-    "XXXX-WXX-5": "Every Friday",
-    "XXXX-WXX-6": "Every Saturday",
-    "XXXX-WXX-7": "Every Sunday",
-}
-
-RECURRING_PATTERN_ISO_SET = {
-    None: {},
-    "P1D": {1, 2, 3, 4, 5, 6, 7},
-    "XXXX-WE": {6, 7},
-    "XXXX-WD": {1, 2, 3, 4, 5},
-    "XXXX-WXX-1": {1},
-    "XXXX-WXX-2": {2},
-    "XXXX-WXX-3": {3},
-    "XXXX-WXX-4": {4},
-    "XXXX-WXX-5": {5},
-    "XXXX-WXX-6": {6},
-    "XXXX-WXX-7": {7},
-}
 
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):

@@ -5,5 +5,5 @@
   "documentation": "https://github.com/custom-components/alexa_media_player/wiki",
   "dependencies": ["configurator"],
   "codeowners": ["@keatontaylor", "@alandtse"],
-  "requirements": ["alexapy==1.10.0"]
+  "requirements": ["alexapy==1.10.1"]
 }

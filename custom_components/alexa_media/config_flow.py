@@ -117,48 +117,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Show the form to the user."""
         _LOGGER.debug("show_form %s %s %s %s", step, placeholders, errors, data_schema)
         data_schema = data_schema or vol.Schema(self.data_schema)
-        if step == "user":
-            return self.async_show_form(
-                step_id=step,
-                data_schema=data_schema,
-                errors=errors if errors else {},
-                description_placeholders=placeholders if placeholders else {},
-            )
-        elif step == "captcha":
-            return self.async_show_form(
-                step_id=step,
-                data_schema=data_schema,
-                errors={},
-                description_placeholders=placeholders if placeholders else {},
-            )
-        elif step == "twofactor":
-            return self.async_show_form(
-                step_id=step,
-                data_schema=data_schema,
-                errors={},
-                description_placeholders=placeholders if placeholders else {},
-            )
-        elif step == "claimspicker":
-            return self.async_show_form(
-                step_id=step,
-                data_schema=data_schema,
-                errors=errors if errors else {},
-                description_placeholders=placeholders if placeholders else {},
-            )
-        elif step == "authselect":
-            return self.async_show_form(
-                step_id=step,
-                data_schema=data_schema,
-                errors=errors if errors else {},
-                description_placeholders=placeholders if placeholders else {},
-            )
-        elif step == "verificationcode":
-            return self.async_show_form(
-                step_id=step,
-                data_schema=data_schema,
-                errors=errors if errors else {},
-                description_placeholders=placeholders if placeholders else {},
-            )
+        return self.async_show_form(
+            step_id=step,
+            data_schema=data_schema,
+            errors=errors if errors else {},
+            description_placeholders=placeholders if placeholders else {},
+        )
 
     async def async_step_import(self, import_config):
         """Import a config entry from configuration.yaml."""

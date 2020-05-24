@@ -317,6 +317,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                 hass, config_entry, login_obj, setup_alexa
             ):
                 login_obj.status = {}
+                await login_obj.reset()
                 await login_obj.login()
             return
         except BaseException as err:

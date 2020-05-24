@@ -165,12 +165,12 @@ class AlexaMediaNotificationSensor(Entity):
         )
         self._all = list(map(self._update_recurring_alarm, self._all))
         self._all = sorted(self._all, key=lambda x: x[1][self._sensor_property])
+        self._prior_value = self._next if self._active else None
         self._active = (
             list(filter(lambda x: x[1]["status"] == "ON", self._all))
             if self._all
             else []
         )
-        self._prior_value = self._next if self._active else None
         self._next = self._active[0][1] if self._active else None
 
     def _fix_alarm_date_time(self, value):

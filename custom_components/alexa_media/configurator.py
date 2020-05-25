@@ -33,6 +33,7 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
         email = login.email
         # links = ""
         footer = ""
+        config_id = None
         if "error_message" in status and status["error_message"]:
             footer = (
                 "\n<b>NOTE: Actual Amazon error message in red below. "

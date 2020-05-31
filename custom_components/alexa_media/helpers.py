@@ -180,12 +180,10 @@ def _catch_login_errors(func) -> Callable:
                         "%s: Alexa API disconnected; attempting to relogin",
                         hide_email(email),
                     )
-                    if login.status and not await test_login_status(
-                        hass, config_entry, login, setup_alexa
-                    ):
-                        login.status = {}
+                    if login.status:
                         await login.reset()
                         await login.login()
+                        await test_login_status(hass, config_entry, login, setup_alexa)
             return None
         return result
 

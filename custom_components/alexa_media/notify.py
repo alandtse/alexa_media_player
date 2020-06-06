@@ -8,6 +8,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 import asyncio
+import json
 import logging
 
 from homeassistant.components.notify import (
@@ -156,7 +157,7 @@ class AlexaNotificationService(BaseNotificationService):
         title = kwargs.get(ATTR_TITLE) if ATTR_TITLE in kwargs else ATTR_TITLE_DEFAULT
         data = kwargs.get(ATTR_DATA)
         if isinstance(targets, str):
-            targets = [targets]
+            targets = json.loads(targets)
         entities = self.convert(targets, type_="entities")
         try:
             entities.extend(self.hass.components.group.expand_entity_ids(entities))

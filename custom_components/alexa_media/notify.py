@@ -152,13 +152,30 @@ class AlexaNotificationService(BaseNotificationService):
     async def async_send_message(self, message="", **kwargs):
         """Send a message to a Alexa device."""
         _LOGGER.debug("Message: %s, kwargs: %s", message, kwargs)
+        _LOGGER.debug("Target type: %s", type(kwargs.get(ATTR_TARGET)))
         kwargs["message"] = message
         targets = kwargs.get(ATTR_TARGET)
         title = kwargs.get(ATTR_TITLE, ATTR_TITLE_DEFAULT)
         data = kwargs.get(ATTR_DATA)
         if isinstance(targets, str):
-            targets = json.loads(targets)
-        entities = self.convert(targets, type_="entities")
+            try:
+                targets = json.loads(targets)
+            except json.JSONDecodeError:
+                _LOGGER.error("Target must be a valid json")
+                return
+        processed_targets = []
+        for target in targets:
+            _LOGGER.debug("Processing: %s", target)
+            try:
+                processed_targets += json.loads(target)
+                _LOGGER.debug("Processed Target by json: %s", processed_targets)
+            except json.JSONDecodeError:
+                if target.find(","):
+                    processed_targets += list(
+                        map(lambda x: x.strip(), target.split(","))
+                    )
+                    _LOGGER.debug("Processed Target by string: %s", processed_targets)
+        entities = self.convert(processed_targets, type_="entities")
         try:
             entities.extend(self.hass.components.group.expand_entity_ids(entities))
         except ValueError:

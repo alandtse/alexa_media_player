@@ -154,7 +154,7 @@ class AlexaNotificationService(BaseNotificationService):
         _LOGGER.debug("Message: %s, kwargs: %s", message, kwargs)
         kwargs["message"] = message
         targets = kwargs.get(ATTR_TARGET)
-        title = kwargs.get(ATTR_TITLE) if ATTR_TITLE in kwargs else ATTR_TITLE_DEFAULT
+        title = kwargs.get(ATTR_TITLE, ATTR_TITLE_DEFAULT)
         data = kwargs.get(ATTR_DATA)
         if isinstance(targets, str):
             targets = json.loads(targets)

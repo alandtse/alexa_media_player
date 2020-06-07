@@ -315,7 +315,6 @@ async def setup_alexa(hass, config_entry, login_obj):
                 await test_login_status(hass, config_entry, login_obj, setup_alexa)
             return
         except BaseException as err:
-            raise
             raise UpdateFailed(f"Error communicating with API: {err}")
 
         await process_notifications(login_obj, raw_notifications)

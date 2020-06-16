@@ -27,6 +27,7 @@ from . import (
     CONF_INCLUDE_DEVICES,
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
+    DEFAULT_QUEUE_DELAY,
     DOMAIN as ALEXA_DOMAIN,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
@@ -284,7 +285,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
                 command_map[command],
                 queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
                     "options"
-                ][CONF_QUEUE_DELAY],
+                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
             )
             await sleep(2)  # delay
         else:

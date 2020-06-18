@@ -1,0 +1,64 @@
+{
+  "config": {
+    "error": {
+      "connection_error": "Erreur de connexion; vérifier le réseau et réessayer",
+      "identifier_exists": "Email pour l'URL Alexa déjà enregistré",
+      "invalid_credentials": "Informations d'identification invalides",
+      "unknown_error": "Erreur inconnue, veuillez signaler les informations du journal"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Mot de passe",
+          "email": "Adresse Email",
+          "url": "Domaine de la région Amazon (exemple, amazon.fr)",
+          "include_devices": "Appareil inclus (séparé par des virgules)",
+          "exclude_devices": "Appareil exclu (séparé par des virgules)",
+          "debug": "Débogage avancé",
+          "scan_interval": "Secondes entre les analyses"
+        },
+        "description": "Veuillez saisir vos informations.",
+        "title": "Alexa Media Player - Configuration"
+      },
+      "captcha": {
+        "data": {
+          "password": "Mot de passe",
+          "captcha": "Captcha"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "title": "Alexa Media Player - Captcha"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "2FA Code"
+        },
+        "description": "**{email} - alexa.{url}**\nEntrez le mot de passe unique (OTP).\n{message}",
+        "title": "Alexa Media Player - Authentification à deux facteurs"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "OTP méthode"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}",
+        "title": "Alexa Media Player - Mot de passe unique"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Méthode de vérification"
+        },
+        "description": "**{email} - alexa.{url}**\nVeuillez sélectionner la méthode de vérification par numéro. (exemple., `0` ou `1`)\n{message}",
+        "title": "Alexa Media Player - Méthode de vérification"
+      }
+    },
+    "title": "Alexa Media Player"
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble"
+        }
+      }
+    }
+  }
+}

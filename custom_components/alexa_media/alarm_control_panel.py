@@ -152,7 +152,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
             login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email]["login_obj"]
         except (AttributeError, KeyError):
             return
-        if self._login != login:
+        if self._login != login or self._login.session != login.session:
             from alexapy import AlexaAPI
 
             _LOGGER.debug("Login object has changed; updating")
@@ -234,7 +234,6 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
     @_catch_login_errors
     async def async_update(self):
         """Update Guard state."""
-        self.check_login_changes()
         try:
             if not self.enabled:
                 return
@@ -281,7 +280,6 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
     async def _async_alarm_set(self, command: Text = "", code=None) -> None:
         # pylint: disable=unexpected-keyword-arg
         """Send command."""
-        self.check_login_changes()
         try:
             if not self.enabled:
                 return

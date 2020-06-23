@@ -299,7 +299,6 @@ class AlexaClient(MediaPlayerDevice):
                 return
         except AttributeError:
             pass
-        self.check_login_changes()
         already_refreshed = False
         event_serial = None
         if "last_called_change" in event:
@@ -480,7 +479,6 @@ class AlexaClient(MediaPlayerDevice):
         skip_api (bool): Whether to only due a device json update and not hit the API
 
         """
-        self.check_login_changes()
         if device is not None:
             self._device_name = device["accountName"]
             self._device_family = device["deviceFamily"]
@@ -660,7 +658,6 @@ class AlexaClient(MediaPlayerDevice):
     @_catch_login_errors
     async def async_select_source(self, source):
         """Select input source."""
-        self.check_login_changes()
         if source == "Local Speaker":
             await self.alexa_api.disconnect_bluetooth()
             self._source = "Local Speaker"
@@ -793,7 +790,6 @@ class AlexaClient(MediaPlayerDevice):
         every update. However, this quickly floods the network for every new
         device added. This should only call refresh() to call the AlexaAPI.
         """
-        self.check_login_changes()
         try:
             if not self.enabled:
                 return
@@ -940,7 +936,6 @@ class AlexaClient(MediaPlayerDevice):
     @_catch_login_errors
     async def async_set_shuffle(self, shuffle):
         """Enable/disable shuffle mode."""
-        self.check_login_changes()
         await self.alexa_api.shuffle(shuffle)
         self._shuffle = shuffle
 
@@ -974,7 +969,6 @@ class AlexaClient(MediaPlayerDevice):
     @_catch_login_errors
     async def async_set_volume_level(self, volume):
         """Set volume level, range 0..1."""
-        self.check_login_changes()
         if not self.available:
             return
         await self.alexa_api.set_volume(volume)
@@ -1004,7 +998,6 @@ class AlexaClient(MediaPlayerDevice):
         - On mute, store volume and set volume to 0
         - On unmute, set volume to previously stored volume
         """
-        self.check_login_changes()
         if not self.available:
             return
 
@@ -1025,7 +1018,6 @@ class AlexaClient(MediaPlayerDevice):
     @_catch_login_errors
     async def async_media_play(self):
         """Send play command."""
-        self.check_login_changes()
         if not (self.state in [STATE_PLAYING, STATE_PAUSED] and self.available):
             return
         if self._playing_parent:
@@ -1040,7 +1032,6 @@ class AlexaClient(MediaPlayerDevice):
     @_catch_login_errors
     async def async_media_pause(self):
         """Send pause command."""
-        self.check_login_changes()
         if not (self.state in [STATE_PLAYING, STATE_PAUSED] and self.available):
             return
         if self._playing_parent:
@@ -1055,7 +1046,6 @@ class AlexaClient(MediaPlayerDevice):
     @_catch_login_errors
     async def async_media_stop(self):
         """Send stop command."""
-        self.check_login_changes()
         if not self.available:
             return
         if self._playing_parent:
@@ -1079,7 +1069,6 @@ class AlexaClient(MediaPlayerDevice):
         While Alexa's do not have on/off capability, we can use this as another
         trigger to do updates. For turning off, we can clear media_details.
         """
-        self.check_login_changes()
         self._should_poll = False
         await self.async_media_pause()
         self._clear_media_details()
@@ -1091,14 +1080,12 @@ class AlexaClient(MediaPlayerDevice):
         While Alexa's do not have on/off capability, we can use this as another
         trigger to do updates.
         """
-        self.check_login_changes()
         self._should_poll = True
         await self.async_media_pause()
 
     @_catch_login_errors
     async def async_media_next_track(self):
         """Send next track command."""
-        self.check_login_changes()
         if not (self.state in [STATE_PLAYING, STATE_PAUSED] and self.available):
             return
         if self._playing_parent:
@@ -1113,7 +1100,6 @@ class AlexaClient(MediaPlayerDevice):
     @_catch_login_errors
     async def async_media_previous_track(self):
         """Send previous track command."""
-        self.check_login_changes()
         if not (self.state in [STATE_PLAYING, STATE_PAUSED] and self.available):
             return
         if self._playing_parent:
@@ -1131,13 +1117,11 @@ class AlexaClient(MediaPlayerDevice):
 
         NOTE: Does not work on WHA Groups.
         """
-        self.check_login_changes()
         await self.alexa_api.send_tts(message, customer_id=self._customer_id, **kwargs)
 
     @_catch_login_errors
     async def async_send_announcement(self, message, **kwargs):
         """Send announcement to the media player."""
-        self.check_login_changes()
         await self.alexa_api.send_announcement(
             message, customer_id=self._customer_id, **kwargs
         )
@@ -1145,7 +1129,6 @@ class AlexaClient(MediaPlayerDevice):
     @_catch_login_errors
     async def async_send_mobilepush(self, message, **kwargs):
         """Send push to the media player's associated mobile devices."""
-        self.check_login_changes()
         await self.alexa_api.send_mobilepush(
             message, customer_id=self._customer_id, **kwargs
         )
@@ -1154,7 +1137,6 @@ class AlexaClient(MediaPlayerDevice):
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):
         # pylint: disable=unused-argument
         """Send the play_media command to the media player."""
-        self.check_login_changes()
         if media_type == "music":
             await self.async_send_tts(
                 "Sorry, text to speech can only be called"

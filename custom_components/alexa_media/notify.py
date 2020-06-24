@@ -85,7 +85,7 @@ class AlexaNotificationService(BaseNotificationService):
         ----------
         names : list(string)
             A list of names to convert
-        type : string
+        type_ : string
             The type to return entities, entity_ids, serialnumbers, names
         filter_matches : bool
             Whether non-matching items are removed from the returned list.

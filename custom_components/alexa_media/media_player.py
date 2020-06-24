@@ -219,6 +219,21 @@ class AlexaClient(MediaPlayerDevice):
         """Initialize."""
         await self.refresh(device)
 
+    def check_login_changes(self):
+        """Update Login object if it has changed."""
+        try:
+            login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email]["login_obj"]
+        except (AttributeError, KeyError):
+            return
+        if self._login != login:
+            from alexapy import AlexaAPI
+
+            _LOGGER.debug("Login object has changed; updating")
+            self._login = login
+            self.alexa_api = AlexaAPI(self, login)
+            self.email = login.email
+            self.account = hide_email(login.email)
+
     async def async_added_to_hass(self):
         """Perform tasks after loading."""
         # Register event handler on bus

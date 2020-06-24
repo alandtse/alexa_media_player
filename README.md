@@ -31,7 +31,19 @@ Please see the [wiki](https://github.com/custom-components/alexa_media_player/wi
 
 # Changelog
 
-Use the commit history but we try to maintain this [wiki](https://github.com/custom-components/alexa_media_player/wiki/Changelog).
+Please reference the [release history](https://github.com/custom-components/alexa_media_player/releases).
+
+# How to Help
+
+While it'd be nice to have more developers, you can contribute without knowing how to code. You can [file bugs/feature requests](https://github.com/custom-components/alexa_media_player/issues), help answer questions here and on the HA [forums](https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639), or you can help with other tasks like [translations](##translations) and updating the [wiki](##documentation).
+
+## Translations
+
+We are now on [Lokalise](https://app.lokalise.com/project/465185555eee18dd537ca6.39714580/). If you're a native speaker, please [join the team](https://lokalise.com/public/465185555eee18dd537ca6.39714580/). See [Translations page](https://github.com/custom-components/alexa_media_player/wiki/Translations) for more details.
+
+## Documentation
+
+The [wiki](https://github.com/custom-components/alexa_media_player/wiki) is a group effort to document how to use the component and other useful [automations](https://github.com/custom-components/alexa_media_player/wiki/Examples%3A-Automation). Don't worry about making mistakes as we can revert using the history.
 
 # License
 

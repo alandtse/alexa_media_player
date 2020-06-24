@@ -144,6 +144,9 @@ def _catch_login_errors(func) -> Callable:
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
+        instance = args[0]
+        if hasattr(instance, "check_login_changes"):
+            instance.check_login_changes()
         try:
             result = await func(*args, **kwargs)
         except AlexapyLoginError as ex:  # pylint: disable=broad-except

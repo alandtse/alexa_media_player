@@ -115,7 +115,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self, step="user", placeholders=None, errors=None, data_schema=None
     ) -> None:
         """Show the form to the user."""
-        _LOGGER.debug("show_form %s %s %s %s", step, placeholders, errors, data_schema)
         data_schema = data_schema or vol.Schema(self.data_schema)
         return self.async_show_form(
             step_id=step,
@@ -211,6 +210,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Handle the input processing of the config flow."""
         return await self.async_step_process(user_input)
 
+    async def async_step_action_required(self, user_input=None):
+        """Handle the input processing of the config flow."""
+        return await self.async_step_process(user_input)
+
     async def async_step_process(self, user_input=None):
         """Handle the input processing of the config flow."""
         if user_input:
@@ -230,13 +233,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         login = self.login
         config = self.config
         _LOGGER.debug("Testing login status: %s", login.status)
-        if "login_successful" in login.status and login.status["login_successful"]:
+        if login.status and login.status.get("login_successful"):
             _LOGGER.debug("Setting up Alexa devices with %s", dict(config))
             await login.close()
             return self.async_create_entry(
-                title="{} - {}".format(login.email, login.url), data=config
+                title=f"{login.email} - {login.url}", data=config
             )
-        if "captcha_required" in login.status and login.status["captcha_required"]:
+        if login.status and login.status.get("captcha_required"):
             new_schema = self._update_ord_dict(
                 self.captcha_schema,
                 {vol.Required(CONF_PASSWORD, default=config[CONF_PASSWORD]): str},
@@ -252,21 +255,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "captcha_image": "[![captcha]({0})]({0})".format(
                         login.status["captcha_image_url"]
                     ),
-                    "message": "\n> {0}".format(
-                        login.status["error_message"]
-                        if "error_message" in login.status
-                        else ""
-                    ),
+                    "message": f"\n> {login.status.get('error_message','')}",
                 },
             )
-        elif (
-            "securitycode_required" in login.status
-            and login.status["securitycode_required"]
-        ):
+        if login.status and login.status.get("securitycode_required"):
             _LOGGER.debug("Creating config_flow to request 2FA")
-            message = "> {0}".format(
-                login.status["error_message"] if "error_message" in login.status else ""
-            )
             return await self._show_form(
                 "twofactor",
                 data_schema=vol.Schema(self.twofactor_schema),
@@ -274,16 +267,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": message,
+                    "message": f"\n> {login.status.get('error_message','')}",
                 },
             )
-        elif (
-            "claimspicker_required" in login.status
-            and login.status["claimspicker_required"]
-        ):
-            error_message = "> {0}".format(
-                login.status["error_message"] if "error_message" in login.status else ""
-            )
+        if login.status and login.status.get("claimspicker_required"):
+            error_message = f"> {login.status.get('error_message', '')}"
             _LOGGER.debug("Creating config_flow to select verification method")
             claimspicker_message = login.status["claimspicker_message"]
             return await self._show_form(
@@ -298,14 +286,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                 },
             )
-        elif (
-            "authselect_required" in login.status
-            and login.status["authselect_required"]
-        ):
+        if login.status and login.status.get("authselect_required"):
             _LOGGER.debug("Creating config_flow to select OTA method")
-            error_message = (
-                login.status["error_message"] if "error_message" in login.status else ""
-            )
+            error_message = login.status.get("error_message", "")
             authselect_message = login.status["authselect_message"]
             return await self._show_form(
                 "authselect",
@@ -316,15 +299,23 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "message": "> {0}\n> {1}".format(authselect_message, error_message),
                 },
             )
-        elif (
-            "verificationcode_required" in login.status
-            and login.status["verificationcode_required"]
-        ):
+        if login.status and login.status.get("verificationcode_required"):
             _LOGGER.debug("Creating config_flow to enter verification code")
             return await self._show_form(
                 "verificationcode", data_schema=vol.Schema(self.verificationcode_schema)
             )
-        elif "login_failed" in login.status and login.status["login_failed"]:
+        if login.status and login.status.get("force_get"):
+            _LOGGER.debug("Creating config_flow to wait for user action")
+            return await self._show_form(
+                "action_required",
+                data_schema=vol.Schema(OrderedDict()),
+                placeholders={
+                    "email": login.email,
+                    "url": login.url,
+                    "message": f"```text\n{login.status.get('message','')}\n```",
+                },
+            )
+        if login.status and login.status.get("login_failed"):
             _LOGGER.debug("Login failed")
             return self.async_abort(reason="Login failed")
         new_schema = self._update_ord_dict(

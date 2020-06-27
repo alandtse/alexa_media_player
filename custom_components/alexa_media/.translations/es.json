@@ -1,0 +1,64 @@
+{
+  "config": {
+    "error": {
+      "connection_error": "Error al conectar, verifique la red y vuelva a intentarlo",
+      "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
+      "invalid_credentials": "Credenciales no válidas",
+      "unknown_error": "Error desconocido, por favor reporte la información del registro"
+    },
+    "step": {
+      "user": {
+        "data": {
+          "password": "Contraseña",
+          "email": "Dirección de correo electrónico",
+          "url": "Region del dominio de Amazon (e.g., amazon.co.uk)",
+          "include_devices": "Dispositivo incluido (separado por comas)",
+          "exclude_devices": "Dispositivo excluido (separado por comas)",
+          "debug": "Depuración avanzada",
+          "scan_interval": "Segundos entre escaneos"
+        },
+        "description": "Por favor, introduzca su información.",
+        "title": "Alexa Media Player - Configuracion"
+      },
+      "captcha": {
+        "data": {
+          "password": "Contraseña",
+          "captcha": "Captcha"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "title": "Alexa Media Player - Captcha"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "2FA Code"
+        },
+        "description": "**{email} - alexa.{url}**\nIngrese la contraseña de un solo uso (OTP).\n{message}",
+        "title": "Alexa Media Player - Autenticación de dos factores"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "metodo OTP"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}",
+        "title": "Alexa Media Player - Contraseña de un solo uso"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Método de verificación"
+        },
+        "description": "**{email} - alexa.{url}**\nSeleccione el método de verificación por número. (e.g., `0` or `1`)\n{message}",
+        "title": "Alexa Media Player - Método de verificación"
+      }
+    },
+    "title": "Alexa Media Player"
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "queue_delay": "Segundos de espera a la cola de comandos a la vez"
+        }
+      }
+    }
+  }
+}

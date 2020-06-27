@@ -34,7 +34,7 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
         # links = ""
         footer = ""
         config_id = None
-        if "error_message" in status and status["error_message"]:
+        if status and status.get("error_message"):
             footer = (
                 "\n<b>NOTE: Actual Amazon error message in red below. "
                 "Remember password will be provided automatically"
@@ -43,17 +43,14 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
         # if login.links:
         #     links = '\n\nGo to link with link# (e.g. link0)\n' + login.links
         # Get Captcha
-        if (
-            status
-            and "captcha_image_url" in status
-            and status["captcha_image_url"] is not None
-        ):
+        if status and status.get("captcha_image_url"):
+            _LOGGER.debug("Creating configurator to request captcha")
             config_id = configurator.async_request_config(
-                "Alexa Media Player - Captcha - {}".format(email),
+                f"Alexa Media Player - Captcha - {email}",
                 configuration_callback,
                 description=(
                     "Please enter the text for the captcha."
-                    " Please hit confirm to reload image."
+                    " Please enter anything to reload image."
                     # + links
                     + footer
                 ),
@@ -61,13 +58,10 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
                 submit_caption="Confirm",
                 fields=[{"id": "captcha", "name": "Captcha"}],
             )
-        elif (
-            status
-            and "securitycode_required" in status
-            and status["securitycode_required"]
-        ):  # Get 2FA code
+        elif status and status.get("securitycode_required"):  # Get 2FA code
+            _LOGGER.debug("Creating configurator to request 2FA")
             config_id = configurator.async_request_config(
-                "Alexa Media Player - 2FA - {}".format(email),
+                f"Alexa Media Player - 2FA - {email}",
                 configuration_callback,
                 description=(
                     "Please enter your Two-Factor Security code."
@@ -77,15 +71,12 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
                 submit_caption="Confirm",
                 fields=[{"id": "securitycode", "name": "Security Code"}],
             )
-        elif (
-            status
-            and "claimspicker_required" in status
-            and status["claimspicker_required"]
-        ):  # Get picker method
+        elif status and status.get("claimspicker_required"):  # Get picker method
+            _LOGGER.debug("Creating configurator to select verification option")
             options = status["claimspicker_message"]
             if options:
                 config_id = configurator.async_request_config(
-                    "Alexa Media Player - Verification Method - {}".format(email),
+                    f"Alexa Media Player - Verification Method - {email}",
                     configuration_callback,
                     description=(
                         "Please select the verification method by number. "
@@ -98,13 +89,12 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
                 )
             else:
                 await configuration_callback({})
-        elif (
-            status and "authselect_required" in status and status["authselect_required"]
-        ):  # Get picker method
+        elif status and status.get("authselect_required"):  # Get picker method
+            _LOGGER.debug("Creating configurator to select OTA option")
             options = status["authselect_message"]
             if options:
                 config_id = configurator.async_request_config(
-                    "Alexa Media Player - OTP Method - {}".format(email),
+                    f"Alexa Media Player - OTP Method - {email}",
                     configuration_callback,
                     description=(
                         "Please select the OTP method by number. "
@@ -117,13 +107,10 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
                 )
             else:
                 await configuration_callback({})
-        elif (
-            status
-            and "verificationcode_required" in status
-            and status["verificationcode_required"]
-        ):  # Get picker method
+        elif status and status.get("verificationcode_required"):  # Get picker method
+            _LOGGER.debug("Creating configurator to enter verification code")
             config_id = configurator.async_request_config(
-                "Alexa Media Player - Verification Code - {}".format(email),
+                f"Alexa Media Player - Verification Code - {email}",
                 configuration_callback,
                 description=(
                     "Please enter received verification code."
@@ -133,9 +120,24 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
                 submit_caption="Confirm",
                 fields=[{"id": "verificationcode", "name": "Verification Code"}],
             )
-        else:  # Check login
+        elif status and status.get("force_get"):  # Javascript authentication check
+            _LOGGER.debug("Creating configurator to wait for user action")
             config_id = configurator.async_request_config(
-                "Alexa Media Player - Begin - {}".format(email),
+                f"Alexa Media Player - Action Required - {email}",
+                configuration_callback,
+                description=(
+                    "Amazon will send a push notification per the below message."
+                    " Please completely respond before continuing."
+                    # + links
+                    + footer
+                ),
+                submit_caption="Confirm",
+                fields=[],
+            )
+        else:  # Check login
+            _LOGGER.debug("Creating configurator to start new login attempt")
+            config_id = configurator.async_request_config(
+                f"Alexa Media Player - Begin - {email}",
                 configuration_callback,
                 description=("Please hit confirm to begin login attempt."),
                 submit_caption="Confirm",
@@ -145,8 +147,10 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["configurator"].append(
                 config_id
             )
-        if "error_message" in status and status["error_message"]:
+        if status.get("error_message"):
             configurator.async_notify_errors(config_id, status["error_message"])
+        if status.get("message"):
+            configurator.async_notify_errors(config_id, status["message"])
         if len(hass.data[DATA_ALEXAMEDIA]["accounts"][email]["configurator"]) > 1:
             configurator.async_request_done(
                 (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["configurator"]).pop(0)
@@ -161,49 +165,19 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
 
         """
         _LOGGER.debug(
-            (
-                "Configurator closed for Status: %s\n"
-                " got captcha: %s securitycode: %s"
-                " Claimsoption: %s AuthSelectOption: %s "
-                " VerificationCode: %s"
-            ),
+            ("Configurator closed for Status: %s\n" "Callback_data: %s"),
             login.status,
-            callback_data.get("captcha"),
-            callback_data.get("securitycode"),
-            callback_data.get("claimsoption"),
-            callback_data.get("authselectoption"),
-            callback_data.get("verificationcode"),
+            callback_data,
         )
         await login.login(data=callback_data)
         await test_login_status(hass, config_entry, login, alexa_setup_callback)
 
     _LOGGER.debug("Testing login status: %s", login.status)
-    if "login_successful" in login.status and login.status["login_successful"]:
+    if login.status and login.status.get("login_successful"):
         _LOGGER.debug("Setting up Alexa devices for %s", hide_email(login.email))
         await clear_configurator(hass, login.email)
         await hass.async_add_job(alexa_setup_callback, hass, config_entry, login)
         return True
-    if "captcha_required" in login.status and login.status["captcha_required"]:
-        _LOGGER.debug("Creating configurator to request captcha")
-    elif (
-        "securitycode_required" in login.status
-        and login.status["securitycode_required"]
-    ):
-        _LOGGER.debug("Creating configurator to request 2FA")
-    elif (
-        "claimspicker_required" in login.status
-        and login.status["claimspicker_required"]
-    ):
-        _LOGGER.debug("Creating configurator to select verification option")
-    elif "authselect_required" in login.status and login.status["authselect_required"]:
-        _LOGGER.debug("Creating configurator to select OTA option")
-    elif (
-        "verificationcode_required" in login.status
-        and login.status["verificationcode_required"]
-    ):
-        _LOGGER.debug("Creating configurator to enter verification code")
-    elif "login_failed" in login.status and login.status["login_failed"]:
-        _LOGGER.debug("Creating configurator to start new login attempt")
     await hass.async_add_job(request_configuration, hass, config_entry, login)
 
 

@@ -120,6 +120,20 @@ async def test_login_status(hass, config_entry, login, alexa_setup_callback) -> 
                 submit_caption="Confirm",
                 fields=[{"id": "verificationcode", "name": "Verification Code"}],
             )
+        elif status and status.get("force_get"):  # Javascript authentication check
+            _LOGGER.debug("Creating configurator to wait for user action")
+            config_id = configurator.async_request_config(
+                f"Alexa Media Player - Action Required - {email}",
+                configuration_callback,
+                description=(
+                    "Amazon will send a push notification per the below message."
+                    " Please completely respond before continuing."
+                    # + links
+                    + footer
+                ),
+                submit_caption="Confirm",
+                fields=[],
+            )
         else:  # Check login
             _LOGGER.debug("Creating configurator to start new login attempt")
             config_id = configurator.async_request_config(

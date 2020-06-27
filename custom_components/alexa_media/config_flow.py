@@ -210,6 +210,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Handle the input processing of the config flow."""
         return await self.async_step_process(user_input)
 
+    async def async_step_action_required(self, user_input=None):
+        """Handle the input processing of the config flow."""
+        return await self.async_step_process(user_input)
+
     async def async_step_process(self, user_input=None):
         """Handle the input processing of the config flow."""
         if user_input:
@@ -299,6 +303,17 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.debug("Creating config_flow to enter verification code")
             return await self._show_form(
                 "verificationcode", data_schema=vol.Schema(self.verificationcode_schema)
+            )
+        if login.status and login.status.get("force_get"):
+            _LOGGER.debug("Creating config_flow to wait for user action")
+            return await self._show_form(
+                "action_required",
+                data_schema=vol.Schema(OrderedDict()),
+                placeholders={
+                    "email": login.email,
+                    "url": login.url,
+                    "message": f"```text\n{login.status.get('message','')}\n```",
+                },
             )
         if login.status and login.status.get("login_failed"):
             _LOGGER.debug("Login failed")

@@ -277,7 +277,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         try:
             # Note: asyncio.TimeoutError and aiohttp.ClientError are already
             # handled by the data update coordinator.
-            async with async_timeout.timeout(10):
+            async with async_timeout.timeout(30):
                 if new_devices:
                     (
                         devices,

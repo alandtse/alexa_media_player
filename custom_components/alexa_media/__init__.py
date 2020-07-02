@@ -894,6 +894,8 @@ async def setup_alexa(hass, config_entry, login_obj):
     _LOGGER.debug("Refreshing coordinator")
     await coordinator.async_refresh()
 
+    coordinator.async_add_listener(lambda: None)
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_UPDATE_LAST_CALLED,

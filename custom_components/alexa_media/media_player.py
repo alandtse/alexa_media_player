@@ -584,7 +584,6 @@ class AlexaClient(MediaPlayerDevice):
                 )
             if self._session.get("state"):
                 self._media_player_state = self._session["state"]
-                self._media_pos = self._session.get("progress", {}).get("mediaProgress")
                 self._media_title = self._session.get("infoText", {}).get("title")
                 self._media_artist = self._session.get("infoText", {}).get("subText1")
                 self._media_album_name = self._session.get("infoText", {}).get(
@@ -595,8 +594,15 @@ class AlexaClient(MediaPlayerDevice):
                     if self._session.get("mainArt")
                     else None
                 )
-                self._media_duration = self._session.get("progress", {}).get(
-                    "mediaLength"
+                self._media_pos = (
+                    self._session.get("progress", {}).get("mediaProgress")
+                    if self._session.get("progress")
+                    else None
+                )
+                self._media_duration = (
+                    self._session.get("progress", {}).get("mediaLength")
+                    if self._session.get("progress")
+                    else None
                 )
                 if not self._session.get("lemurVolume"):
                     self._media_is_muted = (

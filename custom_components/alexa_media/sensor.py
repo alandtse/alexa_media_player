@@ -291,7 +291,12 @@ class AlexaMediaNotificationSensor(Entity):
     @property
     def available(self):
         """Return the availabilty of the sensor."""
-        return True
+        return self._client.available
+
+    @property
+    def assumed_state(self):
+        """Return whether the state is an assumed_state."""
+        return self._client.assumed_state
 
     @property
     def hidden(self):

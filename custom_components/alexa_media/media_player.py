@@ -179,6 +179,7 @@ class AlexaClient(MediaPlayerDevice):
         self._device_owner_customer_id = None
         self._software_version = None
         self._available = None
+        self._assumed_state = False
         self._capabilities = []
         self._cluster_members = []
         self._locale = None
@@ -331,7 +332,7 @@ class AlexaClient(MediaPlayerDevice):
             )
         if not event_serial:
             return
-        self.available = True
+        self._available = True
         self.async_schedule_update_ha_state()
         if "last_called_change" in event:
             if event_serial == self.device_serial_number or any(
@@ -499,6 +500,7 @@ class AlexaClient(MediaPlayerDevice):
         session = None
         if self.available:
             _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
+            self._assumed_state = False
             if "PAIR_BT_SOURCE" in self._capabilities:
                 self._source = self._get_source()
                 self._source_list = self._get_source_list()
@@ -743,6 +745,11 @@ class AlexaClient(MediaPlayerDevice):
         self._available = state
 
     @property
+    def assumed_state(self):
+        """Return whether the state is an assumed_state."""
+        return self._assumed_state
+
+    @property
     def hidden(self):
         """Return whether the sensor should be hidden."""
         return "MUSIC_SKILL" not in self._capabilities
@@ -801,6 +808,8 @@ class AlexaClient(MediaPlayerDevice):
             or email not in self.hass.data[DATA_ALEXAMEDIA]["accounts"]
             or self._login.session.closed
         ):
+            self._assumed_state = True
+            self.available = False
             return
         device = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
             "media_player"

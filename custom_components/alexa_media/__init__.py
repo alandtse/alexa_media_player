@@ -277,7 +277,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         try:
             # Note: asyncio.TimeoutError and aiohttp.ClientError are already
             # handled by the data update coordinator.
-            async with async_timeout.timeout(10):
+            async with async_timeout.timeout(30):
                 if new_devices:
                     (
                         devices,
@@ -310,6 +310,10 @@ async def setup_alexa(hass, config_entry, login_obj):
                 login_obj.status,
             )
             if login_obj.status:
+                await hass.bus.async_fire(
+                    "alexa_media_player/relogin_required",
+                    event_data={"email": hide_email(email), "url": login_obj.url},
+                )
                 await login_obj.reset()
                 await login_obj.login()
                 await test_login_status(hass, config_entry, login_obj, setup_alexa)
@@ -893,6 +897,8 @@ async def setup_alexa(hass, config_entry, login_obj):
     # Fetch initial data so we have data when entities subscribe
     _LOGGER.debug("Refreshing coordinator")
     await coordinator.async_refresh()
+
+    coordinator.async_add_listener(lambda: None)
 
     hass.services.async_register(
         DOMAIN,

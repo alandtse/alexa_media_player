@@ -223,7 +223,15 @@ class AlexaMediaSwitch(SwitchDevice):
     @property
     def available(self):
         """Return the availabilty of the switch."""
-        return getattr(self._client, self._switch_property) is not None
+        return (
+            self._client.available
+            and getattr(self._client, self._switch_property) is not None
+        )
+
+    @property
+    def assumed_state(self):
+        """Return whether the state is an assumed_state."""
+        return self._client.assumed_state
 
     @property
     def unique_id(self):

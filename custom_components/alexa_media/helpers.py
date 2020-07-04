@@ -11,7 +11,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import logging
 from typing import Any, Callable, List, Optional, Text
 
-from alexapy import AlexapyLoginError, hide_email
+from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import EntityComponent
 
@@ -151,6 +151,13 @@ def _catch_login_errors(func) -> Callable:
             instance.check_login_changes()
         try:
             result = await func(*args, **kwargs)
+        except AlexapyLoginCloseRequested:
+            _LOGGER.debug(
+                "%s.%s: Ignoring attempt to access Alexa after HA shutdown",
+                func.__module__[func.__module__.find(".") + 1 :],
+                func.__name__,
+            )
+            return None
         except AlexapyLoginError as ex:
             _LOGGER.debug(
                 "%s.%s: detected bad login: %s",

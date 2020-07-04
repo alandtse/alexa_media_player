@@ -839,7 +839,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
         coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         if coordinator:
-            coordinator.update_interval = scan_interval
+            coordinator.update_interval = timedelta(seconds=scan_interval)
             await coordinator.async_request_refresh()
 
     async def ws_error_handler(message):

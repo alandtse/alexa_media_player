@@ -251,6 +251,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             email not in hass.data[DATA_ALEXAMEDIA]["accounts"]
             or "login_successful" not in login_obj.status
             or login_obj.session.closed
+            or login_obj.close_requested
         ):
             return
         existing_serials = _existing_serials(hass, login_obj)
@@ -804,6 +805,11 @@ async def setup_alexa(hass, config_entry, login_obj):
         import time
 
         email: Text = login_obj.email
+        if login_obj.close_requested:
+            _LOGGER.debug(
+                "%s: Close requested; will not reconnect websocket", hide_email(email)
+            )
+            return
         errors: int = (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"])
         delay: int = 5 * 2 ** errors
         last_attempt = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
@@ -839,7 +845,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
         coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         if coordinator:
-            coordinator.update_interval = scan_interval
+            coordinator.update_interval = timedelta(seconds=scan_interval)
             await coordinator.async_request_refresh()
 
     async def ws_error_handler(message):
@@ -859,7 +865,9 @@ async def setup_alexa(hass, config_entry, login_obj):
             type(message),
         )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
-        if login_obj.session.closed or message == "<class 'aiohttp.streams.EofStream'>":
+        if not login_obj.close_requested and (
+            login_obj.session.closed or message == "<class 'aiohttp.streams.EofStream'>"
+        ):
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = 5
             _LOGGER.debug("%s: Immediate abort on EoFstream", hide_email(email))
             return
@@ -947,7 +955,6 @@ async def close_connections(hass, email: Text) -> None:
     _LOGGER.debug(
         "%s: Connection closed: %s", hide_email(email), login_obj.session.closed
     )
-    await clear_configurator(hass, email)
 
 
 async def update_listener(hass, config_entry):

@@ -947,7 +947,6 @@ async def close_connections(hass, email: Text) -> None:
     _LOGGER.debug(
         "%s: Connection closed: %s", hide_email(email), login_obj.session.closed
     )
-    await clear_configurator(hass, email)
 
 
 async def update_listener(hass, config_entry):

@@ -785,7 +785,6 @@ async def setup_alexa(hass, config_entry, login_obj):
 
     async def ws_open_handler():
         """Handle websocket open."""
-        import time
 
         email: Text = login_obj.email
         _LOGGER.debug("%s: Websocket succesfully connected", hide_email(email))
@@ -801,8 +800,6 @@ async def setup_alexa(hass, config_entry, login_obj):
 
         This should attempt to reconnect up to 5 times
         """
-        from asyncio import sleep
-        import time
 
         email: Text = login_obj.email
         if login_obj.close_requested:
@@ -818,9 +815,10 @@ async def setup_alexa(hass, config_entry, login_obj):
         now = time.time()
         if (now - last_attempt) < delay:
             return
-        while errors < 5 and not (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"]
-        ):
+        websocket_enabled: bool = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "websocket"
+        ]
+        while errors < 5 and not (websocket_enabled):
             _LOGGER.debug(
                 "%s: Websocket closed; reconnect #%i in %is",
                 hide_email(email),
@@ -830,22 +828,24 @@ async def setup_alexa(hass, config_entry, login_obj):
             hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "websocket_lastattempt"
             ] = time.time()
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            websocket_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "websocket"
             ] = await ws_connect()
             errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = (
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] + 1
             )
             delay = 5 * 2 ** errors
-            await sleep(delay)
             errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
-        _LOGGER.debug(
-            "%s: Websocket closed; retries exceeded; polling", hide_email(email)
-        )
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
+            await asyncio.sleep(delay)
+        if not websocket_enabled:
+            _LOGGER.debug(
+                "%s: Websocket closed; retries exceeded; polling", hide_email(email)
+            )
         coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         if coordinator:
-            coordinator.update_interval = timedelta(seconds=scan_interval)
+            coordinator.update_interval = timedelta(
+                seconds=scan_interval * 10 if websocket_enabled else scan_interval
+            )
             await coordinator.async_request_refresh()
 
     async def ws_error_handler(message):
@@ -901,6 +901,10 @@ async def setup_alexa(hass, config_entry, login_obj):
             update_interval=timedelta(
                 seconds=scan_interval * 10 if websocket_enabled else scan_interval
             ),
+        )
+    else:
+        coordinator.update_interval = timedelta(
+            seconds=scan_interval * 10 if websocket_enabled else scan_interval
         )
     # Fetch initial data so we have data when entities subscribe
     _LOGGER.debug("Refreshing coordinator")

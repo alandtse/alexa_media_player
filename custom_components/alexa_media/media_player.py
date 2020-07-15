@@ -1149,6 +1149,13 @@ class AlexaClient(MediaPlayerDevice):
         )
 
     @_catch_login_errors
+    async def async_send_dropin_notification(self, message, **kwargs):
+        """Send notification dropin to the media player's associated mobile devices."""
+        await self.alexa_api.send_dropin_notification(
+            message, customer_id=self._customer_id, **kwargs
+        )
+
+    @_catch_login_errors
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):
         # pylint: disable=unused-argument
         """Send the play_media command to the media player."""

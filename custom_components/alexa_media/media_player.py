@@ -1203,6 +1203,8 @@ class AlexaClient(MediaPlayerDevice):
                     "options"
                 ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
             )
+        elif media_type == "image":
+            await self.alexa_api.set_background(media_id)
         else:
             await self.alexa_api.play_music(
                 media_type,

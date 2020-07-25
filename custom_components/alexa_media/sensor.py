@@ -419,7 +419,12 @@ class TimerSensor(AlexaMediaNotificationSensor):
         # Class info
         self._type = "Timer"
         super().__init__(
-            client, n_json, "remainingTime", account, f"next {self._type}", "mdi:timer"
+            client,
+            n_json,
+            "remainingTime",
+            account,
+            f"next {self._type}",
+            "mdi:timer-outline",
         )
 
     @property

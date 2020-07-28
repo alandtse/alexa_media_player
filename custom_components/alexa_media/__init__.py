@@ -315,6 +315,10 @@ async def setup_alexa(hass, config_entry, login_obj):
                     "alexa_media_player/relogin_required",
                     event_data={"email": hide_email(email), "url": login_obj.url},
                 )
+                await hass.bus.async_fire(
+                    "alexa_media_player_relogin_required",
+                    event_data={"email": hide_email(email), "url": login_obj.url},
+                )
                 await login_obj.reset()
                 await login_obj.login()
                 await test_login_status(hass, config_entry, login_obj, setup_alexa)

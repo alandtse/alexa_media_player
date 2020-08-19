@@ -311,11 +311,11 @@ async def setup_alexa(hass, config_entry, login_obj):
                 login_obj.status,
             )
             if login_obj.status:
-                await hass.bus.async_fire(
+                hass.bus.async_fire(
                     "alexa_media_player/relogin_required",
                     event_data={"email": hide_email(email), "url": login_obj.url},
                 )
-                await hass.bus.async_fire(
+                hass.bus.async_fire(
                     "alexa_media_player_relogin_required",
                     event_data={"email": hide_email(email), "url": login_obj.url},
                 )

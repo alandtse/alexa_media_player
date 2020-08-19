@@ -454,7 +454,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
     @property
     def icon(self):
         """Return the icon of the sensor."""
-        return self._icon if not self.paused else "mdi:timer-off"
+        return self._icon if not self.paused else "mdi:timer-off-outline"
 
 
 class ReminderSensor(AlexaMediaNotificationSensor):

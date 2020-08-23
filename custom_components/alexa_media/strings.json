@@ -54,7 +54,10 @@
         "title": "Alexa Media Player - Action Required"
       }
     },
-    "title": "Alexa Media Player"
+    "abort": {
+      "forgot_password": "The Forgot Password page was detected. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login."
+    }
   },
   "options": {
     "step": {

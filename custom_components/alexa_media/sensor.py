@@ -11,12 +11,17 @@ import datetime
 import logging
 from typing import List, Text  # noqa pylint: disable=unused-import
 
-from homeassistant.const import DEVICE_CLASS_TIMESTAMP, STATE_UNAVAILABLE
+from homeassistant.const import (
+    DEVICE_CLASS_TIMESTAMP,
+    STATE_UNAVAILABLE,
+    __version__ as HA_VERSION,
+)
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
 import pytz
+import semver
 
 from . import (
     CONF_EMAIL,
@@ -419,7 +424,14 @@ class TimerSensor(AlexaMediaNotificationSensor):
         # Class info
         self._type = "Timer"
         super().__init__(
-            client, n_json, "remainingTime", account, f"next {self._type}", "mdi:timer"
+            client,
+            n_json,
+            "remainingTime",
+            account,
+            f"next {self._type}",
+            "mdi:timer-outline"
+            if semver.compare(HA_VERSION, "0.113.0") >= 0
+            else "mdi:timer",
         )
 
     @property
@@ -449,7 +461,12 @@ class TimerSensor(AlexaMediaNotificationSensor):
     @property
     def icon(self):
         """Return the icon of the sensor."""
-        return self._icon if not self.paused else "mdi:timer-off"
+        off_icon = (
+            "mdi:timer-off-outline"
+            if (semver.compare(HA_VERSION, "0.113.0") >= 0)
+            else "mdi:timer-off"
+        )
+        return self._icon if not self.paused else off_icon
 
 
 class ReminderSensor(AlexaMediaNotificationSensor):

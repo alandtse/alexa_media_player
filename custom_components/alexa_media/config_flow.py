@@ -316,8 +316,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 },
             )
         if login.status and login.status.get("login_failed"):
-            _LOGGER.debug("Login failed")
-            return self.async_abort(reason="Login failed")
+            _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
+            await login.close()
+            return self.async_abort(reason=login.status.get("login_failed"),)
         new_schema = self._update_ord_dict(
             self.data_schema,
             {

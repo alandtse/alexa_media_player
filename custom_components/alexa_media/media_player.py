@@ -986,7 +986,10 @@ class AlexaClient(MediaPlayerDevice):
         """Set volume level, range 0..1."""
         if not self.available:
             return
-        await self.alexa_api.set_volume(volume)
+        await self.alexa_api.set_volume(
+            volume, 
+            customer_id=self._customer_id
+            )
         self._media_vol_level = volume
         if not (
             self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["websocket"]
@@ -1019,12 +1022,14 @@ class AlexaClient(MediaPlayerDevice):
         self._media_is_muted = mute
         if mute:
             self._previous_volume = self.volume_level
-            await self.alexa_api.set_volume(0)
+            await self.alexa_api.set_volume(0, customer_id=self._customer_id)
         else:
             if self._previous_volume is not None:
-                await self.alexa_api.set_volume(self._previous_volume)
+                await self.alexa_api.set_volume(
+                    self._previous_volume,
+                    customer_id=self._customer_id)
             else:
-                await self.alexa_api.set_volume(50)
+                await self.alexa_api.set_volume(50, customer_id=self._customer_id)
         if not (
             self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["websocket"]
         ):

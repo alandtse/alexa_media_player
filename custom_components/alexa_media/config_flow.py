@@ -71,6 +71,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (vol.Required(CONF_EMAIL), str),
                 (vol.Required(CONF_PASSWORD), str),
+                (vol.Optional("securitycode"), str),
                 (vol.Required(CONF_URL, default="amazon.com"), str),
                 (vol.Optional(CONF_DEBUG, default=False), bool),
                 (vol.Optional(CONF_INCLUDE_DEVICES, default=""), str),
@@ -79,7 +80,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             ]
         )
         self.captcha_schema = OrderedDict(
-            [(vol.Required(CONF_PASSWORD), str), (vol.Required("captcha"), str)]
+            [
+                (vol.Required(CONF_PASSWORD), str),
+                (vol.Optional("securitycode"), str),
+                (vol.Required("captcha"), str),
+            ]
         )
         self.twofactor_schema = OrderedDict([(vol.Required("securitycode"), str)])
         self.claimspicker_schema = OrderedDict(
@@ -110,14 +115,19 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Handle the start of the config flow."""
         if not user_input:
             return self.async_show_form(
-                step_id="user", data_schema=vol.Schema(self.data_schema)
+                step_id="user",
+                data_schema=vol.Schema(self.data_schema),
+                description_placeholders={"message": ""},
             )
 
-        if "{} - {}".format(
-            user_input[CONF_EMAIL], user_input[CONF_URL]
-        ) in configured_instances(self.hass):
+        if (
+            f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+            in configured_instances(self.hass)
+        ):
             return self.async_show_form(
-                step_id="user", errors={CONF_EMAIL: "identifier_exists"}
+                step_id="user",
+                errors={CONF_EMAIL: "identifier_exists"},
+                description_placeholders={"message": f""},
             )
 
         self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
@@ -360,10 +370,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         new_schema = self._update_ord_dict(
             self.data_schema,
             {
-                vol.Required(CONF_EMAIL, default=config[CONF_EMAIL]): str,
-                vol.Required(CONF_PASSWORD, default=config[CONF_PASSWORD]): str,
-                vol.Required(CONF_URL, default=config[CONF_URL]): str,
-                vol.Optional(CONF_DEBUG, default=config[CONF_DEBUG]): bool,
+                vol.Required(CONF_EMAIL, default=self.config[CONF_EMAIL]): str,
+                vol.Required(CONF_PASSWORD, default=self.config[CONF_PASSWORD]): str,
+                vol.Optional("securitycode"): str,
+                vol.Required(CONF_URL, default=self.config[CONF_URL]): str,
+                vol.Optional(CONF_DEBUG, default=self.config[CONF_DEBUG]): bool,
                 vol.Optional(
                     CONF_INCLUDE_DEVICES,
                     default=(

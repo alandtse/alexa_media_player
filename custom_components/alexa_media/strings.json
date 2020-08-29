@@ -11,18 +11,20 @@
         "data": {
           "password": "Password",
           "email": "Email Address",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Amazon region domain (e.g., amazon.co.uk)",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",
           "debug": "Advanced debugging",
           "scan_interval": "Seconds between scans"
         },
-        "description": "Please enter your information.",
+        "description": "Please enter your information. \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when 2FA Code is required.**\n>{message}",
         "title": "Alexa Media Player - Configuration"
       },
       "captcha": {
         "data": {
           "password": "Password",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
           "captcha": "Captcha"
         },
         "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",

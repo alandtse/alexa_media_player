@@ -11,18 +11,20 @@
         "data": {
           "password": "Password",
           "email": "Email Address",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Amazon region domain (e.g., amazon.co.uk)",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",
           "debug": "Advanced debugging",
           "scan_interval": "Seconds between scans"
         },
-        "description": "Please enter your information.",
+        "description": "Please enter your information. \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when 2FA Code is required.**\n>{message}",
         "title": "Alexa Media Player - Configuration"
       },
       "captcha": {
         "data": {
           "password": "Password",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
           "captcha": "Captcha"
         },
         "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
@@ -55,9 +57,11 @@
       }
     },
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login."
-    }
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login.",
+      "reauth_successful": "Alexa Media Player successfully reauthenticated."
+    },
+    "title": "Alexa Media Player"
   },
   "options": {
     "step": {

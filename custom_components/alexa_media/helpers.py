@@ -8,12 +8,16 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+import functools
 import logging
+import sys
 from typing import Any, Callable, List, Optional, Text
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
+from alexapy.alexalogin import AlexaLogin
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import EntityComponent
+import wrapt
 
 from . import DATA_ALEXAMEDIA
 from .const import EXCEPTION_TEMPLATE
@@ -139,65 +143,80 @@ def retry_async(
     return wrap
 
 
-def _catch_login_errors(func) -> Callable:
+@wrapt.decorator
+async def _catch_login_errors(func, instance, args, kwargs) -> Any:
     """Detect AlexapyLoginError and attempt relogin."""
-    import functools
 
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs) -> Any:
+    result = None
+    if instance is None and args:
         instance = args[0]
-        result = None
-        if hasattr(instance, "check_login_changes"):
-            instance.check_login_changes()
-        try:
-            result = await func(*args, **kwargs)
-        except AlexapyLoginCloseRequested:
-            _LOGGER.debug(
-                "%s.%s: Ignoring attempt to access Alexa after HA shutdown",
-                func.__module__[func.__module__.find(".") + 1 :],
-                func.__name__,
-            )
-            return None
-        except AlexapyLoginError as ex:
-            _LOGGER.debug(
-                "%s.%s: detected bad login: %s",
-                func.__module__[func.__module__.find(".") + 1 :],
-                func.__name__,
-                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
-            )
-            instance = args[0]
+    if hasattr(instance, "check_login_changes"):
+        instance.check_login_changes()
+    try:
+        result = await func(*args, **kwargs)
+    except AlexapyLoginCloseRequested:
+        _LOGGER.debug(
+            "%s.%s: Ignoring attempt to access Alexa after HA shutdown",
+            func.__module__[func.__module__.find(".") + 1 :],
+            func.__name__,
+        )
+        return None
+    except AlexapyLoginError as ex:
+        login = None
+        email = None
+        all_args = list(args) + list(kwargs.values())
+        # _LOGGER.debug("Func %s instance %s %s %s", func, instance, args, kwargs)
+        if instance:
             if hasattr(instance, "_login"):
                 login = instance._login
-                email = login.email
-                hass = instance.hass if instance.hass else None
-                if hass and (
-                    "configurator"
-                    not in (hass.data[DATA_ALEXAMEDIA]["accounts"][email])
-                    or not (
-                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["configurator"]
-                    )
-                ):
-                    config_entry = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                        "config_entry"
-                    ]
-                    setup_alexa = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                        "setup_alexa"
-                    ]
-                    test_login_status = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                        "test_login_status"
-                    ]
-                    _LOGGER.debug(
-                        "%s: Alexa API disconnected; attempting to relogin",
-                        hide_email(email),
-                    )
-                    if login.status:
-                        await login.reset()
-                        await login.login()
-                        await test_login_status(hass, config_entry, login, setup_alexa)
-            return None
-        return result
+                hass = instance.hass
+        else:
+            for arg in all_args:
+                _LOGGER.debug("Checking %s", arg)
 
-    return wrapper
+                if isinstance(arg, AlexaLogin):
+                    login = arg
+                    break
+                if hasattr(arg, "_login"):
+                    login = instance._login
+                    hass = instance.hass
+                    break
+
+        if login:
+            email = login.email
+            _LOGGER.debug(
+                "%s.%s: detected bad login for %s: %s",
+                func.__module__[func.__module__.find(".") + 1 :],
+                func.__name__,
+                hide_email(email),
+                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+            )
+        try:
+            hass
+        except NameError:
+            hass = None
+        report_relogin_required(hass, login, email)
+        return None
+    return result
+
+
+def report_relogin_required(hass, login, email) -> bool:
+    """Send message for relogin required."""
+    if hass and login and email:
+        if login.status:
+            _LOGGER.debug(
+                "Reporting need to relogin to %s with %s", login.url, hide_email(email)
+            )
+            hass.bus.async_fire(
+                "alexa_media_player/relogin_required",
+                event_data={"email": hide_email(email), "url": login.url,},
+            )
+            hass.bus.async_fire(
+                "alexa_media_player_relogin_required",
+                event_data={"email": hide_email(email), "url": login.url,},
+            )
+            return True
+    return False
 
 
 def _existing_serials(hass, login_obj) -> List:

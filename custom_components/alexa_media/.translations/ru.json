@@ -1,0 +1,75 @@
+{
+    "config": {
+        "abort": {
+            "forgot_password": "",
+            "login_failed": "",
+            "reauth_successful": ""
+        },
+        "error": {
+            "connection_error": "Ошибка подключения; проверьте сеть и повторите попытку",
+            "identifier_exists": "Электронная почта для Alexa уже зарегистрирована",
+            "invalid_credentials": "Неверные учетные данные",
+            "unknown_error": "Неизвестная ошибка, пожалуйста, сообщите информацию журнала"
+        },
+        "step": {
+            "action_required": {
+                "description": "**{email} - alexa. {url}**\nAmazon отправит push-уведомление в соответствии с нижеприведенным сообщением. Пожалуйста, полностью ответьте, прежде чем продолжить.\n{message}",
+                "title": "Alexa Media Player - Требуемое действие"
+            },
+            "authselect": {
+                "data": {
+                    "authselectoption": "Одноразовый пароль"
+                },
+                "description": "**{email} - alexa.{url}**\n{message}",
+                "title": "Alexa Media Player - Одноразовый Пароль"
+            },
+            "captcha": {
+                "data": {
+                    "captcha": "Капча",
+                    "password": "Пароль",
+                    "securitycode": ""
+                },
+                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+                "title": "Alexa Media Player - Капча"
+            },
+            "claimspicker": {
+                "data": {
+                    "authselectoption": "Метод проверки"
+                },
+                "description": "**{email} - alexa.{url}**\nПожалуйста, выберите способ проверки по номеру. (например, \" 0 \" или \" 1`)\n{message}",
+                "title": "Alexa Media Player - Метод проверки"
+            },
+            "twofactor": {
+                "data": {
+                    "securitycode": "2-факторная авторизация"
+                },
+                "description": "**{email} - alexa.{url}**\nВведите одноразовый пароль.\n{message}",
+                "title": "Alexa Media Player - Двух факторная идентификация"
+            },
+            "user": {
+                "data": {
+                    "debug": "Расширенные возможности отладки",
+                    "email": "Адрес электронной почты",
+                    "exclude_devices": "Исключенные устройства (через запятую)",
+                    "include_devices": "Включенные устройства (разделенное запятыми)",
+                    "password": "Пароль",
+                    "scan_interval": "Секунды между сканированиями",
+                    "securitycode": "",
+                    "url": "Домен региона Amazon (например, amazon.co.uk)"
+                },
+                "description": "Пожалуйста, введите свои данные.",
+                "title": "Alexa Media Player - Конфигурация"
+            }
+        },
+        "title": "Alexa Media Player"
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "queue_delay": "Секунды ожидания, чтобы выполнить команды вместе"
+                }
+            }
+        }
+    }
+}

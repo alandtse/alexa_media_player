@@ -1159,6 +1159,9 @@ class AlexaClient(MediaPlayerDevice):
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):
         # pylint: disable=unused-argument
         """Send the play_media command to the media player."""
+        queue_delay = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
+            "options"
+        ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY)
         if media_type == "music":
             await self.async_send_tts(
                 "Sorry, text to speech can only be called"
@@ -1172,47 +1175,58 @@ class AlexaClient(MediaPlayerDevice):
                 "https://github.com/custom-components/alexa_media_player/wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
             )
         elif media_type == "sequence":
+            _LOGGER.debug(
+                "%s:Running sequence %s with queue_delay %s",
+                self,
+                media_id,
+                queue_delay,
+            )
             await self.alexa_api.send_sequence(
                 media_id,
                 customer_id=self._customer_id,
-                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
-                    "options"
-                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                queue_delay=queue_delay,
                 **kwargs,
             )
         elif media_type == "routine":
+            _LOGGER.debug(
+                "%s:Running routine %s with queue_delay %s", self, media_id, queue_delay
+            )
             await self.alexa_api.run_routine(
-                media_id,
-                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
-                    "options"
-                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                media_id, queue_delay=queue_delay,
             )
         elif media_type == "sound":
+            _LOGGER.debug(
+                "%s:Playing sound %s with queue_delay %s", self, media_id, queue_delay
+            )
             await self.alexa_api.play_sound(
                 media_id,
                 customer_id=self._customer_id,
-                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
-                    "options"
-                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                queue_delay=queue_delay,
                 **kwargs,
             )
         elif media_type == "skill":
+            _LOGGER.debug(
+                "%s:Running skill %s with queue_delay %s", self, media_id, queue_delay
+            )
             await self.alexa_api.run_skill(
-                media_id,
-                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
-                    "options"
-                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                media_id, queue_delay=queue_delay,
             )
         elif media_type == "image":
+            _LOGGER.debug("%s:Setting background to %s", self, media_id)
             await self.alexa_api.set_background(media_id)
         else:
+            _LOGGER.debug(
+                "%s:Playing music %s on %s with queue_delay %s",
+                self,
+                media_id,
+                media_type,
+                queue_delay,
+            )
             await self.alexa_api.play_music(
                 media_type,
                 media_id,
                 customer_id=self._customer_id,
-                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
-                    "options"
-                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                queue_delay=queue_delay,
                 **kwargs,
             )
         if not (

@@ -1,0 +1,180 @@
+{
+    "config": {
+        "error": {
+            "connection_error": {
+                "translation": "Verbindungsfehler; Netzwerk prüfen und erneut versuchen",
+                "notes": ""
+            },
+            "identifier_exists": {
+                "translation": "E-Mail für die Alexa URL ist bereits registriert",
+                "notes": ""
+            },
+            "invalid_credentials": {
+                "translation": "Falsche Zugangsdaten",
+                "notes": ""
+            },
+            "unknown_error": {
+                "translation": "Unbekannter Fehler, bitte Log-Info melden",
+                "notes": ""
+            }
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "password": {
+                        "translation": "Passwort",
+                        "notes": ""
+                    },
+                    "email": {
+                        "translation": "E-Mail Adresse",
+                        "notes": ""
+                    },
+                    "url": {
+                        "translation": "Amazon Region (z.B., amazon.de)",
+                        "notes": ""
+                    },
+                    "include_devices": {
+                        "translation": "Eingebundene Geräte (komma getrennnt)",
+                        "notes": ""
+                    },
+                    "exclude_devices": {
+                        "translation": "Ausgeschlossene Geräte (komma getrennnt)",
+                        "notes": ""
+                    },
+                    "debug": {
+                        "translation": "Erweitertes debugging",
+                        "notes": ""
+                    },
+                    "scan_interval": {
+                        "translation": "Sekunden zwischen den Scans",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "2FA Code (empfohlen, um Anmeldeprobleme zu vermeiden)",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "Bitte gebe Deine Informationen ein.",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Konfiguration",
+                    "notes": ""
+                }
+            },
+            "captcha": {
+                "data": {
+                    "password": {
+                        "translation": "Passwort",
+                        "notes": ""
+                    },
+                    "captcha": {
+                        "translation": "Captcha",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "2FA Code (empfohlen, um Anmeldeprobleme zu vermeiden)",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Captcha",
+                    "notes": ""
+                }
+            },
+            "twofactor": {
+                "data": {
+                    "securitycode": {
+                        "translation": "2FA Code",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nDas Einmalpasswort eingeben.\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Zwei Faktor Authentifizierung",
+                    "notes": ""
+                }
+            },
+            "authselect": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "Einmal Pin Methode",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Einmalpasswort",
+                    "notes": ""
+                }
+            },
+            "claimspicker": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "Verifizierungsmethode",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nBitte Verifizierungsmethode auswählen. (z.B., `0` oder `1`)\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Verifizierungsmethode",
+                    "notes": ""
+                }
+            },
+            "action_required": {
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nAmazon sendet eine Push-Benachrichtigung je folgender Nachricht. Bitte antworte sie vollständig, bevor Du fortfährst.\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Aktion erforderlich",
+                    "notes": ""
+                }
+            }
+        },
+        "title": {
+            "translation": "Alexa Media Player",
+            "notes": ""
+        },
+        "abort": {
+            "forgot_password": {
+                "translation": "Die \"Passwort vergessen Funktion\" wurde erkannt. Amazon verlangt möglicherweise Maßnahmen bevor ein erneuter Anmeldeversuch unternommen werden kann.",
+                "notes": ""
+            },
+            "login_failed": {
+                "translation": "Alexa Media Player konnte nicht angemeldet werden.",
+                "notes": ""
+            },
+            "reauth_successful": {
+                "translation": "Alexa Media Player erfolgreich authentifiziert",
+                "notes": ""
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "queue_delay": {
+                        "translation": "Sekunden zu warten, um Befehle in die Warteschlange zu stellen",
+                        "notes": ""
+                    }
+                }
+            }
+        }
+    }
+}

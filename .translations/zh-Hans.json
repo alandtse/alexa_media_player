@@ -1,0 +1,180 @@
+{
+    "config": {
+        "error": {
+            "connection_error": {
+                "translation": "连接错误；检查网络并重试",
+                "notes": ""
+            },
+            "identifier_exists": {
+                "translation": "Alexa URL的电子邮件已注册",
+                "notes": ""
+            },
+            "invalid_credentials": {
+                "translation": "",
+                "notes": ""
+            },
+            "unknown_error": {
+                "translation": "",
+                "notes": ""
+            }
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "password": {
+                        "translation": "密码",
+                        "notes": ""
+                    },
+                    "email": {
+                        "translation": "电子邮件地址",
+                        "notes": ""
+                    },
+                    "url": {
+                        "translation": "",
+                        "notes": ""
+                    },
+                    "include_devices": {
+                        "translation": "",
+                        "notes": ""
+                    },
+                    "exclude_devices": {
+                        "translation": "",
+                        "notes": ""
+                    },
+                    "debug": {
+                        "translation": "高级调试",
+                        "notes": ""
+                    },
+                    "scan_interval": {
+                        "translation": "",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "请输入您的信息。",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player-配置",
+                    "notes": ""
+                }
+            },
+            "captcha": {
+                "data": {
+                    "password": {
+                        "translation": "密码",
+                        "notes": ""
+                    },
+                    "captcha": {
+                        "translation": "验证码",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player-验证码",
+                    "notes": ""
+                }
+            },
+            "twofactor": {
+                "data": {
+                    "securitycode": {
+                        "translation": "2FA代码",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - Alexa.{url} ** \n输入一次性密码（OTP）。 \n {message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "",
+                    "notes": ""
+                }
+            },
+            "authselect": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "OTP方式",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - 一次性密码",
+                    "notes": ""
+                }
+            },
+            "claimspicker": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "验证方式",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - 验证方法",
+                    "notes": ""
+                }
+            },
+            "action_required": {
+                "description": {
+                    "translation": "",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "",
+                    "notes": ""
+                }
+            }
+        },
+        "title": {
+            "translation": "Alexa Media Player",
+            "notes": ""
+        },
+        "abort": {
+            "forgot_password": {
+                "translation": "",
+                "notes": ""
+            },
+            "login_failed": {
+                "translation": "",
+                "notes": ""
+            },
+            "reauth_successful": {
+                "translation": "",
+                "notes": ""
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "queue_delay": {
+                        "translation": "",
+                        "notes": ""
+                    }
+                }
+            }
+        }
+    }
+}

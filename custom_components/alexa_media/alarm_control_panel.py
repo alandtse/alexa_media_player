@@ -11,8 +11,10 @@ from asyncio import sleep
 import logging
 from typing import Dict, List, Text  # noqa pylint: disable=unused-import
 
+from alexapy import AlexaAPI, hide_email, hide_serial
 from homeassistant import util
 from homeassistant.const import (
+    CONF_EMAIL,
     STATE_ALARM_ARMED_AWAY,
     STATE_ALARM_DISARMED,
     STATE_UNAVAILABLE,
@@ -20,9 +22,10 @@ from homeassistant.const import (
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later
+from simplejson import JSONDecodeError
 
-from . import (
-    CONF_EMAIL,
+from .alexa_media import AlexaMedia
+from .const import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     CONF_QUEUE_DELAY,
@@ -31,10 +34,8 @@ from . import (
     DOMAIN as ALEXA_DOMAIN,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
-    hide_email,
-    hide_serial,
 )
-from .helpers import _catch_login_errors, add_devices, retry_async
+from .helpers import _catch_login_errors, add_devices
 
 try:
     from homeassistant.components.alarm_control_panel import (
@@ -123,19 +124,14 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-class AlexaAlarmControlPanel(AlarmControlPanel):
+class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia):
     """Implementation of Alexa Media Player alarm control panel."""
 
     def __init__(self, login, media_players=None) -> None:
         # pylint: disable=unexpected-keyword-arg
         """Initialize the Alexa device."""
-        from alexapy import AlexaAPI
-
-        # Class info
-        self._login = login
-        self.alexa_api = AlexaAPI(self, login)
-        self.email = login.email
-        self.account = hide_email(login.email)
+        super().__init__(None, login)
+        # AlexaAPI requires a AlexaClient object, need to clean this up
         self._available = None
         self._assumed_state = None
 
@@ -148,25 +144,9 @@ class AlexaAlarmControlPanel(AlarmControlPanel):
         self._attrs: Dict[Text, Text] = {}
         self._media_players = {} or media_players
 
-    def check_login_changes(self):
-        """Update Login object if it has changed."""
-        try:
-            login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email]["login_obj"]
-        except (AttributeError, KeyError):
-            return
-        if self._login != login or self._login.session != login.session:
-            from alexapy import AlexaAPI
-
-            _LOGGER.debug("Login object has changed; updating")
-            self._login = login
-            self.alexa_api = AlexaAPI(self, login)
-            self.email = login.email
-            self.account = hide_email(login.email)
-
     async def init(self):
         """Initialize."""
         try:
-            from simplejson import JSONDecodeError
 
             data = await self.alexa_api.get_guard_details(self._login)
             guard_dict = data["locationDetails"]["locationDetails"]["Default_Location"][

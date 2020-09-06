@@ -39,6 +39,7 @@ EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"
 DEFAULT_QUEUE_DELAY = 1.5
 SERVICE_CLEAR_HISTORY = "clear_history"
 SERVICE_UPDATE_LAST_CALLED = "update_last_called"
+SERVICE_FORCE_LOGOUT = "force_logout"
 
 RECURRING_PATTERN = {
     None: "Never Repeat",

@@ -7,10 +7,12 @@ Alexa Config Flow.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
+from asyncio import sleep
 from collections import OrderedDict
 from datetime import timedelta
+from functools import reduce
 import logging
-from typing import Text
+from typing import Any, Optional, Text
 
 from alexapy import AlexaLogin, AlexapyConnectionError, hide_email, obfuscate
 from homeassistant import config_entries
@@ -45,6 +47,12 @@ def configured_instances(hass):
     return set(entry.title for entry in hass.config_entries.async_entries(DOMAIN))
 
 
+@callback
+def in_progess_instances(hass):
+    """Return a set of in progress Alexa Media flows."""
+    return set(entry["flow_id"] for entry in hass.config_entries.flow.async_progress())
+
+
 @config_entries.HANDLERS.register(DOMAIN)
 class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     """Handle a Alexa Media config flow."""
@@ -66,6 +74,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     def __init__(self):
         """Initialize the config flow."""
         self.login = None
+        self.securitycode: Optional[Text] = None
+        self.automatic_steps: int = 0
         self.config = OrderedDict()
         self.data_schema = OrderedDict(
             [
@@ -82,11 +92,27 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.captcha_schema = OrderedDict(
             [
                 (vol.Required(CONF_PASSWORD), str),
-                (vol.Optional("securitycode"), str),
+                (
+                    vol.Optional(
+                        "securitycode",
+                        default=self.securitycode if self.securitycode else "",
+                    ),
+                    str,
+                ),
                 (vol.Required("captcha"), str),
             ]
         )
-        self.twofactor_schema = OrderedDict([(vol.Required("securitycode"), str)])
+        self.twofactor_schema = OrderedDict(
+            [
+                (
+                    vol.Required(
+                        "securitycode",
+                        default=self.securitycode if self.securitycode else "",
+                    ),
+                    str,
+                )
+            ]
+        )
         self.claimspicker_schema = OrderedDict(
             [
                 (
@@ -113,51 +139,29 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_user(self, user_input=None):
         """Handle the start of the config flow."""
+        self._save_user_input_to_config(user_input=user_input)
+        self.data_schema = self._update_schema_defaults()
         if not user_input:
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="user",
                 data_schema=vol.Schema(self.data_schema),
                 description_placeholders={"message": ""},
             )
 
-        if (
+        if f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}" in configured_instances(
+            self.hass
+        ) and not self.hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
             f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
-            in configured_instances(self.hass)
         ):
+            _LOGGER.debug("Existing account found")
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="user",
+                data_schema=vol.Schema(self.data_schema),
                 errors={CONF_EMAIL: "identifier_exists"},
                 description_placeholders={"message": f""},
             )
-
-        self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
-        self.config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
-        self.config[CONF_URL] = user_input[CONF_URL]
-        self.config[CONF_DEBUG] = user_input[CONF_DEBUG]
-
-        self.config[CONF_SCAN_INTERVAL] = (
-            user_input[CONF_SCAN_INTERVAL]
-            if not isinstance(user_input[CONF_SCAN_INTERVAL], timedelta)
-            else user_input[CONF_SCAN_INTERVAL].total_seconds()
-        )
-        if isinstance(user_input[CONF_INCLUDE_DEVICES], str):
-            self.config[CONF_INCLUDE_DEVICES] = (
-                user_input[CONF_INCLUDE_DEVICES].split(",")
-                if CONF_INCLUDE_DEVICES in user_input
-                and user_input[CONF_INCLUDE_DEVICES] != ""
-                else []
-            )
-        else:
-            self.config[CONF_INCLUDE_DEVICES] = user_input[CONF_INCLUDE_DEVICES]
-        if isinstance(user_input[CONF_EXCLUDE_DEVICES], str):
-            self.config[CONF_EXCLUDE_DEVICES] = (
-                user_input[CONF_EXCLUDE_DEVICES].split(",")
-                if CONF_EXCLUDE_DEVICES in user_input
-                and user_input[CONF_EXCLUDE_DEVICES] != ""
-                else []
-            )
-        else:
-            self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
         if self.login is None:
             try:
                 self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
@@ -175,12 +179,17 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.hass.config.path,
                     self.config[CONF_DEBUG],
                 )
-                await self.login.login(data=self.config)
+                await self.login.login(
+                    cookies=await self.login.load_cookie(), data=self.config
+                )
             else:
                 _LOGGER.debug("Using existing login")
-                await self.login.login(data=self.config)
+                await self.login.login(
+                    cookies=await self.login.load_cookie(), data=self.config
+                )
             return await self._test_login()
         except AlexapyConnectionError:
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="user", errors={"base": "connection_error"}
             )
@@ -188,6 +197,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.warning("Unknown error: %s", ex)
             if self.config[CONF_DEBUG]:
                 raise
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="user", errors={"base": "unknown_error"}
             )
@@ -218,12 +228,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_process(self, step_id, user_input=None):
         """Handle the input processing of the config flow."""
+        self._save_user_input_to_config(user_input=user_input)
         if user_input:
-            if CONF_PASSWORD in user_input:
-                self.config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
             try:
                 await self.login.login(data=user_input)
             except AlexapyConnectionError:
+                self.automatic_steps = 0
                 return self.async_show_form(
                     step_id=step_id, errors={"base": "connection_error"}
                 )
@@ -231,6 +241,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 _LOGGER.warning("Unknown error: %s", ex)
                 if self.config[CONF_DEBUG]:
                     raise
+                self.automatic_steps = 0
                 return self.async_show_form(
                     step_id=step_id, errors={"base": "unknown_error"}
                 )
@@ -238,22 +249,17 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_reauth(self, user_input=None):
         """Handle reauth processing for the config flow."""
-        self.config = user_input
-        self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-            user_input[CONF_EMAIL]
-        ].get("login_obj")
-        try:
-            _LOGGER.debug(
-                "Attempting relogin for %s to %s",
-                hide_email(self.config[CONF_EMAIL]),
-                self.config[CONF_URL],
-            )
-            await self.login.login(data=self.config)
-            return await self._test_login()
-        except AlexapyConnectionError:
-            return self.async_show_form(
-                step_id="reauth", errors={"base": "connection_error"}
-            )
+        self._save_user_input_to_config(user_input)
+        reauth_schema = self._update_schema_defaults()
+        _LOGGER.debug(
+            "Creating reauth form with %s", obfuscate(self.config),
+        )
+        self.automatic_steps = 0
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(reauth_schema),
+            description_placeholders={"message": "REAUTH"},
+        )
 
     async def _test_login(self):
         login = self.login
@@ -276,6 +282,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.config[CONF_EMAIL]][
                     "login_obj"
                 ] = self.login
+                self.hass.data[DATA_ALEXAMEDIA]["config_flows"][
+                    f"{email} - {login.url}"
+                ] = None
                 return self.async_abort(reason="reauth_successful")
             _LOGGER.debug(
                 "Setting up Alexa devices with %s", dict(obfuscate(self.config))
@@ -287,9 +296,18 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if login.status and login.status.get("captcha_required"):
             new_schema = self._update_ord_dict(
                 self.captcha_schema,
-                {vol.Required(CONF_PASSWORD, default=self.config[CONF_PASSWORD]): str},
+                {
+                    vol.Required(
+                        CONF_PASSWORD, default=self.config[CONF_PASSWORD]
+                    ): str,
+                    vol.Optional(
+                        "securitycode",
+                        default=self.securitycode if self.securitycode else "",
+                    ): str,
+                },
             )
             _LOGGER.debug("Creating config_flow to request captcha")
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="captcha",
                 data_schema=vol.Schema(new_schema),
@@ -304,7 +322,21 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 },
             )
         if login.status and login.status.get("securitycode_required"):
-            _LOGGER.debug("Creating config_flow to request 2FA")
+            _LOGGER.debug(
+                "Creating config_flow to request 2FA. Saved security code %s",
+                self.securitycode,
+            )
+            if self.securitycode and self.automatic_steps < 1:
+                _LOGGER.debug(
+                    "Automatically submitting securitycode %s", self.securitycode
+                )
+                self.automatic_steps += 1
+                sleep(1)
+                return await self.async_step_twofactor(
+                    user_input={"securitycode": self.securitycode}
+                )
+            self.twofactor_schema = OrderedDict([(vol.Required("securitycode",), str,)])
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="twofactor",
                 data_schema=vol.Schema(self.twofactor_schema),
@@ -319,6 +351,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             error_message = f"\n> {login.status.get('error_message', '')}"
             _LOGGER.debug("Creating config_flow to select verification method")
             claimspicker_message = login.status["claimspicker_message"]
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="claimspicker",
                 data_schema=vol.Schema(self.claimspicker_schema),
@@ -335,6 +368,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.debug("Creating config_flow to select OTA method")
             error_message = login.status.get("error_message", "")
             authselect_message = login.status["authselect_message"]
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="authselect",
                 data_schema=vol.Schema(self.authselect_schema),
@@ -348,12 +382,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             )
         if login.status and login.status.get("verificationcode_required"):
             _LOGGER.debug("Creating config_flow to enter verification code")
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="verificationcode",
                 data_schema=vol.Schema(self.verificationcode_schema),
             )
         if login.status and login.status.get("force_get"):
             _LOGGER.debug("Creating config_flow to wait for user action")
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="action_required",
                 data_schema=vol.Schema(OrderedDict()),
@@ -366,38 +402,23 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if login.status and login.status.get("login_failed"):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
+            self.hass.components.persistent_notification.async_dismiss(
+                "alexa_media_player_relogin_required"
+            )
             return self.async_abort(reason=login.status.get("login_failed"),)
-        new_schema = self._update_ord_dict(
-            self.data_schema,
-            {
-                vol.Required(CONF_EMAIL, default=self.config[CONF_EMAIL]): str,
-                vol.Required(CONF_PASSWORD, default=self.config[CONF_PASSWORD]): str,
-                vol.Optional("securitycode"): str,
-                vol.Required(CONF_URL, default=self.config[CONF_URL]): str,
-                vol.Optional(CONF_DEBUG, default=self.config[CONF_DEBUG]): bool,
-                vol.Optional(
-                    CONF_INCLUDE_DEVICES,
-                    default=(
-                        self.config[CONF_INCLUDE_DEVICES]
-                        if isinstance(self.config[CONF_INCLUDE_DEVICES], str)
-                        else ",".join(map(str, self.config[CONF_INCLUDE_DEVICES]))
-                    ),
-                ): str,
-                vol.Optional(
-                    CONF_EXCLUDE_DEVICES,
-                    default=(
-                        self.config[CONF_EXCLUDE_DEVICES]
-                        if isinstance(self.config[CONF_EXCLUDE_DEVICES], str)
-                        else ",".join(map(str, self.config[CONF_EXCLUDE_DEVICES]))
-                    ),
-                ): str,
-                vol.Optional(
-                    CONF_SCAN_INTERVAL, default=self.config[CONF_SCAN_INTERVAL]
-                ): int,
-            },
-        )
+        new_schema = self._update_schema_defaults()
         if login.status and login.status.get("error_message"):
             _LOGGER.debug("Login error detected: %s", login.status.get("error_message"))
+            if login.status.get("error_message") in {
+                "There was a problem\n            Enter a valid email or mobile number\n          "
+            }:
+                _LOGGER.debug(
+                    "Trying automatic resubmission for error_message 'valid email'"
+                )
+                self.automatic_steps += 1
+                sleep(1)
+                return await self.async_step_user(user_input=self.config)
+            self.automatic_steps = 0
             return self.async_show_form(
                 step_id="user",
                 data_schema=vol.Schema(new_schema),
@@ -405,6 +426,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "message": f"\n> {login.status.get('error_message','')}"
                 },
             )
+        self.automatic_steps = 0
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(new_schema),
@@ -412,6 +434,86 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "message": f"\n> {login.status.get('error_message','')}"
             },
         )
+
+    def _save_user_input_to_config(self, user_input=None) -> None:
+        """Process user_input to save to self.config.
+
+        user_input can be a dictionary of strings or an internally
+        saved config_entry data entry. This function will convert all to internal strings.
+
+        """
+        if user_input is None:
+            return
+        self.securitycode = user_input.get("securitycode")
+        if self.securitycode is not None:
+            self.config["securitycode"] = self.securitycode
+        elif "securitycode" in self.config:
+            self.config.pop("securitycode")
+        if CONF_EMAIL in user_input:
+            self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
+        if CONF_PASSWORD in user_input:
+            self.config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
+        if CONF_URL in user_input:
+            self.config[CONF_URL] = user_input[CONF_URL]
+        if CONF_DEBUG in user_input:
+            self.config[CONF_DEBUG] = user_input[CONF_DEBUG]
+        if CONF_SCAN_INTERVAL in user_input:
+            self.config[CONF_SCAN_INTERVAL] = (
+                user_input[CONF_SCAN_INTERVAL]
+                if not isinstance(user_input[CONF_SCAN_INTERVAL], timedelta)
+                else user_input[CONF_SCAN_INTERVAL].total_seconds()
+            )
+        if CONF_INCLUDE_DEVICES in user_input:
+            if isinstance(user_input[CONF_INCLUDE_DEVICES], list):
+                self.config[CONF_INCLUDE_DEVICES] = (
+                    reduce(lambda x, y: f"{x},{y}", user_input[CONF_INCLUDE_DEVICES])
+                    if user_input[CONF_INCLUDE_DEVICES]
+                    else ""
+                )
+            else:
+                self.config[CONF_INCLUDE_DEVICES] = user_input[CONF_INCLUDE_DEVICES]
+        if CONF_EXCLUDE_DEVICES in user_input:
+            if isinstance(user_input[CONF_EXCLUDE_DEVICES], list):
+                self.config[CONF_EXCLUDE_DEVICES] = (
+                    reduce(lambda x, y: f"{x},{y}", user_input[CONF_EXCLUDE_DEVICES])
+                    if user_input[CONF_EXCLUDE_DEVICES]
+                    else ""
+                )
+            else:
+                self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
+
+    def _update_schema_defaults(self) -> Any:
+        new_schema = self._update_ord_dict(
+            self.data_schema,
+            {
+                vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")): str,
+                vol.Required(
+                    CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
+                ): str,
+                vol.Optional(
+                    "securitycode",
+                    default=self.securitycode if self.securitycode else "",
+                ): str,
+                vol.Required(
+                    CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
+                ): str,
+                vol.Optional(
+                    CONF_DEBUG, default=bool(self.config.get(CONF_DEBUG, False))
+                ): bool,
+                vol.Optional(
+                    CONF_INCLUDE_DEVICES,
+                    default=self.config.get(CONF_INCLUDE_DEVICES, ""),
+                ): str,
+                vol.Optional(
+                    CONF_EXCLUDE_DEVICES,
+                    default=self.config.get(CONF_EXCLUDE_DEVICES, ""),
+                ): str,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
+                ): int,
+            },
+        )
+        return new_schema
 
     @staticmethod
     @callback

@@ -1022,10 +1022,9 @@ async def update_listener(hass, config_entry):
     for key, old_value in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
         "options"
     ].items():
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][
-            key
-        ] = new_value = config_entry.options.get(key)
+        new_value = config_entry.options.get(key)
         if new_value is not None and new_value != old_value:
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key] = new_value
             _LOGGER.debug(
                 "Changing option %s from %s to %s",
                 key,

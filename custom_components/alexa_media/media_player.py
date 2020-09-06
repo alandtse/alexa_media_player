@@ -10,7 +10,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import asyncio
 import logging
 import re
-from typing import List, Text  # noqa pylint: disable=unused-import
+from typing import List, Optional, Text  # noqa pylint: disable=unused-import
 
 from homeassistant import util
 from homeassistant.components.media_player.const import (
@@ -916,7 +916,7 @@ class AlexaClient(MediaPlayerDevice):
         return self._last_update
 
     @property
-    def media_image_url(self) -> Text:
+    def media_image_url(self) -> Optional[Text]:
         """Return the image URL of current playing media."""
         if self._media_image_url:
             return re.sub("\\(", "%28", re.sub("\\)", "%29", self._media_image_url))

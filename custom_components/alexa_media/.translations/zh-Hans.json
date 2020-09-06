@@ -2,19 +2,19 @@
     "config": {
         "error": {
             "connection_error": {
-                "translation": "Error connecting; check network and retry",
+                "translation": "连接错误；检查网络并重试",
                 "notes": ""
             },
             "identifier_exists": {
-                "translation": "Email for Alexa URL already registered",
+                "translation": "Alexa URL的电子邮件已注册",
                 "notes": ""
             },
             "invalid_credentials": {
-                "translation": "Invalid credentials",
+                "translation": "",
                 "notes": ""
             },
             "unknown_error": {
-                "translation": "Unknown error, please report log info",
+                "translation": "",
                 "notes": ""
             }
         },
@@ -22,59 +22,59 @@
             "user": {
                 "data": {
                     "password": {
-                        "translation": "Password",
+                        "translation": "密码",
                         "notes": ""
                     },
                     "email": {
-                        "translation": "Email Address",
+                        "translation": "电子邮件地址",
                         "notes": ""
                     },
                     "url": {
-                        "translation": "Amazon region domain (e.g., amazon.co.uk)",
+                        "translation": "",
                         "notes": ""
                     },
                     "include_devices": {
-                        "translation": "Included device (comma separated)",
+                        "translation": "",
                         "notes": ""
                     },
                     "exclude_devices": {
-                        "translation": "Excluded device (comma separated)",
+                        "translation": "",
                         "notes": ""
                     },
                     "debug": {
-                        "translation": "Advanced debugging",
+                        "translation": "高级调试",
                         "notes": ""
                     },
                     "scan_interval": {
-                        "translation": "Seconds between scans",
+                        "translation": "",
                         "notes": ""
                     },
                     "securitycode": {
-                        "translation": "2FA Code (recommended to avoid login issues)",
+                        "translation": "",
                         "notes": ""
                     }
                 },
                 "description": {
-                    "translation": "Please enter your information. \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when 2FA Code is required.**\n>{message}",
+                    "translation": "请输入您的信息。",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Configuration",
+                    "translation": "Alexa Media Player-配置",
                     "notes": ""
                 }
             },
             "captcha": {
                 "data": {
                     "password": {
-                        "translation": "Password",
+                        "translation": "密码",
                         "notes": ""
                     },
                     "captcha": {
-                        "translation": "Captcha",
+                        "translation": "验证码",
                         "notes": ""
                     },
                     "securitycode": {
-                        "translation": "2FA Code (recommended to avoid login issues)",
+                        "translation": "",
                         "notes": ""
                     }
                 },
@@ -83,30 +83,30 @@
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Captcha",
+                    "translation": "Alexa Media Player-验证码",
                     "notes": ""
                 }
             },
             "twofactor": {
                 "data": {
                     "securitycode": {
-                        "translation": "2FA Code",
+                        "translation": "2FA代码",
                         "notes": ""
                     }
                 },
                 "description": {
-                    "translation": "**{email} - alexa.{url}**\nEnter the One Time Password (OTP).\n{message}",
+                    "translation": "**{email} - Alexa.{url} ** \n输入一次性密码（OTP）。 \n {message}",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Two Factor Authentication",
+                    "translation": "",
                     "notes": ""
                 }
             },
             "authselect": {
                 "data": {
                     "authselectoption": {
-                        "translation": "OTP method",
+                        "translation": "OTP方式",
                         "notes": ""
                     }
                 },
@@ -115,33 +115,33 @@
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - One Time Password",
+                    "translation": "Alexa Media Player - 一次性密码",
                     "notes": ""
                 }
             },
             "claimspicker": {
                 "data": {
                     "authselectoption": {
-                        "translation": "Verification method",
+                        "translation": "验证方式",
                         "notes": ""
                     }
                 },
                 "description": {
-                    "translation": "**{email} - alexa.{url}**\nPlease select verification method by number. (e.g., `0` or `1`)\n{message}",
+                    "translation": "",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Verification Method",
+                    "translation": "Alexa Media Player - 验证方法",
                     "notes": ""
                 }
             },
             "action_required": {
                 "description": {
-                    "translation": "**{email} - alexa.{url}**\nAmazon will send a push notification per the below message. Please completely respond before continuing.\n{message}",
+                    "translation": "",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Action Required",
+                    "translation": "",
                     "notes": ""
                 }
             }
@@ -152,15 +152,15 @@
         },
         "abort": {
             "forgot_password": {
-                "translation": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+                "translation": "",
                 "notes": ""
             },
             "login_failed": {
-                "translation": "Alexa Media Player failed to login.",
+                "translation": "",
                 "notes": ""
             },
             "reauth_successful": {
-                "translation": "Alexa Media Player successfully reauthenticated.",
+                "translation": "",
                 "notes": ""
             }
         }
@@ -170,7 +170,7 @@
             "init": {
                 "data": {
                     "queue_delay": {
-                        "translation": "Seconds to wait to queue commands together",
+                        "translation": "",
                         "notes": ""
                     }
                 }

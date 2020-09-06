@@ -1,64 +1,180 @@
 {
-  "config": {
-    "error": {
-      "connection_error": "Error al conectar, verifique la red y vuelva a intentarlo",
-      "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
-      "invalid_credentials": "Credenciales no válidas",
-      "unknown_error": "Error desconocido, por favor reporte la información del registro"
-    },
-    "step": {
-      "user": {
-        "data": {
-          "password": "Contraseña",
-          "email": "Dirección de correo electrónico",
-          "url": "Region del dominio de Amazon (e.g., amazon.co.uk)",
-          "include_devices": "Dispositivo incluido (separado por comas)",
-          "exclude_devices": "Dispositivo excluido (separado por comas)",
-          "debug": "Depuración avanzada",
-          "scan_interval": "Segundos entre escaneos"
+    "config": {
+        "error": {
+            "connection_error": {
+                "translation": "Error al conectar, verifique la red y vuelva a intentarlo",
+                "notes": ""
+            },
+            "identifier_exists": {
+                "translation": "Correo electrónico para la URL de Alexa ya registrado",
+                "notes": ""
+            },
+            "invalid_credentials": {
+                "translation": "Credenciales no válidas",
+                "notes": ""
+            },
+            "unknown_error": {
+                "translation": "Error desconocido, por favor reporte la información del registro",
+                "notes": ""
+            }
         },
-        "description": "Por favor, introduzca su información.",
-        "title": "Alexa Media Player - Configuracion"
-      },
-      "captcha": {
-        "data": {
-          "password": "Contraseña",
-          "captcha": "Captcha"
+        "step": {
+            "user": {
+                "data": {
+                    "password": {
+                        "translation": "Contraseña",
+                        "notes": ""
+                    },
+                    "email": {
+                        "translation": "Dirección de correo electrónico",
+                        "notes": ""
+                    },
+                    "url": {
+                        "translation": "Region del dominio de Amazon (e.g., amazon.co.uk)",
+                        "notes": ""
+                    },
+                    "include_devices": {
+                        "translation": "Dispositivo incluido (separado por comas)",
+                        "notes": ""
+                    },
+                    "exclude_devices": {
+                        "translation": "Dispositivo excluido (separado por comas)",
+                        "notes": ""
+                    },
+                    "debug": {
+                        "translation": "Depuración avanzada",
+                        "notes": ""
+                    },
+                    "scan_interval": {
+                        "translation": "Segundos entre escaneos",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "Por favor, introduzca su información.",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Configuracion",
+                    "notes": ""
+                }
+            },
+            "captcha": {
+                "data": {
+                    "password": {
+                        "translation": "Contraseña",
+                        "notes": ""
+                    },
+                    "captcha": {
+                        "translation": "Captcha",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Captcha",
+                    "notes": ""
+                }
+            },
+            "twofactor": {
+                "data": {
+                    "securitycode": {
+                        "translation": "2FA Code",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nIngrese la contraseña de un solo uso (OTP).\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Autenticación de dos factores",
+                    "notes": ""
+                }
+            },
+            "authselect": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "metodo OTP",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Contraseña de un solo uso",
+                    "notes": ""
+                }
+            },
+            "claimspicker": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "Método de verificación",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nSeleccione el método de verificación por número. (e.g., `0` or `1`)\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Método de verificación",
+                    "notes": ""
+                }
+            },
+            "action_required": {
+                "description": {
+                    "translation": "A continuación Amazon enviará una notificación push en el siguiente mensaje. Por favor, responda en su totalidad antes de continuar.",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Acción requerida",
+                    "notes": ""
+                }
+            }
         },
-        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-        "title": "Alexa Media Player - Captcha"
-      },
-      "twofactor": {
-        "data": {
-          "securitycode": "2FA Code"
+        "title": {
+            "translation": "Alexa Media Player",
+            "notes": ""
         },
-        "description": "**{email} - alexa.{url}**\nIngrese la contraseña de un solo uso (OTP).\n{message}",
-        "title": "Alexa Media Player - Autenticación de dos factores"
-      },
-      "authselect": {
-        "data": {
-          "authselectoption": "metodo OTP"
-        },
-        "description": "**{email} - alexa.{url}**\n{message}",
-        "title": "Alexa Media Player - Contraseña de un solo uso"
-      },
-      "claimspicker": {
-        "data": {
-          "authselectoption": "Método de verificación"
-        },
-        "description": "**{email} - alexa.{url}**\nSeleccione el método de verificación por número. (e.g., `0` or `1`)\n{message}",
-        "title": "Alexa Media Player - Método de verificación"
-      }
-    },
-    "title": "Alexa Media Player"
-  },
-  "options": {
-    "step": {
-      "init": {
-        "data": {
-          "queue_delay": "Segundos de espera a la cola de comandos a la vez"
+        "abort": {
+            "forgot_password": {
+                "translation": "",
+                "notes": ""
+            },
+            "login_failed": {
+                "translation": "",
+                "notes": ""
+            },
+            "reauth_successful": {
+                "translation": "",
+                "notes": ""
+            }
         }
-      }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "queue_delay": {
+                        "translation": "Segundos de espera a la cola de comandos a la vez",
+                        "notes": ""
+                    }
+                }
+            }
+        }
     }
-  }
 }

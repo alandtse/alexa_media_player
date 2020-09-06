@@ -1,53 +1,180 @@
 {
-  "config": {
-    "error": {
-      "identifier_exists": "Adres email dla Alexy już jest zarejestrowany",
-      "invalid_credentials": "Nieprawidłowe dane logowania"
+    "config": {
+        "error": {
+            "connection_error": {
+                "translation": "",
+                "notes": ""
+            },
+            "identifier_exists": {
+                "translation": "Adres email dla Alexy już jest zarejestrowany",
+                "notes": ""
+            },
+            "invalid_credentials": {
+                "translation": "Nieprawidłowe dane logowania",
+                "notes": ""
+            },
+            "unknown_error": {
+                "translation": "",
+                "notes": ""
+            }
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "password": {
+                        "translation": "Hasło",
+                        "notes": ""
+                    },
+                    "email": {
+                        "translation": "Adres email",
+                        "notes": ""
+                    },
+                    "url": {
+                        "translation": "Region\/domena Amazon (np. amazon.co.uk)",
+                        "notes": ""
+                    },
+                    "include_devices": {
+                        "translation": "Dodawane urządzenia (oddzielone przecinkami)",
+                        "notes": ""
+                    },
+                    "exclude_devices": {
+                        "translation": "Wykluczone urządzenia (oddzielone przecinkami)",
+                        "notes": ""
+                    },
+                    "debug": {
+                        "translation": "Zaawansowane debugowanie",
+                        "notes": ""
+                    },
+                    "scan_interval": {
+                        "translation": "Interwał skanowania (sekundy)",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "Wprowadź dane",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - konfiguracja",
+                    "notes": ""
+                }
+            },
+            "captcha": {
+                "data": {
+                    "password": {
+                        "translation": "Hasło",
+                        "notes": ""
+                    },
+                    "captcha": {
+                        "translation": "Kod Captcha",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - kod Captcha",
+                    "notes": ""
+                }
+            },
+            "twofactor": {
+                "data": {
+                    "securitycode": {
+                        "translation": "Kod uwierzytelniania dwuskładnikowego",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nWprowadź hasło jednorazowe (OTP).\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - uwierzytelnianie dwuskładnikowe",
+                    "notes": ""
+                }
+            },
+            "authselect": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "Metoda OTP",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - hasło jednorazowe",
+                    "notes": ""
+                }
+            },
+            "claimspicker": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "Metoda weryfikacji",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nWybierz metodę weryfikacji. (np., `0` lub `1`)\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - metoda weryfikacji",
+                    "notes": ""
+                }
+            },
+            "action_required": {
+                "description": {
+                    "translation": "",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "",
+                    "notes": ""
+                }
+            }
+        },
+        "title": {
+            "translation": "Alexa Media Player",
+            "notes": ""
+        },
+        "abort": {
+            "forgot_password": {
+                "translation": "",
+                "notes": ""
+            },
+            "login_failed": {
+                "translation": "",
+                "notes": ""
+            },
+            "reauth_successful": {
+                "translation": "",
+                "notes": ""
+            }
+        }
     },
-    "step": {
-      "user": {
-        "data": {
-          "password": "Hasło",
-          "email": "Adres email",
-          "url": "Region/domena Amazon (np. amazon.co.uk)",
-          "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
-          "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
-          "debug": "Zaawansowane debugowanie",
-          "scan_interval": "Interwał skanowania (sekundy)"
-        },
-        "description": "Wprowadź dane",
-        "title": "Alexa Media Player - konfiguracja"
-      },
-      "captcha": {
-        "data": {
-          "password": "Hasło",
-          "captcha": "Kod Captcha"
-        },
-        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-        "title": "Alexa Media Player - kod Captcha"
-      },
-      "twofactor": {
-        "data": {
-          "securitycode": "Kod uwierzytelniania dwuskładnikowego"
-        },
-        "description": "**{email} - alexa.{url}**\nWprowadź hasło jednorazowe (OTP).\n{message}",
-        "title": "Alexa Media Player - uwierzytelnianie dwuskładnikowe"
-      },
-      "authselect": {
-        "data": {
-          "authselectoption": "Metoda OTP"
-        },
-        "description": "**{email} - alexa.{url}**\n{message}",
-        "title": "Alexa Media Player - hasło jednorazowe"
-      },
-      "claimspicker": {
-        "data": {
-          "authselectoption": "Metoda weryfikacji"
-        },
-        "description": "**{email} - alexa.{url}**\nWybierz metodę weryfikacji. (np., `0` lub `1`)\n{message}",
-        "title": "Alexa Media Player - metoda weryfikacji"
-      }
-    },
-    "title": "Alexa Media Player"
-  }
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "queue_delay": {
+                        "translation": "",
+                        "notes": ""
+                    }
+                }
+            }
+        }
+    }
 }

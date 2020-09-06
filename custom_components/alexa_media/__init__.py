@@ -198,7 +198,7 @@ async def async_setup_entry(hass, config_entry):
                 await setup_alexa(hass, config_entry, login_obj)
                 break
 
-    hass.data.setdefault(DATA_ALEXAMEDIA, {"accounts": {}})
+    hass.data.setdefault(DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}})
 
     _LOGGER.info(STARTUP)
     _LOGGER.info("Loaded alexapy==%s", alexapy_version)
@@ -238,10 +238,11 @@ async def async_setup_entry(hass, config_entry):
         AlexaLogin(url, email, password, hass.config.path, account.get(CONF_DEBUG)),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
-    await login.login_with_cookie()
+    await login.login(cookies=await login.load_cookie())
     if await test_login_status(hass, config_entry, login):
         await setup_alexa(hass, config_entry, login)
         return True
+    await login.reset()
     return False
 
 
@@ -979,23 +980,39 @@ async def test_login_status(hass, config_entry, login) -> bool:
     if login.status and login.status.get("login_successful"):
         return True
     account = config_entry.data
-    _LOGGER.debug("Logging in: %s", account)
-    hass.async_create_task(
-        hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={"source": "reauth"},
-            data={
-                CONF_EMAIL: account[CONF_EMAIL],
-                CONF_PASSWORD: account[CONF_PASSWORD],
-                CONF_URL: account[CONF_URL],
-                CONF_DEBUG: account[CONF_DEBUG],
-                CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
-                CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
-                CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds()
-                if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
-                else account[CONF_SCAN_INTERVAL],
-            },
-        )
+    _LOGGER.debug("Logging in: %s %s", obfuscate(account), in_progess_instances(hass))
+    flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
+        f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
+    )
+    if flow:
+        if flow.get("flow_id") in in_progess_instances(hass):
+            _LOGGER.debug("Existing config flow detected")
+            return False
+        _LOGGER.debug("Stopping orphaned config flow %s", flow.get("flow_id"))
+        try:
+            hass.config_entries.flow.async_abort(flow.get("flow_id"))
+        except UnknownFlow:
+            pass
+        hass.data[DATA_ALEXAMEDIA]["config_flows"][
+            f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
+        ] = None
+    _LOGGER.debug("Creating new config flow to login")
+    hass.data[DATA_ALEXAMEDIA]["config_flows"][
+        f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
+    ] = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": "reauth"},
+        data={
+            CONF_EMAIL: account[CONF_EMAIL],
+            CONF_PASSWORD: account[CONF_PASSWORD],
+            CONF_URL: account[CONF_URL],
+            CONF_DEBUG: account[CONF_DEBUG],
+            CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
+            CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
+            CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds()
+            if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
+            else account[CONF_SCAN_INTERVAL],
+        },
     )
     hass.components.persistent_notification.async_create(
         title="Alexa Media Reauthentication Required",

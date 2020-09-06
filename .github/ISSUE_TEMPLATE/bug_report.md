@@ -28,6 +28,7 @@ If applicable, add screenshots to help explain your problem.
  - Hassio (Yes/No): (Please note you may have to restart hassio 2-3 times to load the latest version of alexapy after an update. This looks like a HA bug).
  - alexa_media  (version from `const.py` or HA startup):
  - alexapy (version from `pip show alexapy` or HA startup):
+ - Amazon [2FA is enabled](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account) (y/n). We will not debug login issues is unanswered: 
 
 **Logs**
 Please provide [logs](https://github.com/custom-components/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component). We'll be most likely asking for them anyway.

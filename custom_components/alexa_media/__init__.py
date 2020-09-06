@@ -204,7 +204,7 @@ async def async_setup_entry(hass, config_entry):
                         "login_obj"
                     ] = login_obj
                 await login_obj.reset()
-                await login_obj.login()
+                # await login_obj.login()
                 if await test_login_status(hass, config_entry, login_obj):
                     await setup_alexa(hass, config_entry, login_obj)
                 break

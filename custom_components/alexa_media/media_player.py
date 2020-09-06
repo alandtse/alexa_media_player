@@ -831,8 +831,8 @@ class AlexaClient(MediaPlayerDevice):
         await self.refresh(  # pylint: disable=unexpected-keyword-arg
             device, no_throttle=True
         )
-        websocket_enabled = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-            "websocket"
+        websocket_enabled = (
+            self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(email, {}).get("websocket")
         )
         if (
             self.state in [STATE_PLAYING]

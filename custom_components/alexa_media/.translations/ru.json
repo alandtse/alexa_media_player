@@ -2,19 +2,19 @@
     "config": {
         "error": {
             "connection_error": {
-                "translation": "Error al conectar, verifique la red y vuelva a intentarlo",
+                "translation": "Ошибка подключения; проверьте сеть и повторите попытку",
                 "notes": ""
             },
             "identifier_exists": {
-                "translation": "Correo electrónico para la URL de Alexa ya registrado",
+                "translation": "Электронная почта для Alexa уже зарегистрирована",
                 "notes": ""
             },
             "invalid_credentials": {
-                "translation": "Credenciales no válidas",
+                "translation": "Неверные учетные данные",
                 "notes": ""
             },
             "unknown_error": {
-                "translation": "Error desconocido, por favor reporte la información del registro",
+                "translation": "Неизвестная ошибка, пожалуйста, сообщите информацию журнала",
                 "notes": ""
             }
         },
@@ -22,31 +22,31 @@
             "user": {
                 "data": {
                     "password": {
-                        "translation": "Contraseña",
+                        "translation": "Пароль",
                         "notes": ""
                     },
                     "email": {
-                        "translation": "Dirección de correo electrónico",
+                        "translation": "Адрес электронной почты",
                         "notes": ""
                     },
                     "url": {
-                        "translation": "Region del dominio de Amazon (e.g., amazon.co.uk)",
+                        "translation": "Домен региона Amazon (например, amazon.co.uk)",
                         "notes": ""
                     },
                     "include_devices": {
-                        "translation": "Dispositivo incluido (separado por comas)",
+                        "translation": "Включенные устройства (разделенное запятыми)",
                         "notes": ""
                     },
                     "exclude_devices": {
-                        "translation": "Dispositivo excluido (separado por comas)",
+                        "translation": "Исключенные устройства (через запятую)",
                         "notes": ""
                     },
                     "debug": {
-                        "translation": "Depuración avanzada",
+                        "translation": "Расширенные возможности отладки",
                         "notes": ""
                     },
                     "scan_interval": {
-                        "translation": "Segundos entre escaneos",
+                        "translation": "Секунды между сканированиями",
                         "notes": ""
                     },
                     "securitycode": {
@@ -55,22 +55,22 @@
                     }
                 },
                 "description": {
-                    "translation": "Por favor, introduzca su información.",
+                    "translation": "Пожалуйста, введите свои данные.",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Configuracion",
+                    "translation": "Alexa Media Player - Конфигурация",
                     "notes": ""
                 }
             },
             "captcha": {
                 "data": {
                     "password": {
-                        "translation": "Contraseña",
+                        "translation": "Пароль",
                         "notes": ""
                     },
                     "captcha": {
-                        "translation": "Captcha",
+                        "translation": "Капча",
                         "notes": ""
                     },
                     "securitycode": {
@@ -83,30 +83,30 @@
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Captcha",
+                    "translation": "Alexa Media Player - Капча",
                     "notes": ""
                 }
             },
             "twofactor": {
                 "data": {
                     "securitycode": {
-                        "translation": "2FA Code",
+                        "translation": "2-факторная авторизация",
                         "notes": ""
                     }
                 },
                 "description": {
-                    "translation": "**{email} - alexa.{url}**\nIngrese la contraseña de un solo uso (OTP).\n{message}",
+                    "translation": "**{email} - alexa.{url}**\nВведите одноразовый пароль.\n{message}",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Autenticación de dos factores",
+                    "translation": "Alexa Media Player - Двух факторная идентификация",
                     "notes": ""
                 }
             },
             "authselect": {
                 "data": {
                     "authselectoption": {
-                        "translation": "metodo OTP",
+                        "translation": "Одноразовый пароль",
                         "notes": ""
                     }
                 },
@@ -115,33 +115,33 @@
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Contraseña de un solo uso",
+                    "translation": "Alexa Media Player - Одноразовый Пароль",
                     "notes": ""
                 }
             },
             "claimspicker": {
                 "data": {
                     "authselectoption": {
-                        "translation": "Método de verificación",
+                        "translation": "Метод проверки",
                         "notes": ""
                     }
                 },
                 "description": {
-                    "translation": "**{email} - alexa.{url}**\nSeleccione el método de verificación por número. (e.g., `0` or `1`)\n{message}",
+                    "translation": "**{email} - alexa.{url}**\nПожалуйста, выберите способ проверки по номеру. (например, \" 0 \" или \" 1`)\n{message}",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Método de verificación",
+                    "translation": "Alexa Media Player - Метод проверки",
                     "notes": ""
                 }
             },
             "action_required": {
                 "description": {
-                    "translation": "A continuación Amazon enviará una notificación push en el siguiente mensaje. Por favor, responda en su totalidad antes de continuar.",
+                    "translation": "**{email} - alexa. {url}**\nAmazon отправит push-уведомление в соответствии с нижеприведенным сообщением. Пожалуйста, полностью ответьте, прежде чем продолжить.\n{message}",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Acción requerida",
+                    "translation": "Alexa Media Player - Требуемое действие",
                     "notes": ""
                 }
             }
@@ -170,7 +170,7 @@
             "init": {
                 "data": {
                     "queue_delay": {
-                        "translation": "Segundos de espera a la cola de comandos a la vez",
+                        "translation": "Секунды ожидания, чтобы выполнить команды вместе",
                         "notes": ""
                     }
                 }

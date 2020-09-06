@@ -2,19 +2,19 @@
     "config": {
         "error": {
             "connection_error": {
-                "translation": "Error al conectar, verifique la red y vuelva a intentarlo",
+                "translation": "连接错误；检查网络并重试",
                 "notes": ""
             },
             "identifier_exists": {
-                "translation": "Correo electrónico para la URL de Alexa ya registrado",
+                "translation": "Alexa URL的电子邮件已注册",
                 "notes": ""
             },
             "invalid_credentials": {
-                "translation": "Credenciales no válidas",
+                "translation": "",
                 "notes": ""
             },
             "unknown_error": {
-                "translation": "Error desconocido, por favor reporte la información del registro",
+                "translation": "",
                 "notes": ""
             }
         },
@@ -22,31 +22,31 @@
             "user": {
                 "data": {
                     "password": {
-                        "translation": "Contraseña",
+                        "translation": "密码",
                         "notes": ""
                     },
                     "email": {
-                        "translation": "Dirección de correo electrónico",
+                        "translation": "电子邮件地址",
                         "notes": ""
                     },
                     "url": {
-                        "translation": "Region del dominio de Amazon (e.g., amazon.co.uk)",
+                        "translation": "",
                         "notes": ""
                     },
                     "include_devices": {
-                        "translation": "Dispositivo incluido (separado por comas)",
+                        "translation": "",
                         "notes": ""
                     },
                     "exclude_devices": {
-                        "translation": "Dispositivo excluido (separado por comas)",
+                        "translation": "",
                         "notes": ""
                     },
                     "debug": {
-                        "translation": "Depuración avanzada",
+                        "translation": "高级调试",
                         "notes": ""
                     },
                     "scan_interval": {
-                        "translation": "Segundos entre escaneos",
+                        "translation": "",
                         "notes": ""
                     },
                     "securitycode": {
@@ -55,22 +55,22 @@
                     }
                 },
                 "description": {
-                    "translation": "Por favor, introduzca su información.",
+                    "translation": "请输入您的信息。",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Configuracion",
+                    "translation": "Alexa Media Player-配置",
                     "notes": ""
                 }
             },
             "captcha": {
                 "data": {
                     "password": {
-                        "translation": "Contraseña",
+                        "translation": "密码",
                         "notes": ""
                     },
                     "captcha": {
-                        "translation": "Captcha",
+                        "translation": "验证码",
                         "notes": ""
                     },
                     "securitycode": {
@@ -83,30 +83,30 @@
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Captcha",
+                    "translation": "Alexa Media Player-验证码",
                     "notes": ""
                 }
             },
             "twofactor": {
                 "data": {
                     "securitycode": {
-                        "translation": "2FA Code",
+                        "translation": "2FA代码",
                         "notes": ""
                     }
                 },
                 "description": {
-                    "translation": "**{email} - alexa.{url}**\nIngrese la contraseña de un solo uso (OTP).\n{message}",
+                    "translation": "**{email} - Alexa.{url} ** \n输入一次性密码（OTP）。 \n {message}",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Autenticación de dos factores",
+                    "translation": "",
                     "notes": ""
                 }
             },
             "authselect": {
                 "data": {
                     "authselectoption": {
-                        "translation": "metodo OTP",
+                        "translation": "OTP方式",
                         "notes": ""
                     }
                 },
@@ -115,33 +115,33 @@
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Contraseña de un solo uso",
+                    "translation": "Alexa Media Player - 一次性密码",
                     "notes": ""
                 }
             },
             "claimspicker": {
                 "data": {
                     "authselectoption": {
-                        "translation": "Método de verificación",
+                        "translation": "验证方式",
                         "notes": ""
                     }
                 },
                 "description": {
-                    "translation": "**{email} - alexa.{url}**\nSeleccione el método de verificación por número. (e.g., `0` or `1`)\n{message}",
+                    "translation": "",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Método de verificación",
+                    "translation": "Alexa Media Player - 验证方法",
                     "notes": ""
                 }
             },
             "action_required": {
                 "description": {
-                    "translation": "A continuación Amazon enviará una notificación push en el siguiente mensaje. Por favor, responda en su totalidad antes de continuar.",
+                    "translation": "",
                     "notes": ""
                 },
                 "title": {
-                    "translation": "Alexa Media Player - Acción requerida",
+                    "translation": "",
                     "notes": ""
                 }
             }
@@ -170,7 +170,7 @@
             "init": {
                 "data": {
                     "queue_delay": {
-                        "translation": "Segundos de espera a la cola de comandos a la vez",
+                        "translation": "",
                         "notes": ""
                     }
                 }

@@ -1,75 +1,180 @@
 {
-  "config": {
-    "error": {
-      "connection_error": "Error connecting; check network and retry",
-      "identifier_exists": "Email for Alexa URL already registered",
-      "invalid_credentials": "Invalid credentials",
-      "unknown_error": "Unknown error, please report log info"
-    },
-    "step": {
-      "user": {
-        "data": {
-          "password": "Password",
-          "email": "Email Address",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
-          "url": "Amazon region domain (e.g., amazon.co.uk)",
-          "include_devices": "Included device (comma separated)",
-          "exclude_devices": "Excluded device (comma separated)",
-          "debug": "Advanced debugging",
-          "scan_interval": "Seconds between scans"
+    "config": {
+        "error": {
+            "connection_error": {
+                "translation": "Error connecting; check network and retry",
+                "notes": ""
+            },
+            "identifier_exists": {
+                "translation": "Email for Alexa URL already registered",
+                "notes": ""
+            },
+            "invalid_credentials": {
+                "translation": "Invalid credentials",
+                "notes": ""
+            },
+            "unknown_error": {
+                "translation": "Unknown error, please report log info",
+                "notes": ""
+            }
         },
-        "description": "Please enter your information. \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when 2FA Code is required.**\n>{message}",
-        "title": "Alexa Media Player - Configuration"
-      },
-      "captcha": {
-        "data": {
-          "password": "Password",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
-          "captcha": "Captcha"
+        "step": {
+            "user": {
+                "data": {
+                    "password": {
+                        "translation": "Password",
+                        "notes": ""
+                    },
+                    "email": {
+                        "translation": "Email Address",
+                        "notes": ""
+                    },
+                    "url": {
+                        "translation": "Amazon region domain (e.g., amazon.co.uk)",
+                        "notes": ""
+                    },
+                    "include_devices": {
+                        "translation": "Included device (comma separated)",
+                        "notes": ""
+                    },
+                    "exclude_devices": {
+                        "translation": "Excluded device (comma separated)",
+                        "notes": ""
+                    },
+                    "debug": {
+                        "translation": "Advanced debugging",
+                        "notes": ""
+                    },
+                    "scan_interval": {
+                        "translation": "Seconds between scans",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "2FA Code (recommended to avoid login issues)",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "Please enter your information.",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Configuration",
+                    "notes": ""
+                }
+            },
+            "captcha": {
+                "data": {
+                    "password": {
+                        "translation": "Password",
+                        "notes": ""
+                    },
+                    "captcha": {
+                        "translation": "Captcha",
+                        "notes": ""
+                    },
+                    "securitycode": {
+                        "translation": "2FA Code (recommended to avoid login issues)",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Captcha",
+                    "notes": ""
+                }
+            },
+            "twofactor": {
+                "data": {
+                    "securitycode": {
+                        "translation": "2FA Code",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nEnter the One Time Password (OTP).\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Two Factor Authentication",
+                    "notes": ""
+                }
+            },
+            "authselect": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "OTP method",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - One Time Password",
+                    "notes": ""
+                }
+            },
+            "claimspicker": {
+                "data": {
+                    "authselectoption": {
+                        "translation": "Verification method",
+                        "notes": ""
+                    }
+                },
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nPlease select verification method by number. (e.g., `0` or `1`)\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Verification Method",
+                    "notes": ""
+                }
+            },
+            "action_required": {
+                "description": {
+                    "translation": "**{email} - alexa.{url}**\nAmazon will send a push notification per the below message. Please completely respond before continuing.\n{message}",
+                    "notes": ""
+                },
+                "title": {
+                    "translation": "Alexa Media Player - Action Required",
+                    "notes": ""
+                }
+            }
         },
-        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-        "title": "Alexa Media Player - Captcha"
-      },
-      "twofactor": {
-        "data": {
-          "securitycode": "2FA Code"
+        "title": {
+            "translation": "Alexa Media Player",
+            "notes": ""
         },
-        "description": "**{email} - alexa.{url}**\nEnter the One Time Password (OTP).\n{message}",
-        "title": "Alexa Media Player - Two Factor Authentication"
-      },
-      "authselect": {
-        "data": {
-          "authselectoption": "OTP method"
-        },
-        "description": "**{email} - alexa.{url}**\n{message}",
-        "title": "Alexa Media Player - One Time Password"
-      },
-      "claimspicker": {
-        "data": {
-          "authselectoption": "Verification method"
-        },
-        "description": "**{email} - alexa.{url}**\nPlease select verification method by number. (e.g., `0` or `1`)\n{message}",
-        "title": "Alexa Media Player - Verification Method"
-      },
-      "action_required": {
-        "description": "**{email} - alexa.{url}**\nAmazon will send a push notification per the below message. Please completely respond before continuing.\n{message}",
-        "title": "Alexa Media Player - Action Required"
-      }
-    },
-    "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated."
-    },
-    "title": "Alexa Media Player"
-  },
-  "options": {
-    "step": {
-      "init": {
-        "data": {
-          "queue_delay": "Seconds to wait to queue commands together"
+        "abort": {
+            "forgot_password": {
+                "translation": "The Forgot Password page was detected. Amazon may require action before a relogin can be attempted.",
+                "notes": ""
+            },
+            "login_failed": {
+                "translation": "Alexa Media Player failed to login.",
+                "notes": ""
+            },
+            "reauth_successful": {
+                "translation": "Alexa Media Player successfully reauthenticated.",
+                "notes": ""
+            }
         }
-      }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "queue_delay": {
+                        "translation": "Seconds to wait to queue commands together",
+                        "notes": ""
+                    }
+                }
+            }
+        }
     }
-  }
 }

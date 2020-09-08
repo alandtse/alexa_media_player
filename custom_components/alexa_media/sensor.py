@@ -20,8 +20,8 @@ from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import dt
+from packaging import version
 import pytz
-import semver
 
 from . import (
     CONF_EMAIL,
@@ -430,7 +430,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
             account,
             f"next {self._type}",
             "mdi:timer-outline"
-            if semver.compare(HA_VERSION, "0.113.0") >= 0
+            if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
             else "mdi:timer",
         )
 
@@ -463,7 +463,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
         """Return the icon of the sensor."""
         off_icon = (
             "mdi:timer-off-outline"
-            if (semver.compare(HA_VERSION, "0.113.0") >= 0)
+            if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
             else "mdi:timer-off"
         )
         return self._icon if not self.paused else off_icon

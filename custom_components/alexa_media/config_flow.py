@@ -281,11 +281,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
                 _LOGGER.debug("Reauth successful for %s", hide_email(email))
                 self.hass.bus.async_fire(
-                    "alexa_media_player_relogin_success",
+                    "alexa_media_relogin_success",
                     event_data={"email": hide_email(email), "url": login.url},
                 )
                 self.hass.components.persistent_notification.async_dismiss(
-                    "alexa_media_player_relogin_required"
+                    "alexa_media_relogin_required"
                 )
                 self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.config[CONF_EMAIL]][
                     "login_obj"
@@ -411,7 +411,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
             self.hass.components.persistent_notification.async_dismiss(
-                "alexa_media_player_relogin_required"
+                "alexa_media_relogin_required"
             )
             return self.async_abort(reason=login.status.get("login_failed"),)
         new_schema = self._update_schema_defaults()

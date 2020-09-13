@@ -1,9 +1,9 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "",
-      "login_failed": "",
-      "reauth_successful": ""
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login.",
+      "reauth_successful": "Alexa Media Player successfully reauthenticated."
     },
     "error": {
       "connection_error": "Ошибка подключения; проверьте сеть и повторите попытку",
@@ -13,37 +13,37 @@
     },
     "step": {
       "action_required": {
-        "description": "**{email} - alexa. {url}**<br />Amazon отправит push-уведомление в соответствии с нижеприведенным сообщением. Пожалуйста, полностью ответьте, прежде чем продолжить.<br />{message}",
+        "description": "**{email} - alexa. {url}**\nAmazon отправит push-уведомление в соответствии с нижеприведенным сообщением. Пожалуйста, полностью ответьте, прежде чем продолжить.\n{message}",
         "title": "Alexa Media Player - Требуемое действие"
       },
       "authselect": {
         "data": {
           "authselectoption": "Одноразовый пароль"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}",
+        "description": "**{email} - alexa.{url}**\n{message}",
         "title": "Alexa Media Player - Одноразовый Пароль"
       },
       "captcha": {
         "data": {
           "captcha": "Капча",
           "password": "Пароль",
-          "securitycode": ""
+          "securitycode": "2FA Code (recommended to avoid login issues)"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}<br /> {captcha_image}",
+        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
         "title": "Alexa Media Player - Капча"
       },
       "claimspicker": {
         "data": {
           "authselectoption": "Метод проверки"
         },
-        "description": "**{email} - alexa.{url}**<br />Пожалуйста, выберите способ проверки по номеру. (например, \" 0 \" или \" 1`)<br />{message}",
+        "description": "**{email} - alexa.{url}**\nПожалуйста, выберите способ проверки по номеру. (например, \" 0 \" или \" 1`)\n{message}",
         "title": "Alexa Media Player - Метод проверки"
       },
       "twofactor": {
         "data": {
           "securitycode": "2-факторная авторизация"
         },
-        "description": "**{email} - alexa.{url}**<br />Введите одноразовый пароль.<br />{message}",
+        "description": "**{email} - alexa.{url}**\nВведите одноразовый пароль.\n{message}",
         "title": "Alexa Media Player - Двух факторная идентификация"
       },
       "user": {
@@ -54,7 +54,7 @@
           "include_devices": "Включенные устройства (разделенное запятыми)",
           "password": "Пароль",
           "scan_interval": "Секунды между сканированиями",
-          "securitycode": "",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Домен региона Amazon (например, amazon.co.uk)"
         },
         "description": "Пожалуйста, введите свои данные.",

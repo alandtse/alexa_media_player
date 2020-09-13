@@ -1,49 +1,49 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "",
-      "login_failed": "",
-      "reauth_successful": ""
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login.",
+      "reauth_successful": "Alexa Media Player successfully reauthenticated."
     },
     "error": {
-      "connection_error": "",
+      "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Adres email dla Alexy już jest zarejestrowany",
       "invalid_credentials": "Nieprawidłowe dane logowania",
-      "unknown_error": ""
+      "unknown_error": "Unknown error, please report log info"
     },
     "step": {
       "action_required": {
-        "description": "",
-        "title": ""
+        "description": "**{email} - alexa.{url}**<br \/>Amazon will send a push notification per the below message. Please completely respond before continuing.<br \/>{message}",
+        "title": "Alexa Media Player - Action Required"
       },
       "authselect": {
         "data": {
           "authselectoption": "Metoda OTP"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}",
+        "description": "**{email} - alexa.{url}**<br \/>{message}",
         "title": "Alexa Media Player - hasło jednorazowe"
       },
       "captcha": {
         "data": {
           "captcha": "Kod Captcha",
           "password": "Hasło",
-          "securitycode": ""
+          "securitycode": "config::step::captcha::data::securitycode"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}<br /> {captcha_image}",
+        "description": "**{email} - alexa.{url}**<br \/>{message}<br \/> {captcha_image}",
         "title": "Alexa Media Player - kod Captcha"
       },
       "claimspicker": {
         "data": {
           "authselectoption": "Metoda weryfikacji"
         },
-        "description": "**{email} - alexa.{url}**<br />Wybierz metodę weryfikacji. (np., `0` lub `1`)<br />{message}",
+        "description": "**{email} - alexa.{url}**<br \/>Wybierz metodę weryfikacji. (np., `0` lub `1`)<br \/>{message}",
         "title": "Alexa Media Player - metoda weryfikacji"
       },
       "twofactor": {
         "data": {
           "securitycode": "Kod uwierzytelniania dwuskładnikowego"
         },
-        "description": "**{email} - alexa.{url}**<br />Wprowadź hasło jednorazowe (OTP).<br />{message}",
+        "description": "**{email} - alexa.{url}**<br \/>Wprowadź hasło jednorazowe (OTP).<br \/>{message}",
         "title": "Alexa Media Player - uwierzytelnianie dwuskładnikowe"
       },
       "user": {
@@ -54,8 +54,8 @@
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
           "password": "Hasło",
           "scan_interval": "Interwał skanowania (sekundy)",
-          "securitycode": "",
-          "url": "Region/domena Amazon (np. amazon.co.uk)"
+          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "url": "Region\/domena Amazon (np. amazon.co.uk)"
         },
         "description": "Wprowadź dane",
         "title": "Alexa Media Player - konfiguracja"
@@ -67,7 +67,7 @@
     "step": {
       "init": {
         "data": {
-          "queue_delay": ""
+          "queue_delay": "Seconds to wait to queue commands together"
         }
       }
     }

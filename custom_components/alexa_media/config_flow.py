@@ -160,7 +160,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 step_id="user",
                 data_schema=vol.Schema(self.data_schema),
                 errors={CONF_EMAIL: "identifier_exists"},
-                description_placeholders={"message": f""},
+                description_placeholders={"message": ""},
             )
         if self.login is None:
             try:
@@ -191,7 +191,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         except AlexapyConnectionError:
             self.automatic_steps = 0
             return self.async_show_form(
-                step_id="user", errors={"base": "connection_error"}
+                step_id="user",
+                errors={"base": "connection_error"},
+                description_placeholders={"message": ""},
             )
         except BaseException as ex:
             _LOGGER.warning("Unknown error: %s", ex)
@@ -199,7 +201,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 raise
             self.automatic_steps = 0
             return self.async_show_form(
-                step_id="user", errors={"base": "unknown_error"}
+                step_id="user",
+                errors={"base": "unknown_error"},
+                description_placeholders={"message": ""},
             )
 
     async def async_step_captcha(self, user_input=None):
@@ -235,7 +239,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             except AlexapyConnectionError:
                 self.automatic_steps = 0
                 return self.async_show_form(
-                    step_id=step_id, errors={"base": "connection_error"}
+                    step_id=step_id,
+                    errors={"base": "connection_error"},
+                    description_placeholders={"message": ""},
                 )
             except BaseException as ex:
                 _LOGGER.warning("Unknown error: %s", ex)
@@ -243,7 +249,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     raise
                 self.automatic_steps = 0
                 return self.async_show_form(
-                    step_id=step_id, errors={"base": "unknown_error"}
+                    step_id=step_id,
+                    errors={"base": "unknown_error"},
+                    description_placeholders={"message": ""},
                 )
         return await self._test_login()
 

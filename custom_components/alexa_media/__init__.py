@@ -203,8 +203,8 @@ async def async_setup_entry(hass, config_entry):
     _LOGGER.info(STARTUP)
     _LOGGER.info("Loaded alexapy==%s", alexapy_version)
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
-    hass.bus.async_listen("alexa_media_player_relogin_required", relogin)
-    hass.bus.async_listen("alexa_media_player_relogin_success", login_success)
+    hass.bus.async_listen("alexa_media_relogin_required", relogin)
+    hass.bus.async_listen("alexa_media_relogin_success", login_success)
     account = config_entry.data
     email = account.get(CONF_EMAIL)
     password = account.get(CONF_PASSWORD)
@@ -334,11 +334,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             )
             if login_obj.status:
                 hass.bus.async_fire(
-                    "alexa_media_player/relogin_required",
-                    event_data={"email": hide_email(email), "url": login_obj.url},
-                )
-                hass.bus.async_fire(
-                    "alexa_media_player_relogin_required",
+                    "alexa_media_relogin_required",
                     event_data={"email": hide_email(email), "url": login_obj.url},
                 )
             return
@@ -930,7 +926,7 @@ async def async_unload_entry(hass, entry) -> bool:
     if not hass.data[DATA_ALEXAMEDIA]["config_flows"]:
         _LOGGER.debug("Removing config_flows data")
         hass.components.persistent_notification.async_dismiss(
-            "alexa_media_player_relogin_required"
+            "alexa_media_relogin_required"
         )
         hass.data[DATA_ALEXAMEDIA].pop("config_flows")
     if not hass.data[DATA_ALEXAMEDIA]:
@@ -1017,6 +1013,6 @@ async def test_login_status(hass, config_entry, login) -> bool:
     hass.components.persistent_notification.async_create(
         title="Alexa Media Reauthentication Required",
         message=("Reauthenticate on the [Integrations](/config/integrations) page."),
-        notification_id="alexa_media_player_relogin_required",
+        notification_id="alexa_media_relogin_required",
     )
     return False

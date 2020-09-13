@@ -326,7 +326,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "captcha_image": "[![captcha]({0})]({0})".format(
                         login.status["captcha_image_url"]
                     ),
-                    "message": f"\n> {login.status.get('error_message','')}",
+                    "message": f"<br />\n> {login.status.get('error_message','')}",
                 },
             )
         if login.status and login.status.get("securitycode_required"):
@@ -352,11 +352,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": f"\n> {login.status.get('error_message','')}",
+                    "message": f"<br />\n> {login.status.get('error_message','')}",
                 },
             )
         if login.status and login.status.get("claimspicker_required"):
-            error_message = f"\n> {login.status.get('error_message', '')}"
+            error_message = f"<br />\n> {login.status.get('error_message', '')}"
             _LOGGER.debug("Creating config_flow to select verification method")
             claimspicker_message = login.status["claimspicker_message"]
             self.automatic_steps = 0
@@ -367,7 +367,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": "\n> {0}\n> {1}".format(
+                    "message": "<br />\n> {0}<br />\n> {1}".format(
                         claimspicker_message, error_message
                     ),
                 },
@@ -383,7 +383,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": "\n> {0}\n> {1}".format(
+                    "message": "<br />\n> {0}<br />\n> {1}".format(
                         authselect_message, error_message
                     ),
                 },
@@ -404,7 +404,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": f"```text\n{login.status.get('message','')}\n```",
+                    "message": f"<br />\n>{login.status.get('message','')}<br />",
                 },
             )
         if login.status and login.status.get("login_failed"):
@@ -431,7 +431,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 step_id="user",
                 data_schema=vol.Schema(new_schema),
                 description_placeholders={
-                    "message": f"\n> {login.status.get('error_message','')}"
+                    "message": f"<br />\n> {login.status.get('error_message','')}"
                 },
             )
         self.automatic_steps = 0
@@ -439,7 +439,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             step_id="user",
             data_schema=vol.Schema(new_schema),
             description_placeholders={
-                "message": f"\n> {login.status.get('error_message','')}"
+                "message": f"<br />\n> {login.status.get('error_message','')}"
             },
         )
 

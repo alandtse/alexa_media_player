@@ -29,7 +29,7 @@
           "password": "密码",
           "securitycode": "2FA Code (recommended to avoid login issues)"
         },
-        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "description": "**{email} - alexa.{url}**  \n>{message}  \n{captcha_image}",
         "title": "Alexa Media Player-验证码"
       },
       "claimspicker": {

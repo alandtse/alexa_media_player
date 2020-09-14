@@ -1,75 +1,75 @@
 {
-    "config": {
-        "abort": {
-            "forgot_password": "",
-            "login_failed": "",
-            "reauth_successful": ""
-        },
-        "error": {
-            "connection_error": "连接错误；检查网络并重试",
-            "identifier_exists": "Alexa URL的电子邮件已注册",
-            "invalid_credentials": "",
-            "unknown_error": ""
-        },
-        "step": {
-            "action_required": {
-                "description": "",
-                "title": ""
-            },
-            "authselect": {
-                "data": {
-                    "authselectoption": "OTP方式"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}",
-                "title": "Alexa Media Player - 一次性密码"
-            },
-            "captcha": {
-                "data": {
-                    "captcha": "验证码",
-                    "password": "密码",
-                    "securitycode": ""
-                },
-                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-                "title": "Alexa Media Player-验证码"
-            },
-            "claimspicker": {
-                "data": {
-                    "authselectoption": "验证方式"
-                },
-                "description": "",
-                "title": "Alexa Media Player - 验证方法"
-            },
-            "twofactor": {
-                "data": {
-                    "securitycode": "2FA代码"
-                },
-                "description": "**{email} - Alexa.{url} ** \n输入一次性密码（OTP）。 \n {message}",
-                "title": ""
-            },
-            "user": {
-                "data": {
-                    "debug": "高级调试",
-                    "email": "电子邮件地址",
-                    "exclude_devices": "",
-                    "include_devices": "",
-                    "password": "密码",
-                    "scan_interval": "",
-                    "securitycode": "",
-                    "url": ""
-                },
-                "description": "请输入您的信息。",
-                "title": "Alexa Media Player-配置"
-            }
-        },
-        "title": "Alexa Media Player"
+  "config": {
+    "abort": {
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login.",
+      "reauth_successful": "Alexa Media Player successfully reauthenticated."
     },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "queue_delay": ""
-                }
-            }
+    "error": {
+      "connection_error": "连接错误；检查网络并重试",
+      "identifier_exists": "Alexa URL的电子邮件已注册",
+      "invalid_credentials": "Invalid credentials",
+      "unknown_error": "Unknown error, please report log info"
+    },
+    "step": {
+      "action_required": {
+        "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
+        "title": "Alexa Media Player - Action Required"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "OTP方式"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}",
+        "title": "Alexa Media Player - 一次性密码"
+      },
+      "captcha": {
+        "data": {
+          "captcha": "验证码",
+          "password": "密码",
+          "securitycode": "2FA Code (recommended to avoid login issues)"
+        },
+        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "title": "Alexa Media Player-验证码"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "验证方式"
+        },
+        "description": "**{email} - alexa.{url}**  \nPlease select verification method by number. (e.g., `0` or `1`)  \n{message}",
+        "title": "Alexa Media Player - 验证方法"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "2FA代码"
+        },
+        "description": "**{email} - Alexa.{url} ** \n输入一次性密码（OTP）。 \n {message}",
+        "title": "Alexa Media Player - Two Factor Authentication"
+      },
+      "user": {
+        "data": {
+          "debug": "高级调试",
+          "email": "电子邮件地址",
+          "exclude_devices": "Excluded device (comma separated)",
+          "include_devices": "Included device (comma separated)",
+          "password": "密码",
+          "scan_interval": "Seconds between scans",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "url": "Amazon region domain (e.g., amazon.co.uk)"
+        },
+        "description": "请输入您的信息。",
+        "title": "Alexa Media Player-配置"
+      }
+    },
+    "title": "Alexa Media Player"
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "queue_delay": "Seconds to wait to queue commands together"
         }
+      }
     }
+  }
 }

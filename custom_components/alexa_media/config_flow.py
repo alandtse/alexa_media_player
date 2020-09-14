@@ -160,7 +160,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 step_id="user",
                 data_schema=vol.Schema(self.data_schema),
                 errors={CONF_EMAIL: "identifier_exists"},
-                description_placeholders={"message": f""},
+                description_placeholders={"message": ""},
             )
         if self.login is None:
             try:
@@ -191,7 +191,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         except AlexapyConnectionError:
             self.automatic_steps = 0
             return self.async_show_form(
-                step_id="user", errors={"base": "connection_error"}
+                step_id="user",
+                errors={"base": "connection_error"},
+                description_placeholders={"message": ""},
             )
         except BaseException as ex:
             _LOGGER.warning("Unknown error: %s", ex)
@@ -199,7 +201,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 raise
             self.automatic_steps = 0
             return self.async_show_form(
-                step_id="user", errors={"base": "unknown_error"}
+                step_id="user",
+                errors={"base": "unknown_error"},
+                description_placeholders={"message": ""},
             )
 
     async def async_step_captcha(self, user_input=None):
@@ -235,7 +239,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             except AlexapyConnectionError:
                 self.automatic_steps = 0
                 return self.async_show_form(
-                    step_id=step_id, errors={"base": "connection_error"}
+                    step_id=step_id,
+                    errors={"base": "connection_error"},
+                    description_placeholders={"message": ""},
                 )
             except BaseException as ex:
                 _LOGGER.warning("Unknown error: %s", ex)
@@ -243,7 +249,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     raise
                 self.automatic_steps = 0
                 return self.async_show_form(
-                    step_id=step_id, errors={"base": "unknown_error"}
+                    step_id=step_id,
+                    errors={"base": "unknown_error"},
+                    description_placeholders={"message": ""},
                 )
         return await self._test_login()
 
@@ -273,11 +281,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
                 _LOGGER.debug("Reauth successful for %s", hide_email(email))
                 self.hass.bus.async_fire(
-                    "alexa_media_player_relogin_success",
+                    "alexa_media_relogin_success",
                     event_data={"email": hide_email(email), "url": login.url},
                 )
                 self.hass.components.persistent_notification.async_dismiss(
-                    "alexa_media_player_relogin_required"
+                    "alexa_media_relogin_required"
                 )
                 self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.config[CONF_EMAIL]][
                     "login_obj"
@@ -318,7 +326,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "captcha_image": "[![captcha]({0})]({0})".format(
                         login.status["captcha_image_url"]
                     ),
-                    "message": f"\n> {login.status.get('error_message','')}",
+                    "message": f"  \n> {login.status.get('error_message','')}",
                 },
             )
         if login.status and login.status.get("securitycode_required"):
@@ -344,11 +352,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": f"\n> {login.status.get('error_message','')}",
+                    "message": f"  \n> {login.status.get('error_message','')}",
                 },
             )
         if login.status and login.status.get("claimspicker_required"):
-            error_message = f"\n> {login.status.get('error_message', '')}"
+            error_message = f"  \n> {login.status.get('error_message', '')}"
             _LOGGER.debug("Creating config_flow to select verification method")
             claimspicker_message = login.status["claimspicker_message"]
             self.automatic_steps = 0
@@ -359,7 +367,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": "\n> {0}\n> {1}".format(
+                    "message": "  \n> {0}  \n> {1}".format(
                         claimspicker_message, error_message
                     ),
                 },
@@ -375,7 +383,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": "\n> {0}\n> {1}".format(
+                    "message": "  \n> {0}  \n> {1}".format(
                         authselect_message, error_message
                     ),
                 },
@@ -396,14 +404,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": f"```text\n{login.status.get('message','')}\n```",
+                    "message": f"  \n>{login.status.get('message','')}  \n",
                 },
             )
         if login.status and login.status.get("login_failed"):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
             self.hass.components.persistent_notification.async_dismiss(
-                "alexa_media_player_relogin_required"
+                "alexa_media_relogin_required"
             )
             return self.async_abort(reason=login.status.get("login_failed"),)
         new_schema = self._update_schema_defaults()
@@ -423,7 +431,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 step_id="user",
                 data_schema=vol.Schema(new_schema),
                 description_placeholders={
-                    "message": f"\n> {login.status.get('error_message','')}"
+                    "message": f"  \n> {login.status.get('error_message','')}"
                 },
             )
         self.automatic_steps = 0
@@ -431,7 +439,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             step_id="user",
             data_schema=vol.Schema(new_schema),
             description_placeholders={
-                "message": f"\n> {login.status.get('error_message','')}"
+                "message": f"  \n> {login.status.get('error_message','')}"
             },
         )
 

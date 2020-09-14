@@ -1,75 +1,75 @@
 {
-    "config": {
-        "abort": {
-            "forgot_password": "",
-            "login_failed": "",
-            "reauth_successful": ""
-        },
-        "error": {
-            "connection_error": "Error al conectar, verifique la red y vuelva a intentarlo",
-            "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
-            "invalid_credentials": "Credenciales no válidas",
-            "unknown_error": "Error desconocido, por favor reporte la información del registro"
-        },
-        "step": {
-            "action_required": {
-                "description": "A continuación Amazon enviará una notificación push en el siguiente mensaje. Por favor, responda en su totalidad antes de continuar.",
-                "title": "Alexa Media Player - Acción requerida"
-            },
-            "authselect": {
-                "data": {
-                    "authselectoption": "metodo OTP"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}",
-                "title": "Alexa Media Player - Contraseña de un solo uso"
-            },
-            "captcha": {
-                "data": {
-                    "captcha": "Captcha",
-                    "password": "Contraseña",
-                    "securitycode": ""
-                },
-                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-                "title": "Alexa Media Player - Captcha"
-            },
-            "claimspicker": {
-                "data": {
-                    "authselectoption": "Método de verificación"
-                },
-                "description": "**{email} - alexa.{url}**\nSeleccione el método de verificación por número. (e.g., `0` or `1`)\n{message}",
-                "title": "Alexa Media Player - Método de verificación"
-            },
-            "twofactor": {
-                "data": {
-                    "securitycode": "2FA Code"
-                },
-                "description": "**{email} - alexa.{url}**\nIngrese la contraseña de un solo uso (OTP).\n{message}",
-                "title": "Alexa Media Player - Autenticación de dos factores"
-            },
-            "user": {
-                "data": {
-                    "debug": "Depuración avanzada",
-                    "email": "Dirección de correo electrónico",
-                    "exclude_devices": "Dispositivo excluido (separado por comas)",
-                    "include_devices": "Dispositivo incluido (separado por comas)",
-                    "password": "Contraseña",
-                    "scan_interval": "Segundos entre escaneos",
-                    "securitycode": "",
-                    "url": "Region del dominio de Amazon (e.g., amazon.co.uk)"
-                },
-                "description": "Por favor, introduzca su información.",
-                "title": "Alexa Media Player - Configuracion"
-            }
-        },
-        "title": "Alexa Media Player"
+  "config": {
+    "abort": {
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login.",
+      "reauth_successful": "Alexa Media Player successfully reauthenticated."
     },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "queue_delay": "Segundos de espera a la cola de comandos a la vez"
-                }
-            }
+    "error": {
+      "connection_error": "Error al conectar, verifique la red y vuelva a intentarlo",
+      "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
+      "invalid_credentials": "Credenciales no válidas",
+      "unknown_error": "Error desconocido, por favor reporte la información del registro"
+    },
+    "step": {
+      "action_required": {
+        "description": "A continuación Amazon enviará una notificación push en el siguiente mensaje. Por favor, responda en su totalidad antes de continuar.",
+        "title": "Alexa Media Player - Acción requerida"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "metodo OTP"
+        },
+        "description": "**{email} - alexa.{url}**  \n{message}",
+        "title": "Alexa Media Player - Contraseña de un solo uso"
+      },
+      "captcha": {
+        "data": {
+          "captcha": "Captcha",
+          "password": "Contraseña",
+          "securitycode": "config::step::captcha::data::securitycode"
+        },
+        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
+        "title": "Alexa Media Player - Captcha"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Método de verificación"
+        },
+        "description": "**{email} - alexa.{url}**  \nSeleccione el método de verificación por número. (e.g., `0` or `1`)  \n{message}",
+        "title": "Alexa Media Player - Método de verificación"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "2FA Code"
+        },
+        "description": "**{email} - alexa.{url}**  \nIngrese la contraseña de un solo uso (OTP).  \n{message}",
+        "title": "Alexa Media Player - Autenticación de dos factores"
+      },
+      "user": {
+        "data": {
+          "debug": "Depuración avanzada",
+          "email": "Dirección de correo electrónico",
+          "exclude_devices": "Dispositivo excluido (separado por comas)",
+          "include_devices": "Dispositivo incluido (separado por comas)",
+          "password": "Contraseña",
+          "scan_interval": "Segundos entre escaneos",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "url": "Region del dominio de Amazon (e.g., amazon.co.uk)"
+        },
+        "description": "Por favor, introduzca su información.",
+        "title": "Alexa Media Player - Configuracion"
+      }
+    },
+    "title": "Alexa Media Player"
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "queue_delay": "Segundos de espera a la cola de comandos a la vez"
         }
+      }
     }
+  }
 }

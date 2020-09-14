@@ -18,7 +18,7 @@
           "debug": "Advanced debugging",
           "scan_interval": "Seconds between scans"
         },
-        "description": "Please enter your information. \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when 2FA Code is required.**\n>{message}",
+        "description": "Please enter your information.   \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when 2FA Code is required.**  \n>{message}",
         "title": "Alexa Media Player - Configuration"
       },
       "captcha": {
@@ -27,32 +27,32 @@
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "captcha": "Captcha"
         },
-        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
         "title": "Alexa Media Player - Captcha"
       },
       "twofactor": {
         "data": {
           "securitycode": "2FA Code"
         },
-        "description": "**{email} - alexa.{url}**\nEnter the One Time Password (OTP).\n{message}",
+        "description": "**{email} - alexa.{url}**  \nEnter the One Time Password (OTP).  \n{message}",
         "title": "Alexa Media Player - Two Factor Authentication"
       },
       "authselect": {
         "data": {
           "authselectoption": "OTP method"
         },
-        "description": "**{email} - alexa.{url}**\n{message}",
+        "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player - One Time Password"
       },
       "claimspicker": {
         "data": {
           "authselectoption": "Verification method"
         },
-        "description": "**{email} - alexa.{url}**\nPlease select verification method by number. (e.g., `0` or `1`)\n{message}",
+        "description": "**{email} - alexa.{url}**  \nPlease select verification method by number. (e.g., `0` or `1`)  \n{message}",
         "title": "Alexa Media Player - Verification Method"
       },
       "action_required": {
-        "description": "**{email} - alexa.{url}**\nAmazon will send a push notification per the below message. Please completely respond before continuing.\n{message}",
+        "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
         "title": "Alexa Media Player - Action Required"
       }
     },

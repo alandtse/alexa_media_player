@@ -23,7 +23,10 @@ jobs:
           --original-filenames=false \
           --export-sort a_z \
           --placeholder-format icu \
-          --export-empty-as skip
+          --json-unescaped-slashes 1 \
+          --indentation 2sp \
+          --export-empty-as base \
+          --add-newline-eof
       - name: Move new translations
         run: |
           cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/.translations/

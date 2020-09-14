@@ -1,75 +1,75 @@
 {
-    "config": {
-        "abort": {
-            "forgot_password": "",
-            "login_failed": "",
-            "reauth_successful": ""
-        },
-        "error": {
-            "connection_error": "Errore durante la connessione; controlla la rete e riprova",
-            "identifier_exists": "L'Email per l'URL di Alexa è già stata registrata",
-            "invalid_credentials": "Credenziali non valide",
-            "unknown_error": "Errore sconosciuto, si prega di riportrtare i log di informazione"
-        },
-        "step": {
-            "action_required": {
-                "description": "** {email} - alexa. {url} ** \n Amazon invierà una notifica push per il seguente messaggio. Si prega di rispondere completamente prima di continuare. \n {message}",
-                "title": "Alexa Media Player - Azione Richiesta"
-            },
-            "authselect": {
-                "data": {
-                    "authselectoption": "Metodo password usa e getta (OTP)"
-                },
-                "description": "**{email} - alexa.{url}**\n{message}",
-                "title": "Alexa Media Player - Password Usa e Getta (One Time Password)"
-            },
-            "captcha": {
-                "data": {
-                    "captcha": "Captcha",
-                    "password": "Password",
-                    "securitycode": ""
-                },
-                "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
-                "title": "Alexa Media Player - Captcha"
-            },
-            "claimspicker": {
-                "data": {
-                    "authselectoption": "Metodi di Verifica"
-                },
-                "description": "**{email} - alexa.{url}**\nPrego selezionare un metodo di verifica. (e.g., `0` or `1`)\n{message}",
-                "title": "Alexa Media Player - Metodi di Verifica"
-            },
-            "twofactor": {
-                "data": {
-                    "securitycode": "Codice autenticazione a 2 fattori (2FA)"
-                },
-                "description": "**{email} - alexa.{url}**\nInserisci la password usa e getta (OTP).\n{message}",
-                "title": "Alexa Media Player - Autenticazione a Due Fattori"
-            },
-            "user": {
-                "data": {
-                    "debug": "Debug avanzato",
-                    "email": "Indirizzo email",
-                    "exclude_devices": "Dispositivi da escludere (separati da virgola)",
-                    "include_devices": "Dispositivi da includere (separati da virgola)",
-                    "password": "Password",
-                    "scan_interval": "Tempo in secondi fra le scansioni",
-                    "securitycode": "",
-                    "url": "Regione del dominio Amazon (e.g., amazon.it)"
-                },
-                "description": "Prego inserisci le tue informazioni.",
-                "title": "Alexa Media Player - Configurazione"
-            }
-        },
-        "title": "Alexa Media Player"
+  "config": {
+    "abort": {
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login.",
+      "reauth_successful": "Alexa Media Player successfully reauthenticated."
     },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "queue_delay": "Secondi di attesa per accodare i comandi insieme"
-                }
-            }
+    "error": {
+      "connection_error": "Errore durante la connessione; controlla la rete e riprova",
+      "identifier_exists": "L'Email per l'URL di Alexa è già stata registrata",
+      "invalid_credentials": "Credenziali non valide",
+      "unknown_error": "Errore sconosciuto, si prega di riportrtare i log di informazione"
+    },
+    "step": {
+      "action_required": {
+        "description": "** {email} - alexa. {url} **   \n Amazon invierà una notifica push per il seguente messaggio. Si prega di rispondere completamente prima di continuare.   \n {message}",
+        "title": "Alexa Media Player - Azione Richiesta"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "Metodo password usa e getta (OTP)"
+        },
+        "description": "**{email} - alexa.{url}**  \n{message}",
+        "title": "Alexa Media Player - Password Usa e Getta (One Time Password)"
+      },
+      "captcha": {
+        "data": {
+          "captcha": "Captcha",
+          "password": "Password",
+          "securitycode": "config::step::captcha::data::securitycode"
+        },
+        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
+        "title": "Alexa Media Player - Captcha"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Metodi di Verifica"
+        },
+        "description": "**{email} - alexa.{url}**  \nPrego selezionare un metodo di verifica. (e.g., `0` or `1`)  \n{message}",
+        "title": "Alexa Media Player - Metodi di Verifica"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "Codice autenticazione a 2 fattori (2FA)"
+        },
+        "description": "**{email} - alexa.{url}**  \nInserisci la password usa e getta (OTP).  \n{message}",
+        "title": "Alexa Media Player - Autenticazione a Due Fattori"
+      },
+      "user": {
+        "data": {
+          "debug": "Debug avanzato",
+          "email": "Indirizzo email",
+          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
+          "include_devices": "Dispositivi da includere (separati da virgola)",
+          "password": "Password",
+          "scan_interval": "Tempo in secondi fra le scansioni",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "url": "Regione del dominio Amazon (e.g., amazon.it)"
+        },
+        "description": "Prego inserisci le tue informazioni.",
+        "title": "Alexa Media Player - Configurazione"
+      }
+    },
+    "title": "Alexa Media Player"
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "queue_delay": "Secondi di attesa per accodare i comandi insieme"
         }
+      }
     }
+  }
 }

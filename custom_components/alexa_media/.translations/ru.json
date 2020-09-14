@@ -20,7 +20,7 @@
         "data": {
           "authselectoption": "Одноразовый пароль"
         },
-        "description": "**{email} - alexa.{url}**\n{message}",
+        "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player - Одноразовый Пароль"
       },
       "captcha": {
@@ -29,7 +29,7 @@
           "password": "Пароль",
           "securitycode": "2FA Code (recommended to avoid login issues)"
         },
-        "description": "**{email} - alexa.{url}**\n{message}\n {captcha_image}",
+        "description": "**{email} - alexa.{url}**  \n>{message}  \n{captcha_image}",
         "title": "Alexa Media Player - Капча"
       },
       "claimspicker": {

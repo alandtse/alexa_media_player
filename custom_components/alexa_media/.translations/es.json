@@ -20,7 +20,7 @@
         "data": {
           "authselectoption": "metodo OTP"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}",
+        "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player - Contraseña de un solo uso"
       },
       "captcha": {
@@ -29,21 +29,21 @@
           "password": "Contraseña",
           "securitycode": "config::step::captcha::data::securitycode"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}<br /> {captcha_image}",
+        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
         "title": "Alexa Media Player - Captcha"
       },
       "claimspicker": {
         "data": {
           "authselectoption": "Método de verificación"
         },
-        "description": "**{email} - alexa.{url}**<br />Seleccione el método de verificación por número. (e.g., `0` or `1`)<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nSeleccione el método de verificación por número. (e.g., `0` or `1`)  \n{message}",
         "title": "Alexa Media Player - Método de verificación"
       },
       "twofactor": {
         "data": {
           "securitycode": "2FA Code"
         },
-        "description": "**{email} - alexa.{url}**<br />Ingrese la contraseña de un solo uso (OTP).<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nIngrese la contraseña de un solo uso (OTP).  \n{message}",
         "title": "Alexa Media Player - Autenticación de dos factores"
       },
       "user": {

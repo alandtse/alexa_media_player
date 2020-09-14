@@ -13,14 +13,14 @@
     },
     "step": {
       "action_required": {
-        "description": "**{email} - alexa.{url}**<br />Amazon sendet eine Push-Benachrichtigung je folgender Nachricht. Bitte antworte sie vollständig, bevor Du fortfährst.<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nAmazon sendet eine Push-Benachrichtigung je folgender Nachricht. Bitte antworte sie vollständig, bevor Du fortfährst.  \n{message}",
         "title": "Alexa Media Player - Aktion erforderlich"
       },
       "authselect": {
         "data": {
           "authselectoption": "Einmal Pin Methode"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}",
+        "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player - Einmal Pin Passwort"
       },
       "captcha": {
@@ -29,21 +29,21 @@
           "password": "Passwort",
           "securitycode": "2FA Code (empfohlen, um Anmeldeprobleme zu vermeiden)"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}<br /> {captcha_image}",
+        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
         "title": "Alexa Media Player - Captcha"
       },
       "claimspicker": {
         "data": {
           "authselectoption": "Verifizierungs Methode"
         },
-        "description": "**{email} - alexa.{url}**<br />Bitte Verifizierungs Methode auswählen. (z.B., `0` oder `1`)<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nBitte Verifizierungs Methode auswählen. (z.B., `0` oder `1`)  \n{message}",
         "title": "Alexa Media Player - Verifizierungs Methode"
       },
       "twofactor": {
         "data": {
           "securitycode": "2FA Code"
         },
-        "description": "**{email} - alexa.{url}**<br />Den Zwei Faktor Pin eingeben.<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nDen Zwei Faktor Pin eingeben.  \n{message}",
         "title": "Alexa Media Player - Zwei Faktor Authentifizierung"
       },
       "user": {

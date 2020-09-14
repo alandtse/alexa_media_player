@@ -13,14 +13,14 @@
     },
     "step": {
       "action_required": {
-        "description": "**{email} - alexa.{url}**<br />Amazon will send a push notification per the below message. Please completely respond before continuing.<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
         "title": "Alexa Media Player - Action Required"
       },
       "authselect": {
         "data": {
           "authselectoption": "Eenmalige Pincode"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}",
+        "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player - Eenmalige Pincode"
       },
       "captcha": {
@@ -29,21 +29,21 @@
           "password": "Paswoord",
           "securitycode": "config::step::captcha::data::securitycode"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}<br /> {captcha_image}",
+        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
         "title": "Alexa Media Player - Captcha"
       },
       "claimspicker": {
         "data": {
           "authselectoption": "Verificatiemethode"
         },
-        "description": "**{email} - alexa.{url}**<br />Selecteer de verificatiemethode (bv.`0` of `1`)<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nSelecteer de verificatiemethode (bv.`0` of `1`)  \n{message}",
         "title": "Alexa Media Player - Verificatiemethode"
       },
       "twofactor": {
         "data": {
           "securitycode": "Verificatiecode"
         },
-        "description": "**{email} - alexa.{url}**<br />Geef de verificatiecode in.<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nGeef de verificatiecode in.  \n{message}",
         "title": "Alexa Media Player - Tweestapsverificatie"
       },
       "user": {

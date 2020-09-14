@@ -13,14 +13,14 @@
     },
     "step": {
       "action_required": {
-        "description": "**{email} - alexa.{url}**<br />Amazon will send a push notification per the below message. Please completely respond before continuing.<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
         "title": "Alexa Media Player - Action Required"
       },
       "authselect": {
         "data": {
           "authselectoption": "Metoda OTP"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}",
+        "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player - hasło jednorazowe"
       },
       "captcha": {
@@ -29,21 +29,21 @@
           "password": "Hasło",
           "securitycode": "config::step::captcha::data::securitycode"
         },
-        "description": "**{email} - alexa.{url}**<br />{message}<br /> {captcha_image}",
+        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
         "title": "Alexa Media Player - kod Captcha"
       },
       "claimspicker": {
         "data": {
           "authselectoption": "Metoda weryfikacji"
         },
-        "description": "**{email} - alexa.{url}**<br />Wybierz metodę weryfikacji. (np., `0` lub `1`)<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nWybierz metodę weryfikacji. (np., `0` lub `1`)  \n{message}",
         "title": "Alexa Media Player - metoda weryfikacji"
       },
       "twofactor": {
         "data": {
           "securitycode": "Kod uwierzytelniania dwuskładnikowego"
         },
-        "description": "**{email} - alexa.{url}**<br />Wprowadź hasło jednorazowe (OTP).<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nWprowadź hasło jednorazowe (OTP).  \n{message}",
         "title": "Alexa Media Player - uwierzytelnianie dwuskładnikowe"
       },
       "user": {

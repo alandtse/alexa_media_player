@@ -13,7 +13,7 @@
     },
     "step": {
       "action_required": {
-        "description": "**{email} - alexa.{url}**<br />Amazon will send a push notification per the below message. Please completely respond before continuing.<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
         "title": "Alexa Media Player - Action Required"
       },
       "authselect": {
@@ -36,7 +36,7 @@
         "data": {
           "authselectoption": "验证方式"
         },
-        "description": "**{email} - alexa.{url}**<br />Please select verification method by number. (e.g., `0` or `1`)<br />{message}",
+        "description": "**{email} - alexa.{url}**  \nPlease select verification method by number. (e.g., `0` or `1`)  \n{message}",
         "title": "Alexa Media Player - 验证方法"
       },
       "twofactor": {

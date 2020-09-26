@@ -2,7 +2,7 @@
   "config": {
     "abort": {
       "forgot_password": "Siden Glemt passord ble oppdaget. Dette er vanligvis et resultat av også mislykkede pålogginger. Amazon kan kreve handling før en pålogging kan forsøkes.",
-      "login_failed": "AAlexa Media Player kunne ikke logge inn.",
+      "login_failed": "Alexa Media Player kunne ikke logge inn.",
       "reauth_successful": "Alexa Media Player er godkjent på nytt."
     },
     "error": {
@@ -36,7 +36,7 @@
         "data": {
           "authselectoption": "Bekreftelsesmetode"
         },
-        "description": "**{email} - alexa.{url}**  \nVelg bekreftelsesmetode etter nummer. (f.eks. "0" eller "1")  \n{message}",
+        "description": "**{email} - alexa.{url}**  \nVelg bekreftelsesmetode etter nummer. (f.eks. \"0\" eller \"1\")  \n{message}",
         "title": "Alexa Media Player - Bekreftelsesmetode"
       },
       "twofactor": {

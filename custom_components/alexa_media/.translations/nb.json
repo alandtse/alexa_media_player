@@ -48,6 +48,7 @@
       },
       "user": {
         "data": {
+          "cookies_txt": "config::step::user::data::cookies_txt",
           "debug": "Avansert feilsøking",
           "email": "Epostadresse",
           "exclude_devices": "Ekskludert enhet (kommaseparert)",
@@ -60,8 +61,7 @@
         "description": "Vennligst skriv inn informasjonen din.  \n**WARNING: Amazon rapporterer feilaktig 'Angi en gyldig e-postadresse eller et mobilnummer' når 2FA-kode kreves.**  \n>{message}",
         "title": "Alexa Media Player - Konfigurasjon"
       }
-    },
-    "title": "Alexa Media Player"
+    }
   },
   "options": {
     "step": {

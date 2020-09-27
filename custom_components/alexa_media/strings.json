@@ -60,8 +60,7 @@
       "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
       "login_failed": "Alexa Media Player failed to login.",
       "reauth_successful": "Alexa Media Player successfully reauthenticated."
-    },
-    "title": "Alexa Media Player"
+    }
   },
   "options": {
     "step": {

@@ -13,23 +13,23 @@ jobs:
       - uses: actions/checkout@v1
         with:
           ref: master
-      - name: Download lokalise translations
-        run: |
-          docker run -v /tmp/lokalise:/opt/dest lokalise/lokalise-cli-2 lokalise2 \
-          --token "${{ secrets.lokalise_token }}" \
-          --project-id 465185555eee18dd537ca6.39714580 file download \
-          --format json \
-          --unzip-to /opt/dest \
-          --original-filenames=false \
-          --export-sort a_z \
-          --placeholder-format icu \
-          --json-unescaped-slashes 1 \
-          --indentation 2sp \
-          --export-empty-as base \
-          --add-newline-eof
-      - name: Move new translations
-        run: |
-          cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/.translations/
+#       - name: Download lokalise translations
+#         run: |
+#           docker run -v /tmp/lokalise:/opt/dest lokalise/lokalise-cli-2 lokalise2 \
+#           --token "${{ secrets.lokalise_token }}" \
+#           --project-id 465185555eee18dd537ca6.39714580 file download \
+#           --format json \
+#           --unzip-to /opt/dest \
+#           --original-filenames=false \
+#           --export-sort a_z \
+#           --placeholder-format icu \
+#           --json-unescaped-slashes=true \
+#           --indentation 2sp \
+#           --export-empty-as base \
+#           --add-newline-eof
+#       - name: Move new translations
+#         run: |
+#           cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/.translations/
       - name: Set up Python 3.7
         uses: actions/setup-python@v1
         with:

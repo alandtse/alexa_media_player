@@ -1,0 +1,75 @@
+{
+  "config": {
+    "abort": {
+      "forgot_password": "Siden Glemt passord ble oppdaget. Dette er vanligvis et resultat av også mislykkede pålogginger. Amazon kan kreve handling før en pålogging kan forsøkes.",
+      "login_failed": "Alexa Media Player kunne ikke logge inn.",
+      "reauth_successful": "Alexa Media Player er godkjent på nytt."
+    },
+    "error": {
+      "connection_error": "Feil ved tilkobling; sjekk nettverket og prøv på nytt",
+      "identifier_exists": "E-post for Alexa URL allerede registrert",
+      "invalid_credentials": "ugyldige legitimasjon",
+      "unknown_error": "Ukjent feil, vennligst rapporter logginfo"
+    },
+    "step": {
+      "action_required": {
+        "description": "**{email} - alexa.{url}**  \nAmazon vil sende et push-varsel i henhold til meldingen nedenfor. Fullfør svaret før du fortsetter.  \n{message}",
+        "title": "Alexa Media Player - Handling påkrevd"
+      },
+      "authselect": {
+        "data": {
+          "authselectoption": "OTP-metode"
+        },
+        "description": "**{email} - alexa.{url}**  \n{message}",
+        "title": "Alexa Media Player - Engangspassord"
+      },
+      "captcha": {
+        "data": {
+          "captcha": "Captcha",
+          "password": "Passord",
+          "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)"
+        },
+        "description": "**{email} - alexa.{url}**  \n>{message}  \n{captcha_image}",
+        "title": "Alexa Media Player - Captcha"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Bekreftelsesmetode"
+        },
+        "description": "**{email} - alexa.{url}**  \nVelg bekreftelsesmetode etter nummer. (f.eks. \"0\" eller \"1\")  \n{message}",
+        "title": "Alexa Media Player - Bekreftelsesmetode"
+      },
+      "twofactor": {
+        "data": {
+          "securitycode": "2FA Kode"
+        },
+        "description": "**{email} - alexa.{url}**  \nSkriv inn engangspassordet (OTP).  \n>{message}",
+        "title": "Alexa Media Player - Tofaktorautentisering"
+      },
+      "user": {
+        "data": {
+          "debug": "Avansert feilsøking",
+          "email": "Epostadresse",
+          "exclude_devices": "Ekskludert enhet (kommaseparert)",
+          "include_devices": "Inkluder enhet (kommaseparert)",
+          "password": "Passord",
+          "scan_interval": "Sekunder mellom skanninger",
+          "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)",
+          "url": "Amazon-regiondomenet (f.eks. Amazon.co.uk)"
+        },
+        "description": "Vennligst skriv inn informasjonen din.  \n**WARNING: Amazon rapporterer feilaktig 'Angi en gyldig e-postadresse eller et mobilnummer' når 2FA-kode kreves.**  \n>{message}",
+        "title": "Alexa Media Player - Konfigurasjon"
+      }
+    },
+    "title": "Alexa Media Player"
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "queue_delay": "Sekunder for å vente på køkommandoer sammen"
+        }
+      }
+    }
+  }
+}

@@ -33,6 +33,7 @@ from .const import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     CONF_QUEUE_DELAY,
+    CONF_SECURITYCODE,
     DATA_ALEXAMEDIA,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
@@ -81,7 +82,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (vol.Required(CONF_EMAIL), str),
                 (vol.Required(CONF_PASSWORD), str),
-                (vol.Optional("securitycode"), str),
+                (vol.Optional(CONF_SECURITYCODE), str),
                 (vol.Required(CONF_URL, default="amazon.com"), str),
                 (vol.Optional(CONF_DEBUG, default=False), bool),
                 (vol.Optional(CONF_INCLUDE_DEVICES, default=""), str),
@@ -94,7 +95,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (vol.Required(CONF_PASSWORD), str),
                 (
                     vol.Optional(
-                        "securitycode",
+                        CONF_SECURITYCODE,
                         default=self.securitycode if self.securitycode else "",
                     ),
                     str,
@@ -106,7 +107,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (
                     vol.Required(
-                        "securitycode",
+                        CONF_SECURITYCODE,
                         default=self.securitycode if self.securitycode else "",
                     ),
                     str,
@@ -309,7 +310,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         CONF_PASSWORD, default=self.config[CONF_PASSWORD]
                     ): str,
                     vol.Optional(
-                        "securitycode",
+                        CONF_SECURITYCODE,
                         default=self.securitycode if self.securitycode else "",
                     ): str,
                 },
@@ -341,9 +342,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.automatic_steps += 1
                 await sleep(1)
                 return await self.async_step_twofactor(
-                    user_input={"securitycode": self.securitycode}
+                    user_input={CONF_SECURITYCODE: self.securitycode}
                 )
-            self.twofactor_schema = OrderedDict([(vol.Required("securitycode",), str,)])
+            self.twofactor_schema = OrderedDict(
+                [(vol.Required(CONF_SECURITYCODE,), str,)]
+            )
             self.automatic_steps = 0
             return self.async_show_form(
                 step_id="twofactor",
@@ -452,11 +455,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """
         if user_input is None:
             return
-        self.securitycode = user_input.get("securitycode")
+        self.securitycode = user_input.get(CONF_SECURITYCODE)
         if self.securitycode is not None:
-            self.config["securitycode"] = self.securitycode
-        elif "securitycode" in self.config:
-            self.config.pop("securitycode")
+            self.config[CONF_SECURITYCODE] = self.securitycode
+        elif CONF_SECURITYCODE in self.config:
+            self.config.pop(CONF_SECURITYCODE)
         if CONF_EMAIL in user_input:
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:
@@ -499,7 +502,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
                 ): str,
                 vol.Optional(
-                    "securitycode",
+                    CONF_SECURITYCODE,
                     default=self.securitycode if self.securitycode else "",
                 ): str,
                 vol.Required(

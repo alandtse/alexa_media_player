@@ -31,7 +31,7 @@ CONF_DEBUG = "debug"
 CONF_INCLUDE_DEVICES = "include_devices"
 CONF_EXCLUDE_DEVICES = "exclude_devices"
 CONF_QUEUE_DELAY = "queue_delay"
-
+CONF_SECURITYCODE = "securitycode"
 DATA_LISTENER = "listener"
 
 EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"

@@ -13,6 +13,7 @@ from datetime import timedelta
 from functools import reduce
 import logging
 from typing import Any, Optional, Text
+import re
 
 from alexapy import AlexaLogin, AlexapyConnectionError, hide_email, obfuscate
 from homeassistant import config_entries
@@ -29,6 +30,7 @@ from homeassistant.helpers import config_validation as cv
 import voluptuous as vol
 
 from .const import (
+    CONF_COOKIES_TXT,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
@@ -88,6 +90,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (vol.Optional(CONF_INCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_EXCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_SCAN_INTERVAL, default=60), int),
+                (vol.Optional(CONF_COOKIES_TXT, default=""), str),
             ]
         )
         self.captcha_schema = OrderedDict(
@@ -180,14 +183,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.hass.config.path,
                     self.config[CONF_DEBUG],
                 )
-                await self.login.login(
-                    cookies=await self.login.load_cookie(), data=self.config
-                )
             else:
                 _LOGGER.debug("Using existing login")
-                await self.login.login(
-                    cookies=await self.login.load_cookie(), data=self.config
-                )
+            await self.login.login(
+                cookies=await self.login.load_cookie(
+                    cookies_txt=self.config[CONF_COOKIES_TXT]
+                ),
+                data=self.config,
+            )
             return await self._test_login()
         except AlexapyConnectionError:
             self.automatic_steps = 0
@@ -276,6 +279,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         _LOGGER.debug("Testing login status: %s", login.status)
         if login.status and login.status.get("login_successful"):
             existing_entry = await self.async_set_unique_id(f"{email} - {login.url}")
+            self.config.pop(CONF_COOKIES_TXT)
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
                     existing_entry, data=self.config
@@ -492,6 +496,21 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
             else:
                 self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
+        if CONF_COOKIES_TXT in user_input:
+            fixed_cookies_txt = "# HTTP Cookie File\n" + re.sub(
+                r" ",
+                r"\n",
+                re.sub(
+                    r"#.*\n",
+                    r"",
+                    re.sub(
+                        r"# ((?:.(?!# ))+)$",
+                        r"\1",
+                        re.sub(r" #", r"\n#", user_input[CONF_COOKIES_TXT]),
+                    ),
+                ),
+            )
+            self.config[CONF_COOKIES_TXT] = fixed_cookies_txt
 
     def _update_schema_defaults(self) -> Any:
         new_schema = self._update_ord_dict(

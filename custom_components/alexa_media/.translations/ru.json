@@ -48,6 +48,7 @@
       },
       "user": {
         "data": {
+          "cookies_txt": "config::step::user::data::cookies_txt",
           "debug": "Расширенные возможности отладки",
           "email": "Адрес электронной почты",
           "exclude_devices": "Исключенные устройства (через запятую)",
@@ -60,8 +61,7 @@
         "description": "Пожалуйста, введите свои данные.",
         "title": "Alexa Media Player - Конфигурация"
       }
-    },
-    "title": "Alexa Media Player"
+    }
   },
   "options": {
     "step": {

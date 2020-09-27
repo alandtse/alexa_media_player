@@ -188,13 +188,11 @@ class AlexaMediaSwitch(SwitchDevice):
         except AttributeError:
             pass
         success = await self._switch_function(state)
-        # if function returns  success, make immediate state change
+        # if function returns success, make immediate state change
         if success:
             setattr(self._client, self._switch_property, state)
             _LOGGER.debug(
-                "Switch set to %s based on %s",
-                getattr(self._client, self._switch_property),
-                state,
+                "%s set to %s", self.name, getattr(self._client, self._switch_property),
             )
             self.async_schedule_update_ha_state()
         elif self.should_poll:

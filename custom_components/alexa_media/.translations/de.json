@@ -48,6 +48,7 @@
       },
       "user": {
         "data": {
+          "cookies_txt": "config::step::user::data::cookies_txt",
           "debug": "Erweitertes debugging",
           "email": "Email Adresse",
           "exclude_devices": "Ausgeschlossene Geräte (komma getrennnt)",
@@ -60,8 +61,7 @@
         "description": "Bitte geben Sie ihre Informationen ein.",
         "title": "Alexa Media Player - Konfiguration"
       }
-    },
-    "title": "Alexa Media Player"
+    }
   },
   "options": {
     "step": {

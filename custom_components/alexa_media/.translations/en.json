@@ -29,7 +29,7 @@
           "password": "Password",
           "securitycode": "2FA Code (recommended to avoid login issues)"
         },
-        "description": "**{email} - alexa.{url}**  \n>{message}  \n{captcha_image}",
+        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
         "title": "Alexa Media Player - Captcha"
       },
       "claimspicker": {
@@ -43,11 +43,12 @@
         "data": {
           "securitycode": "2FA Code"
         },
-        "description": "**{email} - alexa.{url}**  \nEnter the One Time Password (OTP).  \n>{message}",
+        "description": "**{email} - alexa.{url}**  \nEnter the One Time Password (OTP).  \n{message}",
         "title": "Alexa Media Player - Two Factor Authentication"
       },
       "user": {
         "data": {
+          "cookies_txt": "Cookies.txt data",
           "debug": "Advanced debugging",
           "email": "Email Address",
           "exclude_devices": "Excluded device (comma separated)",
@@ -57,11 +58,10 @@
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
-        "description": "Please enter your information.  \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when 2FA Code is required.**  \n>{message}",
+        "description": "Please enter your [information](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) may be easiest!**   \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when [2FA Code is required](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
         "title": "Alexa Media Player - Configuration"
       }
-    },
-    "title": "Alexa Media Player"
+    }
   },
   "options": {
     "step": {

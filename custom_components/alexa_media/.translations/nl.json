@@ -48,6 +48,7 @@
       },
       "user": {
         "data": {
+          "cookies_txt": "config::step::user::data::cookies_txt",
           "debug": "Geavanceerd debuggen",
           "email": "E-mailadres",
           "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
@@ -60,8 +61,7 @@
         "description": "Vul je gegevens in a.u.b.",
         "title": "Alexa Media Player - Configuratie"
       }
-    },
-    "title": "Alexa Media Player"
+    }
   },
   "options": {
     "step": {

@@ -48,6 +48,7 @@
       },
       "user": {
         "data": {
+          "cookies_txt": "config::step::user::data::cookies_txt",
           "debug": "高级调试",
           "email": "电子邮件地址",
           "exclude_devices": "Excluded device (comma separated)",
@@ -60,8 +61,7 @@
         "description": "请输入您的信息。",
         "title": "Alexa Media Player-配置"
       }
-    },
-    "title": "Alexa Media Player"
+    }
   },
   "options": {
     "step": {

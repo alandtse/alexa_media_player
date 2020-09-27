@@ -13,6 +13,7 @@ from datetime import timedelta
 from functools import reduce
 import logging
 from typing import Any, Optional, Text
+import re
 
 from alexapy import AlexaLogin, AlexapyConnectionError, hide_email, obfuscate
 from homeassistant import config_entries
@@ -29,10 +30,12 @@ from homeassistant.helpers import config_validation as cv
 import voluptuous as vol
 
 from .const import (
+    CONF_COOKIES_TXT,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     CONF_QUEUE_DELAY,
+    CONF_SECURITYCODE,
     DATA_ALEXAMEDIA,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
@@ -81,12 +84,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (vol.Required(CONF_EMAIL), str),
                 (vol.Required(CONF_PASSWORD), str),
-                (vol.Optional("securitycode"), str),
+                (vol.Optional(CONF_SECURITYCODE), str),
                 (vol.Required(CONF_URL, default="amazon.com"), str),
                 (vol.Optional(CONF_DEBUG, default=False), bool),
                 (vol.Optional(CONF_INCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_EXCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_SCAN_INTERVAL, default=60), int),
+                (vol.Optional(CONF_COOKIES_TXT, default=""), str),
             ]
         )
         self.captcha_schema = OrderedDict(
@@ -94,7 +98,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (vol.Required(CONF_PASSWORD), str),
                 (
                     vol.Optional(
-                        "securitycode",
+                        CONF_SECURITYCODE,
                         default=self.securitycode if self.securitycode else "",
                     ),
                     str,
@@ -106,7 +110,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (
                     vol.Required(
-                        "securitycode",
+                        CONF_SECURITYCODE,
                         default=self.securitycode if self.securitycode else "",
                     ),
                     str,
@@ -179,14 +183,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.hass.config.path,
                     self.config[CONF_DEBUG],
                 )
-                await self.login.login(
-                    cookies=await self.login.load_cookie(), data=self.config
-                )
             else:
                 _LOGGER.debug("Using existing login")
-                await self.login.login(
-                    cookies=await self.login.load_cookie(), data=self.config
-                )
+            await self.login.login(
+                cookies=await self.login.load_cookie(
+                    cookies_txt=self.config[CONF_COOKIES_TXT]
+                ),
+                data=self.config,
+            )
             return await self._test_login()
         except AlexapyConnectionError:
             self.automatic_steps = 0
@@ -275,6 +279,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         _LOGGER.debug("Testing login status: %s", login.status)
         if login.status and login.status.get("login_successful"):
             existing_entry = await self.async_set_unique_id(f"{email} - {login.url}")
+            self.config.pop(CONF_COOKIES_TXT)
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
                     existing_entry, data=self.config
@@ -309,7 +314,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         CONF_PASSWORD, default=self.config[CONF_PASSWORD]
                     ): str,
                     vol.Optional(
-                        "securitycode",
+                        CONF_SECURITYCODE,
                         default=self.securitycode if self.securitycode else "",
                     ): str,
                 },
@@ -339,11 +344,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "Automatically submitting securitycode %s", self.securitycode
                 )
                 self.automatic_steps += 1
-                sleep(1)
+                await sleep(1)
                 return await self.async_step_twofactor(
-                    user_input={"securitycode": self.securitycode}
+                    user_input={CONF_SECURITYCODE: self.securitycode}
                 )
-            self.twofactor_schema = OrderedDict([(vol.Required("securitycode",), str,)])
+            self.twofactor_schema = OrderedDict(
+                [(vol.Required(CONF_SECURITYCODE,), str,)]
+            )
             self.automatic_steps = 0
             return self.async_show_form(
                 step_id="twofactor",
@@ -424,7 +431,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "Trying automatic resubmission for error_message 'valid email'"
                 )
                 self.automatic_steps += 1
-                sleep(1)
+                await sleep(1)
                 return await self.async_step_user(user_input=self.config)
             self.automatic_steps = 0
             return self.async_show_form(
@@ -452,11 +459,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """
         if user_input is None:
             return
-        self.securitycode = user_input.get("securitycode")
+        self.securitycode = user_input.get(CONF_SECURITYCODE)
         if self.securitycode is not None:
-            self.config["securitycode"] = self.securitycode
-        elif "securitycode" in self.config:
-            self.config.pop("securitycode")
+            self.config[CONF_SECURITYCODE] = self.securitycode
+        elif CONF_SECURITYCODE in self.config:
+            self.config.pop(CONF_SECURITYCODE)
         if CONF_EMAIL in user_input:
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:
@@ -489,6 +496,21 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
             else:
                 self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
+        if CONF_COOKIES_TXT in user_input:
+            fixed_cookies_txt = "# HTTP Cookie File\n" + re.sub(
+                r" ",
+                r"\n",
+                re.sub(
+                    r"#.*\n",
+                    r"",
+                    re.sub(
+                        r"# ((?:.(?!# ))+)$",
+                        r"\1",
+                        re.sub(r" #", r"\n#", user_input[CONF_COOKIES_TXT]),
+                    ),
+                ),
+            )
+            self.config[CONF_COOKIES_TXT] = fixed_cookies_txt
 
     def _update_schema_defaults(self) -> Any:
         new_schema = self._update_ord_dict(
@@ -499,7 +521,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
                 ): str,
                 vol.Optional(
-                    "securitycode",
+                    CONF_SECURITYCODE,
                     default=self.securitycode if self.securitycode else "",
                 ): str,
                 vol.Required(

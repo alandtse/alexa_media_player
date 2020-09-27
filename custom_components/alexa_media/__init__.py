@@ -56,7 +56,7 @@ from .const import (
     SCAN_INTERVAL,
     STARTUP,
 )
-from .helpers import _existing_serials
+from .helpers import _existing_serials, _catch_login_errors
 from .notify import async_unload_entry as notify_async_unload_entry
 from .services import AlexaMediaServices
 
@@ -446,6 +446,7 @@ async def setup_alexa(hass, config_entry, login_obj):
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
 
+    @_catch_login_errors
     async def process_notifications(login_obj, raw_notifications=None):
         """Process raw notifications json."""
         if not raw_notifications:
@@ -488,6 +489,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             ),
         )
 
+    @_catch_login_errors
     async def update_last_called(login_obj, last_called=None):
         """Update the last called device for the login_obj.
 
@@ -518,6 +520,7 @@ async def setup_alexa(hass, config_entry, login_obj):
             )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called"] = last_called
 
+    @_catch_login_errors
     async def update_bluetooth_state(login_obj, device_serial):
         """Update the bluetooth state on ws bluetooth event."""
         bluetooth = await AlexaAPI.get_bluetooth(login_obj)

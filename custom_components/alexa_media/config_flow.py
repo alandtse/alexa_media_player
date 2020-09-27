@@ -339,7 +339,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "Automatically submitting securitycode %s", self.securitycode
                 )
                 self.automatic_steps += 1
-                sleep(1)
+                await sleep(1)
                 return await self.async_step_twofactor(
                     user_input={"securitycode": self.securitycode}
                 )
@@ -424,7 +424,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "Trying automatic resubmission for error_message 'valid email'"
                 )
                 self.automatic_steps += 1
-                sleep(1)
+                await sleep(1)
                 return await self.async_step_user(user_input=self.config)
             self.automatic_steps = 0
             return self.async_show_form(

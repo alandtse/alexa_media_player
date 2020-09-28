@@ -8,7 +8,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 import logging
-from typing import List  # noqa pylint: disable=unused-import
+from typing import List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -22,7 +22,8 @@ from . import (
     hide_email,
     hide_serial,
 )
-from .helpers import _catch_login_errors, add_devices, retry_async
+from .alexa_media import AlexaMedia
+from .helpers import _catch_login_errors, add_devices
 
 try:
     from homeassistant.components.switch import SwitchEntity as SwitchDevice
@@ -80,7 +81,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     )
                     continue
                 alexa_client = class_(
-                    account_dict["entities"]["media_player"][key], account
+                    account_dict["entities"]["media_player"][key]
                 )  # type: AlexaMediaSwitch
                 _LOGGER.debug(
                     "%s: Found %s %s switch with status: %s",
@@ -130,19 +131,20 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-class AlexaMediaSwitch(SwitchDevice):
+class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
     """Representation of a Alexa Media switch."""
 
-    def __init__(self, client, switch_property, switch_function, account, name="Alexa"):
+    def __init__(
+        self, client, switch_property: Text, switch_function: Text, name="Alexa",
+    ):
         """Initialize the Alexa Switch device."""
         # Class info
         self._client = client
-        self._login = client._login
-        self._account = account
         self._name = name
         self._switch_property = switch_property
         self._state = False
         self._switch_function = switch_function
+        super().__init__(client, client._login)
 
     async def async_added_to_hass(self):
         """Store register state change callback."""
@@ -154,7 +156,7 @@ class AlexaMediaSwitch(SwitchDevice):
         # Register event handler on bus
         self._listener = async_dispatcher_connect(
             self.hass,
-            f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32],
+            f"{ALEXA_DOMAIN}_{hide_email(self.email)}"[0:32],
             self._handle_event,
         )
 
@@ -187,7 +189,7 @@ class AlexaMediaSwitch(SwitchDevice):
                 return
         except AttributeError:
             pass
-        success = await self._switch_function(state)
+        success = await getattr(self.alexa_api, self._switch_function)(state)
         # if function returns success, make immediate state change
         if success:
             setattr(self._client, self._switch_property, state)
@@ -255,7 +257,7 @@ class AlexaMediaSwitch(SwitchDevice):
     def should_poll(self):
         """Return the polling state."""
         return not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["websocket"]
+            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email]["websocket"]
         )
 
     @_catch_login_errors
@@ -291,15 +293,11 @@ class AlexaMediaSwitch(SwitchDevice):
 class DNDSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Do Not Disturb switch."""
 
-    def __init__(self, client, account):
+    def __init__(self, client):
         """Initialize the Alexa Switch."""
         # Class info
         super().__init__(
-            client,
-            "dnd_state",
-            client.alexa_api.set_dnd_state,
-            account,
-            "do not disturb",
+            client, "dnd_state", "set_dnd_state", "do not disturb",
         )
 
     @property
@@ -328,12 +326,10 @@ class DNDSwitch(AlexaMediaSwitch):
 class ShuffleSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Shuffle switch."""
 
-    def __init__(self, client, account):
+    def __init__(self, client):
         """Initialize the Alexa Switch."""
         # Class info
-        super().__init__(
-            client, "shuffle", client.alexa_api.shuffle, account, "shuffle"
-        )
+        super().__init__(client, "shuffle", "shuffle", "shuffle")
 
     @property
     def icon(self):
@@ -344,12 +340,10 @@ class ShuffleSwitch(AlexaMediaSwitch):
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""
 
-    def __init__(self, client, account):
+    def __init__(self, client):
         """Initialize the Alexa Switch."""
         # Class info
-        super().__init__(
-            client, "repeat_state", client.alexa_api.repeat, account, "repeat"
-        )
+        super().__init__(client, "repeat_state", "repeat", "repeat")
 
     @property
     def icon(self):

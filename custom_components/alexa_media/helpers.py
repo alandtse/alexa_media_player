@@ -151,6 +151,9 @@ async def _catch_login_errors(func, instance, args, kwargs) -> Any:
     if instance is None and args:
         instance = args[0]
     if hasattr(instance, "check_login_changes"):
+        # _LOGGER.debug(
+        #     "%s checking for login changes", instance,
+        # )
         instance.check_login_changes()
     try:
         result = await func(*args, **kwargs)

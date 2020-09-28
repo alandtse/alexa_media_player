@@ -44,12 +44,6 @@ class AlexaMedia:
         #     self.alexa_api,
         #     self.alexa_api._session.closed,
         # )
-        # _LOGGER.debug("Login object %s closed status: %s", login, login.session.closed)
-        # _LOGGER.debug(
-        #     "Alexaapi %s closed status: %s",
-        #     self.alexa_api,
-        #     self.alexa_api._session.closed,
-        # )
         if self.alexa_api.update_login(login):
             _LOGGER.debug("Login object has changed; updating")
             self._login = login

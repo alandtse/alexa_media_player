@@ -282,6 +282,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia):
         )
         if available_media_players:
             _LOGGER.debug("Sending guard command to: %s", available_media_players[0])
+            available_media_players[0].check_login_changes()
             await available_media_players[0].alexa_api.set_guard_state(
                 self._appliance_id.split("_")[2],
                 command_map[command],

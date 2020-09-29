@@ -418,10 +418,10 @@ async def setup_alexa(hass, config_entry, login_obj):
 
             if serial not in existing_serials:
                 new_alexa_clients.append(dev_name)
-            elif serial in existing_entities:
+            elif serial in existing_serials:
                 await hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
                     "media_player"
-                ].get(serial).refresh(device, no_api=True)
+                ].get(serial).refresh(device, skip_api=True)
         _LOGGER.debug(
             "%s: Existing: %s New: %s;"
             " Filtered out by not being in include: %s "

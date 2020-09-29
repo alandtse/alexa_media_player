@@ -1209,6 +1209,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 media_id,
                 customer_id=self._customer_id,
                 queue_delay=queue_delay,
+                timer=kwargs.get("extra", {}).get("timer", None),
                 **kwargs,
             )
         if not (

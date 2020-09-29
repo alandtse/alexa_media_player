@@ -44,6 +44,7 @@ from .config_flow import in_progess_instances
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
+    CONF_COOKIES_TXT,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
@@ -1012,6 +1013,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
             CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds()
             if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
             else account[CONF_SCAN_INTERVAL],
+            CONF_COOKIES_TXT: account.get(CONF_COOKIES_TXT, ""),
         },
     )
     hass.components.persistent_notification.async_create(

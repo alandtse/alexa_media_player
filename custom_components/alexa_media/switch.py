@@ -192,7 +192,9 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         if success:
             setattr(self._client, self._switch_property, state)
             _LOGGER.debug(
-                "%s set to %s", self.name, getattr(self._client, self._switch_property),
+                "Setting %s to %s",
+                self.name,
+                getattr(self._client, self._switch_property),
             )
             self.async_write_ha_state()
         elif self.should_poll:

@@ -494,6 +494,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     "accounts"
                 ][self._login.email]["last_called"]["timestamp"]
             if skip_api:
+                self.async_write_ha_state()
                 return
             if "MUSIC_SKILL" in self._capabilities:
                 if self._parent_clusters and self.hass:

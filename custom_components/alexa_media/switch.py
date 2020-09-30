@@ -180,7 +180,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
             queue_state = event["queue_state"]
             if queue_state["dopplerId"]["deviceSerialNumber"] == self._client.unique_id:
                 self._state = getattr(self._client, self._switch_property)
-                self.async_schedule_update_ha_state()
+                self.async_write_ha_state()
 
     @_catch_login_errors
     async def _set_switch(self, state, **kwargs):
@@ -196,7 +196,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
             _LOGGER.debug(
                 "%s set to %s", self.name, getattr(self._client, self._switch_property),
             )
-            self.async_schedule_update_ha_state()
+            self.async_write_ha_state()
         elif self.should_poll:
             # if we need to poll, refresh media_client
             _LOGGER.debug(
@@ -269,7 +269,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         except AttributeError:
             pass
         try:
-            self.async_schedule_update_ha_state()
+            self.async_write_ha_state()
         except NoEntitySpecifiedError:
             pass  # we ignore this due to a harmless startup race condition
 
@@ -320,7 +320,7 @@ class DNDSwitch(AlexaMediaSwitch):
             queue_state = event["player_state"]
             if queue_state["dopplerId"]["deviceSerialNumber"] == self._client.unique_id:
                 self._state = getattr(self._client, self._switch_property)
-                self.async_schedule_update_ha_state()
+                self.async_write_ha_state()
 
 
 class ShuffleSwitch(AlexaMediaSwitch):

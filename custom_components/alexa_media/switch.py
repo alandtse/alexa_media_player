@@ -254,9 +254,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
     @property
     def should_poll(self):
         """Return the polling state."""
-        return not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email]["websocket"]
-        )
+        return True
 
     @_catch_login_errors
     async def async_update(self):

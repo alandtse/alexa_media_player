@@ -142,7 +142,6 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         self._client = client
         self._name = name
         self._switch_property = switch_property
-        self._state = False
         self._switch_function = switch_function
         super().__init__(client, client._login)
 
@@ -179,7 +178,6 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         if "queue_state" in event:
             queue_state = event["queue_state"]
             if queue_state["dopplerId"]["deviceSerialNumber"] == self._client.unique_id:
-                self._state = getattr(self._client, self._switch_property)
                 self.async_write_ha_state()
 
     @_catch_login_errors

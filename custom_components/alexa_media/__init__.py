@@ -778,14 +778,18 @@ async def setup_alexa(hass, config_entry, login_obj):
                     if (
                         old_command
                         in {"PUSH_VOLUME_CHANGE", "PUSH_EQUALIZER_STATE_CHANGE"}
-                        and command_time - old_command_time < 1
+                        and command_time - old_command_time < 0.25
                     ):
                         events.append(
                             (old_command, round(command_time - old_command_time, 2))
                         )
+                    elif old_command in {"PUSH_AUDIO_PLAYER_STATE"}:
+                        # There is a potential false positive generated during this event
+                        events = []
                 if len(events) >= 4:
                     _LOGGER.debug(
-                        "Detected potential DND websocket change with %s events %s",
+                        "%s: Detected potential DND websocket change with %s events %s",
+                        hide_serial(serial),
                         len(events),
                         events,
                     )

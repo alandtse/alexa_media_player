@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import datetime
 import logging
-from typing import List, Text  # noqa pylint: disable=unused-import
+from typing import Callable, List, Optional, Text  # noqa pylint: disable=unused-import
 
 from homeassistant.const import (
     DEVICE_CLASS_TIMESTAMP,
@@ -159,7 +159,7 @@ class AlexaMediaNotificationSensor(Entity):
         self._active = []
         self._next = None
         self._prior_value = None
-        self._timestamp: datetime.datetime = None
+        self._state: Optional[datetime.datetime] = None
         self._process_raw_notifications()
 
     def _process_raw_notifications(self):
@@ -177,6 +177,7 @@ class AlexaMediaNotificationSensor(Entity):
             else []
         )
         self._next = self._active[0][1] if self._active else None
+        self._state = self._process_state(self._next)
 
     def _fix_alarm_date_time(self, value):
         if (
@@ -326,9 +327,9 @@ class AlexaMediaNotificationSensor(Entity):
         )
 
     @property
-    def state(self):
+    def state(self) -> datetime.datetime:
         """Return the state of the sensor."""
-        return self._process_state(self._next)
+        return self._state
 
     def _process_state(self, value):
         return (
@@ -434,11 +435,6 @@ class TimerSensor(AlexaMediaNotificationSensor):
             else "mdi:timer",
         )
 
-    @property
-    def state(self) -> datetime.datetime:
-        """Return the state of the sensor."""
-        return self._process_state(self._next)
-
     def _process_state(self, value):
         return (
             dt.as_local(
@@ -479,11 +475,6 @@ class ReminderSensor(AlexaMediaNotificationSensor):
         super().__init__(
             client, n_json, "alarmTime", account, f"next {self._type}", "mdi:reminder"
         )
-
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._process_state(self._next)
 
     def _process_state(self, value):
         return (

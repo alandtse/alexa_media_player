@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.2.1 (2020-10-02)
+### Fix
+* Delay processing until added to hass ([`235e718`](https://github.com/custom-components/alexa_media_player/commit/235e7189480bd2813734e8c7e060ae5d2033778f))
+
 ## v3.2.0 (2020-10-02)
 ### Feature
 * Add notification events ([`6332750`](https://github.com/custom-components/alexa_media_player/commit/63327507e9bbfe9a313b16ed868924da64ad7322))

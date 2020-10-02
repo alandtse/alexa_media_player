@@ -159,6 +159,7 @@ class AlexaMediaNotificationSensor(Entity):
         self._active = []
         self._next = None
         self._prior_value = None
+        self._timestamp: Optional[datetime.datetime] = None
         self._state: Optional[datetime.datetime] = None
         self._process_raw_notifications()
 
@@ -291,7 +292,7 @@ class AlexaMediaNotificationSensor(Entity):
                 event["notification_update"]["dopplerId"]["deviceSerialNumber"]
                 == self._client.unique_id
             ):
-                _LOGGER.debug("Updating sensor %s", self.name)
+                _LOGGER.debug("Updating sensor %s", self)
                 self.async_schedule_update_ha_state(True)
 
     @property
@@ -450,7 +451,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
         )
 
     @property
-    def paused(self) -> bool:
+    def paused(self) -> Optional[bool]:
         """Return the paused state of the sensor."""
         return self._next["status"] == "PAUSED" if self._next else None
 

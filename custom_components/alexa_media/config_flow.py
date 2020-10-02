@@ -279,7 +279,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         _LOGGER.debug("Testing login status: %s", login.status)
         if login.status and login.status.get("login_successful"):
             existing_entry = await self.async_set_unique_id(f"{email} - {login.url}")
-            self.config.pop(CONF_COOKIES_TXT)
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
                     existing_entry, data=self.config
@@ -541,6 +540,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
                 ): int,
+                vol.Optional(
+                    CONF_COOKIES_TXT, default=self.config.get(CONF_COOKIES_TXT, "")
+                ): str,
             },
         )
         return new_schema

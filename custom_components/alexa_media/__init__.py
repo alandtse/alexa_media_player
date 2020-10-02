@@ -38,12 +38,14 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt
+from homeassistant import util
 import voluptuous as vol
 
 from .config_flow import in_progess_instances
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
+    CONF_COOKIES_TXT,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
@@ -53,6 +55,8 @@ from .const import (
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
     ISSUE_URL,
+    MIN_TIME_BETWEEN_FORCED_SCANS,
+    MIN_TIME_BETWEEN_SCANS,
     SCAN_INTERVAL,
     STARTUP,
 )
@@ -417,10 +421,10 @@ async def setup_alexa(hass, config_entry, login_obj):
 
             if serial not in existing_serials:
                 new_alexa_clients.append(dev_name)
-            elif serial in existing_entities:
+            elif serial in existing_serials:
                 await hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
                     "media_player"
-                ].get(serial).refresh(device, no_api=True)
+                ].get(serial).refresh(device, skip_api=True)
         _LOGGER.debug(
             "%s: Existing: %s New: %s;"
             " Filtered out by not being in include: %s "
@@ -545,6 +549,22 @@ async def setup_alexa(hass, config_entry, login_obj):
         )
         return None
 
+    @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
+    @_catch_login_errors
+    async def update_dnd_state(login_obj) -> None:
+        """Update the dnd state on ws dnd combo event."""
+        dnd = await AlexaAPI.get_dnd_state(login_obj)
+
+        if "doNotDisturbDeviceStatusList" in dnd:
+            async_dispatcher_send(
+                hass,
+                f"{DOMAIN}_{hide_email(email)}"[0:32],
+                {"dnd_update": dnd["doNotDisturbDeviceStatusList"]},
+            )
+            return
+        _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
+        return
+
     async def ws_connect() -> WebsocketEchoClient:
         """Open WebSocket connection.
 
@@ -606,9 +626,11 @@ async def setup_alexa(hass, config_entry, login_obj):
                 hide_serial(json_payload),
             )
             serial = None
+            command_time = time.time()
             if command not in seen_commands:
-                seen_commands[command] = time.time()
                 _LOGGER.debug("Adding %s to seen_commands: %s", command, seen_commands)
+            seen_commands[command] = command_time
+
             if (
                 "dopplerId" in json_payload
                 and "deviceSerialNumber" in json_payload["dopplerId"]
@@ -728,6 +750,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                 "PUSH_DELETE_DOPPLER_ACTIVITIES",  # delete Alexa history
                 "PUSH_LIST_ITEM_CHANGE",  # update shopping list
                 "PUSH_CONTENT_FOCUS_CHANGE",  # likely prime related refocus
+                "PUSH_DEVICE_SETUP_STATE_CHANGE",  # likely device changes mid setup
             ]:
                 pass
             else:
@@ -738,9 +761,39 @@ async def setup_alexa(hass, config_entry, login_obj):
                     ISSUE_URL,
                 )
             if serial in existing_serials:
+                history = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                    "websocket_activity"
+                ]["serials"].get(serial)
+                if history is None or (
+                    history and command_time - history[len(history) - 1][1] > 2
+                ):
+                    history = [(command, command_time)]
+                else:
+                    history.append([command, command_time])
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket_activity"][
                     "serials"
-                ][serial] = time.time()
+                ][serial] = history
+                events = []
+                for old_command, old_command_time in history:
+                    if (
+                        old_command
+                        in {"PUSH_VOLUME_CHANGE", "PUSH_EQUALIZER_STATE_CHANGE"}
+                        and command_time - old_command_time < 0.25
+                    ):
+                        events.append(
+                            (old_command, round(command_time - old_command_time, 2))
+                        )
+                    elif old_command in {"PUSH_AUDIO_PLAYER_STATE"}:
+                        # There is a potential false positive generated during this event
+                        events = []
+                if len(events) >= 4:
+                    _LOGGER.debug(
+                        "%s: Detected potential DND websocket change with %s events %s",
+                        hide_serial(serial),
+                        len(events),
+                        events,
+                    )
+                    await update_dnd_state(login_obj)
             if (
                 serial
                 and serial not in existing_serials
@@ -1011,6 +1064,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
             CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds()
             if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
             else account[CONF_SCAN_INTERVAL],
+            CONF_COOKIES_TXT: account.get(CONF_COOKIES_TXT, ""),
         },
     )
     hass.components.persistent_notification.async_create(

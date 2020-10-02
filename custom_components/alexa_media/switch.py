@@ -142,7 +142,6 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         self._client = client
         self._name = name
         self._switch_property = switch_property
-        self._state = False
         self._switch_function = switch_function
         super().__init__(client, client._login)
 
@@ -179,8 +178,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         if "queue_state" in event:
             queue_state = event["queue_state"]
             if queue_state["dopplerId"]["deviceSerialNumber"] == self._client.unique_id:
-                self._state = getattr(self._client, self._switch_property)
-                self.async_schedule_update_ha_state()
+                self.async_write_ha_state()
 
     @_catch_login_errors
     async def _set_switch(self, state, **kwargs):
@@ -194,9 +192,11 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         if success:
             setattr(self._client, self._switch_property, state)
             _LOGGER.debug(
-                "%s set to %s", self.name, getattr(self._client, self._switch_property),
+                "Setting %s to %s",
+                self.name,
+                getattr(self._client, self._switch_property),
             )
-            self.async_schedule_update_ha_state()
+            self.async_write_ha_state()
         elif self.should_poll:
             # if we need to poll, refresh media_client
             _LOGGER.debug(
@@ -256,9 +256,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
     @property
     def should_poll(self):
         """Return the polling state."""
-        return not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email]["websocket"]
-        )
+        return True
 
     @_catch_login_errors
     async def async_update(self):
@@ -269,7 +267,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         except AttributeError:
             pass
         try:
-            self.async_schedule_update_ha_state()
+            self.async_write_ha_state()
         except NoEntitySpecifiedError:
             pass  # we ignore this due to a harmless startup race condition
 
@@ -306,21 +304,24 @@ class DNDSwitch(AlexaMediaSwitch):
         return super()._icon("mdi:do-not-disturb", "mdi:do-not-disturb-off")
 
     def _handle_event(self, event):
-        """Handle events.
-
-        This will update PUSH_EQUALIZER_STATE_CHANGE events to see if the DND switch
-        should be updated.
-        """
+        """Handle events."""
         try:
             if not self.enabled:
                 return
         except AttributeError:
             pass
-        if "player_state" in event:
-            queue_state = event["player_state"]
-            if queue_state["dopplerId"]["deviceSerialNumber"] == self._client.unique_id:
-                self._state = getattr(self._client, self._switch_property)
-                self.async_schedule_update_ha_state()
+        if "dnd_update" in event:
+            result = list(
+                filter(
+                    lambda x: x["deviceSerialNumber"] == self._client.unique_id,
+                    event["dnd_update"],
+                )
+            )
+            state = result[0]["enabled"] is True
+            if result and state != self.is_on:
+                _LOGGER.debug("Detected %s changed to %s", self, state)
+                setattr(self._client, self._switch_property, state)
+                self.async_write_ha_state()
 
 
 class ShuffleSwitch(AlexaMediaSwitch):

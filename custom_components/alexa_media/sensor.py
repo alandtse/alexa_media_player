@@ -163,7 +163,6 @@ class AlexaMediaNotificationSensor(Entity):
         self._timestamp: Optional[datetime.datetime] = None
         self._tracker: Optional[Callable] = None
         self._state: Optional[datetime.datetime] = None
-        self._process_raw_notifications()
 
     def _process_raw_notifications(self):
         self._all = (
@@ -295,6 +294,7 @@ class AlexaMediaNotificationSensor(Entity):
                 return
         except AttributeError:
             pass
+        self._process_raw_notifications()
         # Register event handler on bus
         self._listener = async_dispatcher_connect(
             self.hass,

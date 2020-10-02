@@ -19,6 +19,7 @@ from homeassistant.const import (
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt
 from packaging import version
 import pytz
@@ -160,6 +161,7 @@ class AlexaMediaNotificationSensor(Entity):
         self._next = None
         self._prior_value = None
         self._timestamp: Optional[datetime.datetime] = None
+        self._tracker: Optional[Callable] = None
         self._state: Optional[datetime.datetime] = None
         self._process_raw_notifications()
 
@@ -179,6 +181,36 @@ class AlexaMediaNotificationSensor(Entity):
         )
         self._next = self._active[0][1] if self._active else None
         self._state = self._process_state(self._next)
+        if self._state == STATE_UNAVAILABLE or self._next != self._prior_value:
+            # cancel any event triggers
+            if self._tracker:
+                _LOGGER.debug(
+                    "%s: Cancelling old event", self,
+                )
+                self._tracker()
+            if self._state != STATE_UNAVAILABLE:
+                _LOGGER.debug(
+                    "%s: Scheduling event in %s",
+                    self,
+                    dt.as_utc(dt.parse_datetime(self._state)) - dt.utcnow(),
+                )
+                self._tracker = async_track_point_in_utc_time(
+                    self.hass,
+                    self._trigger_event,
+                    dt.as_utc(dt.parse_datetime(self._state)),
+                )
+
+    def _trigger_event(self, time_date) -> None:
+        _LOGGER.debug(
+            "%s:Firing %s at %s",
+            self,
+            "alexa_media_notification_event",
+            dt.as_local(time_date),
+        )
+        self.hass.bus.async_fire(
+            "alexa_media_notification_event",
+            event_data={"email": hide_email(self._account), "event": self._active[0]},
+        )
 
     def _fix_alarm_date_time(self, value):
         if (
@@ -275,6 +307,8 @@ class AlexaMediaNotificationSensor(Entity):
         """Prepare to remove entity."""
         # Register event handler on bus
         self._listener()
+        if self._tracker:
+            self._tracker()
 
     def _handle_event(self, event):
         """Handle events.

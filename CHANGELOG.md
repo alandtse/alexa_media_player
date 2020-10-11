@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.2.2 (2020-10-11)
+### Fix
+* Stop refresh on disabled entities ([`db3fa9c`](https://github.com/custom-components/alexa_media_player/commit/db3fa9c3d8afd55be2d094667110c8ac825a227f))
+
 ## v3.2.1 (2020-10-02)
 ### Fix
 * Delay processing until added to hass ([`235e718`](https://github.com/custom-components/alexa_media_player/commit/235e7189480bd2813734e8c7e060ae5d2033778f))

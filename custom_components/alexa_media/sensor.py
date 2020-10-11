@@ -431,13 +431,9 @@ class AlexaMediaNotificationSensor(Entity):
 
         attr = {
             "recurrence": self.recurrence,
-            "process_timestamp": 
-
-                dt.as_local(
-                        datetime.datetime.fromtimestamp(
-                            self._timestamp.timestamp()
-                        )
-                ).isoformat(),            
+            "process_timestamp": dt.as_local(
+                datetime.datetime.fromtimestamp(self._timestamp.timestamp())
+            ).isoformat(),
             "prior_value": self._process_state(self._prior_value),
             "total_active": len(self._active),
             "total_all": len(self._all),

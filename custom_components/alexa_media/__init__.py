@@ -421,7 +421,17 @@ async def setup_alexa(hass, config_entry, login_obj):
 
             if serial not in existing_serials:
                 new_alexa_clients.append(dev_name)
-            elif serial in existing_serials:
+            elif (
+                serial in existing_serials
+                and hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
+                    "media_player"
+                ].get(serial)
+                and hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
+                    "media_player"
+                ]
+                .get(serial)
+                .enabled
+            ):
                 await hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
                     "media_player"
                 ].get(serial).refresh(device, skip_api=True)

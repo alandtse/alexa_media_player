@@ -493,7 +493,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._last_called_timestamp = self.hass.data[DATA_ALEXAMEDIA][
                     "accounts"
                 ][self._login.email]["last_called"]["timestamp"]
-            if skip_api:
+            if skip_api and self.hass:
                 self.async_write_ha_state()
                 return
             if "MUSIC_SKILL" in self._capabilities:

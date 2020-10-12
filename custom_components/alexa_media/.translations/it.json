@@ -58,7 +58,7 @@
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Regione del dominio Amazon (e.g., amazon.it)"
         },
-        "description": "Prego inserisci le tue informazioni.",
+        "description": "Prego inserisci le tue [informazioni](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) potrebbe essere più semplice!**   \n**ATTENZIONE: Amazon risponde incorrettamente 'Inserire una mail valida o un numero di telefono' quando è richiesto il codice 2FA](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).** \n>{message}",
         "title": "Alexa Media Player - Configurazione"
       }
     }

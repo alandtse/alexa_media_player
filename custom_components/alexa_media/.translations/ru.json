@@ -58,7 +58,7 @@
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Домен региона Amazon (например, amazon.co.uk)"
         },
-        "description": "Пожалуйста, введите свои данные.",
+        "description": "Пожалуйста, введите свои данные.{message}",
         "title": "Alexa Media Player - Конфигурация"
       }
     }

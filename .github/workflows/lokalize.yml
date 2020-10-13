@@ -1,0 +1,20 @@
+name: Lokalize
+
+on:
+  push:
+    branches: [ ci ]
+  pull_request:
+    branches: [ ci ]
+
+jobs:
+  lokalize:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v2
+      - name: Downloading translations
+        run: |
+          docker run -v /tmp/lokalise:/opt/dest lokalise/lokalise-cli-2 lokalise2 --token "${{ secrets.lokalise_token }}" --project-id 465185555eee18dd537ca6.39714580 file download --format json --unzip-to /opt/dest --original-filenames=false --export-sort a_z --placeholder-format icu
+      - name: Ls lokalise
+        run: |
+          ls /tmp/lokalise/locale

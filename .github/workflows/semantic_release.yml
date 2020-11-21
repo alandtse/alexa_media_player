@@ -55,7 +55,7 @@ jobs:
           zip alexa_media.zip -r ./
       - name: Set release variable
         run: |
-          echo "release_version=`git describe --abbrev=0`" >> ${{ github.ref }}
+          echo "release_version=`git describe --abbrev=0`" >> $GITHUB_ENV
       - name: Sleep
         # add delay so upload does not kill the release notes from semantic-release
         run: |
@@ -66,5 +66,5 @@ jobs:
           repo_token: ${{ secrets.GH_TOKEN }}
           file: /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/alexa_media.zip
           asset_name: alexa_media.zip
-          tag: ${{ github.ref }}
+          tag: $release_version
           overwrite: true

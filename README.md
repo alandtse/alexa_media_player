@@ -35,7 +35,7 @@ Please reference the [release history](https://github.com/custom-components/alex
 
 # How to Help
 
-While it'd be nice to have more developers, you can contribute without knowing how to code. You can [file bugs/feature requests](https://github.com/custom-components/alexa_media_player/issues), help answer questions here and on the HA [forums](https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639), or you can help with other tasks like [translations](##translations) and updating the [wiki](##documentation).
+While it'd be nice to have more developers, you can contribute without knowing how to code. You can [file bugs/feature requests](https://github.com/custom-components/alexa_media_player/issues), help answer questions here and on the HA [forums](https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639), or you can help with other tasks like [translations](##translations) and updating the [wiki](https://github.com/custom-components/alexa_media_player/wiki).
 
 ## Translations
 

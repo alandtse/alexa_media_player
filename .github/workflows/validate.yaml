@@ -22,7 +22,6 @@ jobs:
           key: custom-component-ci
       - uses: hacs/integration/action@main
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CATEGORY: integration
       - uses: KTibow/ha-blueprint@stable
         name: CI

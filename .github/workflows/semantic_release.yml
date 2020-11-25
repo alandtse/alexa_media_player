@@ -55,7 +55,7 @@ jobs:
           zip alexa_media.zip -r ./
       - name: Set release variable
         run: |
-          echo "::set-env name=release_version::`git describe --abbrev=0`"
+          echo "release_version=`git describe --abbrev=0`" >> $GITHUB_ENV
       - name: Sleep
         # add delay so upload does not kill the release notes from semantic-release
         run: |

@@ -20,7 +20,7 @@ jobs:
           path: |
             ~/.cache/pip
           key: custom-component-ci
-      - uses: hacs/integration/action@main
+      - uses: hacs/action@main
         with:
           CATEGORY: integration
       - uses: KTibow/ha-blueprint@stable

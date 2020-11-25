@@ -39,6 +39,7 @@ from .const import (
     DATA_ALEXAMEDIA,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
+    HTTP_COOKIE_HEADER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -187,7 +188,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 _LOGGER.debug("Using existing login")
             await self.login.login(
                 cookies=await self.login.load_cookie(
-                    cookies_txt=self.config[CONF_COOKIES_TXT]
+                    cookies_txt=self.config.get(CONF_COOKIES_TXT, "")
                 ),
                 data=self.config,
             )
@@ -495,8 +496,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
             else:
                 self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
-        if CONF_COOKIES_TXT in user_input:
-            fixed_cookies_txt = "# HTTP Cookie File\n" + re.sub(
+        if (
+            user_input.get(CONF_COOKIES_TXT)
+            and f"{HTTP_COOKIE_HEADER}\n" != user_input[CONF_COOKIES_TXT]
+        ):
+            fixed_cookies_txt = re.sub(
                 r" ",
                 r"\n",
                 re.sub(
@@ -509,7 +513,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                 ),
             )
+            if not fixed_cookies_txt.startswith(HTTP_COOKIE_HEADER):
+                fixed_cookies_txt = f"{HTTP_COOKIE_HEADER}\n{fixed_cookies_txt}"
             self.config[CONF_COOKIES_TXT] = fixed_cookies_txt
+            _LOGGER.debug("Setting cookies to:\n%s", fixed_cookies_txt)
 
     def _update_schema_defaults(self) -> Any:
         new_schema = self._update_ord_dict(

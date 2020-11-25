@@ -26,6 +26,7 @@ ALEXA_COMPONENTS = [
 ]
 DEPENDENT_ALEXA_COMPONENTS = ["notify", "switch", "sensor", "alarm_control_panel"]
 
+HTTP_COOKIE_HEADER = "# HTTP Cookie File"
 CONF_ACCOUNTS = "accounts"
 CONF_COOKIES_TXT = "cookies_txt"
 CONF_DEBUG = "debug"

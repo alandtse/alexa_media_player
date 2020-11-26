@@ -49,6 +49,7 @@ from .const import (
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
+    CONF_OTPSECRET,
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DATA_LISTENER,
@@ -134,6 +135,7 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_SCAN_INTERVAL: account[
                                 CONF_SCAN_INTERVAL
                             ].total_seconds(),
+                            CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
                         },
                     )
                     entry_found = True
@@ -152,6 +154,7 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                         CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),
+                        CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
                     },
                 )
             )
@@ -239,7 +242,14 @@ async def async_setup_entry(hass, config_entry):
     )
     login = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
         "login_obj",
-        AlexaLogin(url, email, password, hass.config.path, account.get(CONF_DEBUG)),
+        AlexaLogin(
+            url,
+            email,
+            password,
+            hass.config.path,
+            account.get(CONF_DEBUG),
+            account.get(CONF_OTPSECRET, ""),
+        ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
     await login.login(cookies=await login.load_cookie())
@@ -459,6 +469,7 @@ async def setup_alexa(hass, config_entry, login_obj):
                 )
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
+        await login_obj.save_cookiefile()
 
     @_catch_login_errors
     async def process_notifications(login_obj, raw_notifications=None):
@@ -1011,6 +1022,7 @@ async def close_connections(hass, email: Text) -> None:
         return
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
     login_obj = account_dict["login_obj"]
+    await login_obj.save_cookiefile()
     await login_obj.close()
     _LOGGER.debug(
         "%s: Connection closed: %s", hide_email(email), login_obj.session.closed
@@ -1075,6 +1087,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
             if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
             else account[CONF_SCAN_INTERVAL],
             CONF_COOKIES_TXT: account.get(CONF_COOKIES_TXT, ""),
+            CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
         },
     )
     hass.components.persistent_notification.async_create(

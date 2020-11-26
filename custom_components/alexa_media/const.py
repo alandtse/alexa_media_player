@@ -34,6 +34,8 @@ CONF_INCLUDE_DEVICES = "include_devices"
 CONF_EXCLUDE_DEVICES = "exclude_devices"
 CONF_QUEUE_DELAY = "queue_delay"
 CONF_SECURITYCODE = "securitycode"
+CONF_OTPSECRET = "otp_secret"
+CONF_TOTP_REGISTER = "registered"
 DATA_LISTENER = "listener"
 
 EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"

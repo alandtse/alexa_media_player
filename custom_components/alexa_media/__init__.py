@@ -182,7 +182,12 @@ async def async_setup_entry(hass, config_entry):
                 )
                 if login_obj is None:
                     login_obj = AlexaLogin(
-                        url, email, password, hass.config.path, account.get(CONF_DEBUG)
+                        url,
+                        email,
+                        password,
+                        hass.config.path,
+                        account.get(CONF_DEBUG),
+                        account.get(CONF_OTPSECRET, ""),
                     )
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                         "login_obj"
@@ -1055,6 +1060,19 @@ async def test_login_status(hass, config_entry, login) -> bool:
         return True
     account = config_entry.data
     _LOGGER.debug("Logging in: %s %s", obfuscate(account), in_progess_instances(hass))
+    _LOGGER.debug("Login stats: %s", login.stats)
+    message: Text = (
+        "Reauthenticate on the [Integrations](/config/integrations) page. "
+    )
+    if login.stats.get("login_timestamp") != datetime(1, 1, 1):
+        elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
+        api_calls: int = login.stats.get("api_calls")
+        message += f"Relogin required after {elaspsed_time} and {api_calls} api calls."
+    hass.components.persistent_notification.async_create(
+        title="Alexa Media Reauthentication Required",
+        message=message,
+        notification_id="alexa_media_relogin_required",
+    )
     flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
         f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
     )
@@ -1089,10 +1107,5 @@ async def test_login_status(hass, config_entry, login) -> bool:
             CONF_COOKIES_TXT: account.get(CONF_COOKIES_TXT, ""),
             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
         },
-    )
-    hass.components.persistent_notification.async_create(
-        title="Alexa Media Reauthentication Required",
-        message=("Reauthenticate on the [Integrations](/config/integrations) page."),
-        notification_id="alexa_media_relogin_required",
     )
     return False

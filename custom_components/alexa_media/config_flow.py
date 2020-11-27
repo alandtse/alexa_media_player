@@ -12,6 +12,7 @@ from collections import OrderedDict
 from datetime import timedelta
 from functools import reduce
 import logging
+import datetime
 from typing import Any, Optional, Text
 import re
 
@@ -160,10 +161,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={"message": ""},
             )
 
-        if f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}" in configured_instances(
-            self.hass
-        ) and not self.hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
-            f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+        if (
+            not self.config.get("reauth")
+            and f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+            in configured_instances(self.hass)
+            and not self.hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
+                f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+            )
         ):
             _LOGGER.debug("Existing account found")
             self.automatic_steps = 0
@@ -301,11 +305,29 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             "Creating reauth form with %s", obfuscate(self.config),
         )
         self.automatic_steps = 0
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(reauth_schema),
-            description_placeholders={"message": "REAUTH"},
-        )
+        if self.login is None:
+            try:
+                self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    self.config[CONF_EMAIL]
+                ].get("login_obj")
+            except KeyError:
+                self.login = None
+        seconds_since_login: int = (
+            datetime.datetime.now() - self.login.stats["login_timestamp"]
+        ).seconds if self.login else 60
+        if seconds_since_login < 60:
+            _LOGGER.debug(
+                "Relogin requested within %s seconds; manual login required",
+                seconds_since_login,
+            )
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(reauth_schema),
+                description_placeholders={"message": "REAUTH"},
+            )
+        _LOGGER.debug("Attempting automatic relogin")
+        await sleep(15)
+        return await self.async_step_user(self.config)
 
     async def _test_login(self):
         login = self.login
@@ -313,8 +335,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         _LOGGER.debug("Testing login status: %s", login.status)
         if login.status and login.status.get("login_successful"):
             existing_entry = await self.async_set_unique_id(f"{email} - {login.url}")
-            self.config.pop("reauth")
-            self.config.pop(CONF_SECURITYCODE)
+            if self.config.get("reauth"):
+                self.config.pop("reauth")
+            if self.config.get(CONF_SECURITYCODE):
+                self.config.pop(CONF_SECURITYCODE)
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
                     existing_entry, data=self.config

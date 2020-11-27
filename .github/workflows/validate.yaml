@@ -1,4 +1,4 @@
-name: "Custom Component CI"
+name: "Validate"
 on:
   push:
   pull_request:

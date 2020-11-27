@@ -39,6 +39,13 @@
         "description": "**{email} - alexa.{url}**\nПожалуйста, выберите способ проверки по номеру. (например, \" 0 \" или \" 1`)\n{message}",
         "title": "Alexa Media Player - Метод проверки"
       },
+      "totp_register": {
+        "data": {
+          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+        },
+        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
+        "title": "Alexa Media Player - OTP Confirmation"
+      },
       "twofactor": {
         "data": {
           "securitycode": "2-факторная авторизация"
@@ -53,6 +60,7 @@
           "email": "Адрес электронной почты",
           "exclude_devices": "Исключенные устройства (через запятую)",
           "include_devices": "Включенные устройства (разделенное запятыми)",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Пароль",
           "scan_interval": "Секунды между сканированиями",
           "securitycode": "2FA Code (recommended to avoid login issues)",

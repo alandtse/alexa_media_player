@@ -39,6 +39,13 @@
         "description": "**{email} - alexa.{url}**  \nSelecteer de verificatiemethode (bv.`0` of `1`)  \n{message}",
         "title": "Alexa Media Player - Verificatiemethode"
       },
+      "totp_register": {
+        "data": {
+          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+        },
+        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
+        "title": "Alexa Media Player - OTP Confirmation"
+      },
       "twofactor": {
         "data": {
           "securitycode": "Verificatiecode"
@@ -53,6 +60,7 @@
           "email": "E-mailadres",
           "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
           "include_devices": "Apparaten toevoegen (Scheiding: komma)",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Paswoord",
           "scan_interval": "Aantal seconden tussen scans",
           "securitycode": "2FA Code (recommended to avoid login issues)",

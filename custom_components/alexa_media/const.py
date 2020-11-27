@@ -26,6 +26,7 @@ ALEXA_COMPONENTS = [
 ]
 DEPENDENT_ALEXA_COMPONENTS = ["notify", "switch", "sensor", "alarm_control_panel"]
 
+HTTP_COOKIE_HEADER = "# HTTP Cookie File"
 CONF_ACCOUNTS = "accounts"
 CONF_COOKIES_TXT = "cookies_txt"
 CONF_DEBUG = "debug"
@@ -33,6 +34,8 @@ CONF_INCLUDE_DEVICES = "include_devices"
 CONF_EXCLUDE_DEVICES = "exclude_devices"
 CONF_QUEUE_DELAY = "queue_delay"
 CONF_SECURITYCODE = "securitycode"
+CONF_OTPSECRET = "otp_secret"
+CONF_TOTP_REGISTER = "registered"
 DATA_LISTENER = "listener"
 
 EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"

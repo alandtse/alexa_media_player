@@ -12,6 +12,7 @@ from collections import OrderedDict
 from datetime import timedelta
 from functools import reduce
 import logging
+import datetime
 from typing import Any, Optional, Text
 import re
 
@@ -36,9 +37,12 @@ from .const import (
     CONF_INCLUDE_DEVICES,
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
+    CONF_OTPSECRET,
+    CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
+    HTTP_COOKIE_HEADER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -84,8 +88,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (vol.Required(CONF_EMAIL), str),
                 (vol.Required(CONF_PASSWORD), str),
-                (vol.Optional(CONF_SECURITYCODE), str),
                 (vol.Required(CONF_URL, default="amazon.com"), str),
+                (vol.Optional(CONF_SECURITYCODE), str),
+                (vol.Optional(CONF_OTPSECRET), str),
                 (vol.Optional(CONF_DEBUG, default=False), bool),
                 (vol.Optional(CONF_INCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_EXCLUDE_DEVICES, default=""), str),
@@ -136,6 +141,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.verificationcode_schema = OrderedDict(
             [(vol.Required("verificationcode"), str)]
         )
+        self.totp_register = OrderedDict(
+            [(vol.Optional(CONF_TOTP_REGISTER, default=False), bool)]
+        )
 
     async def async_step_import(self, import_config):
         """Import a config entry from configuration.yaml."""
@@ -153,10 +161,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={"message": ""},
             )
 
-        if f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}" in configured_instances(
-            self.hass
-        ) and not self.hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
-            f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+        if (
+            not self.config.get("reauth")
+            and f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+            in configured_instances(self.hass)
+            and not self.hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
+                f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+            )
         ):
             _LOGGER.debug("Existing account found")
             self.automatic_steps = 0
@@ -182,12 +193,30 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.config[CONF_PASSWORD],
                     self.hass.config.path,
                     self.config[CONF_DEBUG],
+                    self.config[CONF_OTPSECRET],
                 )
             else:
                 _LOGGER.debug("Using existing login")
+            if (
+                not self.config.get("reauth")
+                and user_input
+                and user_input.get(CONF_OTPSECRET)
+            ):
+                _LOGGER.debug("Generating OTP from %s", self.login.get_totp_token())
+
+                return self.async_show_form(
+                    step_id="totp_register",
+                    data_schema=vol.Schema(self.totp_register),
+                    errors={},
+                    description_placeholders={
+                        "email": self.login.email,
+                        "url": self.login.url,
+                        "message": self.login.get_totp_token(),
+                    },
+                )
             await self.login.login(
                 cookies=await self.login.load_cookie(
-                    cookies_txt=self.config[CONF_COOKIES_TXT]
+                    cookies_txt=self.config.get(CONF_COOKIES_TXT, "")
                 ),
                 data=self.config,
             )
@@ -217,6 +246,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     async def async_step_twofactor(self, user_input=None):
         """Handle the input processing of the config flow."""
         return await self.async_step_process("two_factor", user_input)
+
+    async def async_step_totp_register(self, user_input=None):
+        """Handle the input processing of the config flow."""
+        self._save_user_input_to_config(user_input=user_input)
+        if user_input and user_input.get("registered") is False:
+            _LOGGER.debug("Not registered, regenerating")
+            return await self.async_step_user(user_input)
+        return await self.async_step_process("totp_register", self.config)
 
     async def async_step_claimspicker(self, user_input=None):
         """Handle the input processing of the config flow."""
@@ -262,16 +299,35 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     async def async_step_reauth(self, user_input=None):
         """Handle reauth processing for the config flow."""
         self._save_user_input_to_config(user_input)
+        self.config["reauth"] = True
         reauth_schema = self._update_schema_defaults()
         _LOGGER.debug(
             "Creating reauth form with %s", obfuscate(self.config),
         )
         self.automatic_steps = 0
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(reauth_schema),
-            description_placeholders={"message": "REAUTH"},
-        )
+        if self.login is None:
+            try:
+                self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    self.config[CONF_EMAIL]
+                ].get("login_obj")
+            except KeyError:
+                self.login = None
+        seconds_since_login: int = (
+            datetime.datetime.now() - self.login.stats["login_timestamp"]
+        ).seconds if self.login else 60
+        if seconds_since_login < 60:
+            _LOGGER.debug(
+                "Relogin requested within %s seconds; manual login required",
+                seconds_since_login,
+            )
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(reauth_schema),
+                description_placeholders={"message": "REAUTH"},
+            )
+        _LOGGER.debug("Attempting automatic relogin")
+        await sleep(15)
+        return await self.async_step_user(self.config)
 
     async def _test_login(self):
         login = self.login
@@ -279,6 +335,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         _LOGGER.debug("Testing login status: %s", login.status)
         if login.status and login.status.get("login_successful"):
             existing_entry = await self.async_set_unique_id(f"{email} - {login.url}")
+            if self.config.get("reauth"):
+                self.config.pop("reauth")
+            if self.config.get(CONF_SECURITYCODE):
+                self.config.pop(CONF_SECURITYCODE)
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
                     existing_entry, data=self.config
@@ -338,12 +398,25 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "Creating config_flow to request 2FA. Saved security code %s",
                 self.securitycode,
             )
-            if self.securitycode and self.automatic_steps < 1:
-                _LOGGER.debug(
-                    "Automatically submitting securitycode %s", self.securitycode
-                )
+            generated_securitycode: Text = login.get_totp_token()
+            if (
+                self.securitycode or generated_securitycode
+            ) and self.automatic_steps < 3:
+                if self.securitycode:
+                    _LOGGER.debug(
+                        "Automatically submitting securitycode %s", self.securitycode
+                    )
+                else:
+                    _LOGGER.debug(
+                        "Automatically submitting generated securitycode %s",
+                        generated_securitycode,
+                    )
                 self.automatic_steps += 1
-                await sleep(1)
+                await sleep(5)
+                if generated_securitycode:
+                    return await self.async_step_twofactor(
+                        user_input={CONF_SECURITYCODE: generated_securitycode}
+                    )
                 return await self.async_step_twofactor(
                     user_input={CONF_SECURITYCODE: self.securitycode}
                 )
@@ -430,7 +503,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "Trying automatic resubmission for error_message 'valid email'"
                 )
                 self.automatic_steps += 1
-                await sleep(1)
+                await sleep(5)
                 return await self.async_step_user(user_input=self.config)
             self.automatic_steps = 0
             return self.async_show_form(
@@ -463,6 +536,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_SECURITYCODE] = self.securitycode
         elif CONF_SECURITYCODE in self.config:
             self.config.pop(CONF_SECURITYCODE)
+        if user_input.get(CONF_OTPSECRET):
+            self.config[CONF_OTPSECRET] = user_input[CONF_OTPSECRET].replace(" ", "")
         if CONF_EMAIL in user_input:
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:
@@ -495,8 +570,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
             else:
                 self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
-        if CONF_COOKIES_TXT in user_input:
-            fixed_cookies_txt = "# HTTP Cookie File\n" + re.sub(
+        if (
+            user_input.get(CONF_COOKIES_TXT)
+            and f"{HTTP_COOKIE_HEADER}\n" != user_input[CONF_COOKIES_TXT]
+        ):
+            fixed_cookies_txt = re.sub(
                 r" ",
                 r"\n",
                 re.sub(
@@ -509,7 +587,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                 ),
             )
+            if not fixed_cookies_txt.startswith(HTTP_COOKIE_HEADER):
+                fixed_cookies_txt = f"{HTTP_COOKIE_HEADER}\n{fixed_cookies_txt}"
             self.config[CONF_COOKIES_TXT] = fixed_cookies_txt
+            _LOGGER.debug("Setting cookies to:\n%s", fixed_cookies_txt)
 
     def _update_schema_defaults(self) -> Any:
         new_schema = self._update_ord_dict(
@@ -522,6 +603,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 vol.Optional(
                     CONF_SECURITYCODE,
                     default=self.securitycode if self.securitycode else "",
+                ): str,
+                vol.Optional(
+                    CONF_OTPSECRET, default=self.config.get(CONF_OTPSECRET, ""),
                 ): str,
                 vol.Required(
                     CONF_URL, default=self.config.get(CONF_URL, "amazon.com")

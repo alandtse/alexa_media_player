@@ -1,65 +1,73 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated."
+      "forgot_password": "Wykryto stronę Zapomniałem hasła. Zwykle jest to wynikiem również nieudanych prób logowania. Amazon może wymagać podjęcia działań przed próbą ponownego logowania.",
+      "login_failed": "Alexa Media Player nie może się zalogować.",
+      "reauth_successful": "Alexa Media Player pomyślnie uwierzytelniona."
     },
     "error": {
-      "connection_error": "Error connecting; check network and retry",
-      "identifier_exists": "Adres email dla Alexy już jest zarejestrowany",
+      "connection_error": "Błąd podczas łączenia; sprawdź sieć i spróbuj ponownie",
+      "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
       "invalid_credentials": "Nieprawidłowe dane logowania",
-      "unknown_error": "Unknown error, please report log info"
+      "unknown_error": "Nieznany błąd, zgłoś log z tego zdarzenia"
     },
     "step": {
       "action_required": {
-        "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
-        "title": "Alexa Media Player - Action Required"
+        "description": "**{email} - alexa.{url}**  \nAmazon wyśle powiadomienie push zgodnie z poniższą wiadomością. Przed kontynuowaniem odpowiedz na wiadomość.  \n{message}",
+        "title": "Alexa Media Player — wymagane działanie"
       },
       "authselect": {
         "data": {
           "authselectoption": "Metoda OTP"
         },
         "description": "**{email} - alexa.{url}**  \n{message}",
-        "title": "Alexa Media Player - hasło jednorazowe"
+        "title": "Alexa Media Player — hasło jednorazowe"
       },
       "captcha": {
         "data": {
           "captcha": "Kod Captcha",
           "password": "Hasło",
-          "securitycode": "config::step::captcha::data::securitycode"
+          "securitycode": "Kod uwierzytelniania dwuskładnikowego"
         },
         "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
-        "title": "Alexa Media Player - kod Captcha"
+        "title": "Alexa Media Player — kod Captcha"
       },
       "claimspicker": {
         "data": {
           "authselectoption": "Metoda weryfikacji"
         },
         "description": "**{email} - alexa.{url}**  \nWybierz metodę weryfikacji. (np., `0` lub `1`)  \n{message}",
-        "title": "Alexa Media Player - metoda weryfikacji"
+        "title": "Alexa Media Player — metoda weryfikacji"
+      },
+      "totp_register": {
+        "data": {
+          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+        },
+        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
+        "title": "Alexa Media Player - OTP Confirmation"
       },
       "twofactor": {
         "data": {
           "securitycode": "Kod uwierzytelniania dwuskładnikowego"
         },
         "description": "**{email} - alexa.{url}**  \nWprowadź hasło jednorazowe (OTP).  \n{message}",
-        "title": "Alexa Media Player - uwierzytelnianie dwuskładnikowe"
+        "title": "Alexa Media Player — uwierzytelnianie dwuskładnikowe"
       },
       "user": {
         "data": {
-          "cookies_txt": "config::step::user::data::cookies_txt",
+          "cookies_txt": "zawartość pliku cookies.txt",
           "debug": "Zaawansowane debugowanie",
           "email": "Adres email",
           "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Hasło",
           "scan_interval": "Interwał skanowania (sekundy)",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "securitycode": "Kod uwierzytelniania dwuskładnikowego (zalecany w celu uniknięcia problemów z logowaniem)",
           "url": "Region/domena Amazon (np. amazon.co.uk)"
         },
-        "description": "Wprowadź dane",
-        "title": "Alexa Media Player - konfiguracja"
+        "description": "Wprowadź [dane](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Import pliku Cookie](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) może być najłatwiejszą metodą!**   \n**OSTRZEŻENIE: Amazon nieprawidłowo zgłasza 'Wprowadź prawidłowy adres e-mail lub numer telefonu komórkowego', gdy wymagany jest [kod uwierzytelniania dwuskładnikowego](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
+        "title": "Alexa Media Player — konfiguracja"
       }
     }
   },
@@ -67,7 +75,7 @@
     "step": {
       "init": {
         "data": {
-          "queue_delay": "Seconds to wait to queue commands together"
+          "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń"
         }
       }
     }

@@ -39,6 +39,13 @@
         "description": "**{email} - alexa.{url}**  \nVelg bekreftelsesmetode etter nummer. (f.eks. \"0\" eller \"1\")  \n{message}",
         "title": "Alexa Media Player - Bekreftelsesmetode"
       },
+      "totp_register": {
+        "data": {
+          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+        },
+        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
+        "title": "Alexa Media Player - OTP Confirmation"
+      },
       "twofactor": {
         "data": {
           "securitycode": "2FA Kode"
@@ -53,6 +60,7 @@
           "email": "Epostadresse",
           "exclude_devices": "Ekskludert enhet (kommaseparert)",
           "include_devices": "Inkluder enhet (kommaseparert)",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Passord",
           "scan_interval": "Sekunder mellom skanninger",
           "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)",

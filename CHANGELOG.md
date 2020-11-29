@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.3.1 (2020-11-29)
+### Fix
+* Fix key error on otp_secret ([`b07a722`](https://github.com/custom-components/alexa_media_player/commit/b07a722776d7a0b288e2b84636f644119ca5da1c))
+
 ## v3.3.0 (2020-11-27)
 ### Feature
 * Add automatic relogin ([`23c44c3`](https://github.com/custom-components/alexa_media_player/commit/23c44c3b2b6f60b936a368a1fde2c9c6e4511d59))

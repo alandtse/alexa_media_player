@@ -193,7 +193,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.config[CONF_PASSWORD],
                     self.hass.config.path,
                     self.config[CONF_DEBUG],
-                    self.config[CONF_OTPSECRET],
+                    self.config.get(CONF_OTPSECRET, ""),
                 )
             else:
                 _LOGGER.debug("Using existing login")

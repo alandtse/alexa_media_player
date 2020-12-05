@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.4.0 (2020-12-05)
+### Feature
+* Add custom command support ([`9394143`](https://github.com/custom-components/alexa_media_player/commit/93941432acce6f2915e53aff212049e540a513a2))
+
 ## v3.3.1 (2020-11-29)
 ### Fix
 * Fix key error on otp_secret ([`b07a722`](https://github.com/custom-components/alexa_media_player/commit/b07a722776d7a0b288e2b84636f644119ca5da1c))

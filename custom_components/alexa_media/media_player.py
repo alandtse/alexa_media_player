@@ -1197,6 +1197,19 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         elif media_type == "image":
             _LOGGER.debug("%s:Setting background to %s", self, media_id)
             await self.alexa_api.set_background(media_id)
+        elif media_type == "custom":
+            _LOGGER.debug(
+                '%s:Running custom command: "%s" with queue_delay %s',
+                self,
+                media_id,
+                queue_delay,
+            )
+            await self.alexa_api.run_custom(
+                media_id,
+                customer_id=self._customer_id,
+                queue_delay=queue_delay,
+                **kwargs,
+            )
         else:
             _LOGGER.debug(
                 "%s:Playing music %s on %s with queue_delay %s",

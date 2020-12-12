@@ -860,6 +860,11 @@ async def setup_alexa(hass, config_entry, login_obj):
                 "%s: Close requested; will not reconnect websocket", hide_email(email)
             )
             return
+        if not login_obj.status.get("login_successful"):
+            _LOGGER.debug(
+                "%s: Login error; will not reconnect websocket", hide_email(email)
+            )
+            return
         errors: int = (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"])
         delay: int = 5 * 2 ** errors
         last_attempt = hass.data[DATA_ALEXAMEDIA]["accounts"][email][

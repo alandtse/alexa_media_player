@@ -4,7 +4,8 @@
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
-      "unknown_error": "Unknown error, please report log info"
+      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "unknown_error": "Unknown error, please enable advanced debugging and report log info"
     },
     "step": {
       "user": {

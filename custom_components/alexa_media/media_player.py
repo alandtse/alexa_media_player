@@ -635,6 +635,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                             ),
                         )
                     )
+        if self.hass:
+            self.async_write_ha_state()
 
     @property
     def source(self):

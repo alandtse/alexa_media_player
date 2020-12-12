@@ -481,7 +481,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._set_authentication_details(device["auth_info"])
         session = None
         if self.available:
-            _LOGGER.debug("%s: Refreshing %s", self.account, self.name)
+            _LOGGER.debug("%s: Refreshing %s", self.account, self)
             self._assumed_state = False
             if "PAIR_BT_SOURCE" in self._capabilities:
                 self._source = self._get_source()
@@ -635,6 +635,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                             ),
                         )
                     )
+        if self.hass:
+            self.async_write_ha_state()
 
     @property
     def source(self):

@@ -290,7 +290,7 @@ async def setup_alexa(hass, config_entry, login_obj):
         login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
         if (
             email not in hass.data[DATA_ALEXAMEDIA]["accounts"]
-            or "login_successful" not in login_obj.status
+            or not login_obj.status.get("login_successful")
             or login_obj.session.closed
             or login_obj.close_requested
         ):
@@ -858,6 +858,11 @@ async def setup_alexa(hass, config_entry, login_obj):
         if login_obj.close_requested:
             _LOGGER.debug(
                 "%s: Close requested; will not reconnect websocket", hide_email(email)
+            )
+            return
+        if not login_obj.status.get("login_successful"):
+            _LOGGER.debug(
+                "%s: Login error; will not reconnect websocket", hide_email(email)
             )
             return
         errors: int = (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"])

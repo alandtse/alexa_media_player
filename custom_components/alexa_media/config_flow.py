@@ -16,7 +16,13 @@ import datetime
 from typing import Any, Optional, Text
 import re
 
-from alexapy import AlexaLogin, AlexapyConnectionError, hide_email, obfuscate
+from alexapy import (
+    AlexaLogin,
+    AlexapyConnectionError,
+    AlexapyPyotpInvalidKey,
+    hide_email,
+    obfuscate,
+)
 from homeassistant import config_entries
 from homeassistant.const import (
     CONF_EMAIL,
@@ -201,18 +207,25 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 not self.config.get("reauth")
                 and user_input
                 and user_input.get(CONF_OTPSECRET)
+                and user_input.get(CONF_OTPSECRET).replace(" ", "")
             ):
-                _LOGGER.debug("Generating OTP from %s", self.login.get_totp_token())
-
+                otp: Text = self.login.get_totp_token()
+                if otp:
+                    _LOGGER.debug("Generating OTP from %s", otp)
+                    return self.async_show_form(
+                        step_id="totp_register",
+                        data_schema=vol.Schema(self.totp_register),
+                        errors={},
+                        description_placeholders={
+                            "email": self.login.email,
+                            "url": self.login.url,
+                            "message": otp,
+                        },
+                    )
                 return self.async_show_form(
-                    step_id="totp_register",
-                    data_schema=vol.Schema(self.totp_register),
-                    errors={},
-                    description_placeholders={
-                        "email": self.login.email,
-                        "url": self.login.url,
-                        "message": self.login.get_totp_token(),
-                    },
+                    step_id="user",
+                    errors={"base": "2fa_key_invalid"},
+                    description_placeholders={"message": ""},
                 )
             await self.login.login(
                 cookies=await self.login.load_cookie(
@@ -226,6 +239,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             return self.async_show_form(
                 step_id="user",
                 errors={"base": "connection_error"},
+                description_placeholders={"message": ""},
+            )
+        except AlexapyPyotpInvalidKey:
+            self.automatic_steps = 0
+            return self.async_show_form(
+                step_id="user",
+                errors={"base": "2fa_key_invalid"},
                 description_placeholders={"message": ""},
             )
         except BaseException as ex:
@@ -536,8 +556,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_SECURITYCODE] = self.securitycode
         elif CONF_SECURITYCODE in self.config:
             self.config.pop(CONF_SECURITYCODE)
-        if user_input.get(CONF_OTPSECRET):
+        if user_input.get(CONF_OTPSECRET) and user_input.get(CONF_OTPSECRET).replace(
+            " ", ""
+        ):
             self.config[CONF_OTPSECRET] = user_input[CONF_OTPSECRET].replace(" ", "")
+        elif user_input.get(CONF_OTPSECRET):
+            # a blank line
+            self.config.pop(CONF_OTPSECRET)
         if CONF_EMAIL in user_input:
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:

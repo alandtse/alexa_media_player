@@ -560,7 +560,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             " ", ""
         ):
             self.config[CONF_OTPSECRET] = user_input[CONF_OTPSECRET].replace(" ", "")
-        elif CONF_OTPSECRET in self.config:
+        elif user_input.get(CONF_OTPSECRET):
+            # a blank line
             self.config.pop(CONF_OTPSECRET)
         if CONF_EMAIL in user_input:
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]

@@ -1010,7 +1010,7 @@ async def async_unload_entry(hass, entry) -> bool:
     # Clean up config flows in progress
     flows_to_remove = []
     for key, flow in hass.data[DATA_ALEXAMEDIA]["config_flows"].items():
-        if key.startswith(email):
+        if key.startswith(email) and flow:
             _LOGGER.debug("Aborting flow %s %s", key, flow)
             flows_to_remove.append(key)
             try:

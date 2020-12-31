@@ -43,6 +43,7 @@ from .const import (
     CONF_INCLUDE_DEVICES,
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
+    CONF_OAUTH,
     CONF_OTPSECRET,
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
@@ -359,6 +360,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.config.pop("reauth")
             if self.config.get(CONF_SECURITYCODE):
                 self.config.pop(CONF_SECURITYCODE)
+            self.config[CONF_OAUTH] = {
+                "access_token": login.access_token,
+                "refresh_token": login.refresh_token,
+                "expires_in": login.expires_in,
+            }
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
                     existing_entry, data=self.config

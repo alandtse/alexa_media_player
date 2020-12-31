@@ -6,6 +6,7 @@
       "reauth_successful": "Alexa Media Player successfully reauthenticated."
     },
     "error": {
+      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Errore durante la connessione; controlla la rete e riprova",
       "identifier_exists": "L'Email per l'URL di Alexa è già stata registrata",
       "invalid_credentials": "Credenziali non valide",

@@ -6,6 +6,7 @@
       "reauth_successful": "Alexa Media Player er godkjent på nytt."
     },
     "error": {
+      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Feil ved tilkobling; sjekk nettverket og prøv på nytt",
       "identifier_exists": "E-post for Alexa URL allerede registrert",
       "invalid_credentials": "ugyldige legitimasjon",

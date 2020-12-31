@@ -6,6 +6,7 @@
       "reauth_successful": "Alexa Media Player s'est authentifié avec succès."
     },
     "error": {
+      "2fa_key_invalid": "Clé 2FA intégrée non valide",
       "connection_error": "Erreur de connexion; vérifier le réseau et réessayer",
       "identifier_exists": "Email pour l'URL Alexa déjà enregistré",
       "invalid_credentials": "Informations d'identification invalides",
@@ -41,9 +42,9 @@
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "OTP de la clé d'application 2FA intégrée confirmée avec succès."
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
+        "description": "** {email} - alexa. {url} **\n Avez-vous confirmé avec succès un OTP à partir de la clé d'application 2FA intégrée avec Amazon?\n > Code OTP {message}",
         "title": "Alexa Media Player - OTP Confirmation"
       },
       "twofactor": {
@@ -55,12 +56,12 @@
       },
       "user": {
         "data": {
-          "cookies_txt": "config::step::user::data::cookies_txt",
+          "cookies_txt": "Données cookies.txt",
           "debug": "Débogage avancé",
           "email": "Adresse Email",
           "exclude_devices": "Appareil exclu (séparé par des virgules)",
           "include_devices": "Appareil inclus (séparé par des virgules)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "otp_secret": "Clé d'application 2FA intégrée (génère automatiquement des codes 2FA)",
           "password": "Mot de passe",
           "scan_interval": "Secondes entre les analyses",
           "securitycode": "Code 2FA (recommandé pour éviter les problèmes de connexion)",

@@ -403,6 +403,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ] = device
                 continue
 
+            if (
+                device.get("capabilities")
+                and "MUSIC_SKILL" not in device["capabilities"]
+            ):
+                # skip devices without music skill
+                continue
+
             if "bluetoothStates" in bluetooth:
                 for b_state in bluetooth["bluetoothStates"]:
                     if serial == b_state["deviceSerialNumber"]:

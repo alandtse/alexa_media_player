@@ -49,6 +49,7 @@ from .const import (
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
+    CONF_OAUTH,
     CONF_OTPSECRET,
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
@@ -135,6 +136,7 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_SCAN_INTERVAL: account[
                                 CONF_SCAN_INTERVAL
                             ].total_seconds(),
+                            CONF_OAUTH: account.get("CONF_OAUTH", {}),
                             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
                         },
                     )
@@ -154,6 +156,7 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                         CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),
+                        CONF_OAUTH: account.get("CONF_OAUTH", {}),
                         CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
                     },
                 )
@@ -177,17 +180,18 @@ async def async_setup_entry(hass, config_entry):
             if hide_email(email) == event.data.get("email"):
                 _LOGGER.debug("Received relogin request: %s", event)
                 email = account.get(CONF_EMAIL)
-                login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-                    "login_obj"
-                )
+                login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    email
+                ].get("login_obj")
                 if login_obj is None:
                     login_obj = AlexaLogin(
-                        url,
-                        email,
-                        password,
-                        hass.config.path,
-                        account.get(CONF_DEBUG),
-                        account.get(CONF_OTPSECRET, ""),
+                        url=url,
+                        email=email,
+                        password=password,
+                        outputpath=hass.config.path,
+                        debug=account.get(CONF_DEBUG),
+                        otp_secret=account.get(CONF_OTPSECRET, ""),
+                        oauth=account.get(CONF_OAUTH, {}),
                     )
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                         "login_obj"
@@ -204,9 +208,9 @@ async def async_setup_entry(hass, config_entry):
             if hide_email(email) == event.data.get("email"):
                 _LOGGER.debug("Received Login success: %s", event)
                 email = account.get(CONF_EMAIL)
-                login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-                    "login_obj"
-                )
+                login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    email
+                ].get("login_obj")
                 await setup_alexa(hass, config_entry, login_obj)
                 break
 
@@ -245,15 +249,16 @@ async def async_setup_entry(hass, config_entry):
             DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         },
     )
-    login = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+    login: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
         "login_obj",
         AlexaLogin(
-            url,
-            email,
-            password,
-            hass.config.path,
-            account.get(CONF_DEBUG),
-            account.get(CONF_OTPSECRET, ""),
+            url=url,
+            email=email,
+            password=password,
+            outputpath=hass.config.path,
+            debug=account.get(CONF_DEBUG),
+            otp_secret=account.get(CONF_OTPSECRET, ""),
+            oauth=account.get(CONF_OAUTH, {}),
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
@@ -265,7 +270,7 @@ async def async_setup_entry(hass, config_entry):
     return False
 
 
-async def setup_alexa(hass, config_entry, login_obj):
+async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     """Set up a alexa api based on host parameter."""
 
     async def async_update_data():
@@ -475,6 +480,18 @@ async def setup_alexa(hass, config_entry, login_obj):
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         await login_obj.save_cookiefile()
+        if login_obj.access_token:
+            hass.config_entries.async_update_entry(
+                config_entry,
+                data={
+                    **config_entry.data,
+                    CONF_OAUTH: {
+                        "access_token": login_obj.access_token,
+                        "refresh_token": login_obj.refresh_token,
+                        "expires_in": login_obj.expires_in,
+                    },
+                },
+            )
 
     @_catch_login_errors
     async def process_notifications(login_obj, raw_notifications=None):

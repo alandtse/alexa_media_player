@@ -474,7 +474,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._capabilities = device["capabilities"]
             self._cluster_members = device["clusterMembers"]
             self._parent_clusters = device["parentClusters"]
-            self._bluetooth_state = device["bluetooth_state"]
+            self._bluetooth_state = device.get("bluetooth_state", {})
             self._locale = device["locale"] if "locale" in device else "en-US"
             self._timezone = device["timeZoneId"] if "timeZoneId" in device else "UTC"
             self._dnd = device["dnd"] if "dnd" in device else None
@@ -654,7 +654,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if source == "Local Speaker":
             await self.alexa_api.disconnect_bluetooth()
             self._source = "Local Speaker"
-        elif self._bluetooth_state["pairedDeviceList"] is not None:
+        elif self._bluetooth_state.get("pairedDeviceList"):
             for devices in self._bluetooth_state["pairedDeviceList"]:
                 if devices["friendlyName"] == source:
                     await self.alexa_api.set_bluetooth(devices["address"])

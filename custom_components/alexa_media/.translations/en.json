@@ -1,37 +1,44 @@
 {
   "config": {
+    "abort": {
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login.",
+      "reauth_successful": "Alexa Media Player successfully reauthenticated."
+    },
     "error": {
+      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "unknown_error": "Unknown error, please enable advanced debugging and report log info"
     },
     "step": {
-      "user": {
+      "action_required": {
+        "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
+        "title": "Alexa Media Player - Action Required"
+      },
+      "authselect": {
         "data": {
-          "password": "Password",
-          "email": "Email Address",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
-          "url": "Amazon region domain (e.g., amazon.co.uk)",
-          "include_devices": "Included device (comma separated)",
-          "exclude_devices": "Excluded device (comma separated)",
-          "debug": "Advanced debugging",
-          "scan_interval": "Seconds between scans",
-          "cookies_txt": "Cookies.txt data"
+          "authselectoption": "OTP method"
         },
-        "description": "Please enter your [information](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) may be easiest!**   \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when [2FA Code is required](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
-        "title": "Alexa Media Player - Configuration"
+        "description": "**{email} - alexa.{url}**  \n{message}",
+        "title": "Alexa Media Player - One Time Password"
       },
       "captcha": {
         "data": {
+          "captcha": "Captcha",
           "password": "Password",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
-          "captcha": "Captcha"
+          "securitycode": "2FA Code (recommended to avoid login issues)"
         },
         "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
         "title": "Alexa Media Player - Captcha"
+      },
+      "claimspicker": {
+        "data": {
+          "authselectoption": "Verification method"
+        },
+        "description": "**{email} - alexa.{url}**  \nPlease select verification method by number. (e.g., `0` or `1`)  \n{message}",
+        "title": "Alexa Media Player - Verification Method"
       },
       "totp_register": {
         "data": {
@@ -47,29 +54,22 @@
         "description": "**{email} - alexa.{url}**  \nEnter the One Time Password (OTP).  \n{message}",
         "title": "Alexa Media Player - Two Factor Authentication"
       },
-      "authselect": {
+      "user": {
         "data": {
-          "authselectoption": "OTP method"
+          "cookies_txt": "Cookies.txt data",
+          "debug": "Advanced debugging",
+          "email": "Email Address",
+          "exclude_devices": "Excluded device (comma separated)",
+          "include_devices": "Included device (comma separated)",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "password": "Password",
+          "scan_interval": "Seconds between scans",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
-        "description": "**{email} - alexa.{url}**  \n{message}",
-        "title": "Alexa Media Player - One Time Password"
-      },
-      "claimspicker": {
-        "data": {
-          "authselectoption": "Verification method"
-        },
-        "description": "**{email} - alexa.{url}**  \nPlease select verification method by number. (e.g., `0` or `1`)  \n{message}",
-        "title": "Alexa Media Player - Verification Method"
-      },
-      "action_required": {
-        "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
-        "title": "Alexa Media Player - Action Required"
+        "description": "Please enter your [information](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) may be easiest!**   \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when [2FA Code is required](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
+        "title": "Alexa Media Player - Configuration"
       }
-    },
-    "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated."
     }
   },
   "options": {

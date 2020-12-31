@@ -6,6 +6,7 @@
       "reauth_successful": "Alexa Media Player successfully reauthenticated."
     },
     "error": {
+      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "连接错误；检查网络并重试",
       "identifier_exists": "Alexa URL的电子邮件已注册",
       "invalid_credentials": "Invalid credentials",

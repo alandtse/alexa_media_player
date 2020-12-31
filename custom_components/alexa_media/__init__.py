@@ -177,9 +177,9 @@ async def async_setup_entry(hass, config_entry):
             if hide_email(email) == event.data.get("email"):
                 _LOGGER.debug("Received relogin request: %s", event)
                 email = account.get(CONF_EMAIL)
-                login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-                    "login_obj"
-                )
+                login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    email
+                ].get("login_obj")
                 if login_obj is None:
                     login_obj = AlexaLogin(
                         url,
@@ -204,9 +204,9 @@ async def async_setup_entry(hass, config_entry):
             if hide_email(email) == event.data.get("email"):
                 _LOGGER.debug("Received Login success: %s", event)
                 email = account.get(CONF_EMAIL)
-                login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-                    "login_obj"
-                )
+                login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    email
+                ].get("login_obj")
                 await setup_alexa(hass, config_entry, login_obj)
                 break
 
@@ -245,7 +245,7 @@ async def async_setup_entry(hass, config_entry):
             DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         },
     )
-    login = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+    login: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
         "login_obj",
         AlexaLogin(
             url,
@@ -265,7 +265,7 @@ async def async_setup_entry(hass, config_entry):
     return False
 
 
-async def setup_alexa(hass, config_entry, login_obj):
+async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     """Set up a alexa api based on host parameter."""
 
     async def async_update_data():

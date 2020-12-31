@@ -389,7 +389,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     serial
                 ] = device
                 continue
-            elif exclude and dev_name in exclude:
+            if exclude and dev_name in exclude:
                 exclude_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:

@@ -317,11 +317,12 @@ class DNDSwitch(AlexaMediaSwitch):
                     event["dnd_update"],
                 )
             )
-            state = result[0]["enabled"] is True
-            if result and state != self.is_on:
-                _LOGGER.debug("Detected %s changed to %s", self, state)
-                setattr(self._client, self._switch_property, state)
-                self.async_write_ha_state()
+            if result:
+                state = result[0]["enabled"] is True
+                if state != self.is_on:
+                    _LOGGER.debug("Detected %s changed to %s", self, state)
+                    setattr(self._client, self._switch_property, state)
+                    self.async_write_ha_state()
 
 
 class ShuffleSwitch(AlexaMediaSwitch):

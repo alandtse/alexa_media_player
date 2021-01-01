@@ -192,6 +192,7 @@ async def async_setup_entry(hass, config_entry):
                         debug=account.get(CONF_DEBUG),
                         otp_secret=account.get(CONF_OTPSECRET, ""),
                         oauth=account.get(CONF_OAUTH, {}),
+                        uuid=await hass.helpers.instance_id.async_get(),
                     )
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                         "login_obj"
@@ -259,6 +260,7 @@ async def async_setup_entry(hass, config_entry):
             debug=account.get(CONF_DEBUG),
             otp_secret=account.get(CONF_OTPSECRET, ""),
             oauth=account.get(CONF_OAUTH, {}),
+            uuid=await hass.helpers.instance_id.async_get(),
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
@@ -389,7 +391,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     serial
                 ] = device
                 continue
-            elif exclude and dev_name in exclude:
+            if exclude and dev_name in exclude:
                 exclude_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:
@@ -401,6 +403,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
                     serial
                 ] = device
+                continue
+
+            if (
+                device.get("capabilities")
+                and "MUSIC_SKILL" not in device["capabilities"]
+            ):
+                # skip devices without music skill
                 continue
 
             if "bluetoothStates" in bluetooth:
@@ -1010,7 +1019,7 @@ async def async_unload_entry(hass, entry) -> bool:
     # Clean up config flows in progress
     flows_to_remove = []
     for key, flow in hass.data[DATA_ALEXAMEDIA]["config_flows"].items():
-        if key.startswith(email):
+        if key.startswith(email) and flow:
             _LOGGER.debug("Aborting flow %s %s", key, flow)
             flows_to_remove.append(key)
             try:

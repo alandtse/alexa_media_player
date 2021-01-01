@@ -192,6 +192,7 @@ async def async_setup_entry(hass, config_entry):
                         debug=account.get(CONF_DEBUG),
                         otp_secret=account.get(CONF_OTPSECRET, ""),
                         oauth=account.get(CONF_OAUTH, {}),
+                        uuid=await hass.helpers.instance_id.async_get(),
                     )
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                         "login_obj"
@@ -259,6 +260,7 @@ async def async_setup_entry(hass, config_entry):
             debug=account.get(CONF_DEBUG),
             otp_secret=account.get(CONF_OTPSECRET, ""),
             oauth=account.get(CONF_OAUTH, {}),
+            uuid=await hass.helpers.instance_id.async_get(),
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login

@@ -2,6 +2,15 @@
 
 <!--next-version-placeholder-->
 
+## v3.4.3 (2021-01-01)
+### Fix
+* Fix oauth for non-.com domains ([`c1e5176`](https://github.com/custom-components/alexa_media_player/commit/c1e51763458f24e42082f76c4a5224146f2bb47b))
+* Fix key error ([`1b2b060`](https://github.com/custom-components/alexa_media_player/commit/1b2b0602438a107c34e84a130c5f042d63b76a12))
+* Allow registration in multiple HA instances ([`0a35cde`](https://github.com/custom-components/alexa_media_player/commit/0a35cde62afd14682fa5c4a7b148236d7531b0c0))
+* Ignore devices without music capability ([`b9df09d`](https://github.com/custom-components/alexa_media_player/commit/b9df09d34b7c6c20686bc4e68b4b651a88dd6943))
+* Check flow existence prior to unload ([`be6ab00`](https://github.com/custom-components/alexa_media_player/commit/be6ab009165937ce97704e966be1eaa1cac61b05))
+* Address empty filter list for switch ([`2c10744`](https://github.com/custom-components/alexa_media_player/commit/2c107441c84d8768c5faf987b1400fa0db700e20))
+
 ## v3.4.2 (2020-12-31)
 ### Fix
 * Add oauth token refresh ([`77e9d6c`](https://github.com/custom-components/alexa_media_player/commit/77e9d6c5d5f5ae5e2612e728fb704db18ddb772c))

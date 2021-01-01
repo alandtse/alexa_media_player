@@ -170,10 +170,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
         if (
             not self.config.get("reauth")
-            and f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+            and f"{self.config[CONF_EMAIL]} - {self.config[CONF_URL]}"
             in configured_instances(self.hass)
             and not self.hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
-                f"{user_input[CONF_EMAIL]} - {user_input[CONF_URL]}"
+                f"{self.config[CONF_EMAIL]} - {self.config[CONF_URL]}"
             )
         ):
             _LOGGER.debug("Existing account found")

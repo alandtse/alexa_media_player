@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.4.4 (2021-01-01)
+### Fix
+* Ensure string type for configflow ([`71b26a6`](https://github.com/custom-components/alexa_media_player/commit/71b26a6fa6c8fb8b36aaa19eeb9729702d377597))
+
 ## v3.4.3 (2021-01-01)
 ### Fix
 * Fix oauth for non-.com domains ([`c1e5176`](https://github.com/custom-components/alexa_media_player/commit/c1e51763458f24e42082f76c4a5224146f2bb47b))

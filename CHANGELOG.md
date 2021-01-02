@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v3.4.5 (2021-01-02)
+### Fix
+* Fix generation of deviceid for oauth signin ([`1e3a362`](https://github.com/custom-components/alexa_media_player/commit/1e3a3623f79f05be0a3518bf4b112032a326c968))
+* Show login failure with error page detection ([`4574e00`](https://github.com/custom-components/alexa_media_player/commit/4574e0058dac31f0377a5f7fc4024b9592cdba19))
+
+### Refactor
+* Reduce number of automatic otp retries ([`d8a63f8`](https://github.com/custom-components/alexa_media_player/commit/d8a63f808d4c77bf7870cceca23d9ce77943557b))
+
 ## v3.4.4 (2021-01-01)
 ### Fix
 * Ensure string type for configflow ([`71b26a6`](https://github.com/custom-components/alexa_media_player/commit/71b26a6fa6c8fb8b36aaa19eeb9729702d377597))

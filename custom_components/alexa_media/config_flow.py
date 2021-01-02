@@ -428,7 +428,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             generated_securitycode: Text = login.get_totp_token()
             if (
                 self.securitycode or generated_securitycode
-            ) and self.automatic_steps < 3:
+            ) and self.automatic_steps < 2:
                 if self.securitycode:
                     _LOGGER.debug(
                         "Automatically submitting securitycode %s", self.securitycode

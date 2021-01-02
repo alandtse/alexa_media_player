@@ -428,7 +428,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             generated_securitycode: Text = login.get_totp_token()
             if (
                 self.securitycode or generated_securitycode
-            ) and self.automatic_steps < 3:
+            ) and self.automatic_steps < 2:
                 if self.securitycode:
                     _LOGGER.debug(
                         "Automatically submitting securitycode %s", self.securitycode
@@ -501,7 +501,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 step_id="verificationcode",
                 data_schema=vol.Schema(self.verificationcode_schema),
             )
-        if login.status and login.status.get("force_get"):
+        if (
+            login.status
+            and login.status.get("force_get")
+            and not login.status.get("ap_error_href")
+        ):
             _LOGGER.debug("Creating config_flow to wait for user action")
             self.automatic_steps = 0
             return self.async_show_form(
@@ -513,13 +517,15 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "message": f"  \n>{login.status.get('message','')}  \n",
                 },
             )
-        if login.status and login.status.get("login_failed"):
+        if login.status and (
+            login.status.get("login_failed") or login.status.get("ap_error_href")
+        ):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
             self.hass.components.persistent_notification.async_dismiss(
                 "alexa_media_relogin_required"
             )
-            return self.async_abort(reason=login.status.get("login_failed"),)
+            return self.async_abort(reason=login.status.get("login_failed"))
         new_schema = self._update_schema_defaults()
         if login.status and login.status.get("error_message"):
             _LOGGER.debug("Login error detected: %s", login.status.get("error_message"))

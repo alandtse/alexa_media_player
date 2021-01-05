@@ -37,7 +37,7 @@ from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.util import dt
+from homeassistant.util import dt, slugify
 from homeassistant import util
 import voluptuous as vol
 
@@ -1031,7 +1031,7 @@ async def async_unload_entry(hass, entry) -> bool:
     if not hass.data[DATA_ALEXAMEDIA]["config_flows"]:
         _LOGGER.debug("Removing config_flows data")
         hass.components.persistent_notification.async_dismiss(
-            "alexa_media_relogin_required"
+            f"alexa_media_{slugify(email)}{slugify((entry.data['url'])[7:])}"
         )
         hass.data[DATA_ALEXAMEDIA].pop("config_flows")
     if not hass.data[DATA_ALEXAMEDIA]:
@@ -1085,7 +1085,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
     _LOGGER.debug("Logging in: %s %s", obfuscate(account), in_progess_instances(hass))
     _LOGGER.debug("Login stats: %s", login.stats)
     message: Text = (
-        "Reauthenticate on the [Integrations](/config/integrations) page. "
+        f"Reauthenticate {login.email} on the [Integrations](/config/integrations) page. "
     )
     if login.stats.get("login_timestamp") != datetime(1, 1, 1):
         elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
@@ -1094,7 +1094,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
     hass.components.persistent_notification.async_create(
         title="Alexa Media Reauthentication Required",
         message=message,
-        notification_id="alexa_media_relogin_required",
+        notification_id=f"alexa_media_{slugify(login.email)}{slugify(login.url[7:])}",
     )
     flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
         f"{account[CONF_EMAIL]} - {account[CONF_URL]}"

@@ -144,6 +144,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia):
         self._attrs: Dict[Text, Text] = {}
         self._media_players = {} or media_players
 
+    @_catch_login_errors
     async def init(self):
         """Initialize."""
         try:

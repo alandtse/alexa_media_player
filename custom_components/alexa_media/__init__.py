@@ -1010,16 +1010,17 @@ async def async_unload_entry(hass, entry) -> bool:
     hass.data[DATA_ALEXAMEDIA]["accounts"].pop(email)
     # Clean up config flows in progress
     flows_to_remove = []
-    for key, flow in hass.data[DATA_ALEXAMEDIA]["config_flows"].items():
-        if key.startswith(email) and flow:
-            _LOGGER.debug("Aborting flow %s %s", key, flow)
-            flows_to_remove.append(key)
-            try:
-                hass.config_entries.flow.async_abort(flow.get("flow_id"))
-            except UnknownFlow:
-                pass
-    for flow in flows_to_remove:
-        hass.data[DATA_ALEXAMEDIA]["config_flows"].pop(flow)
+    if hass.data[DATA_ALEXAMEDIA].get("config_flows"):
+        for key, flow in hass.data[DATA_ALEXAMEDIA]["config_flows"].items():
+            if key.startswith(email) and flow:
+                _LOGGER.debug("Aborting flow %s %s", key, flow)
+                flows_to_remove.append(key)
+                try:
+                    hass.config_entries.flow.async_abort(flow.get("flow_id"))
+                except UnknownFlow:
+                    pass
+        for flow in flows_to_remove:
+            hass.data[DATA_ALEXAMEDIA]["config_flows"].pop(flow)
     # Clean up hass.data
     if not hass.data[DATA_ALEXAMEDIA]["accounts"]:
         _LOGGER.debug("Removing accounts data and services")

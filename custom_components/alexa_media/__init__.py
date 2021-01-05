@@ -406,10 +406,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 continue
 
             if (
-                device.get("capabilities")
-                and "MUSIC_SKILL" not in device["capabilities"]
+                dev_name not in include_filter
+                and device.get("capabilities")
+                and not any(
+                    x in device["capabilities"]
+                    for x in ["MUSIC_SKILL", "TIMERS_AND_ALARMS", "REMINDERS"]
+                )
             ):
-                # skip devices without music skill
+                # skip devices without music or notification skill
+                _LOGGER.debug("Excluding %s for lacking capability", dev_name)
                 continue
 
             if "bluetoothStates" in bluetooth:

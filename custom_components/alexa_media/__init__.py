@@ -176,44 +176,36 @@ async def async_setup_entry(hass, config_entry):
 
     async def relogin(event=None) -> None:
         """Relogin to Alexa."""
-        for email, _ in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
-            if hide_email(email) == event.data.get("email"):
-                _LOGGER.debug("Received relogin request: %s", event)
-                email = account.get(CONF_EMAIL)
-                login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][
-                    email
-                ].get("login_obj")
-                if login_obj is None:
-                    login_obj = AlexaLogin(
-                        url=url,
-                        email=email,
-                        password=password,
-                        outputpath=hass.config.path,
-                        debug=account.get(CONF_DEBUG),
-                        otp_secret=account.get(CONF_OTPSECRET, ""),
-                        oauth=account.get(CONF_OAUTH, {}),
-                        uuid=await hass.helpers.instance_id.async_get(),
-                    )
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                        "login_obj"
-                    ] = login_obj
-                await login_obj.reset()
-                # await login_obj.login()
-                if await test_login_status(hass, config_entry, login_obj):
-                    await setup_alexa(hass, config_entry, login_obj)
-                break
+        if hide_email(email) == event.data.get("email"):
+            _LOGGER.debug("%s: Received relogin request: %s", hide_email(email), event)
+            login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+                "login_obj"
+            )
+            if login_obj is None:
+                login_obj = AlexaLogin(
+                    url=url,
+                    email=email,
+                    password=password,
+                    outputpath=hass.config.path,
+                    debug=account.get(CONF_DEBUG),
+                    otp_secret=account.get(CONF_OTPSECRET, ""),
+                    oauth=account.get(CONF_OAUTH, {}),
+                    uuid=await hass.helpers.instance_id.async_get(),
+                )
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
+            await login_obj.reset()
+            # await login_obj.login()
+            if await test_login_status(hass, config_entry, login_obj):
+                await setup_alexa(hass, config_entry, login_obj)
 
     async def login_success(event=None) -> None:
         """Relogin to Alexa."""
-        for email, _ in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
-            if hide_email(email) == event.data.get("email"):
-                _LOGGER.debug("Received Login success: %s", event)
-                email = account.get(CONF_EMAIL)
-                login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][
-                    email
-                ].get("login_obj")
-                await setup_alexa(hass, config_entry, login_obj)
-                break
+        if hide_email(email) == event.data.get("email"):
+            _LOGGER.debug("Received Login success: %s", event)
+            login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+                "login_obj"
+            )
+            await setup_alexa(hass, config_entry, login_obj)
 
     hass.data.setdefault(DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}})
 

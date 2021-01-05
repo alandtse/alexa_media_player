@@ -193,7 +193,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             except KeyError:
                 self.login = None
         try:
-            if not self.login:
+            if not self.login or self.login.session.closed:
                 _LOGGER.debug("Creating new login")
                 self.login = AlexaLogin(
                     url=self.config[CONF_URL],

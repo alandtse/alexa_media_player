@@ -225,11 +225,24 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32],
             self._handle_event,
         )
+        # Register to coordinator:
+        email = self._login.email
+        coordinator = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+            "coordinator"
+        )
+        if coordinator:
+            coordinator.async_add_listener(self.update)
 
     async def async_will_remove_from_hass(self):
         """Prepare to remove entity."""
         # Register event handler on bus
         self._listener()
+        email = self._login.email
+        coordinator = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+            "coordinator"
+        )
+        if coordinator:
+            coordinator.async_remove_listener(self.update)
 
     async def _handle_event(self, event):
         """Handle events.
@@ -314,8 +327,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
         if not event_serial:
             return
-        self._available = True
-        self.async_write_ha_state()
+        if event_serial == self.device_serial_number:
+            self._available = True
+            self.async_write_ha_state()
         if "last_called_change" in event:
             if event_serial == self.device_serial_number or any(
                 item["serialNumber"] == event_serial for item in self._app_device_list
@@ -777,6 +791,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if self._media_player_state == "IDLE":
             return STATE_IDLE
         return STATE_STANDBY
+
+    def update(self):
+        """Get the latest details on a media player synchronously."""
+        return asyncio.run_coroutine_threadsafe(
+            self.async_update(), self.hass.loop
+        ).result()
 
     @_catch_login_errors
     async def async_update(self):

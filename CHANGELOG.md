@@ -2,6 +2,18 @@
 
 <!--next-version-placeholder-->
 
+## v3.4.6 (2021-01-06)
+### Fix
+* Fix cookie exchange during oauth refresh ([`d508a0c`](https://github.com/custom-components/alexa_media_player/commit/d508a0caa60073d6ce78ce1887b0f78c7176c6e0))
+* Allow devices with notification capability ([`0b88157`](https://github.com/custom-components/alexa_media_player/commit/0b88157d367f015073a9dae52e58aa2fea4ae911))
+* Use sync callback for update coordinator ([`2185a86`](https://github.com/custom-components/alexa_media_player/commit/2185a86ff0bb278609993e8f00092e5c389f6634))
+* Create login if login session closed ([`47bbfc4`](https://github.com/custom-components/alexa_media_player/commit/47bbfc4dfb793ea1fc8cc7e94003105ba3144e22))
+* Catch login error on guard init ([`d8c5399`](https://github.com/custom-components/alexa_media_player/commit/d8c5399f8906f30e963646a408fb96444687025b))
+* Fix keyerror unloading config_flows ([`23f5aff`](https://github.com/custom-components/alexa_media_player/commit/23f5aff1f4e99c4cd5b2076b099c4dfb148080d2))
+* Fix multie account reauth notification ([`af9aaae`](https://github.com/custom-components/alexa_media_player/commit/af9aaae3f3914629cba37e68609720c4b8f000b6))
+* Fix events processing to be account specific ([`81a87c4`](https://github.com/custom-components/alexa_media_player/commit/81a87c453402e678b02c26b288cd9d3c4cb2c374))
+* Fix erroneous available on websocket event ([`5860905`](https://github.com/custom-components/alexa_media_player/commit/5860905f9acab231cb5b9e0f5adf5932ca7bdaa7))
+
 ## v3.4.5 (2021-01-02)
 ### Fix
 * Fix generation of deviceid for oauth signin ([`1e3a362`](https://github.com/custom-components/alexa_media_player/commit/1e3a3623f79f05be0a3518bf4b112032a326c968))

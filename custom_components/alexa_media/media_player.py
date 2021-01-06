@@ -794,9 +794,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     def update(self):
         """Get the latest details on a media player synchronously."""
-        return asyncio.run_coroutine_threadsafe(
-            self.async_update(), self.hass.loop
-        ).result()
+        return
+        # return self.hass.add_job(async_update)
 
     @_catch_login_errors
     async def async_update(self):

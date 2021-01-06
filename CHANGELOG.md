@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.4.7 (2021-01-06)
+### Fix
+* Change coordinator update to null operation ([`dfc53cc`](https://github.com/custom-components/alexa_media_player/commit/dfc53cc50376e1a480cace18cd0abf776cb1d3fd))
+
 ## v3.4.6 (2021-01-06)
 ### Fix
 * Fix cookie exchange during oauth refresh ([`d508a0c`](https://github.com/custom-components/alexa_media_player/commit/d508a0caa60073d6ce78ce1887b0f78c7176c6e0))

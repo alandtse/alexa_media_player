@@ -34,6 +34,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.util import slugify
 import voluptuous as vol
 
 from .const import (
@@ -192,7 +193,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             except KeyError:
                 self.login = None
         try:
-            if not self.login:
+            if not self.login or self.login.session.closed:
                 _LOGGER.debug("Creating new login")
                 self.login = AlexaLogin(
                     url=self.config[CONF_URL],
@@ -376,7 +377,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     event_data={"email": hide_email(email), "url": login.url},
                 )
                 self.hass.components.persistent_notification.async_dismiss(
-                    "alexa_media_relogin_required"
+                    f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
                 )
                 self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.config[CONF_EMAIL]][
                     "login_obj"
@@ -523,7 +524,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
             self.hass.components.persistent_notification.async_dismiss(
-                "alexa_media_relogin_required"
+                f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
             )
             return self.async_abort(reason=login.status.get("login_failed"))
         new_schema = self._update_schema_defaults()

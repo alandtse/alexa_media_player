@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.4.8 (2021-01-08)
+### Fix
+* Fix registration with amazon.com.au ([`7fff067`](https://github.com/custom-components/alexa_media_player/commit/7fff067392f66e107ab810c8b1b25fec3e6dd9bb))
+
 ## v3.4.7 (2021-01-06)
 ### Fix
 * Change coordinator update to null operation ([`dfc53cc`](https://github.com/custom-components/alexa_media_player/commit/dfc53cc50376e1a480cace18cd0abf776cb1d3fd))

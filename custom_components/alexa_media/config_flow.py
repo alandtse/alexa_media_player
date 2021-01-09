@@ -387,7 +387,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 errors={"base": "2fa_key_invalid"},
                 description_placeholders={"message": ""},
             )
-        except BaseException as ex:
+        except BaseException as ex:  # pylyint: disable=broad-except
             _LOGGER.warning("Unknown error: %s", ex)
             if self.config[CONF_DEBUG]:
                 raise
@@ -457,7 +457,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     errors={"base": "connection_error"},
                     description_placeholders={"message": ""},
                 )
-            except BaseException as ex:
+            except BaseException as ex:  # pylint: disable=broad-except
                 _LOGGER.warning("Unknown error: %s", ex)
                 if self.config[CONF_DEBUG]:
                     raise
@@ -503,6 +503,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         return await self.async_step_user_legacy(self.config)
 
     async def _test_login(self):
+        # pylint: disable=too-many-statements, too-many-return-statements
         login = self.login
         email = login.email
         _LOGGER.debug("Testing login status: %s", login.status)

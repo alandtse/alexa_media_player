@@ -411,7 +411,19 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self._save_user_input_to_config(user_input=user_input)
         if user_input and user_input.get("registered") is False:
             _LOGGER.debug("Not registered, regenerating")
-            return await self.async_step_user(user_input)
+            otp: Text = self.login.get_totp_token()
+            if otp:
+                _LOGGER.debug("Generating OTP from %s", otp)
+                return self.async_show_form(
+                    step_id="totp_register",
+                    data_schema=vol.Schema(self.totp_register),
+                    errors={},
+                    description_placeholders={
+                        "email": self.login.email,
+                        "url": self.login.url,
+                        "message": otp,
+                    },
+                )
         return await self.async_step_process("totp_register", self.config)
 
     async def async_step_claimspicker(self, user_input=None):

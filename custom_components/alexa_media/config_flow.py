@@ -515,6 +515,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.config.pop(CONF_SECURITYCODE)
             if self.config.get(CONF_PROXY):
                 self.config.pop(CONF_PROXY)
+            if self.config.get("hass_url"):
+                self.config.pop("hass_url")
             self.config[CONF_OAUTH] = {
                 "access_token": login.access_token,
                 "refresh_token": login.refresh_token,

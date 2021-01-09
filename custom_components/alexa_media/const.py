@@ -30,11 +30,13 @@ HTTP_COOKIE_HEADER = "# HTTP Cookie File"
 CONF_ACCOUNTS = "accounts"
 CONF_COOKIES_TXT = "cookies_txt"
 CONF_DEBUG = "debug"
+CONF_HASS_URL = "hass_url"
 CONF_INCLUDE_DEVICES = "include_devices"
 CONF_EXCLUDE_DEVICES = "exclude_devices"
 CONF_QUEUE_DELAY = "queue_delay"
 CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
+CONF_PROXY = "proxy"
 CONF_TOTP_REGISTER = "registered"
 CONF_OAUTH = "oauth"
 DATA_LISTENER = "listener"
@@ -88,3 +90,6 @@ If you have any issues with this you need to open an issue here:
 """.format(
     DOMAIN, __version__, ISSUE_URL
 )
+
+AUTH_CALLBACK_PATH = "/auth/alexamedia/callback"
+AUTH_CALLBACK_NAME = "auth:alexamedia:callback"

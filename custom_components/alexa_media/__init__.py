@@ -310,7 +310,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             AlexaAPI.get_bluetooth(login_obj),
             AlexaAPI.get_device_preferences(login_obj),
             AlexaAPI.get_dnd_state(login_obj),
-            AlexaAPI.get_notifications(login_obj),
         ]
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
@@ -325,17 +324,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         bluetooth,
                         preferences,
                         dnd,
-                        raw_notifications,
                         auth_info,
                     ) = await asyncio.gather(*tasks)
                 else:
-                    (
-                        devices,
-                        bluetooth,
-                        preferences,
-                        dnd,
-                        raw_notifications,
-                    ) = await asyncio.gather(*tasks)
+                    (devices, bluetooth, preferences, dnd,) = await asyncio.gather(
+                        *tasks
+                    )
                 _LOGGER.debug(
                     "%s: Found %s devices, %s bluetooth",
                     hide_email(email),

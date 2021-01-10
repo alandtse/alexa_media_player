@@ -684,9 +684,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "message": f"  \n>{login.status.get('message','')}  \n",
                 },
             )
-        if login.status and (
-            login.status.get("login_failed") or login.status.get("ap_error_href")
-        ):
+        if login.status and (login.status.get("login_failed")):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
             self.hass.components.persistent_notification.async_dismiss(

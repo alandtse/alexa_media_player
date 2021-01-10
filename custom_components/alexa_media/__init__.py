@@ -208,12 +208,12 @@ async def async_setup_entry(hass, config_entry):
             )
             await setup_alexa(hass, config_entry, login_obj)
 
+    if not hass.data.get(DATA_ALEXAMEDIA):
+        _LOGGER.info(STARTUP)
+        _LOGGER.info("Loaded alexapy==%s", alexapy_version)
     hass.data.setdefault(
         DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}, "lock": asyncio.Lock()}
     )
-
-    _LOGGER.info(STARTUP)
-    _LOGGER.info("Loaded alexapy==%s", alexapy_version)
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
     hass.bus.async_listen("alexa_media_relogin_required", relogin)
     hass.bus.async_listen("alexa_media_relogin_success", login_success)

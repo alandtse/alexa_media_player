@@ -96,8 +96,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     def __init__(self):
         """Initialize the config flow."""
-        _LOGGER.info(STARTUP)
-        _LOGGER.info("Loaded alexapy==%s", alexapy_version)
+        if self.hass and not self.hass.data.get(DATA_ALEXAMEDIA):
+            _LOGGER.info(STARTUP)
+            _LOGGER.info("Loaded alexapy==%s", alexapy_version)
         self.login = None
         self.securitycode: Optional[Text] = None
         self.automatic_steps: int = 0
@@ -522,6 +523,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "refresh_token": login.refresh_token,
                 "expires_in": login.expires_in,
             }
+            self.hass.data.setdefault(
+                DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}}
+            )
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
                     existing_entry, data=self.config

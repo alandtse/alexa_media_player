@@ -273,7 +273,6 @@ async def async_setup_entry(hass, config_entry):
         if await test_login_status(hass, config_entry, login):
             await setup_alexa(hass, config_entry, login)
             return True
-        await login.reset()
     return False
 
 

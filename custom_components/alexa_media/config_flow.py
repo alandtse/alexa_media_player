@@ -279,6 +279,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_check_proxy(self, user_input=None):
         """Check status of proxy for login."""
+        _LOGGER.debug(
+            "Checking proxy response for %s - %s",
+            hide_email(self.login.email),
+            self.login.url,
+        )
         if self.proxy:
             await self.proxy.stop_proxy()
         if await self.login.test_loggedin():
@@ -367,6 +372,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     errors={"base": "2fa_key_invalid"},
                     description_placeholders={"message": ""},
                 )
+            if self.login.status:
+                _LOGGER.debug("Resuming existing flow")
+                return await self._test_login()
+            _LOGGER.debug("Trying to login %s", self.login.status)
             await self.login.login(
                 cookies=await self.login.load_cookie(
                     cookies_txt=self.config.get(CONF_COOKIES_TXT, "")
@@ -445,6 +454,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_process(self, step_id, user_input=None):
         """Handle the input processing of the config flow."""
+        _LOGGER.debug(
+            "Processing input for %s: %s", step_id, obfuscate(user_input),
+        )
         self._save_user_input_to_config(user_input=user_input)
         if user_input and user_input.get(CONF_PROXY):
             return await self.async_step_user(user_input=None)

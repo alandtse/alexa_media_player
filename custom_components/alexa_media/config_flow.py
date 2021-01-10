@@ -676,7 +676,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             return self.async_show_form(
                 step_id="action_required",
                 data_schema=vol.Schema(
-                    OrderedDict((vol.Optional(CONF_PROXY, default=False), bool),)
+                    OrderedDict([(vol.Optional(CONF_PROXY, default=False), bool)])
                 ),
                 description_placeholders={
                     "email": login.email,

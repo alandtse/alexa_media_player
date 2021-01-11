@@ -137,7 +137,10 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         account = config_entry.data[CONF_EMAIL]
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
         for component in DEPENDENT_ALEXA_COMPONENTS:
-            entry_setup = len(account_dict["entities"][component])
+            try:
+                entry_setup = len(account_dict["entities"][component])
+            except TypeError:
+                entry_setup = 1
             if entry_setup or component == "notify":
                 _LOGGER.debug("Loading %s", component)
                 cleaned_config = config_entry.data.copy()

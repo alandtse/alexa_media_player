@@ -124,9 +124,11 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     account = entry.data[CONF_EMAIL]
+    _LOGGER.debug("Attempting to unload switch")
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     for key, switches in account_dict["entities"]["switch"].items():
         for device in switches[key].values():
+            _LOGGER.debug("Removing %s", device)
             await device.async_remove()
     return True
 

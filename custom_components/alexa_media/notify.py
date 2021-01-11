@@ -52,6 +52,7 @@ async def async_get_service(hass, config, discovery_info=None):
 
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
+    _LOGGER.debug("Attempting to unload notify")
     target_account = entry.data[CONF_EMAIL]
     other_accounts = False
     for account, account_dict in hass.data[DATA_ALEXAMEDIA]["accounts"].items():

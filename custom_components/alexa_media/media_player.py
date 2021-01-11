@@ -135,6 +135,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                     )
                 )
             else:
+                _LOGGER.debug("Loading config entry for %s", component)
                 hass.async_add_job(
                     hass.config_entries.async_forward_entry_setup(
                         config_entry, component
@@ -147,8 +148,10 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     account = entry.data[CONF_EMAIL]
+    _LOGGER.debug("Attempting to unload media players")
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     for device in account_dict["entities"]["media_player"].values():
+        _LOGGER.debug("Removing %s", device)
         await device.async_remove()
     return True
 

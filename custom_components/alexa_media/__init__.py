@@ -1010,7 +1010,7 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     email = entry.data["email"]
     _LOGGER.debug("Attempting to unload entry for %s", hide_email(email))
-    for component in ALEXA_COMPONENTS:
+        _LOGGER.debug("Forwarding unload entry to %s", component)
         await hass.config_entries.async_forward_entry_unload(entry, component)
     # notify has to be handled manually as the forward does not work yet
     await notify_async_unload_entry(hass, entry)

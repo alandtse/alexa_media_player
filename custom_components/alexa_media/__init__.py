@@ -11,6 +11,7 @@ import asyncio
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 import logging
+import random
 import time
 from typing import Optional, Text
 
@@ -207,7 +208,9 @@ async def async_setup_entry(hass, config_entry):
             )
             await setup_alexa(hass, config_entry, login_obj)
 
-    hass.data.setdefault(DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}})
+    hass.data.setdefault(
+        DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}, "lock": asyncio.Lock()}
+    )
 
     _LOGGER.info(STARTUP)
     _LOGGER.info("Loaded alexapy==%s", alexapy_version)
@@ -256,11 +259,21 @@ async def async_setup_entry(hass, config_entry):
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
-    await login.login(cookies=await login.load_cookie())
-    if await test_login_status(hass, config_entry, login):
-        await setup_alexa(hass, config_entry, login)
-        return True
-    await login.reset()
+    lock_delay = 0
+    if hass.data[DATA_ALEXAMEDIA]["lock"].locked():
+        lock_delay = random.uniform(0, 5)
+        _LOGGER.debug("%s: Detected other account loading", hide_email(email))
+    async with hass.data[DATA_ALEXAMEDIA]["lock"]:
+        if lock_delay:
+            _LOGGER.debug(
+                "%s: Beginning login, delaying for %s", hide_email(email), lock_delay,
+            )
+            await asyncio.sleep(lock_delay)
+        await login.login(cookies=await login.load_cookie())
+        if await test_login_status(hass, config_entry, login):
+            await setup_alexa(hass, config_entry, login)
+            return True
+        await login.reset()
     return False
 
 
@@ -310,7 +323,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             AlexaAPI.get_bluetooth(login_obj),
             AlexaAPI.get_device_preferences(login_obj),
             AlexaAPI.get_dnd_state(login_obj),
-            AlexaAPI.get_notifications(login_obj),
         ]
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
@@ -325,17 +337,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         bluetooth,
                         preferences,
                         dnd,
-                        raw_notifications,
                         auth_info,
                     ) = await asyncio.gather(*tasks)
                 else:
-                    (
-                        devices,
-                        bluetooth,
-                        preferences,
-                        dnd,
-                        raw_notifications,
-                    ) = await asyncio.gather(*tasks)
+                    (devices, bluetooth, preferences, dnd,) = await asyncio.gather(
+                        *tasks
+                    )
                 _LOGGER.debug(
                     "%s: Found %s devices, %s bluetooth",
                     hide_email(email),
@@ -993,7 +1000,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     _LOGGER.debug("Refreshing coordinator")
     await coordinator.async_refresh()
 
-    coordinator.async_add_listener(lambda: None)
     hass.data[DATA_ALEXAMEDIA]["services"] = alexa_services = AlexaMediaServices(
         hass, functions={"update_last_called": update_last_called}
     )
@@ -1030,6 +1036,7 @@ async def async_unload_entry(hass, entry) -> bool:
     if not hass.data[DATA_ALEXAMEDIA]["accounts"]:
         _LOGGER.debug("Removing accounts data and services")
         hass.data[DATA_ALEXAMEDIA].pop("accounts")
+        hass.data[DATA_ALEXAMEDIA].pop("lock")
         alexa_services = hass.data[DATA_ALEXAMEDIA].get("services")
         if alexa_services:
             await alexa_services.unregister()

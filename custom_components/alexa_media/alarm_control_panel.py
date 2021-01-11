@@ -133,6 +133,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia):
         # pylint: disable=unexpected-keyword-arg
         """Initialize the Alexa device."""
         super().__init__(None, login)
+        _LOGGER.debug("%s: Initiating alarm control panel", hide_email(login.email))
         # AlexaAPI requires a AlexaClient object, need to clean this up
         self._available = None
         self._assumed_state = None

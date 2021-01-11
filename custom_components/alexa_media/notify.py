@@ -38,6 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_get_service(hass, config, discovery_info=None):
     # pylint: disable=unused-argument
     """Get the demo notification service."""
+    result = False
     for account, account_dict in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
         for key, _ in account_dict["devices"]["media_player"].items():
             if key not in account_dict["entities"]["media_player"]:
@@ -47,7 +48,8 @@ async def async_get_service(hass, config, discovery_info=None):
                     hide_serial(key),
                 )
                 return False
-    return AlexaNotificationService(hass)
+        result = account_dict["entities"]["notify"] = AlexaNotificationService(hass)
+    return result
 
 
 async def async_unload_entry(hass, entry) -> bool:

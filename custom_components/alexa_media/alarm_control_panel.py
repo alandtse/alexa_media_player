@@ -55,7 +55,7 @@ async def async_setup_platform(
 ) -> bool:
     """Set up the Alexa alarm control panel platform."""
     devices = []  # type: List[AlexaAlarmControlPanel]
-    account = config[CONF_EMAIL]
+    account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]

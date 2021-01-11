@@ -93,8 +93,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     # pylint: disable=unused-argument
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
-    account = config[CONF_EMAIL]
+    account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    entry_setup = len(account_dict["entities"]["media_player"])
     for key, device in account_dict["devices"]["media_player"].items():
         if key not in account_dict["entities"]["media_player"]:
             alexa_client = AlexaClient(device, account_dict["login_obj"])
@@ -112,7 +113,20 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 hide_serial(key),
                 alexa_client,
             )
-    return await add_devices(hide_email(account), devices, add_devices_callback)
+    result = await add_devices(hide_email(account), devices, add_devices_callback)
+    if result and entry_setup:
+        _LOGGER.debug("Detected config entry already setup, using load platform")
+        for component in DEPENDENT_ALEXA_COMPONENTS:
+            hass.async_create_task(
+                async_load_platform(
+                    hass,
+                    component,
+                    ALEXA_DOMAIN,
+                    {CONF_NAME: ALEXA_DOMAIN, "config": config},
+                    config,
+                )
+            )
+    return result
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
@@ -120,8 +134,12 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     if await async_setup_platform(
         hass, config_entry.data, async_add_devices, discovery_info=None
     ):
+        account = config_entry.data[CONF_EMAIL]
+        account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
         for component in DEPENDENT_ALEXA_COMPONENTS:
-            if component == "notify":
+            entry_setup = len(account_dict["entities"][component])
+            if entry_setup or component == "notify":
+                _LOGGER.debug("Loading %s", component)
                 cleaned_config = config_entry.data.copy()
                 cleaned_config.pop(CONF_PASSWORD, None)
                 # CONF_PASSWORD contains sensitive info which is no longer needed

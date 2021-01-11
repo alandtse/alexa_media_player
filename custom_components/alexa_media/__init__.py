@@ -29,6 +29,7 @@ import async_timeout
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     CONF_EMAIL,
+    CONF_NAME,
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_URL,
@@ -36,6 +37,7 @@ from homeassistant.const import (
 )
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt, slugify
@@ -56,6 +58,7 @@ from .const import (
     DATA_ALEXAMEDIA,
     DATA_LISTENER,
     DEFAULT_QUEUE_DELAY,
+    DEPENDENT_ALEXA_COMPONENTS,
     DOMAIN,
     ISSUE_URL,
     MIN_TIME_BETWEEN_FORCED_SCANS,
@@ -228,7 +231,13 @@ async def async_setup_entry(hass, config_entry):
             "config_entry": config_entry,
             "setup_alexa": setup_alexa,
             "devices": {"media_player": {}, "switch": {}},
-            "entities": {"media_player": {}, "switch": {}},
+            "entities": {
+                "media_player": {},
+                "switch": {},
+                "notify": {},
+                "sensor": {},
+                "alarm_control_panel": {},
+            },
             "excluded": {},
             "new_devices": True,
             "websocket_lastattempt": 0,
@@ -483,12 +492,27 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             cleaned_config.pop(CONF_PASSWORD, None)
             # CONF_PASSWORD contains sensitive info which is no longer needed
             for component in ALEXA_COMPONENTS:
-                _LOGGER.debug("Loading %s", component)
-                hass.async_add_job(
-                    hass.config_entries.async_forward_entry_setup(
-                        config_entry, component
-                    )
+                entry_setup = len(
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][component]
                 )
+                if not entry_setup:
+                    _LOGGER.debug("Loading config entry for %s", component)
+                    hass.async_add_job(
+                        hass.config_entries.async_forward_entry_setup(
+                            config_entry, component
+                        )
+                    )
+                else:
+                    _LOGGER.debug("Loading %s", component)
+                    hass.async_create_task(
+                        async_load_platform(
+                            hass,
+                            component,
+                            DOMAIN,
+                            {CONF_NAME: DOMAIN, "config": cleaned_config},
+                            cleaned_config,
+                        )
+                    )
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         await login_obj.save_cookiefile()
@@ -1010,6 +1034,7 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     email = entry.data["email"]
     _LOGGER.debug("Attempting to unload entry for %s", hide_email(email))
+    for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         _LOGGER.debug("Forwarding unload entry to %s", component)
         await hass.config_entries.async_forward_entry_unload(entry, component)
     # notify has to be handled manually as the forward does not work yet

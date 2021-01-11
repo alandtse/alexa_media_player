@@ -7,7 +7,7 @@ Alexa Config Flow.
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
-from asyncio import sleep
+from asyncio import sleep, Lock
 from aiohttp import web_response
 from collections import OrderedDict
 from datetime import timedelta
@@ -536,7 +536,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "expires_in": login.expires_in,
             }
             self.hass.data.setdefault(
-                DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}}
+                DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}, "lock": Lock()},
             )
             if existing_entry:
                 self.hass.config_entries.async_update_entry(

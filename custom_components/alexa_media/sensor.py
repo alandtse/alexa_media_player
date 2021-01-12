@@ -326,7 +326,7 @@ class AlexaMediaNotificationSensor(Entity):
         if "notification_update" in event:
             if (
                 event["notification_update"]["dopplerId"]["deviceSerialNumber"]
-                == self._client.unique_id
+                == self._client.device_serial_number
             ):
                 _LOGGER.debug("Updating sensor %s", self)
                 self.async_schedule_update_ha_state(True)

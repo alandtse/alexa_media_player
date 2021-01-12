@@ -246,6 +246,7 @@ async def async_setup_entry(hass, config_entry):
             "websocket_activity": {"serials": {}, "refreshed": {}},
             "websocket": None,
             "auth_info": None,
+            "second_account": False,
             "options": {
                 CONF_QUEUE_DELAY: config_entry.options.get(
                     CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
@@ -273,6 +274,11 @@ async def async_setup_entry(hass, config_entry):
         lock_delay = random.uniform(0, 5)
         _LOGGER.debug("%s: Detected other account loading", hide_email(email))
     async with hass.data[DATA_ALEXAMEDIA]["lock"]:
+        if hass.config_entries.async_entries(DATA_ALEXAMEDIA):
+            entry = hass.config_entries.async_entries(DATA_ALEXAMEDIA)[0]
+            if entry.data.get(CONF_EMAIL) != email or entry.data.get(CONF_URL) != url:
+                _LOGGER.debug("%s is second account", hide_email(email))
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account"] = True
         if lock_delay:
             _LOGGER.debug(
                 "%s: Beginning login, delaying for %s", hide_email(email), lock_delay,
@@ -1072,6 +1078,8 @@ async def async_unload_entry(hass, entry) -> bool:
         )
         if hass.data[DATA_ALEXAMEDIA].get("config_flows"):
             hass.data[DATA_ALEXAMEDIA].pop("config_flows")
+        if hass.data[DATA_ALEXAMEDIA].get("lock"):
+            hass.data[DATA_ALEXAMEDIA].pop("lock")
     if not hass.data[DATA_ALEXAMEDIA]:
         _LOGGER.debug("Removing alexa_media data structure")
         if hass.data.get(DATA_ALEXAMEDIA):

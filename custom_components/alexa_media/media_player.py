@@ -43,6 +43,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later
+from homeassistant.util import slugify
 
 from . import (
     CONF_QUEUE_DELAY,
@@ -98,7 +99,11 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     entry_setup = len(account_dict["entities"]["media_player"])
     for key, device in account_dict["devices"]["media_player"].items():
         if key not in account_dict["entities"]["media_player"]:
-            alexa_client = AlexaClient(device, account_dict["login_obj"])
+            alexa_client = AlexaClient(
+                device,
+                account_dict["login_obj"],
+                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["second_account"],
+            )
             await alexa_client.init(device)
             devices.append(alexa_client)
             (
@@ -180,7 +185,7 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaClient(MediaPlayerDevice, AlexaMedia):
     """Representation of a Alexa device."""
 
-    def __init__(self, device, login):
+    def __init__(self, device, login, second_account=False):
         # pylint: disable=unused-argument
         """Initialize the Alexa device."""
         super().__init__(self, login)
@@ -236,6 +241,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._app_device_list = None
         self._parent_clusters = None
         self._timezone = None
+        self._second_account = second_account
 
     async def init(self, device):
         """Initialize."""
@@ -786,7 +792,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def unique_id(self):
         """Return the id of this Alexa client."""
-        return self.device_serial_number
+        email = self._login.email
+        return (
+            slugify(f"{self.device_serial_number}_{email}")
+            if self._second_account
+            else self.device_serial_number
+        )
 
     @property
     def name(self):
@@ -847,7 +858,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             return
         device = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
             "media_player"
-        ][self.unique_id]
+        ][self.device_serial_number]
         seen_commands = (
             self.hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "websocket_commands"

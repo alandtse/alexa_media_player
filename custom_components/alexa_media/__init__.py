@@ -1057,7 +1057,7 @@ async def async_unload_entry(hass, entry) -> bool:
         for flow in flows_to_remove:
             hass.data[DATA_ALEXAMEDIA]["config_flows"].pop(flow)
     # Clean up hass.data
-    if not hass.data[DATA_ALEXAMEDIA]["accounts"]:
+    if not hass.data[DATA_ALEXAMEDIA].get("accounts"):
         _LOGGER.debug("Removing accounts data and services")
         hass.data[DATA_ALEXAMEDIA].pop("accounts")
         hass.data[DATA_ALEXAMEDIA].pop("lock")
@@ -1065,15 +1065,17 @@ async def async_unload_entry(hass, entry) -> bool:
         if alexa_services:
             await alexa_services.unregister()
             hass.data[DATA_ALEXAMEDIA].pop("services")
-    if not hass.data[DATA_ALEXAMEDIA]["config_flows"]:
+    if not hass.data[DATA_ALEXAMEDIA].get("config_flows"):
         _LOGGER.debug("Removing config_flows data")
         hass.components.persistent_notification.async_dismiss(
             f"alexa_media_{slugify(email)}{slugify((entry.data['url'])[7:])}"
         )
-        hass.data[DATA_ALEXAMEDIA].pop("config_flows")
+        if hass.data[DATA_ALEXAMEDIA].get("config_flows"):
+            hass.data[DATA_ALEXAMEDIA].pop("config_flows")
     if not hass.data[DATA_ALEXAMEDIA]:
         _LOGGER.debug("Removing alexa_media data structure")
-        hass.data.pop(DATA_ALEXAMEDIA)
+        if hass.data.get(DATA_ALEXAMEDIA):
+            hass.data.pop(DATA_ALEXAMEDIA)
     _LOGGER.debug("Unloaded entry for %s", hide_email(email))
     return True
 

@@ -97,6 +97,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     entry_setup = len(account_dict["entities"]["media_player"])
+    alexa_client = None
     for key, device in account_dict["devices"]["media_player"].items():
         if key not in account_dict["entities"]["media_player"]:
             alexa_client = AlexaClient(

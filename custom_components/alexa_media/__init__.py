@@ -175,8 +175,9 @@ async def async_setup_entry(hass, config_entry):
     async def close_alexa_media(event=None) -> None:
         """Clean up Alexa connections."""
         _LOGGER.debug("Received shutdown request: %s", event)
-        for email, _ in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
-            await close_connections(hass, email)
+        if hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts"):
+            for email, _ in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+                await close_connections(hass, email)
 
     async def relogin(event=None) -> None:
         """Relogin to Alexa."""
@@ -217,6 +218,12 @@ async def async_setup_entry(hass, config_entry):
     hass.data.setdefault(
         DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}, "lock": asyncio.Lock()}
     )
+    if not hass.data[DATA_ALEXAMEDIA].get("accounts"):
+        hass.data[DATA_ALEXAMEDIA] = {
+            "accounts": {},
+            "config_flows": {},
+            "lock": asyncio.Lock(),
+        }
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
     hass.bus.async_listen("alexa_media_relogin_required", relogin)
     hass.bus.async_listen("alexa_media_relogin_success", login_success)
@@ -1066,24 +1073,28 @@ async def async_unload_entry(hass, entry) -> bool:
     if not hass.data[DATA_ALEXAMEDIA].get("accounts"):
         _LOGGER.debug("Removing accounts data and services")
         hass.data[DATA_ALEXAMEDIA].pop("accounts")
-        hass.data[DATA_ALEXAMEDIA].pop("lock")
         alexa_services = hass.data[DATA_ALEXAMEDIA].get("services")
         if alexa_services:
             await alexa_services.unregister()
             hass.data[DATA_ALEXAMEDIA].pop("services")
-    if not hass.data[DATA_ALEXAMEDIA].get("config_flows"):
+    if hass.data[DATA_ALEXAMEDIA].get("config_flows") == {}:
         _LOGGER.debug("Removing config_flows data")
         hass.components.persistent_notification.async_dismiss(
             f"alexa_media_{slugify(email)}{slugify((entry.data['url'])[7:])}"
         )
-        if hass.data[DATA_ALEXAMEDIA].get("config_flows"):
-            hass.data[DATA_ALEXAMEDIA].pop("config_flows")
-        if hass.data[DATA_ALEXAMEDIA].get("lock"):
-            hass.data[DATA_ALEXAMEDIA].pop("lock")
+        hass.data[DATA_ALEXAMEDIA].pop("config_flows")
+    if hass.data[DATA_ALEXAMEDIA].get("lock"):
+        _LOGGER.debug("Removing lock data")
+        hass.data[DATA_ALEXAMEDIA].pop("lock")
     if not hass.data[DATA_ALEXAMEDIA]:
         _LOGGER.debug("Removing alexa_media data structure")
         if hass.data.get(DATA_ALEXAMEDIA):
             hass.data.pop(DATA_ALEXAMEDIA)
+    else:
+        _LOGGER.debug(
+            "Unable to remove alexa_media data structure: %s",
+            hass.data.get(DATA_ALEXAMEDIA),
+        )
     _LOGGER.debug("Unloaded entry for %s", hide_email(email))
     return True
 

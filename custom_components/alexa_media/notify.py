@@ -105,14 +105,14 @@ class AlexaNotificationService(BaseNotificationService):
         for item in names:
             matched = False
             for alexa in self.devices:
-                _LOGGER.debug(
-                    "Testing item: %s against (%s, %s, %s, %s)",
-                    item,
-                    alexa,
-                    alexa.name,
-                    hide_serial(alexa.unique_id),
-                    alexa.entity_id,
-                )
+                # _LOGGER.debug(
+                #     "Testing item: %s against (%s, %s, %s, %s)",
+                #     item,
+                #     alexa,
+                #     alexa.name,
+                #     hide_serial(alexa.unique_id),
+                #     alexa.entity_id,
+                # )
                 if item in (alexa, alexa.name, alexa.unique_id, alexa.entity_id):
                     if type_ == "entities":
                         converted = alexa
@@ -124,7 +124,7 @@ class AlexaNotificationService(BaseNotificationService):
                         converted = alexa.entity_id
                     devices.append(converted)
                     matched = True
-                    _LOGGER.debug("Converting: %s to (%s): %s", item, type_, converted)
+                    # _LOGGER.debug("Converting: %s to (%s): %s", item, type_, converted)
             if not filter_matches and not matched:
                 devices.append(item)
         return devices
@@ -193,7 +193,7 @@ class AlexaNotificationService(BaseNotificationService):
                     targets = self.convert(
                         entities, type_="entities", filter_matches=True
                     )
-                    _LOGGER.debug("TTS entities: %s", targets)
+                    # _LOGGER.debug("TTS entities: %s", targets)
                     if alexa in targets and alexa.available:
                         _LOGGER.debug("TTS by %s : %s", alexa, message)
                         tasks.append(
@@ -208,11 +208,11 @@ class AlexaNotificationService(BaseNotificationService):
                     targets = self.convert(
                         entities, type_="serialnumbers", filter_matches=True
                     )
-                    _LOGGER.debug(
-                        "Announce targets: %s entities: %s",
-                        list(map(hide_serial, targets)),
-                        entities,
-                    )
+                    # _LOGGER.debug(
+                    #     "Announce targets: %s entities: %s",
+                    #     list(map(hide_serial, targets)),
+                    #     entities,
+                    # )
                     if alexa.unique_id in targets and alexa.available:
                         _LOGGER.debug(
                             ("%s: Announce by %s to " "targets: %s: %s"),

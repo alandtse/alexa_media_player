@@ -1013,7 +1013,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     ] = await ws_connect()
     coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
     if coordinator is None:
-        _LOGGER.debug("Creating coordinator")
+        _LOGGER.debug("%s: Creating coordinator", hide_email(email))
         hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "coordinator"
         ] = coordinator = DataUpdateCoordinator(
@@ -1028,12 +1028,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             ),
         )
     else:
-        _LOGGER.debug("Reusing coordinator")
+        _LOGGER.debug("%s: Reusing coordinator", hide_email(email))
         coordinator.update_interval = timedelta(
             seconds=scan_interval * 10 if websocket_enabled else scan_interval
         )
     # Fetch initial data so we have data when entities subscribe
-    _LOGGER.debug("Refreshing coordinator")
+    _LOGGER.debug("%s: Refreshing coordinator", hide_email(email))
     await coordinator.async_refresh()
 
     hass.data[DATA_ALEXAMEDIA]["services"] = alexa_services = AlexaMediaServices(

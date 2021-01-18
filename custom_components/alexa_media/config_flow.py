@@ -714,11 +714,15 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "There was a problem\n            Enter a valid email or mobile number\n          "
             }:
                 _LOGGER.debug(
-                    "Trying automatic resubmission for error_message 'valid email'"
+                    "Trying automatic resubmission %s for error_message 'valid email'",
+                    self.automatic_steps,
                 )
                 self.automatic_steps += 1
                 await sleep(5)
                 return await self.async_step_user_legacy(user_input=self.config)
+            _LOGGER.debug(
+                "Done with automatic resubmission for error_message 'valid email'; returning error message",
+            )
             self.automatic_steps = 0
             return self.async_show_form(
                 step_id="user_legacy",

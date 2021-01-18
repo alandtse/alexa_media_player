@@ -140,7 +140,7 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_SCAN_INTERVAL: account[
                                 CONF_SCAN_INTERVAL
                             ].total_seconds(),
-                            CONF_OAUTH: account.get("CONF_OAUTH", {}),
+                            CONF_OAUTH: account.get(CONF_OAUTH, {}),
                             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
                         },
                     )
@@ -160,7 +160,7 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                         CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),
-                        CONF_OAUTH: account.get("CONF_OAUTH", {}),
+                        CONF_OAUTH: account.get(CONF_OAUTH, {}),
                         CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
                     },
                 )

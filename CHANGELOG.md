@@ -2,6 +2,43 @@
 
 <!--next-version-placeholder-->
 
+## v3.5.0 (2021-01-18)
+### Feature
+* Add ability to select non-oauth login ([`8f78709`](https://github.com/custom-components/alexa_media_player/commit/8f78709b0d0511f4f0c99c9e8c5f27cd9b476c0a))
+* Add last_called_summary attribute ([`79f23f7`](https://github.com/custom-components/alexa_media_player/commit/79f23f7f80e591d52b508d152049f056b6ae7427))
+* Enable proxy logins ([`80114ee`](https://github.com/custom-components/alexa_media_player/commit/80114eee7a137fe904448fc34ef8e8fcf4c597f6))
+
+### Fix
+* Change to single notify service ([`2298d51`](https://github.com/custom-components/alexa_media_player/commit/2298d5127791312220d7f3306e293e3769215e09))
+* Add auto submit limit for valid email error ([`18558aa`](https://github.com/custom-components/alexa_media_player/commit/18558aa5989a32c73d79a2b46fa0c37ab3605e83))
+* Register events after initial setup ([`4a8fa41`](https://github.com/custom-components/alexa_media_player/commit/4a8fa41eb7e21269dcdb2464c6261224bf184bbb))
+* Fix oauth processing for login ([`43d5432`](https://github.com/custom-components/alexa_media_player/commit/43d5432483a3512eaefac5e3049064e6c636876a))
+* Iterate uuid for multiple accounts ([`16d7acf`](https://github.com/custom-components/alexa_media_player/commit/16d7acf95c99fc487b291488c4d32386ee08672a))
+* Fix entity name for unload ([`717b7f7`](https://github.com/custom-components/alexa_media_player/commit/717b7f7fea9a6cd8a990b750e35d76a5220a17ac))
+* Fix unbound alexa_client use case ([`9c0a686`](https://github.com/custom-components/alexa_media_player/commit/9c0a6864ff054b508ada390b00a4d49091f5eff8))
+* Fix key errors from unloading ([`bf6e613`](https://github.com/custom-components/alexa_media_player/commit/bf6e6130d4745d4f27e0bd3eb869d9a373c13f62))
+* Add changing unique_id for secondary accounts ([`fbd1e12`](https://github.com/custom-components/alexa_media_player/commit/fbd1e127b1db6a6dd812be514df23f7efe86b447))
+* Check for existence of data before unload ([`5001e94`](https://github.com/custom-components/alexa_media_player/commit/5001e94cba0d45bc4e69b2c5d428ce693476bb0a))
+* Fix type error for solo components ([`3c99f03`](https://github.com/custom-components/alexa_media_player/commit/3c99f03cbecb1194433d24678b5f6ae348998f60))
+* Add lock entry ([`dad2a17`](https://github.com/custom-components/alexa_media_player/commit/dad2a178ce68d5abf74a0011c5d90d60bfdbcf27))
+* Add logic to avoid reloading config entry ([`5f7cb1d`](https://github.com/custom-components/alexa_media_player/commit/5f7cb1dc79cfb1ecf38ff022c5d784e0db9fad36))
+* Allow resuming of login session after testing ([`252e133`](https://github.com/custom-components/alexa_media_player/commit/252e13309c7599c41b8f089992be30629793897b))
+* Fix detection of action required page ([`c082938`](https://github.com/custom-components/alexa_media_player/commit/c0829382bdaced90a19ba8b889340df4221540da))
+* Allow proxy for action_required ([`6bd1c64`](https://github.com/custom-components/alexa_media_player/commit/6bd1c64467b2eb1acc6dcd11e060f41bdd70f27b))
+* Pop hass_url ([`d671288`](https://github.com/custom-components/alexa_media_player/commit/d671288429783a867414c85e911c7356c4950a06))
+* Add http prerequisite ([`e513187`](https://github.com/custom-components/alexa_media_player/commit/e513187d72d2f90316402acb0ce117f3c075a7b9))
+* Fix otp registration to require confirmation ([`0a001f1`](https://github.com/custom-components/alexa_media_player/commit/0a001f1a25b0ad8ae44bfd9e993b0f84c4b7da79))
+* Use lock to stagger account loading ([`8320df8`](https://github.com/custom-components/alexa_media_player/commit/8320df8eafae2d718348a701058848bc15949f73))
+
+### Performance
+* Remove extraneous notification call ([`b47988f`](https://github.com/custom-components/alexa_media_player/commit/b47988f86efbaf86b694c13f56e25545733fc92b))
+
+### Refactor
+* Update debug statements for consistency ([`7b88105`](https://github.com/custom-components/alexa_media_player/commit/7b88105e7b0b77e8df528fb787de825a2246bb23))
+* Add debug for alarm_control_panel start ([`56671e3`](https://github.com/custom-components/alexa_media_player/commit/56671e36269b9426d049549f90c38e6190b4454a))
+* Add more debugging to unload ([`173807f`](https://github.com/custom-components/alexa_media_player/commit/173807f1af766baed5c71c80694d3245fab20e25))
+* Reduce number of startup log display ([`5c63951`](https://github.com/custom-components/alexa_media_player/commit/5c63951855c1fc09072e7ed9f2d462a407730423))
+
 ## v3.4.8 (2021-01-08)
 ### Fix
 * Fix registration with amazon.com.au ([`7fff067`](https://github.com/custom-components/alexa_media_player/commit/7fff067392f66e107ab810c8b1b25fec3e6dd9bb))

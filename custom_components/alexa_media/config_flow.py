@@ -752,9 +752,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         new_schema = self._update_schema_defaults()
         if login.status and login.status.get("error_message"):
             _LOGGER.debug("Login error detected: %s", login.status.get("error_message"))
-            if login.status.get("error_message") in {
-                "There was a problem\n            Enter a valid email or mobile number\n          "
-            }:
+            if (
+                login.status.get("error_message")
+                in {
+                    "There was a problem\n            Enter a valid email or mobile number\n          "
+                }
+                and self.automatic_steps < 2
+            ):
                 _LOGGER.debug(
                     "Trying automatic resubmission %s for error_message 'valid email'",
                     self.automatic_steps,

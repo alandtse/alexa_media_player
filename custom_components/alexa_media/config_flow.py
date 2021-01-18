@@ -60,6 +60,7 @@ from .const import (
     HTTP_COOKIE_HEADER,
     STARTUP,
 )
+from .helpers import calculate_uuid
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -256,6 +257,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.login = None
         if not self.login or self.login.session.closed:
             _LOGGER.debug("Creating new login")
+            uuid_dict = await calculate_uuid(
+                self.hass, self.config.get(CONF_EMAIL), self.config[CONF_URL]
+            )
+            uuid = uuid_dict["uuid"]
             self.login = AlexaLogin(
                 url=self.config[CONF_URL],
                 email=self.config.get(CONF_EMAIL, ""),
@@ -263,7 +268,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 outputpath=self.hass.config.path,
                 debug=self.config[CONF_DEBUG],
                 otp_secret=self.config.get(CONF_OTPSECRET, ""),
-                uuid=await self.hass.helpers.instance_id.async_get(),
+                uuid=uuid,
             )
         else:
             _LOGGER.debug("Using existing login")
@@ -337,6 +342,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         try:
             if not self.login or self.login.session.closed:
                 _LOGGER.debug("Creating new login")
+                uuid_dict = await calculate_uuid(
+                    self.hass, self.config.get(CONF_EMAIL), self.config[CONF_URL]
+                )
+                uuid = uuid_dict["uuid"]
                 self.login = AlexaLogin(
                     url=self.config[CONF_URL],
                     email=self.config[CONF_EMAIL],
@@ -344,7 +353,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     outputpath=self.hass.config.path,
                     debug=self.config[CONF_DEBUG],
                     otp_secret=self.config.get(CONF_OTPSECRET, ""),
-                    uuid=await self.hass.helpers.instance_id.async_get(),
+                    uuid=uuid,
                 )
             else:
                 _LOGGER.debug("Using existing login")

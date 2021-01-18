@@ -103,7 +103,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             alexa_client = AlexaClient(
                 device,
                 account_dict["login_obj"],
-                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["second_account"],
+                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["second_account_index"],
             )
             await alexa_client.init(device)
             devices.append(alexa_client)
@@ -188,7 +188,7 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaClient(MediaPlayerDevice, AlexaMedia):
     """Representation of a Alexa device."""
 
-    def __init__(self, device, login, second_account=False):
+    def __init__(self, device, login, second_account_index=0):
         # pylint: disable=unused-argument
         """Initialize the Alexa device."""
         super().__init__(self, login)
@@ -245,7 +245,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._app_device_list = None
         self._parent_clusters = None
         self._timezone = None
-        self._second_account = second_account
+        self._second_account_index = second_account_index
 
     async def init(self, device):
         """Initialize."""
@@ -813,7 +813,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         email = self._login.email
         return (
             slugify(f"{self.device_serial_number}_{email}")
-            if self._second_account
+            if self._second_account_index
             else self.device_serial_number
         )
 

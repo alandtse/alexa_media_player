@@ -55,7 +55,7 @@ async def async_setup_platform(
 ) -> bool:
     """Set up the Alexa alarm control panel platform."""
     devices = []  # type: List[AlexaAlarmControlPanel]
-    account = config[CONF_EMAIL]
+    account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
@@ -118,8 +118,10 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     account = entry.data[CONF_EMAIL]
+    _LOGGER.debug("Attempting to unload alarm control panel")
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     for device in account_dict["entities"]["alarm_control_panel"].values():
+        _LOGGER.debug("Removing %s", device)
         await device.async_remove()
     return True
 
@@ -131,6 +133,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia):
         # pylint: disable=unexpected-keyword-arg
         """Initialize the Alexa device."""
         super().__init__(None, login)
+        _LOGGER.debug("%s: Initiating alarm control panel", hide_email(login.email))
         # AlexaAPI requires a AlexaClient object, need to clean this up
         self._available = None
         self._assumed_state = None

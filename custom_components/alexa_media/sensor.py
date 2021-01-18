@@ -49,7 +49,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         "Timer": TimerSensor,
         "Reminder": ReminderSensor,
     }
-    account = config[CONF_EMAIL]
+    account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
@@ -127,8 +127,10 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     account = entry.data[CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    _LOGGER.debug("Attempting to unload sensors")
     for key, sensors in account_dict["entities"]["sensor"].items():
         for device in sensors[key].values():
+            _LOGGER.debug("Removing %s", device)
             await device.async_remove()
     return True
 
@@ -324,7 +326,7 @@ class AlexaMediaNotificationSensor(Entity):
         if "notification_update" in event:
             if (
                 event["notification_update"]["dopplerId"]["deviceSerialNumber"]
-                == self._client.unique_id
+                == self._client.device_serial_number
             ):
                 _LOGGER.debug("Updating sensor %s", self)
                 self.async_schedule_update_ha_state(True)

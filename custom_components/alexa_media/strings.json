@@ -12,6 +12,24 @@
         "data": {
           "password": "Password",
           "email": "Email Address",
+          "url": "Amazon region domain (e.g., amazon.co.uk)",
+          "hass_url": "Url to access Home Assistant",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "include_devices": "Included device (comma separated)",
+          "exclude_devices": "Excluded device (comma separated)",
+          "debug": "Advanced debugging",
+          "scan_interval": "Seconds between scans",
+          "proxy": "Use Login Proxy method (2FA not required)",
+          "oauth_login": "Enable oauth-token app method"
+        },
+        "description": "Please confirm the information below. For legacy configuration, disable `Use Login Proxy method` option.",
+        "title": "Alexa Media Player - Configuration"
+      },
+      "user_legacy": {
+        "data": {
+          "proxy": "Use Login Proxy method (2FA not required)",
+          "password": "Password",
+          "email": "Email Address",
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "url": "Amazon region domain (e.g., amazon.co.uk)",
@@ -19,16 +37,18 @@
           "exclude_devices": "Excluded device (comma separated)",
           "debug": "Advanced debugging",
           "scan_interval": "Seconds between scans",
-          "cookies_txt": "Cookies.txt data"
+          "cookies_txt": "Cookies.txt data",
+          "oauth_login": "Enable oauth-token app method"
         },
         "description": "Please enter your [information](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) may be easiest!**   \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when [2FA Code is required](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
-        "title": "Alexa Media Player - Configuration"
+        "title": "Alexa Media Player - Legacy Configuration"
       },
       "captcha": {
         "data": {
           "password": "Password",
           "securitycode": "2FA Code (recommended to avoid login issues)",
-          "captcha": "Captcha"
+          "captcha": "Captcha",
+          "proxy": "Use Login Proxy method (2FA not required)"
         },
         "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
         "title": "Alexa Media Player - Captcha"
@@ -42,26 +62,32 @@
       },
       "twofactor": {
         "data": {
-          "securitycode": "2FA Code"
+          "securitycode": "2FA Code",
+          "proxy": "Use Login Proxy method (2FA not required)"
         },
         "description": "**{email} - alexa.{url}**  \nEnter the One Time Password (OTP).  \n{message}",
         "title": "Alexa Media Player - Two Factor Authentication"
       },
       "authselect": {
         "data": {
-          "authselectoption": "OTP method"
+          "authselectoption": "OTP method",
+          "proxy": "Use Login Proxy method (2FA not required)"
         },
         "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player - One Time Password"
       },
       "claimspicker": {
         "data": {
-          "authselectoption": "Verification method"
+          "authselectoption": "Verification method",
+          "proxy": "Use Login Proxy method (2FA not required)"
         },
         "description": "**{email} - alexa.{url}**  \nPlease select verification method by number. (e.g., `0` or `1`)  \n{message}",
         "title": "Alexa Media Player - Verification Method"
       },
       "action_required": {
+        "data": {
+          "proxy": "Use Login Proxy method (2FA not required)"
+        },
         "description": "**{email} - alexa.{url}**  \nAmazon will send a push notification per the below message. Please completely respond before continuing.  \n{message}",
         "title": "Alexa Media Player - Action Required"
       }

@@ -43,6 +43,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_call_later
+from homeassistant.util import slugify
 
 from . import (
     CONF_QUEUE_DELAY,
@@ -93,11 +94,17 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     # pylint: disable=unused-argument
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
-    account = config[CONF_EMAIL]
+    account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    entry_setup = len(account_dict["entities"]["media_player"])
+    alexa_client = None
     for key, device in account_dict["devices"]["media_player"].items():
         if key not in account_dict["entities"]["media_player"]:
-            alexa_client = AlexaClient(device, account_dict["login_obj"])
+            alexa_client = AlexaClient(
+                device,
+                account_dict["login_obj"],
+                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["second_account_index"],
+            )
             await alexa_client.init(device)
             devices.append(alexa_client)
             (
@@ -112,7 +119,20 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 hide_serial(key),
                 alexa_client,
             )
-    return await add_devices(hide_email(account), devices, add_devices_callback)
+    result = await add_devices(hide_email(account), devices, add_devices_callback)
+    if result and entry_setup:
+        _LOGGER.debug("Detected config entry already setup, using load platform")
+        for component in DEPENDENT_ALEXA_COMPONENTS:
+            hass.async_create_task(
+                async_load_platform(
+                    hass,
+                    component,
+                    ALEXA_DOMAIN,
+                    {CONF_NAME: ALEXA_DOMAIN, "config": config},
+                    config,
+                )
+            )
+    return result
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
@@ -120,8 +140,15 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     if await async_setup_platform(
         hass, config_entry.data, async_add_devices, discovery_info=None
     ):
+        account = config_entry.data[CONF_EMAIL]
+        account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
         for component in DEPENDENT_ALEXA_COMPONENTS:
-            if component == "notify":
+            try:
+                entry_setup = len(account_dict["entities"][component])
+            except (TypeError, KeyError):
+                entry_setup = 1
+            if entry_setup or component == "notify":
+                _LOGGER.debug("%s: Loading %s", hide_email(account), component)
                 cleaned_config = config_entry.data.copy()
                 cleaned_config.pop(CONF_PASSWORD, None)
                 # CONF_PASSWORD contains sensitive info which is no longer needed
@@ -135,6 +162,9 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                     )
                 )
             else:
+                _LOGGER.debug(
+                    "%s: Loading config entry for %s", hide_email(account), component
+                )
                 hass.async_add_job(
                     hass.config_entries.async_forward_entry_setup(
                         config_entry, component
@@ -147,8 +177,10 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     account = entry.data[CONF_EMAIL]
+    _LOGGER.debug("%s: Attempting to unload media players", hide_email(account))
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     for device in account_dict["entities"]["media_player"].values():
+        _LOGGER.debug("%s: Removing %s", hide_email(account), device)
         await device.async_remove()
     return True
 
@@ -156,7 +188,7 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaClient(MediaPlayerDevice, AlexaMedia):
     """Representation of a Alexa device."""
 
-    def __init__(self, device, login):
+    def __init__(self, device, login, second_account_index=0):
         # pylint: disable=unused-argument
         """Initialize the Alexa device."""
         super().__init__(self, login)
@@ -169,6 +201,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._customer_name = None
 
         # Device info
+        self._device = device
         self._device_name = None
         self._device_serial_number = None
         self._device_type = None
@@ -202,6 +235,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         # Last Device
         self._last_called = None
         self._last_called_timestamp = None
+        self._last_called_summary = None
         # Do not Disturb state
         self._dnd = None
         # Polling state
@@ -212,14 +246,16 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._app_device_list = None
         self._parent_clusters = None
         self._timezone = None
+        self._second_account_index = second_account_index
 
     async def init(self, device):
         """Initialize."""
-        await self.refresh(device)
+        await self.refresh(device, skip_api=True)
 
     async def async_added_to_hass(self):
         """Perform tasks after loading."""
         # Register event handler on bus
+        await self.refresh(self._device)
         self._listener = async_dispatcher_connect(
             self.hass,
             f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32],
@@ -335,12 +371,15 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 item["serialNumber"] == event_serial for item in self._app_device_list
             ):
                 _LOGGER.debug(
-                    "%s is last_called: %s",
-                    self.name,
+                    "%s: %s is last_called: %s",
+                    hide_email(self._login.email),
+                    self,
                     hide_serial(self.device_serial_number),
                 )
                 self._last_called = True
                 self._last_called_timestamp = event["last_called_change"]["timestamp"]
+                self._last_called_summary = event["last_called_change"].get("summary")
+                await self._update_notify_targets()
             else:
                 self._last_called = False
             if self.hass and self.async_schedule_update_ha_state:
@@ -352,7 +391,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         elif "bluetooth_change" in event:
             if event_serial == self.device_serial_number:
                 _LOGGER.debug(
-                    "%s bluetooth_state update: %s",
+                    "%s: %s bluetooth_state update: %s",
+                    hide_email(self._login.email),
                     self.name,
                     hide_serial(event["bluetooth_change"]),
                 )
@@ -372,7 +412,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             if event_serial == self.device_serial_number:
                 if "audioPlayerState" in player_state:
                     _LOGGER.debug(
-                        "%s state update: %s",
+                        "%s: %s state update: %s",
+                        hide_email(self._login.email),
                         self.name,
                         player_state["audioPlayerState"],
                     )
@@ -382,7 +423,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     already_refreshed = True
                 elif "mediaReferenceId" in player_state:
                     _LOGGER.debug(
-                        "%s media update: %s",
+                        "%s: %s media update: %s",
+                        hide_email(self._login.email),
                         self.name,
                         player_state["mediaReferenceId"],
                     )
@@ -390,7 +432,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     already_refreshed = True
                 elif "volumeSetting" in player_state:
                     _LOGGER.debug(
-                        "%s volume updated: %s",
+                        "%s: %s volume updated: %s",
+                        hide_email(self._login.email),
                         self.name,
                         player_state["volumeSetting"],
                     )
@@ -405,7 +448,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         elif "push_activity" in event:
             if self.state in {STATE_IDLE, STATE_PAUSED, STATE_PLAYING}:
                 _LOGGER.debug(
-                    "%s checking for potential state update due to push activity on %s",
+                    "%s: %s checking for potential state update due to push activity on %s",
+                    hide_email(self._login.email),
                     self.name,
                     hide_serial(event_serial),
                 )
@@ -423,7 +467,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 ):
                     self._repeat = queue_state["loopMode"] == "LOOP_QUEUE"
                     _LOGGER.debug(
-                        "%s repeat updated to: %s %s",
+                        "%s: %s repeat updated to: %s %s",
+                        hide_email(self._login.email),
                         self.name,
                         self._repeat,
                         queue_state["loopMode"],
@@ -431,7 +476,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 elif "playBackOrder" in queue_state:
                     self._shuffle = queue_state["playBackOrder"] == "SHUFFLE_ALL"
                     _LOGGER.debug(
-                        "%s shuffle updated to: %s %s",
+                        "%s: %s shuffle updated to: %s %s",
+                        hide_email(self._login.email),
                         self.name,
                         self._shuffle,
                         queue_state["playBackOrder"],
@@ -502,11 +548,16 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._source_list = self._get_source_list()
                 self._connected_bluetooth = self._get_connected_bluetooth()
                 self._bluetooth_list = self._get_bluetooth_list()
-            self._last_called = self._get_last_called()
-            if self._last_called:
+            new_last_called = self._get_last_called()
+            if new_last_called and self._last_called != new_last_called:
+                self._last_called = new_last_called
                 self._last_called_timestamp = self.hass.data[DATA_ALEXAMEDIA][
                     "accounts"
                 ][self._login.email]["last_called"]["timestamp"]
+                self._last_called_summary = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    self._login.email
+                ]["last_called"].get("summary")
+                await self._update_notify_targets()
             if skip_api and self.hass:
                 self.async_write_ha_state()
                 return
@@ -726,7 +777,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         except (TypeError, KeyError):
             last_called_serial = None
         _LOGGER.debug(
-            "%s: Last_called check: self: %s reported: %s",
+            "%s: %s: Last_called check: self: %s reported: %s",
+            hide_email(self._login.email),
             self._device_name,
             hide_serial(self._device_serial_number),
             hide_serial(last_called_serial),
@@ -762,7 +814,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def unique_id(self):
         """Return the id of this Alexa client."""
-        return self.device_serial_number
+        email = self._login.email
+        return (
+            slugify(f"{self.device_serial_number}_{email}")
+            if self._second_account_index
+            else self.device_serial_number
+        )
 
     @property
     def name(self):
@@ -823,7 +880,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             return
         device = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
             "media_player"
-        ][self.unique_id]
+        ][self.device_serial_number]
         seen_commands = (
             self.hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "websocket_commands"
@@ -860,7 +917,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 > PLAY_SCAN_INTERVAL
             ):
                 _LOGGER.debug(
-                    "%s playing; scheduling update in %s seconds",
+                    "%s: %s playing; scheduling update in %s seconds",
+                    hide_email(self._login.email),
                     self.name,
                     PLAY_SCAN_INTERVAL,
                 )
@@ -873,8 +931,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._should_poll = False
             if not websocket_enabled:
                 _LOGGER.debug(
-                    "Disabling polling and scheduling last update in"
+                    "%s: Disabling polling and scheduling last update in"
                     " 300 seconds for %s",
+                    hide_email(self._login.email),
                     self.name,
                 )
                 async_call_later(
@@ -883,7 +942,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     lambda _: self.async_schedule_update_ha_state(force_refresh=True),
                 )
             else:
-                _LOGGER.debug("Disabling polling for %s", self.name)
+                _LOGGER.debug(
+                    "%s: Disabling polling for %s",
+                    hide_email(self._login.email),
+                    self.name,
+                )
         self._last_update = util.utcnow()
         self.async_write_ha_state()
 
@@ -1180,7 +1243,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
         elif media_type == "sequence":
             _LOGGER.debug(
-                "%s:Running sequence %s with queue_delay %s",
+                "%s: %s:Running sequence %s with queue_delay %s",
+                hide_email(self._login.email),
                 self,
                 media_id,
                 queue_delay,
@@ -1193,14 +1257,22 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
         elif media_type == "routine":
             _LOGGER.debug(
-                "%s:Running routine %s with queue_delay %s", self, media_id, queue_delay
+                "%s: %s:Running routine %s with queue_delay %s",
+                hide_email(self._login.email),
+                self,
+                media_id,
+                queue_delay,
             )
             await self.alexa_api.run_routine(
                 media_id, queue_delay=queue_delay,
             )
         elif media_type == "sound":
             _LOGGER.debug(
-                "%s:Playing sound %s with queue_delay %s", self, media_id, queue_delay
+                "%s: %s:Playing sound %s with queue_delay %s",
+                hide_email(self._login.email),
+                self,
+                media_id,
+                queue_delay,
             )
             await self.alexa_api.play_sound(
                 media_id,
@@ -1210,17 +1282,27 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
         elif media_type == "skill":
             _LOGGER.debug(
-                "%s:Running skill %s with queue_delay %s", self, media_id, queue_delay
+                "%s: %s:Running skill %s with queue_delay %s",
+                hide_email(self._login.email),
+                self,
+                media_id,
+                queue_delay,
             )
             await self.alexa_api.run_skill(
                 media_id, queue_delay=queue_delay,
             )
         elif media_type == "image":
-            _LOGGER.debug("%s:Setting background to %s", self, media_id)
+            _LOGGER.debug(
+                "%s: %s:Setting background to %s",
+                hide_email(self._login.email),
+                self,
+                media_id,
+            )
             await self.alexa_api.set_background(media_id)
         elif media_type == "custom":
             _LOGGER.debug(
-                '%s:Running custom command: "%s" with queue_delay %s',
+                '%s: %s:Running custom command: "%s" with queue_delay %s',
+                hide_email(self._login.email),
                 self,
                 media_id,
                 queue_delay,
@@ -1233,7 +1315,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
         else:
             _LOGGER.debug(
-                "%s:Playing music %s on %s with queue_delay %s",
+                "%s: %s:Playing music %s on %s with queue_delay %s",
+                hide_email(self._login.email),
                 self,
                 media_id,
                 media_type,
@@ -1259,6 +1342,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "available": self.available,
             "last_called": self._last_called,
             "last_called_timestamp": self._last_called_timestamp,
+            "last_called_summary": self._last_called_summary,
             "connected_bluetooth": self._connected_bluetooth,
             "bluetooth_list": self._bluetooth_list,
         }
@@ -1279,3 +1363,18 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "model": f"{self._device_family} {self._device_type}",
             "sw_version": self._software_version,
         }
+
+    async def _update_notify_targets(self) -> None:
+        """Update notification service targets."""
+        if self.hass.data[DATA_ALEXAMEDIA].get("notify_service"):
+            notify = self.hass.data[DATA_ALEXAMEDIA].get("notify_service")
+            if hasattr(notify, "registered_targets"):
+                _LOGGER.debug(
+                    "%s: Refreshing notify targets", hide_email(self._login.email),
+                )
+                await notify.async_register_services()
+            else:
+                _LOGGER.debug(
+                    "%s: Unable to refresh notify targets; notify not ready",
+                    hide_email(self._login.email),
+                )

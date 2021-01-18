@@ -15,12 +15,15 @@ from typing import Any, Callable, List, Optional, Text
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
+from homeassistant.const import (
+    CONF_EMAIL,
+    CONF_URL,
+)
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import EntityComponent
 import wrapt
 
-from . import DATA_ALEXAMEDIA
-from .const import EXCEPTION_TEMPLATE
+from .const import DATA_ALEXAMEDIA, EXCEPTION_TEMPLATE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -251,3 +254,32 @@ def _existing_serials(hass, login_obj) -> List:
             #               existing_serials, apps)
             existing_serials = existing_serials + apps
     return existing_serials
+
+
+async def calculate_uuid(hass, email: Text, url: Text) -> dict:
+    """Return uuid and index of email/url.
+
+    Args
+        hass (bool): Hass entity
+        url (Text): url for account
+        email (Text): email for account
+
+    Returns
+        dict: dictionary with uuid and index
+
+    """
+    result = {}
+    return_index = 0
+    if hass.config_entries.async_entries(DATA_ALEXAMEDIA):
+        for index, entry in enumerate(
+            hass.config_entries.async_entries(DATA_ALEXAMEDIA)
+        ):
+            if entry.data.get(CONF_EMAIL) == email and entry.data.get(CONF_URL) == url:
+                return_index = index
+                break
+    uuid = await hass.helpers.instance_id.async_get()
+    # increment uuid for second accounts
+    result["uuid"] = hex(int(uuid, 16) + return_index)[-32:]
+    result["index"] = return_index
+    _LOGGER.debug("%s: Returning uuid %s", hide_email(email), result)
+    return result

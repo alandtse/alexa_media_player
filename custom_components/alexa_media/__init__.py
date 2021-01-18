@@ -229,9 +229,6 @@ async def async_setup_entry(hass, config_entry):
             "accounts": {},
             "config_flows": {},
         }
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
-    hass.bus.async_listen("alexa_media_relogin_required", relogin)
-    hass.bus.async_listen("alexa_media_relogin_success", login_success)
     account = config_entry.data
     email = account.get(CONF_EMAIL)
     password = account.get(CONF_PASSWORD)
@@ -290,7 +287,10 @@ async def async_setup_entry(hass, config_entry):
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
-
+    if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
+    hass.bus.async_listen("alexa_media_relogin_required", relogin)
+    hass.bus.async_listen("alexa_media_relogin_success", login_success)
     await login.login(cookies=await login.load_cookie())
     if await test_login_status(hass, config_entry, login):
         await setup_alexa(hass, config_entry, login)

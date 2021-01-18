@@ -223,7 +223,9 @@ async def async_setup_entry(hass, config_entry):
     if not hass.data.get(DATA_ALEXAMEDIA):
         _LOGGER.info(STARTUP)
         _LOGGER.info("Loaded alexapy==%s", alexapy_version)
-    hass.data.setdefault(DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}})
+    hass.data.setdefault(
+        DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}, "notify_service": None}
+    )
     if not hass.data[DATA_ALEXAMEDIA].get("accounts"):
         hass.data[DATA_ALEXAMEDIA] = {
             "accounts": {},
@@ -243,7 +245,6 @@ async def async_setup_entry(hass, config_entry):
             "entities": {
                 "media_player": {},
                 "switch": {},
-                "notify": {},
                 "sensor": {},
                 "alarm_control_panel": {},
             },

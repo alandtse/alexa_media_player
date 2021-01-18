@@ -48,7 +48,9 @@ async def async_get_service(hass, config, discovery_info=None):
                     hide_serial(key),
                 )
                 return False
-        result = account_dict["entities"]["notify"] = AlexaNotificationService(hass)
+    result = hass.data[DATA_ALEXAMEDIA]["notify_service"] = AlexaNotificationService(
+        hass
+    )
     return result
 
 
@@ -68,6 +70,8 @@ async def async_unload_entry(hass, entry) -> bool:
             other_accounts = True
     if not other_accounts:
         hass.services.async_remove(SERVICE_NOTIFY, f"{DOMAIN}")
+        if hass.data[DATA_ALEXAMEDIA].get("notify_service"):
+            hass.data[DATA_ALEXAMEDIA].pop("notify_service")
     return True
 
 
@@ -133,11 +137,12 @@ class AlexaNotificationService(BaseNotificationService):
     def targets(self):
         """Return a dictionary of Alexa devices."""
         devices = {}
-        for _, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
-            if "devices" not in account_dict:
+        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+            if "entities" not in account_dict:
                 return devices
-            for serial, alexa in account_dict["devices"]["media_player"].items():
-                devices[alexa["accountName"]] = serial
+            for _, entity in account_dict["entities"]["media_player"].items():
+                entity_name = (entity.entity_id).split(".")[1]
+                devices[entity_name] = entity.unique_id
         return devices
 
     @property

@@ -145,7 +145,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         for component in DEPENDENT_ALEXA_COMPONENTS:
             try:
                 entry_setup = len(account_dict["entities"][component])
-            except TypeError:
+            except (TypeError, KeyError):
                 entry_setup = 1
             if entry_setup or component == "notify":
                 _LOGGER.debug("%s: Loading %s", hide_email(account), component)
@@ -201,6 +201,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._customer_name = None
 
         # Device info
+        self._device = device
         self._device_name = None
         self._device_serial_number = None
         self._device_type = None
@@ -249,11 +250,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     async def init(self, device):
         """Initialize."""
-        await self.refresh(device)
+        await self.refresh(device, skip_api=True)
 
     async def async_added_to_hass(self):
         """Perform tasks after loading."""
         # Register event handler on bus
+        await self.refresh(self._device)
         self._listener = async_dispatcher_connect(
             self.hass,
             f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32],
@@ -377,6 +379,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._last_called = True
                 self._last_called_timestamp = event["last_called_change"]["timestamp"]
                 self._last_called_summary = event["last_called_change"].get("summary")
+                await self._update_notify_targets()
             else:
                 self._last_called = False
             if self.hass and self.async_schedule_update_ha_state:
@@ -554,6 +557,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._last_called_summary = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self._login.email
                 ]["last_called"].get("summary")
+                await self._update_notify_targets()
             if skip_api and self.hass:
                 self.async_write_ha_state()
                 return
@@ -1359,3 +1363,18 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "model": f"{self._device_family} {self._device_type}",
             "sw_version": self._software_version,
         }
+
+    async def _update_notify_targets(self) -> None:
+        """Update notification service targets."""
+        if self.hass.data[DATA_ALEXAMEDIA].get("notify_service"):
+            notify = self.hass.data[DATA_ALEXAMEDIA].get("notify_service")
+            if hasattr(notify, "registered_targets"):
+                _LOGGER.debug(
+                    "%s: Refreshing notify targets", hide_email(self._login.email),
+                )
+                await notify.async_register_services()
+            else:
+                _LOGGER.debug(
+                    "%s: Unable to refresh notify targets; notify not ready",
+                    hide_email(self._login.email),
+                )

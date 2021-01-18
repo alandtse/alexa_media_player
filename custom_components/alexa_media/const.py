@@ -39,6 +39,7 @@ CONF_OTPSECRET = "otp_secret"
 CONF_PROXY = "proxy"
 CONF_TOTP_REGISTER = "registered"
 CONF_OAUTH = "oauth"
+CONF_OAUTH_LOGIN = "oauth_login"
 DATA_LISTENER = "listener"
 
 EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"

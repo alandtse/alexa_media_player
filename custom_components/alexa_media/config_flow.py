@@ -51,6 +51,7 @@ from .const import (
     CONF_HASS_URL,
     CONF_SECURITYCODE,
     CONF_OAUTH,
+    CONF_OAUTH_LOGIN,
     CONF_OTPSECRET,
     CONF_PROXY,
     CONF_TOTP_REGISTER,
@@ -118,6 +119,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (vol.Optional(CONF_EXCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_SCAN_INTERVAL, default=60), int),
                 (vol.Optional(CONF_COOKIES_TXT, default=""), str),
+                (vol.Optional(CONF_OAUTH_LOGIN, default=True), bool),
             ]
         )
         self.captcha_schema = OrderedDict(
@@ -185,6 +187,16 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.proxy_schema = OrderedDict(
             [
                 (
+                    vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")),
+                    str,
+                ),
+                (
+                    vol.Required(
+                        CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
+                    ),
+                    str,
+                ),
+                (
                     vol.Required(
                         CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
                     ),
@@ -234,6 +246,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     vol.Optional(CONF_PROXY, default=self.config.get(CONF_PROXY, True)),
                     bool,
                 ),
+                (
+                    vol.Optional(
+                        CONF_OAUTH_LOGIN,
+                        default=self.config.get(CONF_OAUTH_LOGIN, True),
+                    ),
+                    bool,
+                ),
             ]
         )
         if not user_input:
@@ -269,9 +288,16 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 debug=self.config[CONF_DEBUG],
                 otp_secret=self.config.get(CONF_OTPSECRET, ""),
                 uuid=uuid,
+                oauth_login=self.config.get(CONF_OAUTH_LOGIN, True),
             )
         else:
             _LOGGER.debug("Using existing login")
+            if self.config.get(CONF_EMAIL):
+                self.login.email = self.config.get(CONF_EMAIL)
+            if self.config.get(CONF_PASSWORD):
+                self.login.password = self.config.get(CONF_PASSWORD)
+            if self.config.get(CONF_OTPSECRET):
+                self.login.set_totp(self.config.get(CONF_OTPSECRET, ""))
         hass_url: Text = user_input.get(CONF_HASS_URL)
         self.proxy = AlexaProxy(self.login, hass_url)
         await self.proxy.start_proxy()
@@ -354,6 +380,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     debug=self.config[CONF_DEBUG],
                     otp_secret=self.config.get(CONF_OTPSECRET, ""),
                     uuid=uuid,
+                    oauth_login=self.config.get(CONF_OAUTH_LOGIN, True),
                 )
             else:
                 _LOGGER.debug("Using existing login")
@@ -710,6 +737,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 },
             )
         if login.status and (login.status.get("login_failed")):
+            if login.oauth_login:
+                _LOGGER.debug("Trying non-oauth login")
+                await login.reset()
+                login.oauth_login = False
+                await login.login()
+                return await self._test_login()
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
             self.hass.components.persistent_notification.async_dismiss(
@@ -760,6 +793,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             return
         if CONF_PROXY in user_input:
             self.config[CONF_PROXY] = user_input[CONF_PROXY]
+        if CONF_OAUTH_LOGIN in user_input:
+            self.config[CONF_OAUTH_LOGIN] = user_input[CONF_OAUTH_LOGIN]
         if CONF_HASS_URL in user_input:
             self.config[CONF_HASS_URL] = user_input[CONF_HASS_URL]
         self.securitycode = user_input.get(CONF_SECURITYCODE)
@@ -863,6 +898,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 vol.Optional(
                     CONF_COOKIES_TXT, default=self.config.get(CONF_COOKIES_TXT, "")
                 ): str,
+                vol.Optional(
+                    CONF_OAUTH_LOGIN, default=self.config.get(CONF_OAUTH_LOGIN, True)
+                ): bool,
             },
         )
         return new_schema

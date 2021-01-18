@@ -53,6 +53,7 @@ from .const import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
+    CONF_OAUTH_LOGIN,
     CONF_OTPSECRET,
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
@@ -142,6 +143,7 @@ async def async_setup(hass, config, discovery_info=None):
                             ].total_seconds(),
                             CONF_OAUTH: account.get(CONF_OAUTH, {}),
                             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
+                            CONF_OAUTH_LOGIN: account.get(CONF_OAUTH_LOGIN, True),
                         },
                     )
                     entry_found = True
@@ -162,6 +164,7 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),
                         CONF_OAUTH: account.get(CONF_OAUTH, {}),
                         CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
+                        CONF_OAUTH_LOGIN: account.get(CONF_OAUTH_LOGIN, True),
                     },
                 )
             )
@@ -197,6 +200,10 @@ async def async_setup_entry(hass, config_entry):
                     otp_secret=account.get(CONF_OTPSECRET, ""),
                     oauth=account.get(CONF_OAUTH, {}),
                     uuid=uuid,
+                    oauth_login=bool(
+                        account.get(CONF_OAUTH, {}).get("access_token")
+                        or account.get(CONF_OAUTH_LOGIN)
+                    ),
                 )
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
             await login_obj.reset()
@@ -276,6 +283,10 @@ async def async_setup_entry(hass, config_entry):
             otp_secret=account.get(CONF_OTPSECRET, ""),
             oauth=account.get(CONF_OAUTH, {}),
             uuid=uuid,
+            oauth_login=bool(
+                account.get(CONF_OAUTH, {}).get("access_token")
+                or account.get(CONF_OAUTH_LOGIN)
+            ),
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login

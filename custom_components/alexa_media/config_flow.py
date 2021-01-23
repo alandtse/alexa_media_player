@@ -748,7 +748,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.hass.components.persistent_notification.async_dismiss(
                 f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
             )
-            return self.async_abort(reason=login.status.get("login_failed"))
+            return self.async_abort(reason="login_failed")
         new_schema = self._update_schema_defaults()
         if login.status and login.status.get("error_message"):
             _LOGGER.debug("Login error detected: %s", login.status.get("error_message"))

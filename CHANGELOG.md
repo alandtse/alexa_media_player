@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v3.5.2 (2021-01-23)
+### Fix
+* Bump alexapy to 1.22.2 ([`fe97afe`](https://github.com/custom-components/alexa_media_player/commit/fe97afe43972acdbffe8d5ce47effc9e82a0b337))
+* Fix abort message on login failure ([`c367a6e`](https://github.com/custom-components/alexa_media_player/commit/c367a6e7224f58496658f6232d972f66693a80f8))
+* Fix config flow abort with failed proxy login ([`07c0868`](https://github.com/custom-components/alexa_media_player/commit/07c08685d062f1c92ffea5426feba998bbb18990))
+
 ## v3.5.1 (2021-01-23)
 ### Fix
 * Handle amazon malformed activities output ([`62c3180`](https://github.com/custom-components/alexa_media_player/commit/62c3180f7673a6de10f1da5548c9e2e9ecf81181))

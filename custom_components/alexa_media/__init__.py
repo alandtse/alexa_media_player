@@ -11,7 +11,6 @@ import asyncio
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 import logging
-import random
 import time
 from typing import Optional, Text
 

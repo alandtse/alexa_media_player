@@ -117,11 +117,17 @@ class AlexaNotificationService(BaseNotificationService):
                 #     hide_serial(alexa.unique_id),
                 #     alexa.entity_id,
                 # )
-                if item in (alexa, alexa.name, alexa.unique_id, alexa.entity_id):
+                if item in (
+                    alexa,
+                    alexa.name,
+                    alexa.unique_id,
+                    alexa.entity_id,
+                    alexa.device_serial_number,
+                ):
                     if type_ == "entities":
                         converted = alexa
                     elif type_ == "serialnumbers":
-                        converted = alexa.unique_id
+                        converted = alexa.device_serial_number
                     elif type_ == "names":
                         converted = alexa.name
                     elif type_ == "entity_ids":

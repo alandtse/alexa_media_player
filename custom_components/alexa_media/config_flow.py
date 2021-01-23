@@ -317,16 +317,16 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         )
         if self.proxy:
             await self.proxy.stop_proxy()
-        if await self.login.test_loggedin():
-            await self.login.finalize_login()
-            return self.async_external_step_done(next_step_id="finish_proxy")
-        return self.async_abort(reason=self.login.status.get("login_failed"))
+        return self.async_external_step_done(next_step_id="finish_proxy")
 
     async def async_step_finish_proxy(self, user_input=None):
         """Finish auth."""
-        self.config[CONF_EMAIL] = self.login.email
-        self.config[CONF_PASSWORD] = self.login.password
-        return await self._test_login()
+        if await self.login.test_loggedin():
+            await self.login.finalize_login()
+            self.config[CONF_EMAIL] = self.login.email
+            self.config[CONF_PASSWORD] = self.login.password
+            return await self._test_login()
+        return self.async_abort(reason="login_failed")
 
     async def async_step_user_legacy(self, user_input=None):
         """Handle legacy input for the config flow."""
@@ -748,7 +748,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.hass.components.persistent_notification.async_dismiss(
                 f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
             )
-            return self.async_abort(reason=login.status.get("login_failed"))
+            return self.async_abort(reason="login_failed")
         new_schema = self._update_schema_defaults()
         if login.status and login.status.get("error_message"):
             _LOGGER.debug("Login error detected: %s", login.status.get("error_message"))

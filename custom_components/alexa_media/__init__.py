@@ -11,7 +11,6 @@ import asyncio
 from datetime import datetime, timedelta
 from json import JSONDecodeError
 import logging
-import random
 import time
 from typing import Optional, Text
 
@@ -19,6 +18,7 @@ from alexapy import (
     AlexaAPI,
     AlexaLogin,
     AlexapyLoginError,
+    AlexapyConnectionError,
     WebsocketEchoClient,
     __version__ as alexapy_version,
     hide_email,
@@ -373,6 +373,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     if bluetooth is not None
                     else "",
                 )
+            await process_notifications(login_obj, raw_notifications)
+            # Process last_called data to fire events
+            await update_last_called(login_obj)
         except (AlexapyLoginError, JSONDecodeError):
             _LOGGER.debug(
                 "%s: Alexa API disconnected; attempting to relogin : status %s",
@@ -387,10 +390,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
         except BaseException as err:
             raise UpdateFailed(f"Error communicating with API: {err}")
-
-        await process_notifications(login_obj, raw_notifications)
-        # Process last_called data to fire events
-        await update_last_called(login_obj)
 
         new_alexa_clients = []  # list of newly discovered device names
         exclude_filter = []
@@ -746,13 +745,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     "serialNumber": serial,
                     "timestamp": json_payload["timestamp"],
                 }
-                if serial and serial in existing_serials:
-                    await update_last_called(login_obj, last_called)
-                async_dispatcher_send(
-                    hass,
-                    f"{DOMAIN}_{hide_email(email)}"[0:32],
-                    {"push_activity": json_payload},
-                )
+                try:
+                    if serial and serial in existing_serials:
+                        await update_last_called(login_obj, last_called)
+                    async_dispatcher_send(
+                        hass,
+                        f"{DOMAIN}_{hide_email(email)}"[0:32],
+                        {"push_activity": json_payload},
+                    )
+                except (AlexapyConnectionError):
+                    # Catch case where activities doesn't report valid json
+                    pass
             elif command in (
                 "PUSH_AUDIO_PLAYER_STATE",
                 "PUSH_MEDIA_CHANGE",

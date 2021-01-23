@@ -14,12 +14,16 @@
     },
     "step": {
       "action_required": {
+        "data": {
+          "proxy": "Use Login Proxy method (2FA not required)"
+        },
         "description": "** {email} - alexa. {url} **   \n Amazon invierà una notifica push per il seguente messaggio. Si prega di rispondere completamente prima di continuare.   \n {message}",
         "title": "Alexa Media Player - Azione Richiesta"
       },
       "authselect": {
         "data": {
-          "authselectoption": "Metodo password usa e getta (OTP)"
+          "authselectoption": "Metodo password usa e getta (OTP)",
+          "proxy": "Use Login Proxy method (2FA not required)"
         },
         "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player - Password Usa e Getta (One Time Password)"
@@ -28,6 +32,7 @@
         "data": {
           "captcha": "Captcha",
           "password": "Password",
+          "proxy": "Use Login Proxy method (2FA not required)",
           "securitycode": "config::step::captcha::data::securitycode"
         },
         "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
@@ -35,7 +40,8 @@
       },
       "claimspicker": {
         "data": {
-          "authselectoption": "Metodi di Verifica"
+          "authselectoption": "Metodi di Verifica",
+          "proxy": "Use Login Proxy method (2FA not required)"
         },
         "description": "**{email} - alexa.{url}**  \nPrego selezionare un metodo di verifica. (e.g., `0` or `1`)  \n{message}",
         "title": "Alexa Media Player - Metodi di Verifica"
@@ -49,10 +55,29 @@
       },
       "twofactor": {
         "data": {
+          "proxy": "Use Login Proxy method (2FA not required)",
           "securitycode": "Codice autenticazione a 2 fattori (2FA)"
         },
         "description": "**{email} - alexa.{url}**  \nInserisci la password usa e getta (OTP).  \n{message}",
         "title": "Alexa Media Player - Autenticazione a Due Fattori"
+      },
+      "user_legacy": {
+        "data": {
+          "cookies_txt": "config::step::user::data::cookies_txt",
+          "debug": "Debug avanzato",
+          "email": "Indirizzo email",
+          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
+          "include_devices": "Dispositivi da includere (separati da virgola)",
+          "oauth_login": "Enable oauth-token app method",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "password": "Password",
+          "proxy": "Use Login Proxy method (2FA not required)",
+          "scan_interval": "Tempo in secondi fra le scansioni",
+          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "url": "Regione del dominio Amazon (e.g., amazon.it)"
+        },
+        "description": "Prego inserisci le tue [informazioni](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) potrebbe essere più semplice!**   \n**ATTENZIONE: Amazon risponde incorrettamente 'Inserire una mail valida o un numero di telefono' quando è richiesto il codice 2FA](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).** \n>{message}",
+        "title": "Alexa Media Player - Legacy Configuration"
       },
       "user": {
         "data": {
@@ -60,9 +85,12 @@
           "debug": "Debug avanzato",
           "email": "Indirizzo email",
           "exclude_devices": "Dispositivi da escludere (separati da virgola)",
+          "hass_url": "Url to access Home Assistant",
           "include_devices": "Dispositivi da includere (separati da virgola)",
+          "oauth_login": "Enable oauth-token app method",
           "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Password",
+          "proxy": "Use Login Proxy method (2FA not required)",
           "scan_interval": "Tempo in secondi fra le scansioni",
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Regione del dominio Amazon (e.g., amazon.it)"

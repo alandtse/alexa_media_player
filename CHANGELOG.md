@@ -2,6 +2,17 @@
 
 <!--next-version-placeholder-->
 
+## v3.5.1 (2021-01-23)
+### Fix
+* Handle amazon malformed activities output ([`62c3180`](https://github.com/custom-components/alexa_media_player/commit/62c3180f7673a6de10f1da5548c9e2e9ecf81181))
+* Fix target matching for secondary accounts ([`2e66fbd`](https://github.com/custom-components/alexa_media_player/commit/2e66fbd73d601bec850ae212fa09b927a9999688))
+
+### Documentation
+* Update localization ([`617d03e`](https://github.com/custom-components/alexa_media_player/commit/617d03e6093feadfb508a019f1b1067adb40d44b))
+
+### Refactor
+* Remove unused random dependency ([`2729ca6`](https://github.com/custom-components/alexa_media_player/commit/2729ca6de8fb23ec00458746161e3851b18ba9b5))
+
 ## v3.5.0 (2021-01-18)
 ### Feature
 * Add ability to select non-oauth login ([`8f78709`](https://github.com/custom-components/alexa_media_player/commit/8f78709b0d0511f4f0c99c9e8c5f27cd9b476c0a))

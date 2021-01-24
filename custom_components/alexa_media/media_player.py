@@ -367,9 +367,16 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._available = True
             self.async_write_ha_state()
         if "last_called_change" in event:
-            if event_serial == self.device_serial_number or any(
-                item["serialNumber"] == event_serial for item in self._app_device_list
+            if (
+                event_serial == self.device_serial_number
+                or any(
+                    item["serialNumber"] == event_serial
+                    for item in self._app_device_list
+                )
+                and self._last_called_timestamp
+                != event["last_called_change"]["timestamp"]
             ):
+
                 _LOGGER.debug(
                     "%s: %s is last_called: %s",
                     hide_email(self._login.email),

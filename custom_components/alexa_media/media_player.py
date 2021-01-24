@@ -1381,6 +1381,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 )
                 await notify.async_register_services()
                 entity_name_last_called = f"{ALEXA_DOMAIN}_last_called{'_'+ self._login.email if self.unique_id[-1:].isdigit() else ''}"
+                await asyncio.sleep(2)
                 if (
                     notify.last_called
                     and notify.registered_targets.get(entity_name_last_called)
@@ -1392,6 +1393,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     )
                     notify.last_called = False
                     await notify.async_register_services()
+                    await asyncio.sleep(2)
                     notify.last_called = True
                     await notify.async_register_services()
             else:

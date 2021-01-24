@@ -163,7 +163,6 @@ class AlexaNotificationService(BaseNotificationService):
                         entity,
                     )
                     devices[entity_name_last_called] = entity.unique_id
-                    break
         return devices
 
     @property

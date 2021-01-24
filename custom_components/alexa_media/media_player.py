@@ -367,9 +367,16 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._available = True
             self.async_write_ha_state()
         if "last_called_change" in event:
-            if event_serial == self.device_serial_number or any(
-                item["serialNumber"] == event_serial for item in self._app_device_list
+            if (
+                event_serial == self.device_serial_number
+                or any(
+                    item["serialNumber"] == event_serial
+                    for item in self._app_device_list
+                )
+                and self._last_called_timestamp
+                != event["last_called_change"]["timestamp"]
             ):
+
                 _LOGGER.debug(
                     "%s: %s is last_called: %s",
                     hide_email(self._login.email),
@@ -1373,6 +1380,20 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     "%s: Refreshing notify targets", hide_email(self._login.email),
                 )
                 await notify.async_register_services()
+                entity_name_last_called = f"{ALEXA_DOMAIN}_last_called{'_'+ self._login.email if self.unique_id[-1:].isdigit() else ''}"
+                if (
+                    notify.last_called
+                    and notify.registered_targets.get(entity_name_last_called)
+                    != self.unique_id
+                ):
+                    _LOGGER.debug(
+                        "%s: Changing notify.targets is not supported by HA version < 2021.2.0; using toggle method",
+                        hide_email(self._login.email),
+                    )
+                    notify.last_called = False
+                    await notify.async_register_services()
+                    notify.last_called = True
+                    await notify.async_register_services()
             else:
                 _LOGGER.debug(
                     "%s: Unable to refresh notify targets; notify not ready",

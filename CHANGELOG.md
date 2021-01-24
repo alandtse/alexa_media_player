@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.6.2 (2021-01-24)
+### Fix
+* Add delay on consecutive service updates ([`7ec02a8`](https://github.com/custom-components/alexa_media_player/commit/7ec02a8761bf5361eaef70a347acdacac62119d7))
+* Fix missing target devices ([`a2fff11`](https://github.com/custom-components/alexa_media_player/commit/a2fff116448427fe8074899fff28f15364448b9a))
+
 ## v3.6.1 (2021-01-24)
 ### Fix
 * Fix announce for second account ([`14c9a12`](https://github.com/custom-components/alexa_media_player/commit/14c9a1263a90f2ed73e8dd284e6b10150ffda533))

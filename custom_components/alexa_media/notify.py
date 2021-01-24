@@ -224,7 +224,7 @@ class AlexaNotificationService(BaseNotificationService):
                     #     list(map(hide_serial, targets)),
                     #     entities,
                     # )
-                    if alexa.unique_id in targets and alexa.available:
+                    if alexa.device_serial_number in targets and alexa.available:
                         _LOGGER.debug(
                             ("%s: Announce by %s to " "targets: %s: %s"),
                             hide_email(account),

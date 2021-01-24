@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v3.6.0 (2021-01-24)
+### Feature
+* Add last_called notify service target ([`d3e35c2`](https://github.com/custom-components/alexa_media_player/commit/d3e35c24d2a6fd017ba1b53d3f7ce468f67c5f6c))
+
+### Fix
+* Fix deregistration for duplicate HA uuids ([`556d771`](https://github.com/custom-components/alexa_media_player/commit/556d77109d451e81aefba961bd1a8ac31be132de))
+* Update last_called only if changed ([`545783a`](https://github.com/custom-components/alexa_media_player/commit/545783a42e88e54479587ff22bccac3b439f879b))
+
 ## v3.5.2 (2021-01-23)
 ### Fix
 * Bump alexapy to 1.22.2 ([`fe97afe`](https://github.com/custom-components/alexa_media_player/commit/fe97afe43972acdbffe8d5ce47effc9e82a0b337))

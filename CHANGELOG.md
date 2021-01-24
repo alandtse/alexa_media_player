@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.6.1 (2021-01-24)
+### Fix
+* Fix announce for second account ([`14c9a12`](https://github.com/custom-components/alexa_media_player/commit/14c9a1263a90f2ed73e8dd284e6b10150ffda533))
+
 ## v3.6.0 (2021-01-24)
 ### Feature
 * Add last_called notify service target ([`d3e35c2`](https://github.com/custom-components/alexa_media_player/commit/d3e35c24d2a6fd017ba1b53d3f7ce468f67c5f6c))

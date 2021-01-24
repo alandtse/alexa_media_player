@@ -33,6 +33,7 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_URL,
+    EVENT_HOMEASSISTANT_STARTED,
     EVENT_HOMEASSISTANT_STOP,
 )
 from homeassistant.data_entry_flow import UnknownFlow
@@ -182,6 +183,15 @@ async def async_setup_entry(hass, config_entry):
             for email, _ in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
                 await close_connections(hass, email)
 
+    async def complete_startup(event=None) -> None:
+        """Run final tasks after startup."""
+        _LOGGER.debug("Completing remaining startup tasks.")
+        await asyncio.sleep(10)
+        if hass.data[DATA_ALEXAMEDIA].get("notify_service"):
+            notify = hass.data[DATA_ALEXAMEDIA].get("notify_service")
+            _LOGGER.debug("Refreshing notify targets")
+            await notify.async_register_services()
+
     async def relogin(event=None) -> None:
         """Relogin to Alexa."""
         if hide_email(email) == event.data.get("email"):
@@ -290,6 +300,7 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
     if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
     hass.bus.async_listen("alexa_media_relogin_required", relogin)
     hass.bus.async_listen("alexa_media_relogin_success", login_success)
     await login.login(cookies=await login.load_cookie())

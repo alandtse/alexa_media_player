@@ -8,9 +8,8 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
-import functools
 import logging
-import sys
+import hashlib
 from typing import Any, Callable, List, Optional, Text
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
@@ -278,8 +277,13 @@ async def calculate_uuid(hass, email: Text, url: Text) -> dict:
                 return_index = index
                 break
     uuid = await hass.helpers.instance_id.async_get()
-    # increment uuid for second accounts
-    result["uuid"] = hex(int(uuid, 16) + return_index)[-32:]
+    result["uuid"] = hex(
+        int(uuid, 16)
+        # increment uuid for second accounts
+        + return_index
+        # hash email/url in case HA uuid duplicated
+        + int(hashlib.md5((email.lower() + url.lower()).encode()).hexdigest(), 16)
+    )[-32:]
     result["index"] = return_index
     _LOGGER.debug("%s: Returning uuid %s", hide_email(email), result)
     return result

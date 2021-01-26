@@ -274,30 +274,37 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 ].get("login_obj")
             except KeyError:
                 self.login = None
-        if not self.login or self.login.session.closed:
-            _LOGGER.debug("Creating new login")
-            uuid_dict = await calculate_uuid(
-                self.hass, self.config.get(CONF_EMAIL), self.config[CONF_URL]
+        try:
+            if not self.login or self.login.session.closed:
+                _LOGGER.debug("Creating new login")
+                uuid_dict = await calculate_uuid(
+                    self.hass, self.config.get(CONF_EMAIL), self.config[CONF_URL]
+                )
+                uuid = uuid_dict["uuid"]
+                self.login = AlexaLogin(
+                    url=self.config[CONF_URL],
+                    email=self.config.get(CONF_EMAIL, ""),
+                    password=self.config.get(CONF_PASSWORD, ""),
+                    outputpath=self.hass.config.path,
+                    debug=self.config[CONF_DEBUG],
+                    otp_secret=self.config.get(CONF_OTPSECRET, ""),
+                    uuid=uuid,
+                    oauth_login=self.config.get(CONF_OAUTH_LOGIN, True),
+                )
+            else:
+                _LOGGER.debug("Using existing login")
+                if self.config.get(CONF_EMAIL):
+                    self.login.email = self.config.get(CONF_EMAIL)
+                if self.config.get(CONF_PASSWORD):
+                    self.login.password = self.config.get(CONF_PASSWORD)
+                if self.config.get(CONF_OTPSECRET):
+                    self.login.set_totp(self.config.get(CONF_OTPSECRET, ""))
+        except AlexapyPyotpInvalidKey:
+            return self.async_show_form(
+                step_id="user",
+                errors={"base": "2fa_key_invalid"},
+                description_placeholders={"message": ""},
             )
-            uuid = uuid_dict["uuid"]
-            self.login = AlexaLogin(
-                url=self.config[CONF_URL],
-                email=self.config.get(CONF_EMAIL, ""),
-                password=self.config.get(CONF_PASSWORD, ""),
-                outputpath=self.hass.config.path,
-                debug=self.config[CONF_DEBUG],
-                otp_secret=self.config.get(CONF_OTPSECRET, ""),
-                uuid=uuid,
-                oauth_login=self.config.get(CONF_OAUTH_LOGIN, True),
-            )
-        else:
-            _LOGGER.debug("Using existing login")
-            if self.config.get(CONF_EMAIL):
-                self.login.email = self.config.get(CONF_EMAIL)
-            if self.config.get(CONF_PASSWORD):
-                self.login.password = self.config.get(CONF_PASSWORD)
-            if self.config.get(CONF_OTPSECRET):
-                self.login.set_totp(self.config.get(CONF_OTPSECRET, ""))
         hass_url: Text = user_input.get(CONF_HASS_URL)
         self.proxy = AlexaProxy(self.login, hass_url)
         await self.proxy.start_proxy()

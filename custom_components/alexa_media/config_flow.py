@@ -307,9 +307,36 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             )
         hass_url: Text = user_input.get(CONF_HASS_URL)
         self.proxy = AlexaProxy(self.login, hass_url)
+        if (
+            user_input
+            and user_input.get(CONF_OTPSECRET)
+            and user_input.get(CONF_OTPSECRET).replace(" ", "")
+        ):
+            otp: Text = self.login.get_totp_token()
+            if otp:
+                _LOGGER.debug("Generating OTP from %s", otp)
+                return self.async_show_form(
+                    step_id="totp_register",
+                    data_schema=vol.Schema(self.totp_register),
+                    errors={},
+                    description_placeholders={
+                        "email": self.login.email,
+                        "url": self.login.url,
+                        "message": otp,
+                    },
+                )
+        return await self.async_step_start_proxy(user_input)
+
+    async def async_step_start_proxy(self, user_input=None):
+        """Start proxy for login."""
+        _LOGGER.debug(
+            "Starting proxy for %s - %s", hide_email(self.login.email), self.login.url,
+        )
         await self.proxy.start_proxy()
         self.hass.http.register_view(AlexaMediaAuthorizationCallbackView)
-        callback_url = f"{hass_url}{AUTH_CALLBACK_PATH}?flow_id={self.flow_id}"
+        callback_url = (
+            f"{self.config['hass_url']}{AUTH_CALLBACK_PATH}?flow_id={self.flow_id}"
+        )
         proxy_url = f"{self.proxy.access_url()}?config_flow_id={self.flow_id}&callback_url={callback_url}"
         if self.login.lastreq:
             proxy_url = f"{self.proxy.access_url()}/resume?config_flow_id={self.flow_id}&callback_url={callback_url}"
@@ -477,6 +504,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         "message": otp,
                     },
                 )
+        if self.proxy:
+            return await self.async_step_start_proxy(user_input)
         return await self.async_step_process("totp_register", self.config)
 
     async def async_step_claimspicker(self, user_input=None):

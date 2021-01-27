@@ -8,7 +8,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 from asyncio import sleep, Lock
-from aiohttp import web_response
+from aiohttp import ClientSession, ClientConnectionError, web_response
 from collections import OrderedDict
 from datetime import timedelta
 from functools import reduce
@@ -306,6 +306,22 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={"message": ""},
             )
         hass_url: Text = user_input.get(CONF_HASS_URL)
+        hass_url_valid: bool = False
+        async with ClientSession() as session:
+            try:
+                async with session.get(hass_url) as resp:
+                    hass_url_valid = resp.status == 200
+            except ClientConnectionError:
+                hass_url_valid = False
+        if not hass_url_valid:
+            _LOGGER.debug(
+                "Unable to connect to provided Home Assistant url: %s", hass_url
+            )
+            return self.async_show_form(
+                step_id="user",
+                errors={"base": "hass_url_invalid"},
+                description_placeholders={"message": ""},
+            )
         self.proxy = AlexaProxy(self.login, hass_url)
         if (
             user_input

@@ -2,6 +2,17 @@
 
 <!--next-version-placeholder-->
 
+## v3.6.3 (2021-01-28)
+### Fix
+* Bump to alexapy 1.22.3 ([`c3df546`](https://github.com/custom-components/alexa_media_player/commit/c3df54653318f8416ec66d7d56d421df3e3e2b2d))
+* Cancel proxy after 10 minutes ([`d818f48`](https://github.com/custom-components/alexa_media_player/commit/d818f481981f63dcb620e1c554cf2fb4a65e8d87))
+* Check for valid ha url ([`1b21b4a`](https://github.com/custom-components/alexa_media_player/commit/1b21b4a92888304c7f750a560f1d2a953c6509d5))
+* Add otp confirmation step for proxy ([`c82d3f1`](https://github.com/custom-components/alexa_media_player/commit/c82d3f1d87e854ff6402af327a9c2624692672c1))
+* Provide warning for invalid built-in 2fa key ([`af86368`](https://github.com/custom-components/alexa_media_player/commit/af863689f53993939296faeacd06516f5cd8bd04))
+
+### Refactor
+* Move translation directory ([`cd2a39a`](https://github.com/custom-components/alexa_media_player/commit/cd2a39a16223b69dc1afcef830aa005d190fc2d7))
+
 ## v3.6.2 (2021-01-24)
 ### Fix
 * Add delay on consecutive service updates ([`7ec02a8`](https://github.com/custom-components/alexa_media_player/commit/7ec02a8761bf5361eaef70a347acdacac62119d7))

@@ -36,6 +36,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.network import get_url
 from homeassistant.util import slugify
 import voluptuous as vol
@@ -176,6 +177,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [(vol.Optional(CONF_TOTP_REGISTER, default=False), bool)]
         )
         self.proxy = None
+        self._cancel_proxy_listener = None
 
     async def async_step_import(self, import_config):
         """Import a config entry from configuration.yaml."""
@@ -349,6 +351,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             "Starting proxy for %s - %s", hide_email(self.login.email), self.login.url,
         )
         await self.proxy.start_proxy()
+        self._cancel_proxy_listener = async_call_later(
+            self.hass, 600, lambda _: self._cancel_proxy(),
+        )
         self.hass.http.register_view(AlexaMediaAuthorizationCallbackView)
         callback_url = (
             f"{self.config['hass_url']}{AUTH_CALLBACK_PATH}?flow_id={self.flow_id}"
@@ -367,6 +372,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         )
         if self.proxy:
             await self.proxy.stop_proxy()
+            self._cancel_proxy_listener()
         return self.async_external_step_done(next_step_id="finish_proxy")
 
     async def async_step_finish_proxy(self, user_input=None):
@@ -960,6 +966,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             },
         )
         return new_schema
+
+    def _cancel_proxy(self) -> None:
+        if self.proxy:
+            _LOGGER.debug("Cancelling stale proxy.")
+            self.hass.async_create_task(self.proxy.stop_proxy())
 
     @staticmethod
     @callback

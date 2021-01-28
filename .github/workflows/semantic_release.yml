@@ -30,7 +30,7 @@ jobs:
           --replace-breaks=false
       - name: Move new translations
         run: |
-          cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/.translations/
+          cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/translations/
       - name: Set up Python 3.7
         uses: actions/setup-python@v1
         with:

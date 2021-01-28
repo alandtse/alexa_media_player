@@ -5,6 +5,7 @@
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
       "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "hass_url_invalid": "Unable to connect to Home Assistant url. Please check the Internal Url under Configuration -> General",
       "unknown_error": "Unknown error, please enable advanced debugging and report log info"
     },
     "step": {

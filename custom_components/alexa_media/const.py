@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from datetime import timedelta
 
-__version__ = "3.6.3"
+__version__ = "3.6.4"
 PROJECT_URL = "https://github.com/custom-components/alexa_media_player/"
 ISSUE_URL = "{}issues".format(PROJECT_URL)
 

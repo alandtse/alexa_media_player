@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.6.4 (2021-02-03)
+### Fix
+* Update last_update before notify update ([`77223a9`](https://github.com/custom-components/alexa_media_player/commit/77223a9b6f89cfa3bc9a4102151181c6a7b22f4d))
+* Add version to manifest.json ([`faef7a1`](https://github.com/custom-components/alexa_media_player/commit/faef7a1bedfc5cec2f1415294afdf7f9276851bd))
+
 ## v3.6.3 (2021-01-28)
 ### Fix
 * Bump to alexapy 1.22.3 ([`c3df546`](https://github.com/custom-components/alexa_media_player/commit/c3df54653318f8416ec66d7d56d421df3e3e2b2d))

@@ -386,6 +386,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._last_called = True
                 self._last_called_timestamp = event["last_called_change"]["timestamp"]
                 self._last_called_summary = event["last_called_change"].get("summary")
+                if self.hass and self.async_write_ha_state:
+                    self.async_write_ha_state()
                 await self._update_notify_targets()
             else:
                 self._last_called = False

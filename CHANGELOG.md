@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.7.0 (2021-02-07)
+### Feature
+* Use HA view for proxy address ([`3eb09ea`](https://github.com/custom-components/alexa_media_player/commit/3eb09ea0834f36178c8fd11423c0202760d96c02))
+
 ## v3.6.4 (2021-02-03)
 ### Fix
 * Update last_update before notify update ([`77223a9`](https://github.com/custom-components/alexa_media_player/commit/77223a9b6f89cfa3bc9a4102151181c6a7b22f4d))

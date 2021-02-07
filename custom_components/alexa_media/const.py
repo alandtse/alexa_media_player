@@ -94,3 +94,5 @@ If you have any issues with this you need to open an issue here:
 
 AUTH_CALLBACK_PATH = "/auth/alexamedia/callback"
 AUTH_CALLBACK_NAME = "auth:alexamedia:callback"
+AUTH_PROXY_PATH = "/auth/alexamedia/proxy"
+AUTH_PROXY_NAME = "auth:alexamedia:proxy"

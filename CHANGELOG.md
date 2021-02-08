@@ -2,6 +2,16 @@
 
 <!--next-version-placeholder-->
 
+## v3.8.0 (2021-02-08)
+### Feature
+* Add name and entity_id to notification_event ([`9c6f6f8`](https://github.com/custom-components/alexa_media_player/commit/9c6f6f875c769524ba3f7b7a34f414029acc11b7))
+
+### Fix
+* Fix https proxy login ([`f873721`](https://github.com/custom-components/alexa_media_player/commit/f873721f2df741240f0a2120ecd432e2ee762edd))
+
+### Refactor
+* Remove unused lock ([`3ba2b6f`](https://github.com/custom-components/alexa_media_player/commit/3ba2b6ffac6df782305a27f1db578b3f61622d86))
+
 ## v3.7.0 (2021-02-07)
 ### Feature
 * Use HA view for proxy address ([`3eb09ea`](https://github.com/custom-components/alexa_media_player/commit/3eb09ea0834f36178c8fd11423c0202760d96c02))

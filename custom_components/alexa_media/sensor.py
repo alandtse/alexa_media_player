@@ -210,7 +210,11 @@ class AlexaMediaNotificationSensor(Entity):
         )
         self.hass.bus.async_fire(
             "alexa_media_notification_event",
-            event_data={"email": hide_email(self._account), "event": self._active[0]},
+            event_data={
+                "email": hide_email(self._account),
+                "device": {"name": self.name, "entity_id": self.entity_id},
+                "event": self._active[0],
+            },
         )
 
     def _fix_alarm_date_time(self, value):

@@ -968,6 +968,18 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "yamllint"
+version = "1.26.0"
+description = "A linter for YAML files."
+category = "dev"
+optional = false
+python-versions = ">=3.5.*"
+
+[package.dependencies]
+pathspec = ">=0.5.3"
+pyyaml = "*"
+
+[[package]]
 name = "yarl"
 version = "1.6.3"
 description = "Yet another URL library"
@@ -994,7 +1006,7 @@ testing = ["pytest (>=3.5,!=3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "17793cfc86dc40d33db60cbb9e027e7be5e5b46d270eeb8b7f6c41b4484d8db6"
+content-hash = "18abf017c30e137574d00a1f2a74a96fec8bc1f38f1b331c5002ecf546bd6467"
 
 [metadata.files]
 aiofiles = [
@@ -1737,6 +1749,10 @@ voluptuous-serialize = [
 ]
 wrapt = [
     {file = "wrapt-1.12.1.tar.gz", hash = "sha256:b62ffa81fb85f4332a4f609cab4ac40709470da05643a082ec1eb88e6d9b97d7"},
+]
+yamllint = [
+    {file = "yamllint-1.26.0-py2.py3-none-any.whl", hash = "sha256:8a5f8e442f49309eaf3e9d7232ce76f2fc8026f5c0c0b164b83f33fed1399637"},
+    {file = "yamllint-1.26.0.tar.gz", hash = "sha256:b0e4c89985c7f5f8451c2eb8c67d804d10ac13a4abe031cbf49bdf3465d01087"},
 ]
 yarl = [
     {file = "yarl-1.6.3-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:0355a701b3998dcd832d0dc47cc5dedf3874f966ac7f870e0f3a6788d802d434"},

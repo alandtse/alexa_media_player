@@ -1,8 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#  SPDX-License-Identifier: Apache-2.0
 """
 Alexa Devices Sensors.
+
+SPDX-License-Identifier: Apache-2.0
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
@@ -186,7 +185,8 @@ class AlexaMediaNotificationSensor(Entity):
             # cancel any event triggers
             if self._tracker:
                 _LOGGER.debug(
-                    "%s: Cancelling old event", self,
+                    "%s: Cancelling old event",
+                    self,
                 )
                 self._tracker()
             if self._state != STATE_UNAVAILABLE:
@@ -337,7 +337,7 @@ class AlexaMediaNotificationSensor(Entity):
 
     @property
     def available(self):
-        """Return the availabilty of the sensor."""
+        """Return the availability of the sensor."""
         return self._client.available
 
     @property

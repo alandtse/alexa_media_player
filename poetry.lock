@@ -27,7 +27,7 @@ speedups = ["aiodns", "brotlipy", "cchardet"]
 
 [[package]]
 name = "alexapy"
-version = "1.24.0"
+version = "1.24.1"
 description = "Python API to control Amazon Echo Devices Programmatically."
 category = "main"
 optional = false
@@ -36,7 +36,7 @@ python-versions = ">=3.6.1,<4.0.0"
 [package.dependencies]
 aiofiles = ">=0.5.0,<0.6.0"
 aiohttp = "*"
-authcaptureproxy = "0.3.2"
+authcaptureproxy = ">=0.4.1,<0.5.0"
 backoff = ">=1.10.0,<2.0.0"
 bs4 = "*"
 certifi = "*"
@@ -112,7 +112,7 @@ tests = ["coverage", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.i
 
 [[package]]
 name = "authcaptureproxy"
-version = "0.3.2"
+version = "0.4.1"
 description = "A Python project to create a proxy to capture authentication information from a webpage. This is useful to capture oauth login details without access to a third-party oauth."
 category = "main"
 optional = false
@@ -120,7 +120,7 @@ python-versions = ">=3.6.1,<4.0.0"
 
 [package.dependencies]
 aiohttp = ">=3.7.3,<4.0.0"
-bs4 = ">=0.0.1,<0.0.2"
+beautifulsoup4 = ">=4.9.3,<5.0.0"
 importlib-metadata = ">=3.4.0,<4.0.0"
 multidict = ">=5.1.0,<6.0.0"
 typer = ">=0.3,<1.0"
@@ -994,7 +994,7 @@ testing = ["pytest (>=3.5,!=3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "eb6dec0c339539c97861f4d3485baae6fc633f2ee28a28945bb9a08056db43cc"
+content-hash = "17793cfc86dc40d33db60cbb9e027e7be5e5b46d270eeb8b7f6c41b4484d8db6"
 
 [metadata.files]
 aiofiles = [
@@ -1041,8 +1041,8 @@ aiohttp = [
     {file = "aiohttp-3.7.3.tar.gz", hash = "sha256:9c1a81af067e72261c9cbe33ea792893e83bc6aa987bfbd6fdc1e5e7b22777c4"},
 ]
 alexapy = [
-    {file = "AlexaPy-1.24.0-py3-none-any.whl", hash = "sha256:a9ab54f05c43cfe3bb33c8ed817b750873f3f3c57b5efac2051ff94ee73195da"},
-    {file = "AlexaPy-1.24.0.tar.gz", hash = "sha256:f5bbf41294e0f494fa8abb1a12ccb1bf88199e8f3bf22b3a81d4c8e910d39c54"},
+    {file = "AlexaPy-1.24.1-py3-none-any.whl", hash = "sha256:0e8fd97dfe1dc89bb7fc5b99eac75a97deea1b6d962581a47705da90abd5f9f7"},
+    {file = "AlexaPy-1.24.1.tar.gz", hash = "sha256:d54e06fbd9865c5542039e26fa005b7e57e393724c8cf329642ca664200f3856"},
 ]
 appdirs = [
     {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
@@ -1069,8 +1069,8 @@ attrs = [
     {file = "attrs-19.3.0.tar.gz", hash = "sha256:f7b7ce16570fe9965acd6d30101a28f62fb4a7f9e926b3bbc9b61f8b04247e72"},
 ]
 authcaptureproxy = [
-    {file = "authcaptureproxy-0.3.2-py3-none-any.whl", hash = "sha256:50570aaf183040d1bb12a91e30e9546cc6ca94b03d6717c1bdf62583c81320ad"},
-    {file = "authcaptureproxy-0.3.2.tar.gz", hash = "sha256:c506bc61ce2810da3de8f0f795ba3bd3cafd0437b4feca02c32358429cedb8b5"},
+    {file = "authcaptureproxy-0.4.1-py3-none-any.whl", hash = "sha256:55a7b26fe8ff5a59a37a951e5bfdf415ac48e6fdaff3fa7626981fe82730e5ea"},
+    {file = "authcaptureproxy-0.4.1.tar.gz", hash = "sha256:95da6802d12762be3ce94fe0f850d19657cf880bbe61dc23887178d279de696e"},
 ]
 awesomeversion = [
     {file = "awesomeversion-21.2.2-py3-none-any.whl", hash = "sha256:614ddcfd4993fbb7b729acde7046b0083577498382db37e87d7df81183b6492b"},

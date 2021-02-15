@@ -1,23 +1,19 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#  SPDX-License-Identifier: Apache-2.0
 """
 Helper functions for Alexa Media Player.
+
+SPDX-License-Identifier: Apache-2.0
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
-import logging
 import hashlib
+import logging
 from typing import Any, Callable, List, Optional, Text
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
-from homeassistant.const import (
-    CONF_EMAIL,
-    CONF_URL,
-)
+from homeassistant.const import CONF_EMAIL, CONF_URL
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import EntityComponent
 import wrapt
@@ -79,7 +75,7 @@ def retry_async(
     """Wrap function with retry logic.
 
     The function will retry until true or the limit is reached. It will delay
-    for the period of time specified exponentialy increasing the delay.
+    for the period of time specified exponentially increasing the delay.
 
     Parameters
     ----------
@@ -97,8 +93,8 @@ def retry_async(
     """
 
     def wrap(func) -> Callable:
-        import functools
         import asyncio
+        import functools
 
         @functools.wraps(func)
         async def wrapper(*args, **kwargs) -> Any:

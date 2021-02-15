@@ -1,8 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#  SPDX-License-Identifier: Apache-2.0
 """
 Alexa Devices Switches.
+
+SPDX-License-Identifier: Apache-2.0
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
@@ -137,7 +136,11 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
     """Representation of a Alexa Media switch."""
 
     def __init__(
-        self, client, switch_property: Text, switch_function: Text, name="Alexa",
+        self,
+        client,
+        switch_property: Text,
+        switch_function: Text,
+        name="Alexa",
     ):
         """Initialize the Alexa Switch device."""
         # Class info
@@ -224,7 +227,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
 
     @property
     def available(self):
-        """Return the availabilty of the switch."""
+        """Return the availability of the switch."""
         return (
             self._client.available
             and getattr(self._client, self._switch_property) is not None
@@ -243,7 +246,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
     @property
     def name(self):
         """Return the name of the switch."""
-        return "{} {} switch".format(self._client.name, self._name)
+        return f"{self._client.name} {self._name} switch"
 
     @property
     def device_class(self):
@@ -297,7 +300,10 @@ class DNDSwitch(AlexaMediaSwitch):
         """Initialize the Alexa Switch."""
         # Class info
         super().__init__(
-            client, "dnd_state", "set_dnd_state", "do not disturb",
+            client,
+            "dnd_state",
+            "set_dnd_state",
+            "do not disturb",
         )
 
     @property

@@ -1,8 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#  SPDX-License-Identifier: Apache-2.0
 """
 Support to interface with Alexa Devices.
+
+SPDX-License-Identifier: Apache-2.0
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
@@ -11,7 +10,7 @@ from datetime import timedelta
 
 __version__ = "3.8.0"
 PROJECT_URL = "https://github.com/custom-components/alexa_media_player/"
-ISSUE_URL = "{}issues".format(PROJECT_URL)
+ISSUE_URL = f"{PROJECT_URL}issues"
 
 DOMAIN = "alexa_media"
 DATA_ALEXAMEDIA = "alexa_media"

@@ -31,10 +31,10 @@ jobs:
       - name: Move new translations
         run: |
           cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/translations/
-      - name: Set up Python 3.7
+      - name: Set up Python 3.8
         uses: actions/setup-python@v1
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -43,6 +43,9 @@ jobs:
         run: |
           git config --global user.name "semantic-release"
           git config --global user.email "semantic-release@GitHub"
+      - name: Commit translation files
+        run: |
+          git commit -m "docs: update localization" -a
       - name: Publish with semantic-release
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -68,3 +71,8 @@ jobs:
           asset_name: alexa_media.zip
           tag: ${{ env.release_version }}
           overwrite: true
+      - name: Push changes to dev
+        uses: ad-m/github-push-action@master
+        with:
+         github_token: ${{ secrets.GITHUB_TOKEN }}
+         branch: dev

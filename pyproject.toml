@@ -1,0 +1,53 @@
+[tool.poetry]
+name = "alexa_media_player"
+version = "3.6.4"
+description = "This is a custom component to allow control of Amazon Alexa devices in [Homeassistant](https://home-assistant.io) using the unofficial Alexa API."
+authors = ["Keaton Taylor <keatonstaylor@gmail.com>","Alan D. Tse <alandtse@gmail.com>"]
+license = "Apache-2.0"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+alexapy = "1.24.1"
+packaging = "~=20.3"
+wrapt = "~=1.12.1"
+
+[tool.poetry.dev-dependencies]
+pre-commit = "^2.10.1"
+flake8 = "*"
+mypy = "*"
+pydocstyle = "*"
+pylint = "*"
+pytest-cov = "*"
+safety = "^1.8.7"
+black = {version = "^20.8b1", allow-prereleases = true}
+pytest = "^6.2.2"
+homeassistant = "^2021.2.3"
+codespell = "^2.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+  | deps
+  | alexapy/aiohttp           # also separately exclude a file named deps in
+                     # the root of the project
+)
+'''

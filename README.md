@@ -1,6 +1,8 @@
-![Validate with hassfest](https://github.com/custom-components/alexa_media_player/workflows/Validate%20with%20hassfest/badge.svg)
+![Validate](https://github.com/custom-components/alexa_media_player/workflows/Validate/badge.svg)
 ![semantic_release](https://github.com/custom-components/alexa_media_player/workflows/semantic_release/badge.svg)
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
+![GitHub all releases](https://img.shields.io/github/downloads/custom-components/alexa_media_player/total)
+![GitHub release (latest by SemVer)](https://img.shields.io/github/downloads/custom-components/alexa_media_player/latest/total)
 
 [Alexa Media Player Custom Component](https://github.com/custom-components/alexa_media_player) for homeassistant
 

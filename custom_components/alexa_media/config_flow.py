@@ -1,8 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#  SPDX-License-Identifier: Apache-2.0
 """
 Alexa Config Flow.
+
+SPDX-License-Identifier: Apache-2.0
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
@@ -15,7 +14,6 @@ from functools import reduce
 import logging
 import re
 from typing import Any, Dict, List, Optional, Text
-from yarl import URL
 
 from aiohttp import ClientConnectionError, ClientSession, web, web_response
 from aiohttp.web_exceptions import HTTPBadRequest
@@ -39,6 +37,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.network import get_url
 from homeassistant.util import slugify
 import voluptuous as vol
+from yarl import URL
 
 from .const import (
     AUTH_CALLBACK_NAME,
@@ -71,13 +70,13 @@ _LOGGER = logging.getLogger(__name__)
 @callback
 def configured_instances(hass):
     """Return a set of configured Alexa Media instances."""
-    return set(entry.title for entry in hass.config_entries.async_entries(DOMAIN))
+    return {entry.title for entry in hass.config_entries.async_entries(DOMAIN)}
 
 
 @callback
 def in_progess_instances(hass):
     """Return a set of in progress Alexa Media flows."""
-    return set(entry["flow_id"] for entry in hass.config_entries.flow.async_progress())
+    return {entry["flow_id"] for entry in hass.config_entries.flow.async_progress()}
 
 
 @config_entries.HANDLERS.register(DOMAIN)
@@ -208,7 +207,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (
                     vol.Required(
                         CONF_HASS_URL,
-                        default=self.config.get(CONF_HASS_URL, get_url(self.hass)),
+                        default=self.config.get(
+                            CONF_HASS_URL, get_url(self.hass, prefer_external=True)
+                        ),
                     ),
                     str,
                 ),
@@ -354,7 +355,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     async def async_step_start_proxy(self, user_input=None):
         """Start proxy for login."""
         _LOGGER.debug(
-            "Starting proxy for %s - %s", hide_email(self.login.email), self.login.url,
+            "Starting proxy for %s - %s",
+            hide_email(self.login.email),
+            self.login.url,
         )
         if not self.proxy_view:
             self.proxy_view = AlexaMediaAuthorizationProxyView(self.proxy.all_handler)
@@ -570,7 +573,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     async def async_step_process(self, step_id, user_input=None):
         """Handle the input processing of the config flow."""
         _LOGGER.debug(
-            "Processing input for %s: %s", step_id, obfuscate(user_input),
+            "Processing input for %s: %s",
+            step_id,
+            obfuscate(user_input),
         )
         self._save_user_input_to_config(user_input=user_input)
         if user_input and user_input.get(CONF_PROXY):
@@ -603,7 +608,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.config["reauth"] = True
         reauth_schema = self._update_schema_defaults()
         _LOGGER.debug(
-            "Creating reauth form with %s", obfuscate(self.config),
+            "Creating reauth form with %s",
+            obfuscate(self.config),
         )
         self.automatic_steps = 0
         if self.login is None:
@@ -614,8 +620,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             except KeyError:
                 self.login = None
         seconds_since_login: int = (
-            datetime.datetime.now() - self.login.stats["login_timestamp"]
-        ).seconds if self.login else 60
+            (datetime.datetime.now() - self.login.stats["login_timestamp"]).seconds
+            if self.login
+            else 60
+        )
         if seconds_since_login < 60:
             _LOGGER.debug(
                 "Relogin requested within %s seconds; manual login required",
@@ -651,7 +659,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "expires_in": login.expires_in,
             }
             self.hass.data.setdefault(
-                DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}},
+                DATA_ALEXAMEDIA,
+                {"accounts": {}, "config_flows": {}},
             )
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
@@ -769,7 +778,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": "  \n> {0}  \n> {1}".format(
+                    "message": "  \n> {}  \n> {}".format(
                         claimspicker_message, error_message
                     ),
                 },
@@ -785,7 +794,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 description_placeholders={
                     "email": login.email,
                     "url": login.url,
-                    "message": "  \n> {0}  \n> {1}".format(
+                    "message": "  \n> {}  \n> {}".format(
                         authselect_message, error_message
                     ),
                 },
@@ -959,7 +968,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     default=self.securitycode if self.securitycode else "",
                 ): str,
                 vol.Optional(
-                    CONF_OTPSECRET, default=self.config.get(CONF_OTPSECRET, ""),
+                    CONF_OTPSECRET,
+                    default=self.config.get(CONF_OTPSECRET, ""),
                 ): str,
                 vol.Required(
                     CONF_URL, default=self.config.get(CONF_URL, "amazon.com")

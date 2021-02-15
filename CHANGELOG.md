@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v3.8.1 (2021-02-15)
+### Fix
+* Use external hass url as default for proxy ([`aa8df7e`](https://github.com/custom-components/alexa_media_player/commit/aa8df7e94db696977eec8dc0c85c0dabea18df74))
+* Wrap calls to alexapi in async_create_task ([`0445b72`](https://github.com/custom-components/alexa_media_player/commit/0445b7227b2994b9e6dcf2bbc1b95fc203e569c2))
+
+### Documentation
+* Update badges ([`2081e0f`](https://github.com/custom-components/alexa_media_player/commit/2081e0f9075aa9706f5fab7fe0494382e7c4337c))
+
 ## v3.8.0 (2021-02-08)
 ### Feature
 * Add name and entity_id to notification_event ([`9c6f6f8`](https://github.com/custom-components/alexa_media_player/commit/9c6f6f875c769524ba3f7b7a34f414029acc11b7))

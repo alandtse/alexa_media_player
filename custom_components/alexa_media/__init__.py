@@ -859,6 +859,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
             elif command in [
                 "PUSH_DELETE_DOPPLER_ACTIVITIES",  # delete Alexa history
+                "PUSH_LIST_CHANGE",  # clear a shopping list https://github.com/custom-components/alexa_media_player/issues/1190
                 "PUSH_LIST_ITEM_CHANGE",  # update shopping list
                 "PUSH_CONTENT_FOCUS_CHANGE",  # likely prime related refocus
                 "PUSH_DEVICE_SETUP_STATE_CHANGE",  # likely device changes mid setup

@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.8.2 (2021-02-20)
+### Fix
+* Bump alexapy==1.24.2 ([`9489268`](https://github.com/custom-components/alexa_media_player/commit/9489268a3dd469df5767a263e9d6f61644ac62d2))
+* Ignore PUSH_LIST_CHANGE ([`d1737fe`](https://github.com/custom-components/alexa_media_player/commit/d1737fee541c8642967486420fc9643b660d5f56))
+
 ## v3.8.1 (2021-02-15)
 ### Fix
 * Use external hass url as default for proxy ([`aa8df7e`](https://github.com/custom-components/alexa_media_player/commit/aa8df7e94db696977eec8dc0c85c0dabea18df74))

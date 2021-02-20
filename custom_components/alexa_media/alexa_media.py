@@ -1,7 +1,7 @@
 """
 Alexa Devices Base Class.
 
-#  SPDX-License-Identifier: Apache-2.0
+SPDX-License-Identifier: Apache-2.0
 
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639

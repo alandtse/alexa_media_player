@@ -74,5 +74,5 @@ jobs:
       - name: Push changes to dev
         uses: ad-m/github-push-action@master
         with:
-         github_token: ${{ secrets.GITHUB_TOKEN }}
-         branch: dev
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: dev

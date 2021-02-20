@@ -23,6 +23,7 @@ black = {version = "^20.8b1", allow-prereleases = true}
 pytest = "^6.2.2"
 homeassistant = "^2021.2.3"
 codespell = "^2.0.0"
+yamllint = "^1.26.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

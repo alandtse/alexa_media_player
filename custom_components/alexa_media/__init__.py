@@ -606,7 +606,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         to notify listeners.
         """
         if not last_called or not (last_called and last_called.get("summary")):
-            last_called = await AlexaAPI.get_last_device_serial(login_obj)
+            try:
+                last_called = await AlexaAPI.get_last_device_serial(login_obj)
+            except TypeError:
+                _LOGGER.debug(
+                    "%s: Error updating last_called: %s",
+                    hide_email(email),
+                    hide_serial(last_called),
+                )
+                return
         _LOGGER.debug(
             "%s: Updated last_called: %s", hide_email(email), hide_serial(last_called)
         )

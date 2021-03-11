@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.8.3 (2021-03-11)
+### Fix
+* Ignore typerrors for update_last_called ([`c2c57ed`](https://github.com/custom-components/alexa_media_player/commit/c2c57eda15b6d090d129ee0bb7c5c640787bd71e))
+
 ## v3.8.2 (2021-02-20)
 ### Fix
 * Bump alexapy==1.24.2 ([`9489268`](https://github.com/custom-components/alexa_media_player/commit/9489268a3dd469df5767a263e9d6f61644ac62d2))

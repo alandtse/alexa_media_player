@@ -33,8 +33,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.event import async_call_later
-from homeassistant.helpers.network import get_url
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
 import voluptuous as vol
 from yarl import URL
@@ -186,6 +185,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     async def async_step_user(self, user_input=None):
         """Provide a proxy for login."""
         self._save_user_input_to_config(user_input=user_input)
+        try:
+            hass_url: Text = get_url(self.hass, prefer_external=True)
+        except NoURLAvailableError:
+            hass_url = ""
         self.proxy_schema = OrderedDict(
             [
                 (
@@ -207,9 +210,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (
                     vol.Required(
                         CONF_HASS_URL,
-                        default=self.config.get(
-                            CONF_HASS_URL, get_url(self.hass, prefer_external=True)
-                        ),
+                        default=self.config.get(CONF_HASS_URL, hass_url),
                     ),
                     str,
                 ),

@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.8.4 (2021-03-12)
+### Fix
+* Handle non-json domainAttributes in activities ([`05025cf`](https://github.com/custom-components/alexa_media_player/commit/05025cf2ab23a33eed1f0a4f47ab2a4a9c50b323))
+* Handle case when hass has no detectable url ([`3796a85`](https://github.com/custom-components/alexa_media_player/commit/3796a857fe9841b345f4c24a3e38f2a7086a777a))
+
 ## v3.8.3 (2021-03-11)
 ### Fix
 * Ignore typerrors for update_last_called ([`c2c57ed`](https://github.com/custom-components/alexa_media_player/commit/c2c57eda15b6d090d129ee0bb7c5c640787bd71e))

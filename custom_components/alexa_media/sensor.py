@@ -374,7 +374,7 @@ class AlexaMediaNotificationSensor(Entity):
 
     def _process_state(self, value):
         return (
-            value[self._sensor_property].replace(tzinfo=LOCAL_TIMEZONE).isoformat()
+            dt.as_local(value[self._sensor_property]).isoformat()
             if value
             else STATE_UNAVAILABLE
         )

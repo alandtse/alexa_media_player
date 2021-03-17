@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.8.5 (2021-03-17)
+### Fix
+* Fix case where proxy receives ip address only ([`2c423a4`](https://github.com/custom-components/alexa_media_player/commit/2c423a4d8752450fe95d7893b86a3207b962944e))
+* Use ha converter for local time ([`6c03b9c`](https://github.com/custom-components/alexa_media_player/commit/6c03b9c0ee13a813d99422f2fc800513155d88f5))
+
 ## v3.8.4 (2021-03-12)
 ### Fix
 * Handle non-json domainAttributes in activities ([`05025cf`](https://github.com/custom-components/alexa_media_player/commit/05025cf2ab23a33eed1f0a4f47ab2a4a9c50b323))

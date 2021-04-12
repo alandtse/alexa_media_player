@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.8.6 (2021-04-12)
+### Fix
+* Check for hass existence and fallback call ([`f2d8362`](https://github.com/custom-components/alexa_media_player/commit/f2d83625dd90c8d431ce0169714275c6d2cee836))
+
 ## v3.8.5 (2021-03-17)
 ### Fix
 * Fix case where proxy receives ip address only ([`2c423a4`](https://github.com/custom-components/alexa_media_player/commit/2c423a4d8752450fe95d7893b86a3207b962944e))

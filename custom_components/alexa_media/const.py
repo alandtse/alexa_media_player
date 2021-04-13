@@ -23,7 +23,7 @@ MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 ALEXA_COMPONENTS = [
     "media_player",
 ]
-DEPENDENT_ALEXA_COMPONENTS = ["notify", "switch", "sensor", "alarm_control_panel"]
+DEPENDENT_ALEXA_COMPONENTS = ["notify", "switch", "sensor", "alarm_control_panel", "light"]
 
 HTTP_COOKIE_HEADER = "# HTTP Cookie File"
 CONF_ACCOUNTS = "accounts"
@@ -33,6 +33,7 @@ CONF_HASS_URL = "hass_url"
 CONF_INCLUDE_DEVICES = "include_devices"
 CONF_EXCLUDE_DEVICES = "exclude_devices"
 CONF_QUEUE_DELAY = "queue_delay"
+CONF_EXTENDED_ENTITY_DISCOVERY = "extended_entity_discovery"
 CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
 CONF_PROXY = "proxy"
@@ -43,6 +44,7 @@ DATA_LISTENER = "listener"
 
 EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"
 
+DEFAULT_EXTENDED_ENTITY_DISCOVERY = False
 DEFAULT_QUEUE_DELAY = 1.5
 SERVICE_CLEAR_HISTORY = "clear_history"
 SERVICE_UPDATE_LAST_CALLED = "update_last_called"

@@ -44,6 +44,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt, slugify
 import voluptuous as vol
 
+from .alexa_entity import get_entity_data, parse_alexa_entities
 from .config_flow import in_progess_instances
 from .const import (
     ALEXA_COMPONENTS,
@@ -51,6 +52,7 @@ from .const import (
     CONF_COOKIES_TXT,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
+    CONF_EXTENDED_ENTITY_DISCOVERY,
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
     CONF_OAUTH_LOGIN,
@@ -58,6 +60,7 @@ from .const import (
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DATA_LISTENER,
+    DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_QUEUE_DELAY,
     DEPENDENT_ALEXA_COMPONENTS,
     DOMAIN,
@@ -255,6 +258,8 @@ async def async_setup_entry(hass, config_entry):
                 "media_player": {},
                 "switch": {},
                 "sensor": {},
+                "temperature": [],
+                "light": [],
                 "alarm_control_panel": {},
             },
             "excluded": {},
@@ -266,9 +271,13 @@ async def async_setup_entry(hass, config_entry):
             "websocket": None,
             "auth_info": None,
             "second_account_index": 0,
+            "alexa_entities": (),
             "options": {
                 CONF_QUEUE_DELAY: config_entry.options.get(
                     CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
+                ),
+                CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.options.get(
+                    CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
                 )
             },
             DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
@@ -308,7 +317,6 @@ async def async_setup_entry(hass, config_entry):
         return True
     return False
 
-
 async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     """Set up a alexa api based on host parameter."""
 
@@ -345,11 +353,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         ].values()
         auth_info = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("auth_info")
         new_devices = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
+        should_get_network = not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["alexa_entities"]
+
         devices = {}
         bluetooth = {}
         preferences = {}
         dnd = {}
         raw_notifications = {}
+        entity_state = {}
         tasks = [
             AlexaAPI.get_devices(login_obj),
             AlexaAPI.get_bluetooth(login_obj),
@@ -359,33 +370,55 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
 
+        entities_to_monitor = []
+        for temp in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["temperature"]:
+            if temp.enabled:
+                entities_to_monitor.append(temp.alexa_entity_id)
+
+        for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["light"]:
+            if light.enabled:
+                entities_to_monitor.append(light.alexa_entity_id)
+
+        for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["alarm_control_panel"].values():
+            if guard.enabled:
+                entities_to_monitor.append(guard.unique_id)
+
+        if entities_to_monitor:
+            tasks.append(get_entity_data(login_obj, entities_to_monitor))
+
+        if should_get_network:
+            tasks.append(AlexaAPI.get_network_details(login_obj))
+
         try:
             # Note: asyncio.TimeoutError and aiohttp.ClientError are already
             # handled by the data update coordinator.
             async with async_timeout.timeout(30):
+                (
+                    devices,
+                    bluetooth,
+                    preferences,
+                    dnd,
+                    *optional_task_results
+                )  = await asyncio.gather(*tasks)
+
+                if should_get_network:
+                    _LOGGER.debug("Alexa entities have been loaded. Prepared for discovery.")
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["alexa_entities"] = parse_alexa_entities(optional_task_results.pop())
+
+                if entities_to_monitor:
+                    entity_state = optional_task_results.pop()
+
                 if new_devices:
-                    (
-                        devices,
-                        bluetooth,
-                        preferences,
-                        dnd,
-                        auth_info,
-                    ) = await asyncio.gather(*tasks)
-                else:
-                    (
-                        devices,
-                        bluetooth,
-                        preferences,
-                        dnd,
-                    ) = await asyncio.gather(*tasks)
-                _LOGGER.debug(
-                    "%s: Found %s devices, %s bluetooth",
-                    hide_email(email),
-                    len(devices) if devices is not None else "",
-                    len(bluetooth.get("bluetoothStates", []))
-                    if bluetooth is not None
-                    else "",
-                )
+                    auth_info = optional_task_results.pop()
+                    _LOGGER.debug(
+                        "%s: Found %s devices, %s bluetooth",
+                        hide_email(email),
+                        len(devices) if devices is not None else "",
+                        len(bluetooth.get("bluetoothStates", []))
+                        if bluetooth is not None
+                        else "",
+                    )
+
             await process_notifications(login_obj, raw_notifications)
             # Process last_called data to fire events
             await update_last_called(login_obj)
@@ -554,6 +587,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     },
                 },
             )
+        return entity_state
 
     @_catch_login_errors
     async def process_notifications(login_obj, raw_notifications=None):
@@ -732,6 +766,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         seen_commands = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "websocket_commands"
         ]
+        coord = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["coordinator"]
         if command and json_payload:
 
             _LOGGER.debug(
@@ -774,6 +809,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"push_activity": json_payload},
                     )
+                    await coord.async_request_refresh()
                 except (AlexapyConnectionError):
                     # Catch case where activities doesn't report valid json
                     pass

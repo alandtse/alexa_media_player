@@ -13,12 +13,14 @@ from typing import Callable, List, Optional, Text  # noqa pylint: disable=unused
 from homeassistant.const import (
     DEVICE_CLASS_TIMESTAMP,
     STATE_UNAVAILABLE,
+    TEMP_CELSIUS,
     __version__ as HA_VERSION,
 )
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt
 from packaging import version
 import pytz
@@ -32,7 +34,12 @@ from . import (
     hide_email,
     hide_serial,
 )
-from .const import RECURRING_PATTERN, RECURRING_PATTERN_ISO_SET
+from .alexa_entity import parse_temperature_from_coordinator
+from .const import (
+    CONF_EXTENDED_ENTITY_DISCOVERY,
+    RECURRING_PATTERN,
+    RECURRING_PATTERN_ISO_SET,
+)
 from .helpers import add_devices, retry_async
 
 _LOGGER = logging.getLogger(__name__)
@@ -106,14 +113,19 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     hide_email(account),
                     alexa_client,
                 )
+
+    temperature_sensors = []
+    temperature_entities = account_dict["alexa_entities"].get("temperature_sensors", [])
+    if temperature_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
+        temperature_sensors = await create_temperature_sensors(account_dict, temperature_entities)
+
     return await add_devices(
         hide_email(account),
-        devices,
+        devices + temperature_sensors,
         add_devices_callback,
         include_filter,
         exclude_filter,
     )
-
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa sensor platform by config_entry."""
@@ -131,7 +143,74 @@ async def async_unload_entry(hass, entry) -> bool:
         for device in sensors[key].values():
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
+    for temp in account_dict["entities"]["temperature"]:
+        await temp.async_remove()
     return True
+
+
+async def create_temperature_sensors(account_dict, temperature_entities):
+    devices = []
+    coordinator = account_dict["coordinator"]
+    for temp in temperature_entities:
+        _LOGGER.debug("Creating entity %s for a temperature sensor with name %s", temp["id"], temp["name"])
+        sensor = TemperatureSensor(coordinator, temp["id"], temp["name"], lookup_device_info(account_dict, temp["name"]))
+        account_dict["entities"]["temperature"].append(sensor)
+        devices.append(sensor)
+        await coordinator.async_request_refresh()
+    return devices
+
+
+def lookup_device_info(account_dict, name):
+    """Get an assumed device id for an Echo based entirely on the name of the echo.
+
+        This is a bit of guess doing things this way.
+        However, it seems like its probably accurate and there isn't a better way I can find.
+        The alternative is not linking the temperature sensor to the device. That looks half-baked in the dashboard.
+    """
+    for mp in account_dict["entities"]["media_player"].values():
+        if mp.name == name and mp.device_info and "identifiers" in mp.device_info:
+            for ident in mp.device_info["identifiers"]:
+                _LOGGER.debug("Found matching media player(%s) for temperature sensor by name %s. Linking to it.", ident, name)
+                return ident
+    return None
+
+
+class TemperatureSensor(CoordinatorEntity):
+    """A temperature sensor reported by an Echo. """
+
+    def __init__(self, coordinator, entity_id, name, media_player_device_id):
+        super().__init__(coordinator)
+        self.alexa_entity_id = entity_id
+        self._name = name
+        self._media_player_device_id = media_player_device_id
+
+    @property
+    def name(self):
+        return self._name + " Temperature"
+
+    @property
+    def device_info(self):
+        """Return the device_info of the device."""
+        if self._media_player_device_id:
+            return {
+                "identifiers": {self._media_player_device_id},
+                "via_device": self._media_player_device_id,
+            }
+        return None
+
+    @property
+    def unit_of_measurement(self):
+        return TEMP_CELSIUS
+
+    @property
+    def state(self):
+        return parse_temperature_from_coordinator(self.coordinator, self.alexa_entity_id)
+
+    @property
+    def unique_id(self):
+        # This includes "_temperature" because the Alexa entityId is for a physical device
+        # A single physical device could have multiple HA entities
+        return self.alexa_entity_id + "_temperature"
 
 
 class AlexaMediaNotificationSensor(Entity):

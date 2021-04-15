@@ -146,8 +146,8 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
                 "%s: Guard Discovered %s: %s %s",
                 self.account,
                 self._friendly_name,
-                self._appliance_id,
-                self._guard_entity_id,
+                hide_serial(self._appliance_id),
+                hide_serial(self._guard_entity_id),
             )
 
     @_catch_login_errors
@@ -228,7 +228,8 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
 
     @property
     def assumed_state(self) -> bool:
-        return self._login.session.closed
+        last_refresh_success = self.coordinator.data and self._guard_entity_id in self.coordinator.data
+        return not last_refresh_success
 
     @property
     def device_state_attributes(self):

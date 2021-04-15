@@ -9,14 +9,23 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 import json
 import logging
-from typing import Any, Dict, Text
+from typing import Any, Dict, Text, Optional, List, TypedDict, Union
 
-from alexapy import AlexaAPI
+from alexapy import AlexaAPI, hide_serial, AlexaLogin
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def has_capability(appliance: Dict[Text, Any], interface_name: Text, property_name: Text) -> bool:
+    """Determine if an appliance from the Alexa network details offers a particular interface with enough support
+    that is worth adding to Home Assistant.
+
+        Args:
+            appliance(Dict[Text, Any]): An appliance from a call to AlexaAPI.get_network_details
+            interface_name(Text): One of the interfaces documented by the Alexa Smart Home Skills API
+            property_name(Text): The property that matches the interface name.
+     """
     for cap in appliance["capabilities"]:
         props = cap["properties"]
         if cap["interfaceName"] == interface_name and (props["retrievable"] or props["proactivelyReported"]):
@@ -54,6 +63,7 @@ def is_light(appliance: Dict[Text, Any]) -> bool:
                                                                                              "Alexa.PowerController",
                                                                                              "powerState")
 
+
 def get_friendliest_name(appliance: Dict[Text, Any]) -> Text:
     """Find the best friendly name. Alexa seems to store manual renames in aliases. Prefer that one."""
     aliases = appliance.get("aliases", [])
@@ -63,7 +73,28 @@ def get_friendliest_name(appliance: Dict[Text, Any]) -> Text:
             return friendly
     return appliance["friendlyName"]
 
-def parse_alexa_entities(network_details):
+
+AlexaEntity = TypedDict('AlexaEntity', {
+    'id': Text,
+    'appliance_id': Text,
+    'name': Text
+})
+AlexaLightEntity = TypedDict('AlexaLightEntity', {
+    'id': Text,
+    'appliance_id': Text,
+    'name': Text,
+    'brightness': bool,
+    'color': bool,
+    'color_temperature': bool
+})
+AlexaEntities = TypedDict('AlexaEntities', {
+    'lights': List[AlexaLightEntity],
+    'guards': List[AlexaEntity],
+    'temperature_sensors': List[AlexaEntity]
+})
+
+
+def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEntities:
     """Turn the network details into a list of useful entities with the important details extracted."""
     lights = []
     guards = []
@@ -84,9 +115,11 @@ def parse_alexa_entities(network_details):
                 elif is_temperature_sensor(appliance):
                     temperature_sensors.append(processed_appliance)
                 elif is_light(appliance):
-                    processed_appliance["brightness"] = has_capability(appliance, "Alexa.BrightnessController", "brightness")
+                    processed_appliance["brightness"] = has_capability(appliance, "Alexa.BrightnessController",
+                                                                       "brightness")
                     processed_appliance["color"] = has_capability(appliance, "Alexa.ColorController", "color")
-                    processed_appliance["color_temperature"] = has_capability(appliance, "Alexa.ColorTemperatureController",
+                    processed_appliance["color_temperature"] = has_capability(appliance,
+                                                                              "Alexa.ColorTemperatureController",
                                                                               "colorTemperatureInKelvin")
                     lights.append(processed_appliance)
 
@@ -97,7 +130,15 @@ def parse_alexa_entities(network_details):
     }
 
 
-async def get_entity_data(login_obj, entity_ids):
+AlexaCapabilityState = TypedDict('AlexaCapabilityState', {
+    'name': Text,
+    'namespace': Text,
+    'value': Union[int, Text, TypedDict('AlexaCapabilityValue', {'value': Text})]
+})
+AlexaEntityData = Dict[Text, List[AlexaCapabilityState]]
+
+
+async def get_entity_data(login_obj: AlexaLogin, entity_ids: List[Text]) -> AlexaEntityData:
     """Get and process the entity data into a more usable format."""
     raw = await AlexaAPI.get_entity_state(login_obj, entity_ids=entity_ids)
     entities = {}
@@ -111,32 +152,33 @@ async def get_entity_data(login_obj, entity_ids):
     return entities
 
 
-def parse_temperature_from_coordinator(coordinator, entity_id):
+def parse_temperature_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text) -> Optional[Text]:
     """Get the temperature of an entity from the coordinator data."""
     value = parse_value_from_coordinator(coordinator, entity_id, "Alexa.TemperatureSensor", "temperature")
     return value.get("value") if value and "value" in value else None
 
 
-def parse_brightness_from_coordinator(coordinator, entity_id):
+def parse_brightness_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text) -> int:
     """Get the brightness in the range 0-100."""
     return parse_value_from_coordinator(coordinator, entity_id, "Alexa.BrightnessController", "brightness")
 
 
-def parse_power_from_coordinator(coordinator, entity_id):
+def parse_power_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text) -> Text:
     """Get the power state of the entity."""
     return parse_value_from_coordinator(coordinator, entity_id, "Alexa.PowerController", "powerState")
 
 
-def parse_guard_state_from_coordinator(coordinator, entity_id):
+def parse_guard_state_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text):
     """Get the guard state from the coordinator data."""
     return parse_value_from_coordinator(coordinator, entity_id, "Alexa.SecurityPanelController", "armState")
 
 
-def parse_value_from_coordinator(coordinator, entity_id, namespace, name):
+def parse_value_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text, namespace: Text,
+                                 name: Text) -> Any:
     if coordinator.data and entity_id in coordinator.data:
         for capState in coordinator.data[entity_id]:
             if capState.get("namespace") == namespace and capState.get("name") == name:
                 return capState.get("value")
     else:
-        _LOGGER.debug("Coordinator has no data for %s", entity_id)
+        _LOGGER.debug("Coordinator has no data for %s", hide_serial(entity_id))
     return None

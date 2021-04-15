@@ -44,7 +44,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt, slugify
 import voluptuous as vol
 
-from .alexa_entity import get_entity_data, parse_alexa_entities
+from .alexa_entity import get_entity_data, parse_alexa_entities, AlexaEntityData
 from .config_flow import in_progess_instances
 from .const import (
     ALEXA_COMPONENTS,
@@ -271,7 +271,12 @@ async def async_setup_entry(hass, config_entry):
             "websocket": None,
             "auth_info": None,
             "second_account_index": 0,
-            "alexa_entities": (),
+            "alexa_entities": {
+                "lights": [],
+                "guards": [],
+                "temperature_sensors": []
+            },
+            "should_get_network": True,
             "options": {
                 CONF_QUEUE_DELAY: config_entry.options.get(
                     CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
@@ -317,10 +322,11 @@ async def async_setup_entry(hass, config_entry):
         return True
     return False
 
+
 async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     """Set up a alexa api based on host parameter."""
 
-    async def async_update_data():
+    async def async_update_data() -> Optional[AlexaEntityData]:
         """Fetch data from API endpoint.
 
         This is the place to pre-process the data to lookup tables
@@ -328,6 +334,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         This will ping Alexa API to identify all devices, bluetooth, and the last
         called device.
+
+        If any guards, temperature sensors, or lights are configured, their
+        current state will be acquired. This data is returned directly so that it is available on the coordinator.
 
         This will add new devices and services when discovered. By default this
         runs every SCAN_INTERVAL seconds unless another method calls it. if
@@ -353,7 +362,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         ].values()
         auth_info = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("auth_info")
         new_devices = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
-        should_get_network = not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["alexa_entities"]
+        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["should_get_network"]
 
         devices = {}
         bluetooth = {}
@@ -404,6 +413,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if should_get_network:
                     _LOGGER.debug("Alexa entities have been loaded. Prepared for discovery.")
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["alexa_entities"] = parse_alexa_entities(optional_task_results.pop())
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["should_get_network"] = False
 
                 if entities_to_monitor:
                     entity_state = optional_task_results.pop()

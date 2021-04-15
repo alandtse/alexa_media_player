@@ -11,7 +11,7 @@ import datetime
 import logging
 from typing import Callable, List, Optional, Text  # noqa pylint: disable=unused-import
 
-from alexapy import AlexaAPI
+from alexapy import AlexaAPI, hide_serial
 from homeassistant.components.light import ATTR_BRIGHTNESS, SUPPORT_BRIGHTNESS, Light
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -46,13 +46,13 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     light_entities = account_dict["alexa_entities"].get("lights", [])
     if light_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for le in light_entities:
-            _LOGGER.debug("Creating entity %s for a light with name %s", le["id"], le["name"])
+            _LOGGER.debug("Creating entity %s for a light with name %s", hide_serial(le["id"]), le["name"])
             light = AlexaLight(coordinator, account_dict["login_obj"], le)
             account_dict["entities"]["light"].append(light)
             devices.append(light)
 
     if devices:
-        await coordinator.async_request_refresh()
+        await coordinator.async_refresh()
 
     return await add_devices(
         hide_email(account),
@@ -118,6 +118,11 @@ class AlexaLight(CoordinatorEntity, Light):
     def brightness(self):
         bright = parse_brightness_from_coordinator(self.coordinator, self.alexa_entity_id)
         return alexa_brightness_to_ha(bright) if bright is not None else 255
+
+    @property
+    def assumed_state(self) -> bool:
+        last_refresh_success = self.coordinator.data and self.alexa_entity_id in self.coordinator.data
+        return not last_refresh_success
 
     @staticmethod
     async def _wait_for_lights():

@@ -103,7 +103,8 @@
     "step": {
       "init": {
         "data": {
-          "queue_delay": "Seconds to wait to queue commands together"
+          "queue_delay": "Seconds to wait to queue commands together",
+          "extended_entity_discovery": "Include devices connected via Echo"
         }
       }
     }

@@ -46,6 +46,7 @@ from .const import (
     CONF_COOKIES_TXT,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
+    CONF_EXTENDED_ENTITY_DISCOVERY,
     CONF_HASS_URL,
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
@@ -56,6 +57,7 @@ from .const import (
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
+    DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
     HTTP_COOKIE_HEADER,
@@ -1025,7 +1027,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=self.config_entry.options.get(
                         CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
                     ),
-                ): vol.All(vol.Coerce(float), vol.Clamp(min=0))
+                ): vol.All(vol.Coerce(float), vol.Clamp(min=0)),
+                vol.Required(
+                    CONF_EXTENDED_ENTITY_DISCOVERY,
+                    default=self.config_entry.options.get(
+                        CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
+                    )
+                ): bool
             }
         )
         return self.async_show_form(step_id="init", data_schema=data_schema)

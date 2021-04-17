@@ -9,9 +9,9 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 import json
 import logging
-from typing import Any, Dict, Text, Optional, List, TypedDict, Union
+from typing import Any, Dict, List, Optional, Text, TypedDict, Union
 
-from alexapy import AlexaAPI, hide_serial, AlexaLogin
+from alexapy import AlexaAPI, AlexaLogin, hide_serial
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,8 +27,8 @@ def has_capability(appliance: Dict[Text, Any], interface_name: Text, property_na
             property_name(Text): The property that matches the interface name.
      """
     for cap in appliance["capabilities"]:
-        props = cap["properties"]
-        if cap["interfaceName"] == interface_name and (props["retrievable"] or props["proactivelyReported"]):
+        props = cap.get("properties")
+        if cap["interfaceName"] == interface_name and props and (props["retrievable"] or props["proactivelyReported"]):
             for prop in props["supported"]:
                 if prop["name"] == property_name:
                     return True
@@ -83,30 +83,26 @@ def get_device_serial(appliance: Dict[Text, Any]) -> Optional[Text]:
     return None
 
 
-AlexaEntity = TypedDict('AlexaEntity', {
-    'id': Text,
-    'appliance_id': Text,
-    'name': Text
-})
-AlexaLightEntity = TypedDict('AlexaLightEntity', {
-    'id': Text,
-    'appliance_id': Text,
-    'name': Text,
-    'brightness': bool,
-    'color': bool,
-    'color_temperature': bool
-})
-AlexaTemperatureEntity = TypedDict('AlexaTemperatureEntity', {
-    'id': Text,
-    'appliance_id': Text,
-    'device_serial': Text,
-    'name': Text
-})
-AlexaEntities = TypedDict('AlexaEntities', {
-    'light': List[AlexaLightEntity],
-    'guard': List[AlexaEntity],
-    'temperature': List[AlexaTemperatureEntity]
-})
+class AlexaEntity(TypedDict):
+    id: Text
+    appliance_id: Text
+    name: Text
+class AlexaLightEntity(TypedDict):
+    id: Text
+    appliance_id: Text
+    name: Text
+    brightness: bool
+    color: bool
+    color_temperature: bool
+class AlexaTemperatureEntity(TypedDict):
+    id: Text
+    appliance_id: Text
+    device_serial: Text
+    name: Text
+class AlexaEntities(TypedDict):
+    light: List[AlexaLightEntity]
+    guard: List[AlexaEntity]
+    temperature: List[AlexaTemperatureEntity]
 
 
 def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEntities:
@@ -147,11 +143,10 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
     }
 
 
-AlexaCapabilityState = TypedDict('AlexaCapabilityState', {
-    'name': Text,
-    'namespace': Text,
-    'value': Union[int, Text, TypedDict('AlexaCapabilityValue', {'value': Text})]
-})
+class AlexaCapabilityState(TypedDict):
+    name: Text
+    namespace: Text
+    value: Union[int, Text, TypedDict()]
 AlexaEntityData = Dict[Text, List[AlexaCapabilityState]]
 
 

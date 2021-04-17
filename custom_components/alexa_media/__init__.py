@@ -253,12 +253,11 @@ async def async_setup_entry(hass, config_entry):
             "coordinator": None,
             "config_entry": config_entry,
             "setup_alexa": setup_alexa,
-            "devices": {"media_player": {}, "switch": {}},
+            "devices": {"media_player": {}, "switch": {}, "guard": [], "light": [], "temperature": []},
             "entities": {
                 "media_player": {},
                 "switch": {},
                 "sensor": {},
-                "temperature": [],
                 "light": [],
                 "alarm_control_panel": {},
             },
@@ -271,11 +270,6 @@ async def async_setup_entry(hass, config_entry):
             "websocket": None,
             "auth_info": None,
             "second_account_index": 0,
-            "alexa_entities": {
-                "lights": [],
-                "guards": [],
-                "temperature_sensors": []
-            },
             "should_get_network": True,
             "options": {
                 CONF_QUEUE_DELAY: config_entry.options.get(
@@ -379,21 +373,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
 
-        entities_to_monitor = []
-        for temp in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["temperature"]:
-            if temp.enabled:
-                entities_to_monitor.append(temp.alexa_entity_id)
+        entities_to_monitor = set()
+        for sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["sensor"].values():
+            temp = sensor.get("Temperature")
+            if temp and temp.enabled:
+                entities_to_monitor.add(temp.alexa_entity_id)
 
         for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["light"]:
             if light.enabled:
-                entities_to_monitor.append(light.alexa_entity_id)
+                entities_to_monitor.add(light.alexa_entity_id)
 
         for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["alarm_control_panel"].values():
             if guard.enabled:
-                entities_to_monitor.append(guard.unique_id)
+                entities_to_monitor.add(guard.unique_id)
 
         if entities_to_monitor:
-            tasks.append(get_entity_data(login_obj, entities_to_monitor))
+            tasks.append(get_entity_data(login_obj, list(entities_to_monitor)))
 
         if should_get_network:
             tasks.append(AlexaAPI.get_network_details(login_obj))
@@ -412,7 +407,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                 if should_get_network:
                     _LOGGER.debug("Alexa entities have been loaded. Prepared for discovery.")
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["alexa_entities"] = parse_alexa_entities(optional_task_results.pop())
+                    alexa_entities = parse_alexa_entities(optional_task_results.pop())
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(alexa_entities)
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["should_get_network"] = False
 
                 if entities_to_monitor:
@@ -812,6 +808,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     "timestamp": json_payload["timestamp"],
                 }
                 try:
+                    await coord.async_request_refresh()
                     if serial and serial in existing_serials:
                         await update_last_called(login_obj, last_called)
                     async_dispatcher_send(
@@ -819,7 +816,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"push_activity": json_payload},
                     )
-                    await coord.async_request_refresh()
                 except (AlexapyConnectionError):
                     # Catch case where activities doesn't report valid json
                     pass

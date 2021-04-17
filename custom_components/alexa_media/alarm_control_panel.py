@@ -72,7 +72,7 @@ async def async_setup_platform(
             ]
         ) = {}
     alexa_client: Optional[AlexaAlarmControlPanel] = None
-    guard_entities = account_dict["alexa_entities"].get("guards", [])
+    guard_entities = account_dict.get("devices", {}).get("guard", [])
     if guard_entities:
         alexa_client = AlexaAlarmControlPanel(
             account_dict["login_obj"], account_dict["coordinator"], guard_entities[0], guard_media_players

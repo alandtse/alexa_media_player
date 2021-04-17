@@ -74,6 +74,15 @@ def get_friendliest_name(appliance: Dict[Text, Any]) -> Text:
     return appliance["friendlyName"]
 
 
+def get_device_serial(appliance: Dict[Text, Any]) -> Optional[Text]:
+    """Find the device serial id if it is present."""
+    alexa_device_id_list = appliance.get("alexaDeviceIdentifierList", [])
+    for alexa_device_id in alexa_device_id_list:
+        if type(alexa_device_id) is dict:
+            return alexa_device_id.get("dmsDeviceSerialNumber")
+    return None
+
+
 AlexaEntity = TypedDict('AlexaEntity', {
     'id': Text,
     'appliance_id': Text,
@@ -87,10 +96,16 @@ AlexaLightEntity = TypedDict('AlexaLightEntity', {
     'color': bool,
     'color_temperature': bool
 })
+AlexaTemperatureEntity = TypedDict('AlexaTemperatureEntity', {
+    'id': Text,
+    'appliance_id': Text,
+    'device_serial': Text,
+    'name': Text
+})
 AlexaEntities = TypedDict('AlexaEntities', {
-    'lights': List[AlexaLightEntity],
-    'guards': List[AlexaEntity],
-    'temperature_sensors': List[AlexaEntity]
+    'light': List[AlexaLightEntity],
+    'guard': List[AlexaEntity],
+    'temperature': List[AlexaTemperatureEntity]
 })
 
 
@@ -113,6 +128,8 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                 if is_alexa_guard(appliance):
                     guards.append(processed_appliance)
                 elif is_temperature_sensor(appliance):
+                    serial = get_device_serial(appliance)
+                    processed_appliance["device_serial"] = serial if serial else appliance["entityId"]
                     temperature_sensors.append(processed_appliance)
                 elif is_light(appliance):
                     processed_appliance["brightness"] = has_capability(appliance, "Alexa.BrightnessController",
@@ -124,9 +141,9 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                     lights.append(processed_appliance)
 
     return {
-        "lights": lights,
-        "guards": guards,
-        "temperature_sensors": temperature_sensors
+        "light": lights,
+        "guard": guards,
+        "temperature": temperature_sensors
     }
 
 

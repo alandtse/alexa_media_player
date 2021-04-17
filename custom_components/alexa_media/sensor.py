@@ -53,7 +53,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     SENSOR_TYPES = {
         "Alarm": AlarmSensor,
         "Timer": TimerSensor,
-        "Reminder": ReminderSensor,
+        "Reminder": ReminderSensor
     }
     account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -115,7 +115,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 )
 
     temperature_sensors = []
-    temperature_entities = account_dict["alexa_entities"].get("temperature_sensors", [])
+    temperature_entities = account_dict.get("devices", {}).get("temperature", [])
     if temperature_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         temperature_sensors = await create_temperature_sensors(account_dict, temperature_entities)
 
@@ -143,8 +143,6 @@ async def async_unload_entry(hass, entry) -> bool:
         for device in sensors[key].values():
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
-    for temp in account_dict["entities"]["temperature"]:
-        await temp.async_remove()
     return True
 
 
@@ -153,24 +151,24 @@ async def create_temperature_sensors(account_dict, temperature_entities):
     coordinator = account_dict["coordinator"]
     for temp in temperature_entities:
         _LOGGER.debug("Creating entity %s for a temperature sensor with name %s", temp["id"], temp["name"])
-        sensor = TemperatureSensor(coordinator, temp["id"], temp["name"], lookup_device_info(account_dict, temp["name"]))
-        account_dict["entities"]["temperature"].append(sensor)
+        serial = temp["device_serial"]
+        device_info = lookup_device_info(account_dict, serial)
+        sensor = TemperatureSensor(coordinator, temp["id"], temp["name"], device_info)
+        account_dict["entities"]["sensor"].setdefault(serial, {})
+        account_dict["entities"]["sensor"][serial]["Temperature"] = sensor
         devices.append(sensor)
         await coordinator.async_request_refresh()
     return devices
 
 
-def lookup_device_info(account_dict, name):
-    """Get an assumed device id for an Echo based entirely on the name of the echo.
+def lookup_device_info(account_dict, device_serial):
+    """Get the device to use for a given Echo based on a given device serial id.
 
-        This is a bit of guess doing things this way.
-        However, it seems like its probably accurate and there isn't a better way I can find.
-        The alternative is not linking the temperature sensor to the device. That looks half-baked in the dashboard.
+    This may return nothing as there is no guarantee that a given temperature sensor is actually attached to an Echo.
     """
-    for mp in account_dict["entities"]["media_player"].values():
-        if mp.name == name and mp.device_info and "identifiers" in mp.device_info:
+    for key, mp in account_dict["entities"]["media_player"].items():
+        if key == device_serial and mp.device_info and "identifiers" in mp.device_info:
             for ident in mp.device_info["identifiers"]:
-                _LOGGER.debug("Found matching media player(%s) for temperature sensor by name %s. Linking to it.", ident, name)
                 return ident
     return None
 

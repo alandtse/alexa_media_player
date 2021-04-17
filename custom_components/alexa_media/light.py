@@ -43,7 +43,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     coordinator = account_dict["coordinator"]
 
-    light_entities = account_dict["alexa_entities"].get("lights", [])
+    light_entities = account_dict.get("devices", {}).get("light", [])
     if light_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for le in light_entities:
             _LOGGER.debug("Creating entity %s for a light with name %s", hide_serial(le["id"]), le["name"])

@@ -146,7 +146,7 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
 class AlexaCapabilityState(TypedDict):
     name: Text
     namespace: Text
-    value: Union[int, Text, TypedDict()]
+    value: Union[int, Text, TypedDict]
 AlexaEntityData = Dict[Text, List[AlexaCapabilityState]]
 
 

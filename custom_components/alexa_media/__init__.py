@@ -1199,6 +1199,9 @@ async def update_listener(hass, config_entry):
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key],
             )
 
+            if key == CONF_EXTENDED_ENTITY_DISCOVERY and new_value:
+                await hass.config_entries.async_reload(config_entry.entry_id)
+
 
 async def test_login_status(hass, config_entry, login) -> bool:
     """Test the login status and spawn requests for info."""

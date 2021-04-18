@@ -41,6 +41,16 @@ def has_capability(
     return False
 
 
+def is_emulated_hue(appliance: Dict[Text, Any]) -> bool:
+    """Determine if an appliance may have originated from an emulated hue hub.
+
+    This check will catch all emulated_hue devices, but it may also catch too much.
+    Its possible some older Hue bulbs may actually use this manufacturer name even though modern bulbs report "Philips".
+    Therefore, only believe this check if emulated_hue is actually turned on.
+    """
+    return appliance.get("manufacturerName") == "Royal Philips Electronics"
+
+
 def is_local(appliance: Dict[Text, Any]) -> bool:
     """Test whether locally connected.
 
@@ -102,25 +112,21 @@ class AlexaEntity(TypedDict):
     id: Text
     appliance_id: Text
     name: Text
+    is_possibly_emulated: bool
 
 
-class AlexaLightEntity(TypedDict):
+class AlexaLightEntity(AlexaEntity):
     """Class for AlexaLightEntity."""
 
-    id: Text
-    appliance_id: Text
-    name: Text
     brightness: bool
     color: bool
     color_temperature: bool
 
 
-class AlexaTemperatureEntity(TypedDict):
+class AlexaTemperatureEntity(AlexaEntity):
     """Class for AlexaTemperatureEntity."""
 
-    appliance_id: Text
     device_serial: Text
-    name: Text
 
 
 class AlexaEntities(TypedDict):
@@ -146,6 +152,7 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                     "id": appliance["entityId"],
                     "appliance_id": appliance["applianceId"],
                     "name": get_friendliest_name(appliance),
+                    "is_possibly_emulated": is_emulated_hue(appliance),
                 }
                 if is_alexa_guard(appliance):
                     guards.append(processed_appliance)
@@ -239,7 +246,7 @@ def parse_guard_state_from_coordinator(
 def parse_value_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: Text, namespace: Text, name: Text
 ) -> Any:
-    """Parse out values from cooordinator for Alexa Entities."""
+    """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
         for cap_state in coordinator.data[entity_id]:
             if (

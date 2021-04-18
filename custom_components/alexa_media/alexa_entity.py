@@ -17,18 +17,24 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-def has_capability(appliance: Dict[Text, Any], interface_name: Text, property_name: Text) -> bool:
-    """Determine if an appliance from the Alexa network details offers a particular interface with enough support
-    that is worth adding to Home Assistant.
+def has_capability(
+    appliance: Dict[Text, Any], interface_name: Text, property_name: Text
+) -> bool:
+    """Determine if an appliance from the Alexa network details offers a particular interface with enough support that is worth adding to Home Assistant.
 
-        Args:
-            appliance(Dict[Text, Any]): An appliance from a call to AlexaAPI.get_network_details
-            interface_name(Text): One of the interfaces documented by the Alexa Smart Home Skills API
-            property_name(Text): The property that matches the interface name.
-     """
+    Args:
+        appliance(Dict[Text, Any]): An appliance from a call to AlexaAPI.get_network_details
+        interface_name(Text): One of the interfaces documented by the Alexa Smart Home Skills API
+        property_name(Text): The property that matches the interface name.
+
+    """
     for cap in appliance["capabilities"]:
         props = cap.get("properties")
-        if cap["interfaceName"] == interface_name and props and (props["retrievable"] or props["proactivelyReported"]):
+        if (
+            cap["interfaceName"] == interface_name
+            and props
+            and (props["retrievable"] or props["proactivelyReported"])
+        ):
             for prop in props["supported"]:
                 if prop["name"] == property_name:
                     return True
@@ -36,32 +42,39 @@ def has_capability(appliance: Dict[Text, Any], interface_name: Text, property_na
 
 
 def is_local(appliance: Dict[Text, Any]) -> bool:
-    # connectedVia is a flag that determines which Echo devices holds the connection. Its blank for
-    # skill derived devices and includes an Echo name for zigbee and local devices. This is used to limit
-    # the scope of what devices will be discovered. This is mainly present to prevent loops with the official Alexa
-    # integration. There is probably a better way to prevent that, but this works.
+    """Test whether locally connected.
+
+    connectedVia is a flag that determines which Echo devices holds the connection. Its blank for
+    skill derived devices and includes an Echo name for zigbee and local devices. This is used to limit
+    the scope of what devices will be discovered. This is mainly present to prevent loops with the official Alexa
+    integration. There is probably a better way to prevent that, but this works.
+    """
     return appliance["connectedVia"]
 
 
 def is_alexa_guard(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance the guard alarm system of an echo."""
-    return appliance["modelName"] == "REDROCK_GUARD_PANEL" and has_capability(appliance,
-                                                                              "Alexa.SecurityPanelController",
-                                                                              "armState")
+    return appliance["modelName"] == "REDROCK_GUARD_PANEL" and has_capability(
+        appliance, "Alexa.SecurityPanelController", "armState"
+    )
 
 
 def is_temperature_sensor(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance the temperature sensor of an Echo."""
-    return is_local(appliance) and appliance["manufacturerName"] == "Amazon" and has_capability(appliance,
-                                                                                                "Alexa.TemperatureSensor",
-                                                                                                "temperature")
+    return (
+        is_local(appliance)
+        and appliance["manufacturerName"] == "Amazon"
+        and has_capability(appliance, "Alexa.TemperatureSensor", "temperature")
+    )
 
 
 def is_light(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
-    return is_local(appliance) and "LIGHT" in appliance["applianceTypes"] and has_capability(appliance,
-                                                                                             "Alexa.PowerController",
-                                                                                             "powerState")
+    return (
+        is_local(appliance)
+        and "LIGHT" in appliance["applianceTypes"]
+        and has_capability(appliance, "Alexa.PowerController", "powerState")
+    )
 
 
 def get_friendliest_name(appliance: Dict[Text, Any]) -> Text:
@@ -78,28 +91,41 @@ def get_device_serial(appliance: Dict[Text, Any]) -> Optional[Text]:
     """Find the device serial id if it is present."""
     alexa_device_id_list = appliance.get("alexaDeviceIdentifierList", [])
     for alexa_device_id in alexa_device_id_list:
-        if type(alexa_device_id) is dict:
+        if isinstance(alexa_device_id, dict):
             return alexa_device_id.get("dmsDeviceSerialNumber")
     return None
 
 
 class AlexaEntity(TypedDict):
+    """Class for Alexaentity."""
+
     id: Text
     appliance_id: Text
     name: Text
+
+
 class AlexaLightEntity(TypedDict):
+    """Class for AlexaLightEntity."""
+
     id: Text
     appliance_id: Text
     name: Text
     brightness: bool
     color: bool
     color_temperature: bool
+
+
 class AlexaTemperatureEntity(TypedDict):
-    id: Text
+    """Class for AlexaTemperatureEntity."""
+
     appliance_id: Text
     device_serial: Text
     name: Text
+
+
 class AlexaEntities(TypedDict):
+    """Class for holding entities."""
+
     light: List[AlexaLightEntity]
     guard: List[AlexaEntity]
     temperature: List[AlexaTemperatureEntity]
@@ -119,38 +145,47 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                 processed_appliance = {
                     "id": appliance["entityId"],
                     "appliance_id": appliance["applianceId"],
-                    "name": get_friendliest_name(appliance)
+                    "name": get_friendliest_name(appliance),
                 }
                 if is_alexa_guard(appliance):
                     guards.append(processed_appliance)
                 elif is_temperature_sensor(appliance):
                     serial = get_device_serial(appliance)
-                    processed_appliance["device_serial"] = serial if serial else appliance["entityId"]
+                    processed_appliance["device_serial"] = (
+                        serial if serial else appliance["entityId"]
+                    )
                     temperature_sensors.append(processed_appliance)
                 elif is_light(appliance):
-                    processed_appliance["brightness"] = has_capability(appliance, "Alexa.BrightnessController",
-                                                                       "brightness")
-                    processed_appliance["color"] = has_capability(appliance, "Alexa.ColorController", "color")
-                    processed_appliance["color_temperature"] = has_capability(appliance,
-                                                                              "Alexa.ColorTemperatureController",
-                                                                              "colorTemperatureInKelvin")
+                    processed_appliance["brightness"] = has_capability(
+                        appliance, "Alexa.BrightnessController", "brightness"
+                    )
+                    processed_appliance["color"] = has_capability(
+                        appliance, "Alexa.ColorController", "color"
+                    )
+                    processed_appliance["color_temperature"] = has_capability(
+                        appliance,
+                        "Alexa.ColorTemperatureController",
+                        "colorTemperatureInKelvin",
+                    )
                     lights.append(processed_appliance)
 
-    return {
-        "light": lights,
-        "guard": guards,
-        "temperature": temperature_sensors
-    }
+    return {"light": lights, "guard": guards, "temperature": temperature_sensors}
 
 
 class AlexaCapabilityState(TypedDict):
+    """Class for AlexaCapabilityState."""
+
     name: Text
     namespace: Text
     value: Union[int, Text, TypedDict]
+
+
 AlexaEntityData = Dict[Text, List[AlexaCapabilityState]]
 
 
-async def get_entity_data(login_obj: AlexaLogin, entity_ids: List[Text]) -> AlexaEntityData:
+async def get_entity_data(
+    login_obj: AlexaLogin, entity_ids: List[Text]
+) -> AlexaEntityData:
     """Get and process the entity data into a more usable format."""
     raw = await AlexaAPI.get_entity_state(login_obj, entity_ids=entity_ids)
     entities = {}
@@ -164,33 +199,54 @@ async def get_entity_data(login_obj: AlexaLogin, entity_ids: List[Text]) -> Alex
     return entities
 
 
-def parse_temperature_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text) -> Optional[Text]:
+def parse_temperature_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: Text
+) -> Optional[Text]:
     """Get the temperature of an entity from the coordinator data."""
-    value = parse_value_from_coordinator(coordinator, entity_id, "Alexa.TemperatureSensor", "temperature")
+    value = parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.TemperatureSensor", "temperature"
+    )
     return value.get("value") if value and "value" in value else None
 
 
-def parse_brightness_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text) -> int:
+def parse_brightness_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: Text
+) -> int:
     """Get the brightness in the range 0-100."""
-    return parse_value_from_coordinator(coordinator, entity_id, "Alexa.BrightnessController", "brightness")
+    return parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.BrightnessController", "brightness"
+    )
 
 
-def parse_power_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text) -> Text:
+def parse_power_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: Text
+) -> Text:
     """Get the power state of the entity."""
-    return parse_value_from_coordinator(coordinator, entity_id, "Alexa.PowerController", "powerState")
+    return parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.PowerController", "powerState"
+    )
 
 
-def parse_guard_state_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text):
+def parse_guard_state_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: Text
+):
     """Get the guard state from the coordinator data."""
-    return parse_value_from_coordinator(coordinator, entity_id, "Alexa.SecurityPanelController", "armState")
+    return parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.SecurityPanelController", "armState"
+    )
 
 
-def parse_value_from_coordinator(coordinator: DataUpdateCoordinator, entity_id: Text, namespace: Text,
-                                 name: Text) -> Any:
+def parse_value_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: Text, namespace: Text, name: Text
+) -> Any:
+    """Parse out values from cooordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
-        for capState in coordinator.data[entity_id]:
-            if capState.get("namespace") == namespace and capState.get("name") == name:
-                return capState.get("value")
+        for cap_state in coordinator.data[entity_id]:
+            if (
+                cap_state.get("namespace") == namespace
+                and cap_state.get("name") == name
+            ):
+                return cap_state.get("value")
     else:
         _LOGGER.debug("Coordinator has no data for %s", hide_serial(entity_id))
     return None

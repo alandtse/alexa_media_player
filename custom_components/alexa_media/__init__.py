@@ -1186,6 +1186,7 @@ async def update_listener(hass, config_entry):
     """Update when config_entry options update."""
     account = config_entry.data
     email = account.get(CONF_EMAIL)
+    reload_needed: bool = False
     for key, old_value in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
         "options"
     ].items():
@@ -1198,6 +1199,10 @@ async def update_listener(hass, config_entry):
                 old_value,
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key],
             )
+            if key == CONF_EXTENDED_ENTITY_DISCOVERY:
+                reload_needed = True
+    if reload_needed:
+        await hass.config_entries.async_reload(config_entry.entry_id)
 
 
 async def test_login_status(hass, config_entry, login) -> bool:

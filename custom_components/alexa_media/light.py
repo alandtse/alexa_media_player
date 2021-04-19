@@ -50,7 +50,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     light_entities = account_dict.get("devices", {}).get("light", [])
     if light_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for le in light_entities:
-            if not (le["is_possibly_emulated"] and hue_emulated_enabled):
+            if not (le["is_hue_v1"] and hue_emulated_enabled):
                 _LOGGER.debug("Creating entity %s for a light with name %s", hide_serial(le["id"]), le["name"])
                 light = AlexaLight(coordinator, account_dict["login_obj"], le)
                 account_dict["entities"]["light"].append(light)
@@ -96,7 +96,7 @@ def alexa_brightness_to_ha(alexa):
 
 
 class AlexaLight(CoordinatorEntity, LightEntity):
-    """A temperature sensor reported by an Echo. """
+    """A light controlled by an Echo. """
 
     def __init__(self, coordinator, login, details):
         super().__init__(coordinator)

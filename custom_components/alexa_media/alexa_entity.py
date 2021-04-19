@@ -41,12 +41,11 @@ def has_capability(
     return False
 
 
-def is_emulated_hue(appliance: Dict[Text, Any]) -> bool:
-    """Determine if an appliance may have originated from an emulated hue hub.
+def is_hue_v1(appliance: Dict[Text, Any]) -> bool:
+    """Determine if an appliance is managed via the Philips Hue v1 Hub.
 
-    This check will catch all emulated_hue devices, but it may also catch too much.
-    Its possible some older Hue bulbs may actually use this manufacturer name even though modern bulbs report "Philips".
-    Therefore, only believe this check if emulated_hue is actually turned on.
+    This check catches old Philips Hue bulbs and hubs, but critically, it also catches things pretending to be older
+    Philips Hue bulbs and hubs. This includes things exposed by HA to Alexa using the emulated_hue integration.
     """
     return appliance.get("manufacturerName") == "Royal Philips Electronics"
 
@@ -112,7 +111,7 @@ class AlexaEntity(TypedDict):
     id: Text
     appliance_id: Text
     name: Text
-    is_possibly_emulated: bool
+    is_hue_v1: bool
 
 
 class AlexaLightEntity(AlexaEntity):
@@ -152,7 +151,7 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                     "id": appliance["entityId"],
                     "appliance_id": appliance["applianceId"],
                     "name": get_friendliest_name(appliance),
-                    "is_possibly_emulated": is_emulated_hue(appliance),
+                    "is_hue_v1": is_hue_v1(appliance),
                 }
                 if is_alexa_guard(appliance):
                     guards.append(processed_appliance)

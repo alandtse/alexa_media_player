@@ -12,7 +12,11 @@ import logging
 from typing import Callable, List, Optional, Text  # noqa pylint: disable=unused-import
 
 from alexapy import AlexaAPI, hide_serial
-from homeassistant.components.light import ATTR_BRIGHTNESS, SUPPORT_BRIGHTNESS, Light
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    SUPPORT_BRIGHTNESS,
+    LightEntity,
+)
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import (
@@ -36,20 +40,23 @@ LOCAL_TIMEZONE = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinf
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa sensor platform."""
-    devices: List[Light] = []
+    devices: List[LightEntity] = []
     account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     coordinator = account_dict["coordinator"]
-
+    hue_emulated_enabled = "emulated_hue" in hass.config.as_dict().get("components", set())
     light_entities = account_dict.get("devices", {}).get("light", [])
     if light_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for le in light_entities:
-            _LOGGER.debug("Creating entity %s for a light with name %s", hide_serial(le["id"]), le["name"])
-            light = AlexaLight(coordinator, account_dict["login_obj"], le)
-            account_dict["entities"]["light"].append(light)
-            devices.append(light)
+            if not (le["is_hue_v1"] and hue_emulated_enabled):
+                _LOGGER.debug("Creating entity %s for a light with name %s", hide_serial(le["id"]), le["name"])
+                light = AlexaLight(coordinator, account_dict["login_obj"], le)
+                account_dict["entities"]["light"].append(light)
+                devices.append(light)
+            else:
+                _LOGGER.debug("Light '%s' has not been added because it may originate from emulated_hue", le["name"])
 
     if devices:
         await coordinator.async_refresh()
@@ -88,8 +95,8 @@ def alexa_brightness_to_ha(alexa):
     return alexa / 100 * 255
 
 
-class AlexaLight(CoordinatorEntity, Light):
-    """A temperature sensor reported by an Echo. """
+class AlexaLight(CoordinatorEntity, LightEntity):
+    """A light controlled by an Echo. """
 
     def __init__(self, coordinator, login, details):
         super().__init__(coordinator)

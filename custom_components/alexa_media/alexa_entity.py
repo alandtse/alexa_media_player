@@ -41,6 +41,15 @@ def has_capability(
     return False
 
 
+def is_hue_v1(appliance: Dict[Text, Any]) -> bool:
+    """Determine if an appliance is managed via the Philips Hue v1 Hub.
+
+    This check catches old Philips Hue bulbs and hubs, but critically, it also catches things pretending to be older
+    Philips Hue bulbs and hubs. This includes things exposed by HA to Alexa using the emulated_hue integration.
+    """
+    return appliance.get("manufacturerName") == "Royal Philips Electronics"
+
+
 def is_local(appliance: Dict[Text, Any]) -> bool:
     """Test whether locally connected.
 
@@ -102,25 +111,21 @@ class AlexaEntity(TypedDict):
     id: Text
     appliance_id: Text
     name: Text
+    is_hue_v1: bool
 
 
-class AlexaLightEntity(TypedDict):
+class AlexaLightEntity(AlexaEntity):
     """Class for AlexaLightEntity."""
 
-    id: Text
-    appliance_id: Text
-    name: Text
     brightness: bool
     color: bool
     color_temperature: bool
 
 
-class AlexaTemperatureEntity(TypedDict):
+class AlexaTemperatureEntity(AlexaEntity):
     """Class for AlexaTemperatureEntity."""
 
-    appliance_id: Text
     device_serial: Text
-    name: Text
 
 
 class AlexaEntities(TypedDict):
@@ -146,6 +151,7 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                     "id": appliance["entityId"],
                     "appliance_id": appliance["applianceId"],
                     "name": get_friendliest_name(appliance),
+                    "is_hue_v1": is_hue_v1(appliance),
                 }
                 if is_alexa_guard(appliance):
                     guards.append(processed_appliance)
@@ -239,7 +245,7 @@ def parse_guard_state_from_coordinator(
 def parse_value_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: Text, namespace: Text, name: Text
 ) -> Any:
-    """Parse out values from cooordinator for Alexa Entities."""
+    """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
         for cap_state in coordinator.data[entity_id]:
             if (

@@ -2,6 +2,16 @@
 
 <!--next-version-placeholder-->
 
+## v3.9.0 (2021-04-24)
+### Feature
+* Add lights and the temperature sensors ([#1244](https://github.com/custom-components/alexa_media_player/issues/1244)) ([`26b4b51`](https://github.com/custom-components/alexa_media_player/commit/26b4b51b26899636b2b3ae8ac2f58b1fc2e6b433))
+
+### Fix
+* Detect and ignore lights created by emulated_hue ([#1253](https://github.com/custom-components/alexa_media_player/issues/1253)) ([`4cef90e`](https://github.com/custom-components/alexa_media_player/commit/4cef90ef73c1adcdf8e870654abc25cb2e0326e0))
+* Auto reload when extended entity discovery is enabled ([#1254](https://github.com/custom-components/alexa_media_player/issues/1254)) ([`8a8f8ee`](https://github.com/custom-components/alexa_media_player/commit/8a8f8ee0e54fd4d09e3f7fc4ab2e114bbee9e2f0))
+* TypeError: _typeddict_new() missing typename ([`b89852d`](https://github.com/custom-components/alexa_media_player/commit/b89852d2e50bb9c04dc5d7a70721c7073f647b3b))
+* Check for existence of properties key ([`211015f`](https://github.com/custom-components/alexa_media_player/commit/211015fc16731ac496f0b4365499cf2b77928c22))
+
 ## v3.8.6 (2021-04-12)
 ### Fix
 * Check for hass existence and fallback call ([`f2d8362`](https://github.com/custom-components/alexa_media_player/commit/f2d83625dd90c8d431ce0169714275c6d2cee836))

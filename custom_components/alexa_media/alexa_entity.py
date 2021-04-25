@@ -7,9 +7,10 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+from datetime import datetime
 import json
 import logging
-from typing import Any, Dict, List, Optional, Text, TypedDict, Union
+from typing import Any, Dict, List, Optional, Text, Tuple, TypedDict, Union
 
 from alexapy import AlexaAPI, AlexaLogin, hide_serial
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -216,26 +217,51 @@ def parse_temperature_from_coordinator(
 
 
 def parse_brightness_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text
-) -> int:
+    coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
+) -> Optional[int]:
     """Get the brightness in the range 0-100."""
     return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.BrightnessController", "brightness"
+        coordinator, entity_id, "Alexa.BrightnessController", "brightness", since
     )
 
 
+def parse_color_temp_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
+) -> Optional[int]:
+    """Get the color temperature in kelvin"""
+    return parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.ColorTemperatureController", "colorTemperatureInKelvin", since
+    )
+
+
+def parse_color_from_coordinator(
+        coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
+) -> Optional[Tuple[float, float, float]]:
+    """Get the color as a tuple of (hue, saturation, brightness)"""
+    value = parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.ColorController", "color", since
+    )
+    if value is not None:
+        hue = value.get("hue", 0)
+        saturation = value.get("saturation", 0)
+        brightness = parse_brightness_from_coordinator(coordinator, entity_id, since)
+        if brightness is not None:
+            return hue, saturation, brightness/100
+    return None
+
+
 def parse_power_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text
-) -> Text:
+    coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
+) -> Optional[Text]:
     """Get the power state of the entity."""
     return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.PowerController", "powerState"
+        coordinator, entity_id, "Alexa.PowerController", "powerState", since
     )
 
 
 def parse_guard_state_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: Text
-):
+) -> Optional[Text]:
     """Get the guard state from the coordinator data."""
     return parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.SecurityPanelController", "armState"
@@ -243,7 +269,7 @@ def parse_guard_state_from_coordinator(
 
 
 def parse_value_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text, namespace: Text, name: Text
+    coordinator: DataUpdateCoordinator, entity_id: Text, namespace: Text, name: Text, since: Optional[datetime] = None
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
@@ -252,7 +278,24 @@ def parse_value_from_coordinator(
                 cap_state.get("namespace") == namespace
                 and cap_state.get("name") == name
             ):
-                return cap_state.get("value")
+                if is_cap_state_still_acceptable(cap_state, since):
+                    return cap_state.get("value")
+                else:
+                    _LOGGER.debug("Coordinator data for %s is too old to be returned.", hide_serial(entity_id))
+                    return None
     else:
         _LOGGER.debug("Coordinator has no data for %s", hide_serial(entity_id))
     return None
+
+
+def is_cap_state_still_acceptable(cap_state: Dict[Text, Any], since: Optional[datetime]) -> bool:
+    """Determine if a particular capability state is still usable given its age."""
+    if since is not None:
+        formatted_time_of_sample = cap_state.get("timeOfSample")
+        if formatted_time_of_sample:
+            try:
+                time_of_sample = datetime.strptime(formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S.%fZ")
+                return time_of_sample >= since
+            except ValueError:
+                pass
+    return True

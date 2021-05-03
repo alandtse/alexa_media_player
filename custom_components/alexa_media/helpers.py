@@ -6,10 +6,9 @@ SPDX-License-Identifier: Apache-2.0
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
-
 import hashlib
 import logging
-from typing import Any, Callable, List, Optional, Text
+from typing import Any, Callable, Dict, List, Optional, Text
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
@@ -283,3 +282,43 @@ async def calculate_uuid(hass, email: Text, url: Text) -> dict:
     result["index"] = return_index
     _LOGGER.debug("%s: Returning uuid %s", hide_email(email), result)
     return result
+
+
+def alarm_just_dismissed(
+        alarm: Dict[Text, Any],
+        previous_status: Optional[Text],
+        previous_version: Optional[Text]
+) -> bool:
+    """Given the previous state of an alarm, determine if it has just been dismissed. """
+
+    if previous_status not in ("SNOOZED", "ON"):
+        # The alarm had to be in a status that supported being dismissed
+        return False
+
+    if previous_version is None:
+        # The alarm was probably just created
+        return False
+
+    if not alarm:
+        # The alarm that was probably just deleted.
+        return False
+
+    if alarm.get("status") not in ("OFF", "ON"):
+        # A dismissed alarm is guaranteed to be turned off(one-off alarm) or left on(recurring alarm)
+        return False
+
+    if previous_version == alarm.get("version"):
+        # A dismissal always has a changed version.
+        return False
+
+    if int(alarm.get("version", "0")) > 1 + int(previous_version):
+        # This is an absurd thing to check, but it solves many, many edge cases.
+        # Experimentally, when an alarm is dismissed, the version always increases by 1
+        # When an alarm is edited either via app or voice, its version always increases by 2+
+        return False
+
+    # It seems obvious that a check involving time should be necessary. It is not.
+    # We know there was a change and that it wasn't an edit.
+    # We also know the alarm's status rules out a snooze.
+    # The only remaining possibility is that this alarm was just dismissed.
+    return True

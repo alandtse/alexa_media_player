@@ -22,15 +22,26 @@ from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP,
     ATTR_HS_COLOR,
-    COLOR_MODE_BRIGHTNESS,
-    COLOR_MODE_COLOR_TEMP,
-    COLOR_MODE_HS,
-    COLOR_MODE_ONOFF,
     SUPPORT_BRIGHTNESS,
     SUPPORT_COLOR,
     SUPPORT_COLOR_TEMP,
     LightEntity,
 )
+
+try:
+    from homeassistant.components.light import (
+        COLOR_MODE_BRIGHTNESS,
+        COLOR_MODE_COLOR_TEMP,
+        COLOR_MODE_HS,
+        COLOR_MODE_ONOFF,
+    )
+except ImportError:
+    # Continue to support HA < 2021.4.
+    COLOR_MODE_BRIGHTNESS = "brightness"
+    COLOR_MODE_COLOR_TEMP = "color_temp"
+    COLOR_MODE_HS = "hs"
+    COLOR_MODE_ONOFF = "onoff"
+
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util.color import (
     color_hs_to_RGB,
@@ -155,10 +166,10 @@ class AlexaLight(CoordinatorEntity, LightEntity):
     @property
     def supported_features(self):
         # The HA documentation marks every single feature that Alexa lights can support as deprecated.
-        # The new alternative is the supported_color_modes and color_mode properties.
+        # The new alternative is the supported_color_modes and color_mode properties(HA 2021.4)
         # This SHOULD just need to return 0 according to the light entity docs.
-        # Actually doing that causes the UI to remove color controls.
-        # So, continue to provide a backwards compatible method here until HA is fixed.
+        # Actually doing that causes the UI to remove color controls even in HA 2021.4.
+        # So, continue to provide a backwards compatible method here until HA is fixed and the min HA version is raised.
         if COLOR_MODE_BRIGHTNESS in self._color_modes:
             return SUPPORT_BRIGHTNESS
         elif COLOR_MODE_HS in self._color_modes and COLOR_MODE_COLOR_TEMP in self._color_modes:

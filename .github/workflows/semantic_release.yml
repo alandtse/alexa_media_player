@@ -14,6 +14,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: master
+          token: ${{ secrets.GH_TOKEN }}
       - name: Download lokalise translations
         run: |
           docker run -v /tmp/lokalise:/opt/dest lokalise/lokalise-cli-2 lokalise2 \

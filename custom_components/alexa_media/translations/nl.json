@@ -8,6 +8,7 @@
     "error": {
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Fout bij verbinden; controleer netwerk en probeer opnieuw",
+      "hass_url_invalid": "Unable to connect to Home Assistant url. Please check the Internal Url under Configuration -> General",
       "identifier_exists": "Dit e-mailadres is reeds geregistreerd",
       "invalid_credentials": "Ongeldige inloggegevens",
       "unknown_error": "Onbekende fout, meld de loggegevens"
@@ -104,6 +105,7 @@
     "step": {
       "init": {
         "data": {
+          "extended_entity_discovery": "Inclusief apparaten die zijn verbonden via Echo",
           "queue_delay": "Seconden om te wachten om opdrachten in de wachtrij te plaatsen"
         }
       }

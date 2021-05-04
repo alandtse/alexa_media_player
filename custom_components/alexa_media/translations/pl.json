@@ -8,6 +8,7 @@
     "error": {
       "2fa_key_invalid": "Nieprawidłowy klucz z wbudowanej aplikacji uwierzytelniania dwuskładnikowego",
       "connection_error": "Błąd podczas łączenia; sprawdź sieć i spróbuj ponownie",
+      "hass_url_invalid": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź wewnętrzny adres URL w sekcji Konfiguracja -> Ogólne",
       "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
       "invalid_credentials": "Nieprawidłowe dane logowania",
       "unknown_error": "Nieznany błąd, zgłoś log z tego zdarzenia"
@@ -15,7 +16,7 @@
     "step": {
       "action_required": {
         "data": {
-          "proxy": "Use Login Proxy method (2FA not required)"
+          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)"
         },
         "description": "**{email} - alexa.{url}**  \nAmazon wyśle powiadomienie push zgodnie z poniższą wiadomością. Przed kontynuowaniem odpowiedz na wiadomość.  \n{message}",
         "title": "Alexa Media Player — wymagane działanie"
@@ -23,7 +24,7 @@
       "authselect": {
         "data": {
           "authselectoption": "Metoda OTP",
-          "proxy": "Use Login Proxy method (2FA not required)"
+          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)"
         },
         "description": "**{email} - alexa.{url}**  \n{message}",
         "title": "Alexa Media Player — hasło jednorazowe"
@@ -32,7 +33,7 @@
         "data": {
           "captcha": "Kod Captcha",
           "password": "Hasło",
-          "proxy": "Use Login Proxy method (2FA not required)",
+          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)",
           "securitycode": "Kod uwierzytelniania dwuskładnikowego"
         },
         "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
@@ -41,7 +42,7 @@
       "claimspicker": {
         "data": {
           "authselectoption": "Metoda weryfikacji",
-          "proxy": "Use Login Proxy method (2FA not required)"
+          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)"
         },
         "description": "**{email} - alexa.{url}**  \nWybierz metodę weryfikacji. (np., `0` lub `1`)  \n{message}",
         "title": "Alexa Media Player — metoda weryfikacji"
@@ -55,7 +56,7 @@
       },
       "twofactor": {
         "data": {
-          "proxy": "Use Login Proxy method (2FA not required)",
+          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)",
           "securitycode": "Kod uwierzytelniania dwuskładnikowego"
         },
         "description": "**{email} - alexa.{url}**  \nWprowadź hasło jednorazowe (OTP).  \n{message}",
@@ -65,19 +66,19 @@
         "data": {
           "cookies_txt": "zawartość pliku cookies.txt",
           "debug": "Zaawansowane debugowanie",
-          "email": "Adres email",
+          "email": "Adres e-mail",
           "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
-          "oauth_login": "Enable oauth-token app method",
+          "oauth_login": "Włącz metodę tokena OAuth aplikacji",
           "otp_secret": "Wbudowana aplikacja kluczy uwierzytelniania dwuskładnikowego (automatycznie generuje kody uwierzytelniania dwuskładnikowego)",
           "password": "Hasło",
-          "proxy": "Use Login Proxy method (2FA not required)",
+          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)",
           "scan_interval": "Interwał skanowania (sekundy)",
           "securitycode": "Kod uwierzytelniania dwuskładnikowego",
           "url": "Region/domena Amazon (np. amazon.co.uk)"
         },
         "description": "Wprowadź [dane](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Import pliku Cookie](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) może być najłatwiejszą metodą!**   \n**OSTRZEŻENIE: Amazon nieprawidłowo zgłasza 'Wprowadź prawidłowy adres e-mail lub numer telefonu komórkowego', gdy wymagany jest [kod uwierzytelniania dwuskładnikowego](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
-        "title": "Alexa Media Player - Legacy Configuration"
+        "title": "Alexa Media Player — starsza konfiguracja"
       },
       "user": {
         "data": {
@@ -85,17 +86,17 @@
           "debug": "Zaawansowane debugowanie",
           "email": "Adres email",
           "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
-          "hass_url": "Url to access Home Assistant",
+          "hass_url": "URL dostępu do Home Assistanta",
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
-          "oauth_login": "Enable oauth-token app method",
+          "oauth_login": "Włącz metodę tokena OAuth aplikacji",
           "otp_secret": "Wbudowana aplikacja kluczy uwierzytelniania dwuskładnikowego (automatycznie generuje kody uwierzytelniania dwuskładnikowego)",
           "password": "Hasło",
-          "proxy": "Use Login Proxy method (2FA not required)",
+          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)",
           "scan_interval": "Interwał skanowania (sekundy)",
           "securitycode": "Kod uwierzytelniania dwuskładnikowego (zalecany w celu uniknięcia problemów z logowaniem)",
           "url": "Region/domena Amazon (np. amazon.co.uk)"
         },
-        "description": "Wprowadź [dane](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Import pliku Cookie](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) może być najłatwiejszą metodą!**   \n**OSTRZEŻENIE: Amazon nieprawidłowo zgłasza 'Wprowadź prawidłowy adres e-mail lub numer telefonu komórkowego', gdy wymagany jest [kod uwierzytelniania dwuskładnikowego](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
+        "description": "Potwierdź poniższe informacje. W przypadku starszych konfiguracji wyłącz opcję 'Użyj metody logowania proxy'.",
         "title": "Alexa Media Player — konfiguracja"
       }
     }
@@ -104,6 +105,7 @@
     "step": {
       "init": {
         "data": {
+          "extended_entity_discovery": "Uwzględnij urządzenia podłączone przez Echo",
           "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń"
         }
       }

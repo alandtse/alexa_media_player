@@ -8,6 +8,7 @@
     "error": {
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Verbindungsfehler; Netzwerk prüfen und erneut versuchen",
+      "hass_url_invalid": "Unable to connect to Home Assistant url. Please check the Internal Url under Configuration -> General",
       "identifier_exists": "Diese Email ist bereits registriert",
       "invalid_credentials": "Falsche Zugangsdaten",
       "unknown_error": "Unbekannter Fehler, bitte Log-Info melden"
@@ -104,6 +105,7 @@
     "step": {
       "init": {
         "data": {
+          "extended_entity_discovery": "Schließen Sie Geräte ein, die über Echo verbunden sind",
           "queue_delay": "Sekunden zu warten, um Befehle in die Warteschlange zu stellen"
         }
       }

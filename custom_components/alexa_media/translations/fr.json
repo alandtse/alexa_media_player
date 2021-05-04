@@ -8,6 +8,7 @@
     "error": {
       "2fa_key_invalid": "Clé 2FA intégrée non valide",
       "connection_error": "Erreur de connexion; vérifier le réseau et réessayer",
+      "hass_url_invalid": "Impossible de se connecter à l'URL de Home Assistant. Veuillez vérifier l'URL interne sous Configuration - > Général",
       "identifier_exists": "Email pour l'URL Alexa déjà enregistré",
       "invalid_credentials": "Informations d'identification invalides",
       "unknown_error": "Erreur inconnue, veuillez signaler les informations du journal"
@@ -15,7 +16,7 @@
     "step": {
       "action_required": {
         "data": {
-          "proxy": "Use Login Proxy method (2FA not required)"
+          "proxy": "Utilisez la méthode du proxy de connexion (2FA non requis)"
         },
         "description": "** {email} - alexa. {url} **   \n Amazon enverra une notification push conformément au message ci-dessous. Veuillez répondre complètement avant de continuer.   \n {message}",
         "title": "Alexa Media Player - Action requise"
@@ -32,7 +33,7 @@
         "data": {
           "captcha": "Captcha",
           "password": "Mot de passe",
-          "proxy": "Use Login Proxy method (2FA not required)",
+          "proxy": "Utilisez la méthode du proxy de connexion (2FA non requis)",
           "securitycode": "Code 2FA (recommandé pour éviter les problèmes de connexion)"
         },
         "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
@@ -55,7 +56,7 @@
       },
       "twofactor": {
         "data": {
-          "proxy": "Use Login Proxy method (2FA not required)",
+          "proxy": "Utilisez la méthode du proxy de connexion (2FA non requis)",
           "securitycode": "2FA Code"
         },
         "description": "**{email} - alexa.{url}**  \nEntrez le mot de passe unique (OTP).  \n{message}",
@@ -68,7 +69,7 @@
           "email": "Adresse Email",
           "exclude_devices": "Appareil exclu (séparé par des virgules)",
           "include_devices": "Appareil inclus (séparé par des virgules)",
-          "oauth_login": "Enable oauth-token app method",
+          "oauth_login": "Activer la méthode d'application oauth-token",
           "otp_secret": "Clé d'application 2FA intégrée (génère automatiquement des codes 2FA)",
           "password": "Mot de passe",
           "proxy": "Use Login Proxy method (2FA not required)",
@@ -95,7 +96,7 @@
           "securitycode": "Code 2FA (recommandé pour éviter les problèmes de connexion)",
           "url": "Domaine de la région Amazon (exemple, amazon.fr)"
         },
-        "description": "Veuillez saisir vos informations.",
+        "description": "Veuillez confirmer les informations ci-dessous. Pour la configuration héritée, désactivez l'option `Utiliser la méthode proxy de connexion`.",
         "title": "Alexa Media Player - Configuration"
       }
     }
@@ -104,6 +105,7 @@
     "step": {
       "init": {
         "data": {
+          "extended_entity_discovery": "Inclure les appareils connectés via Echo",
           "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble"
         }
       }

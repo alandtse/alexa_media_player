@@ -2,6 +2,19 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.0 (2021-05-04)
+### Feature
+* Improve lights controls and support colors ([#1270](https://github.com/custom-components/alexa_media_player/issues/1270)) ([`fe48034`](https://github.com/custom-components/alexa_media_player/commit/fe480342498556cbf1e42ed965c69993940aea7d))
+* Add "alexa_media_alarm_dismissal_event" "status"/"dismissed" events to alarms. ([#1271](https://github.com/custom-components/alexa_media_player/issues/1271)) ([`32e802f`](https://github.com/custom-components/alexa_media_player/commit/32e802f0552f4f05f039b8a3c11555e9a2dcd227))
+* Add PT-BR localization ([#1266](https://github.com/custom-components/alexa_media_player/issues/1266)) ([`6a365ad`](https://github.com/custom-components/alexa_media_player/commit/6a365adaa69c3a00297164c3c8dfc79161ea67e4))
+
+### Fix
+* Fix tesla_custom compatibility ([`dada99f`](https://github.com/custom-components/alexa_media_player/commit/dada99f83461c0b189ff098a9b2e010d772f4867))
+* Add iot_class to manifest.json ([`b7a3688`](https://github.com/custom-components/alexa_media_player/commit/b7a36887a0e25849c2b2f3824abd8b86344d9b77))
+
+### Documentation
+* Update localization ([`9394e97`](https://github.com/custom-components/alexa_media_player/commit/9394e9750075e4f5c665030dd4f86074bc085cbb))
+
 ## v3.9.0 (2021-04-24)
 ### Feature
 * Add lights and the temperature sensors ([#1244](https://github.com/custom-components/alexa_media_player/issues/1244)) ([`26b4b51`](https://github.com/custom-components/alexa_media_player/commit/26b4b51b26899636b2b3ae8ac2f58b1fc2e6b433))

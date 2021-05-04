@@ -70,7 +70,12 @@ from .const import (
     SCAN_INTERVAL,
     STARTUP,
 )
-from .helpers import _catch_login_errors, _existing_serials, calculate_uuid
+from .helpers import (
+    _catch_login_errors,
+    _existing_serials,
+    alarm_just_dismissed,
+    calculate_uuid,
+)
 from .notify import async_unload_entry as notify_async_unload_entry
 from .services import AlexaMediaServices
 
@@ -601,6 +606,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if not raw_notifications:
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
         email: Text = login_obj.email
+        previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("notifications", {})
         notifications = {"process_timestamp": datetime.utcnow()}
         for notification in raw_notifications:
             n_dev_id = notification.get("deviceSerialNumber")
@@ -620,6 +626,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 notification["date_time"] = (
                     f"{n_date} {n_time}" if n_date and n_time else None
                 )
+                previous_alarm = previous.get(n_dev_id, {}).get("Alarm", {}).get(n_id)
+                if previous_alarm and alarm_just_dismissed(notification, previous_alarm.get("status"), previous_alarm.get("version")):
+                    hass.bus.async_fire(
+                        "alexa_media_alarm_dismissal_event",
+                        event_data={
+                            "device": {"id": n_dev_id},
+                            "event": notification
+                        }
+                    )
+
             if n_dev_id not in notifications:
                 notifications[n_dev_id] = {}
             if n_type not in notifications[n_dev_id]:

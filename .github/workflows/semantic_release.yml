@@ -10,8 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
         with:
+          fetch-depth: 0
           ref: master
       - name: Download lokalise translations
         run: |
@@ -46,11 +47,10 @@ jobs:
       - name: Commit translation files
         run: |
           git commit -m "docs: update localization" -a
-      - name: Publish with semantic-release
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          DEBUG='*' semantic-release publish
+      - name: Python Semantic Release
+        uses: relekang/python-semantic-release@master
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
       # Pack the alexa_media_player dir as a zip and upload to the release
       - name: Zip alexa_media dir
         run: |

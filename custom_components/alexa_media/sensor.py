@@ -40,7 +40,7 @@ from .const import (
     RECURRING_PATTERN,
     RECURRING_PATTERN_ISO_SET,
 )
-from .helpers import add_devices, retry_async
+from .helpers import add_devices, alarm_just_dismissed
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -241,6 +241,10 @@ class AlexaMediaNotificationSensor(Entity):
         self._timestamp: Optional[datetime.datetime] = None
         self._tracker: Optional[Callable] = None
         self._state: Optional[datetime.datetime] = None
+        self._dismissed: Optional[datetime.datetime] = None
+        self._status: Optional[Text] = None
+        self._amz_id: Optional[Text] = None
+        self._version: Optional[Text] = None
 
     def _process_raw_notifications(self):
         self._all = (
@@ -252,12 +256,19 @@ class AlexaMediaNotificationSensor(Entity):
         self._all = sorted(self._all, key=lambda x: x[1][self._sensor_property])
         self._prior_value = self._next if self._active else None
         self._active = (
-            list(filter(lambda x: x[1]["status"] == "ON", self._all))
+            list(filter(lambda x: x[1]["status"] in ("ON", "SNOOZED"), self._all))
             if self._all
             else []
         )
         self._next = self._active[0][1] if self._active else None
+        alarm = next((alarm[1] for alarm in self._all if alarm[1].get("id") == self._amz_id), None)
+        if alarm_just_dismissed(alarm, self._status, self._version):
+            self._dismissed = dt.now().isoformat()
         self._state = self._process_state(self._next)
+        self._status = self._next.get("status", "OFF") if self._next else "OFF"
+        self._version = self._next.get("version", "0") if self._next else None
+        self._amz_id = self._next.get("id") if self._next else None
+
         if self._state == STATE_UNAVAILABLE or self._next != self._prior_value:
             # cancel any event triggers
             if self._tracker:
@@ -266,7 +277,7 @@ class AlexaMediaNotificationSensor(Entity):
                     self,
                 )
                 self._tracker()
-            if self._state != STATE_UNAVAILABLE:
+            if self._state != STATE_UNAVAILABLE and self._status != "SNOOZED":
                 _LOGGER.debug(
                     "%s: Scheduling event in %s",
                     self,
@@ -522,6 +533,8 @@ class AlexaMediaNotificationSensor(Entity):
             "total_all": len(self._all),
             "sorted_active": json.dumps(self._active, default=str),
             "sorted_all": json.dumps(self._all, default=str),
+            "status": self._status,
+            "dismissed": self._dismissed
         }
         return attr
 

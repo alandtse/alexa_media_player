@@ -6,10 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
-
 from datetime import datetime
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional, Text, Tuple, TypedDict, Union
 
 from alexapy import AlexaAPI, AlexaLogin, hide_serial
@@ -54,12 +54,24 @@ def is_hue_v1(appliance: Dict[Text, Any]) -> bool:
 def is_local(appliance: Dict[Text, Any]) -> bool:
     """Test whether locally connected.
 
-    connectedVia is a flag that determines which Echo devices holds the connection. Its blank for
-    skill derived devices and includes an Echo name for zigbee and local devices. This is used to limit
-    the scope of what devices will be discovered. This is mainly present to prevent loops with the official Alexa
-    integration. There is probably a better way to prevent that, but this works.
+    This is mainly present to prevent loops with the official Alexa integration.
+    There is probably a better way to prevent that, but this works.
     """
-    return appliance["connectedVia"]
+
+    if appliance.get("connectedVia"):
+        # connectedVia is a flag that determines which Echo devices holds the connection. Its blank for
+        # skill derived devices and includes an Echo name for zigbee and local devices.
+        return True
+
+    # This catches the Echo/AVS devices. connectedVia isn't reliable in this case.
+    # Only the first appears to get that set.
+    if "ALEXA_VOICE_ENABLED" in appliance.get("applianceTypes", []):
+        namespace = appliance.get("driverIdentity", {}).get("namespace", "")
+        return namespace and namespace != "SKILL"
+
+    # Zigbee devices are guaranteed to be local and have a particular pattern of id
+    zigbee_pattern = re.compile("AAA_SonarCloudService_([0-9A-F][0-9A-F]:){7}[0-9A-F][0-9A-F]", flags=re.I)
+    return zigbee_pattern.fullmatch(appliance.get("applianceId", "")) is not None
 
 
 def is_alexa_guard(appliance: Dict[Text, Any]) -> bool:
@@ -73,7 +85,6 @@ def is_temperature_sensor(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance the temperature sensor of an Echo."""
     return (
         is_local(appliance)
-        and appliance["manufacturerName"] == "Amazon"
         and has_capability(appliance, "Alexa.TemperatureSensor", "temperature")
     )
 

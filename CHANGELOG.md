@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.1 (2021-05-08)
+### Fix
+* Improve checking for skill backed appliances #1277 ([`ea04bae`](https://github.com/custom-components/alexa_media_player/commit/ea04bae4968df557fd6e8fab6b0745bae04b807c))
+
+### Documentation
+* Update localization ([`7041760`](https://github.com/custom-components/alexa_media_player/commit/7041760701a3d9acb3b35f82a3cb84b1c9fc7f99))
+
 ## v3.10.0 (2021-05-04)
 ### Feature
 * Improve lights controls and support colors ([#1270](https://github.com/custom-components/alexa_media_player/issues/1270)) ([`fe48034`](https://github.com/custom-components/alexa_media_player/commit/fe480342498556cbf1e42ed965c69993940aea7d))

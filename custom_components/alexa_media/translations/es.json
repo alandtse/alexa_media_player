@@ -8,7 +8,7 @@
     "error": {
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Error al conectar, verifique la red y vuelva a intentarlo",
-      "hass_url_invalid": "Unable to connect to Home Assistant url. Please check the Internal Url under Configuration -> General",
+      "hass_url_invalid": "No se puede conectar a la url de Home Assistant. Compruebe la dirección URL interna en Configuración -> General",
       "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
       "invalid_credentials": "Credenciales no válidas",
       "unknown_error": "Error desconocido, por favor revisa los registros en Home Assistant y reporta el error si es necesario."

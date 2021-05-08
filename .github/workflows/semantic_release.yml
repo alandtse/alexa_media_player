@@ -47,6 +47,7 @@ jobs:
           git config --global user.email "semantic-release@GitHub"
       - name: Commit translation files
         run: |
+          git add custom_components/alexa_media/translations/*.json
           git commit -m "docs: update localization" -a
       - name: Python Semantic Release
         uses: relekang/python-semantic-release@master

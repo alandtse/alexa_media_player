@@ -70,7 +70,9 @@ def is_local(appliance: Dict[Text, Any]) -> bool:
         return namespace and namespace != "SKILL"
 
     # Zigbee devices are guaranteed to be local and have a particular pattern of id
-    zigbee_pattern = re.compile("AAA_SonarCloudService_([0-9A-F][0-9A-F]:){7}[0-9A-F][0-9A-F]", flags=re.I)
+    zigbee_pattern = re.compile(
+        "AAA_SonarCloudService_([0-9A-F][0-9A-F]:){7}[0-9A-F][0-9A-F]", flags=re.I
+    )
     return zigbee_pattern.fullmatch(appliance.get("applianceId", "")) is not None
 
 
@@ -83,9 +85,8 @@ def is_alexa_guard(appliance: Dict[Text, Any]) -> bool:
 
 def is_temperature_sensor(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance the temperature sensor of an Echo."""
-    return (
-        is_local(appliance)
-        and has_capability(appliance, "Alexa.TemperatureSensor", "temperature")
+    return is_local(appliance) and has_capability(
+        appliance, "Alexa.TemperatureSensor", "temperature"
     )
 
 
@@ -241,12 +242,16 @@ def parse_color_temp_from_coordinator(
 ) -> Optional[int]:
     """Get the color temperature in kelvin"""
     return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.ColorTemperatureController", "colorTemperatureInKelvin", since
+        coordinator,
+        entity_id,
+        "Alexa.ColorTemperatureController",
+        "colorTemperatureInKelvin",
+        since,
     )
 
 
 def parse_color_from_coordinator(
-        coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
 ) -> Optional[Tuple[float, float, float]]:
     """Get the color as a tuple of (hue, saturation, brightness)"""
     value = parse_value_from_coordinator(
@@ -257,7 +262,7 @@ def parse_color_from_coordinator(
         saturation = value.get("saturation", 0)
         brightness = parse_brightness_from_coordinator(coordinator, entity_id, since)
         if brightness is not None:
-            return hue, saturation, brightness/100
+            return hue, saturation, brightness / 100
     return None
 
 
@@ -280,7 +285,11 @@ def parse_guard_state_from_coordinator(
 
 
 def parse_value_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text, namespace: Text, name: Text, since: Optional[datetime] = None
+    coordinator: DataUpdateCoordinator,
+    entity_id: Text,
+    namespace: Text,
+    name: Text,
+    since: Optional[datetime] = None,
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
@@ -292,20 +301,27 @@ def parse_value_from_coordinator(
                 if is_cap_state_still_acceptable(cap_state, since):
                     return cap_state.get("value")
                 else:
-                    _LOGGER.debug("Coordinator data for %s is too old to be returned.", hide_serial(entity_id))
+                    _LOGGER.debug(
+                        "Coordinator data for %s is too old to be returned.",
+                        hide_serial(entity_id),
+                    )
                     return None
     else:
         _LOGGER.debug("Coordinator has no data for %s", hide_serial(entity_id))
     return None
 
 
-def is_cap_state_still_acceptable(cap_state: Dict[Text, Any], since: Optional[datetime]) -> bool:
+def is_cap_state_still_acceptable(
+    cap_state: Dict[Text, Any], since: Optional[datetime]
+) -> bool:
     """Determine if a particular capability state is still usable given its age."""
     if since is not None:
         formatted_time_of_sample = cap_state.get("timeOfSample")
         if formatted_time_of_sample:
             try:
-                time_of_sample = datetime.strptime(formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S.%fZ")
+                time_of_sample = datetime.strptime(
+                    formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S.%fZ"
+                )
                 return time_of_sample >= since
             except ValueError:
                 pass

@@ -80,17 +80,26 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     coordinator = account_dict["coordinator"]
-    hue_emulated_enabled = "emulated_hue" in hass.config.as_dict().get("components", set())
+    hue_emulated_enabled = "emulated_hue" in hass.config.as_dict().get(
+        "components", set()
+    )
     light_entities = account_dict.get("devices", {}).get("light", [])
     if light_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for le in light_entities:
             if not (le["is_hue_v1"] and hue_emulated_enabled):
-                _LOGGER.debug("Creating entity %s for a light with name %s", hide_serial(le["id"]), le["name"])
+                _LOGGER.debug(
+                    "Creating entity %s for a light with name %s",
+                    hide_serial(le["id"]),
+                    le["name"],
+                )
                 light = AlexaLight(coordinator, account_dict["login_obj"], le)
                 account_dict["entities"]["light"].append(light)
                 devices.append(light)
             else:
-                _LOGGER.debug("Light '%s' has not been added because it may originate from emulated_hue", le["name"])
+                _LOGGER.debug(
+                    "Light '%s' has not been added because it may originate from emulated_hue",
+                    le["name"],
+                )
 
     if devices:
         await coordinator.async_refresh()
@@ -135,7 +144,7 @@ def color_modes(details):
 
 
 class AlexaLight(CoordinatorEntity, LightEntity):
-    """A light controlled by an Echo. """
+    """A light controlled by an Echo."""
 
     def __init__(self, coordinator, login, details):
         super().__init__(coordinator)
@@ -149,7 +158,7 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         # This is useful because refreshing the full state can take a bit when many lights are in play.
         # Especially since Alexa actually polls the lights and that appears to be error-prone with some Zigbee lights.
         # That delay(1-5s in practice) causes the UI controls to jump all over the place after _set_state
-        self._requested_state_at = None # When was state last set in UTC
+        self._requested_state_at = None  # When was state last set in UTC
         self._requested_power = None
         self._requested_ha_brightness = None
         self._requested_mired = None
@@ -172,7 +181,10 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         # So, continue to provide a backwards compatible method here until HA is fixed and the min HA version is raised.
         if COLOR_MODE_BRIGHTNESS in self._color_modes:
             return SUPPORT_BRIGHTNESS
-        elif COLOR_MODE_HS in self._color_modes and COLOR_MODE_COLOR_TEMP in self._color_modes:
+        elif (
+            COLOR_MODE_HS in self._color_modes
+            and COLOR_MODE_COLOR_TEMP in self._color_modes
+        ):
             return SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
         elif COLOR_MODE_HS in self._color_modes:
             return SUPPORT_BRIGHTNESS | SUPPORT_COLOR
@@ -184,7 +196,10 @@ class AlexaLight(CoordinatorEntity, LightEntity):
 
     @property
     def color_mode(self):
-        if COLOR_MODE_HS in self._color_modes and COLOR_MODE_COLOR_TEMP in self._color_modes:
+        if (
+            COLOR_MODE_HS in self._color_modes
+            and COLOR_MODE_COLOR_TEMP in self._color_modes
+        ):
             hs = self.hs_color
             if hs is None or (hs[0] == 0 and hs[1] == 0):
                 # (0,0) is white. When white, color temp is the better plan.
@@ -200,7 +215,9 @@ class AlexaLight(CoordinatorEntity, LightEntity):
 
     @property
     def is_on(self):
-        power = parse_power_from_coordinator(self.coordinator, self.alexa_entity_id, self._requested_state_at)
+        power = parse_power_from_coordinator(
+            self.coordinator, self.alexa_entity_id, self._requested_state_at
+        )
         if power is None:
             return self._requested_power if self._requested_power is not None else False
         else:
@@ -208,7 +225,9 @@ class AlexaLight(CoordinatorEntity, LightEntity):
 
     @property
     def brightness(self):
-        bright = parse_brightness_from_coordinator(self.coordinator, self.alexa_entity_id, self._requested_state_at)
+        bright = parse_brightness_from_coordinator(
+            self.coordinator, self.alexa_entity_id, self._requested_state_at
+        )
         if bright is None:
             return self._requested_ha_brightness
         else:
@@ -224,7 +243,9 @@ class AlexaLight(CoordinatorEntity, LightEntity):
 
     @property
     def color_temp(self):
-        kelvin = parse_color_temp_from_coordinator(self.coordinator, self.alexa_entity_id, self._requested_state_at)
+        kelvin = parse_color_temp_from_coordinator(
+            self.coordinator, self.alexa_entity_id, self._requested_state_at
+        )
         if kelvin is None:
             return self._requested_mired
         else:
@@ -232,7 +253,9 @@ class AlexaLight(CoordinatorEntity, LightEntity):
 
     @property
     def hs_color(self):
-        hsb = parse_color_from_coordinator(self.coordinator, self.alexa_entity_id, self._requested_state_at)
+        hsb = parse_color_from_coordinator(
+            self.coordinator, self.alexa_entity_id, self._requested_state_at
+        )
         if hsb is None:
             return self._requested_hs
         else:
@@ -241,7 +264,9 @@ class AlexaLight(CoordinatorEntity, LightEntity):
 
     @property
     def assumed_state(self) -> bool:
-        last_refresh_success = self.coordinator.data and self.alexa_entity_id in self.coordinator.data
+        last_refresh_success = (
+            self.coordinator.data and self.alexa_entity_id in self.coordinator.data
+        )
         return not last_refresh_success
 
     async def _set_state(self, power_on, brightness=None, mired=None, hs=None):
@@ -268,7 +293,7 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             power_on,
             brightness=ha_brightness_to_alexa(brightness),
             color_temperature_name=color_temperature_name,
-            color_name=color_name
+            color_name=color_name,
         )
         control_responses = response.get("controlResponses", [])
         for response in control_responses:
@@ -276,8 +301,12 @@ class AlexaLight(CoordinatorEntity, LightEntity):
                 # If something failed any state is possible, fallback to a full refresh
                 return await self.coordinator.async_request_refresh()
         self._requested_power = power_on
-        self._requested_ha_brightness = brightness if brightness is not None else self.brightness
-        self._requested_mired = adjusted_mired if adjusted_mired is not None else self.color_temp
+        self._requested_ha_brightness = (
+            brightness if brightness is not None else self.brightness
+        )
+        self._requested_mired = (
+            adjusted_mired if adjusted_mired is not None else self.color_temp
+        )
         if adjusted_hs is not None:
             self._requested_hs = adjusted_hs
         elif adjusted_mired is not None:
@@ -285,7 +314,9 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             self._requested_hs = None
         else:
             self._requested_hs = self.hs_color
-        self._requested_state_at = datetime.datetime.utcnow()  # must be set last so that previous getters work properly
+        self._requested_state_at = (
+            datetime.datetime.utcnow()
+        )  # must be set last so that previous getters work properly
         self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs):
@@ -337,37 +368,135 @@ def alexa_brightness_to_ha(alexa: Optional[float]) -> Optional[float]:
 # This is a fairly complete list of all the colors that Alexa will respond to.
 # A couple weirder ones are skipped because the HA color utility don't know the RGB value
 ALEXA_COLORS = [
-    "crimson", "dark_red", "firebrick", "orange_red", "red", "deep_pink", "hot_pink",
-    "light_pink", "maroon", "medium_violet_red", "pale_violet_red", "pink", "plum", "tomato",
-    "chocolate", "dark_orange", "maroon", "coral", "light_coral",
-    "light_salmon", "peru", "salmon", "sienna", "gold",
-    "goldenrod", "lime", "olive", "yellow", "chartreuse", "dark_green",
-    "dark_olive_green", "dark_sea_green", "forest_green", "green", "green_yellow", "lawn_green", "light_green",
-    "lime_green", "medium_sea_green", "medium_spring_green", "olive_drab", "pale_green", "sea_green", "spring_green",
-    "yellow_green", "blue", "cadet_blue", "cyan", "dark_blue", "dark_cyan", "dark_slate_blue",
-    "dark_turquoise", "deep_sky_blue", "dodger_blue", "light_blue", "light_sea_green", "light_sky_blue", "medium_blue",
-    "medium_turquoise", "midnight_blue", "navy_blue", "pale_turquoise", "powder_blue", "royal_blue", "sky_blue",
-    "slate_blue", "steel_blue", "teal", "turquoise", "blue_violet", "dark_magenta", "dark_orchid", "dark_violet",
-    "fuchsia", "indigo", "lavender", "magenta", "medium_orchid", "medium_purple", "orchid", "purple", "rosy_brown",
-    "violet", "alice_blue", "antique_white", "blanched_almond", "cornsilk",
-    "dark_khaki", "floral_white", "gainsboro", "ghost_white", "honeydew", "ivory", "khaki",
-    "lavender_blush", "lemon_chiffon", "light_cyan", "light_steel_blue", "light_yellow", "linen",
-    "mint_cream", "misty_rose", "moccasin", "old_lace", "pale_goldenrod", "papaya_whip",
-    "peach_puff", "seashell", "silver", "snow", "tan", "thistle", "wheat", "white", "white_smoke"
+    "crimson",
+    "dark_red",
+    "firebrick",
+    "orange_red",
+    "red",
+    "deep_pink",
+    "hot_pink",
+    "light_pink",
+    "maroon",
+    "medium_violet_red",
+    "pale_violet_red",
+    "pink",
+    "plum",
+    "tomato",
+    "chocolate",
+    "dark_orange",
+    "maroon",
+    "coral",
+    "light_coral",
+    "light_salmon",
+    "peru",
+    "salmon",
+    "sienna",
+    "gold",
+    "goldenrod",
+    "lime",
+    "olive",
+    "yellow",
+    "chartreuse",
+    "dark_green",
+    "dark_olive_green",
+    "dark_sea_green",
+    "forest_green",
+    "green",
+    "green_yellow",
+    "lawn_green",
+    "light_green",
+    "lime_green",
+    "medium_sea_green",
+    "medium_spring_green",
+    "olive_drab",
+    "pale_green",
+    "sea_green",
+    "spring_green",
+    "yellow_green",
+    "blue",
+    "cadet_blue",
+    "cyan",
+    "dark_blue",
+    "dark_cyan",
+    "dark_slate_blue",
+    "dark_turquoise",
+    "deep_sky_blue",
+    "dodger_blue",
+    "light_blue",
+    "light_sea_green",
+    "light_sky_blue",
+    "medium_blue",
+    "medium_turquoise",
+    "midnight_blue",
+    "navy_blue",
+    "pale_turquoise",
+    "powder_blue",
+    "royal_blue",
+    "sky_blue",
+    "slate_blue",
+    "steel_blue",
+    "teal",
+    "turquoise",
+    "blue_violet",
+    "dark_magenta",
+    "dark_orchid",
+    "dark_violet",
+    "fuchsia",
+    "indigo",
+    "lavender",
+    "magenta",
+    "medium_orchid",
+    "medium_purple",
+    "orchid",
+    "purple",
+    "rosy_brown",
+    "violet",
+    "alice_blue",
+    "antique_white",
+    "blanched_almond",
+    "cornsilk",
+    "dark_khaki",
+    "floral_white",
+    "gainsboro",
+    "ghost_white",
+    "honeydew",
+    "ivory",
+    "khaki",
+    "lavender_blush",
+    "lemon_chiffon",
+    "light_cyan",
+    "light_steel_blue",
+    "light_yellow",
+    "linen",
+    "mint_cream",
+    "misty_rose",
+    "moccasin",
+    "old_lace",
+    "pale_goldenrod",
+    "papaya_whip",
+    "peach_puff",
+    "seashell",
+    "silver",
+    "snow",
+    "tan",
+    "thistle",
+    "wheat",
+    "white",
+    "white_smoke",
 ]
 
 
 def red_mean(color1: Tuple[int, int, int], color2: Tuple[int, int, int]) -> float:
     """Get an approximate 'distance' between two colors using red mean.
-       Wikipedia says this method is "one of the better low-cost approximations".
+    Wikipedia says this method is "one of the better low-cost approximations".
     """
-    r_avg = (color2[0] + color1[0])/2
+    r_avg = (color2[0] + color1[0]) / 2
     r_delta = color2[0] - color1[0]
     g_delta = color2[1] - color1[1]
     b_delta = color2[2] - color1[2]
-    r_term = (2 + r_avg/256) * pow(r_delta, 2)
+    r_term = (2 + r_avg / 256) * pow(r_delta, 2)
     g_term = 4 * pow(g_delta, 2)
-    b_term = (2 + (255 - r_avg)/256) * pow(b_delta, 2)
+    b_term = (2 + (255 - r_avg) / 256) * pow(b_delta, 2)
     return sqrt(r_term + g_term + b_term)
 
 
@@ -376,14 +505,21 @@ def alexa_color_name_to_rgb(color_name: Text) -> Tuple[int, int, int]:
     return color_name_to_rgb(color_name.replace("_", ""))
 
 
-def rgb_to_alexa_color(rgb: Tuple[int, int, int]) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
+def rgb_to_alexa_color(
+    rgb: Tuple[int, int, int]
+) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
     """Convert a given RGB value into the closest Alexa color."""
-    name = min(ALEXA_COLORS, key=lambda color_name: red_mean(rgb, alexa_color_name_to_rgb(color_name)))
+    name = min(
+        ALEXA_COLORS,
+        key=lambda color_name: red_mean(rgb, alexa_color_name_to_rgb(color_name)),
+    )
     red, green, blue = alexa_color_name_to_rgb(name)
     return color_RGB_to_hs(red, green, blue), name
 
 
-def hs_to_alexa_color(hs: Optional[Tuple[float, float]]) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
+def hs_to_alexa_color(
+    hs: Optional[Tuple[float, float]]
+) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
     """Convert a given hue/saturation value into the closest Alexa color."""
     if hs is None:
         return None, None
@@ -391,7 +527,9 @@ def hs_to_alexa_color(hs: Optional[Tuple[float, float]]) -> Tuple[Optional[Tuple
     return rgb_to_alexa_color(color_hs_to_RGB(hue, saturation))
 
 
-def hsb_to_alexa_color(hsb: Optional[Tuple[float, float, float]]) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
+def hsb_to_alexa_color(
+    hsb: Optional[Tuple[float, float, float]]
+) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
     """Convert a given hue/saturation/brightness value into the closest Alexa color."""
     if hsb is None:
         return None, None

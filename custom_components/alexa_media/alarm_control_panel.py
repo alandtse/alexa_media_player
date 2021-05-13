@@ -75,7 +75,10 @@ async def async_setup_platform(
     guard_entities = account_dict.get("devices", {}).get("guard", [])
     if guard_entities:
         alexa_client = AlexaAlarmControlPanel(
-            account_dict["login_obj"], account_dict["coordinator"], guard_entities[0], guard_media_players
+            account_dict["login_obj"],
+            account_dict["coordinator"],
+            guard_entities[0],
+            guard_media_players,
         )
     else:
         _LOGGER.debug("%s: No Alexa Guard entity found", account)
@@ -143,12 +146,12 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
         self._media_players = {} or media_players
         self._attrs: Dict[Text, Text] = {}
         _LOGGER.debug(
-                "%s: Guard Discovered %s: %s %s",
-                self.account,
-                self._friendly_name,
-                hide_serial(self._appliance_id),
-                hide_serial(self._guard_entity_id),
-            )
+            "%s: Guard Discovered %s: %s %s",
+            self.account,
+            self._friendly_name,
+            hide_serial(self._appliance_id),
+            hide_serial(self._guard_entity_id),
+        )
 
     @_catch_login_errors
     async def _async_alarm_set(self, command: Text = "", code=None) -> None:
@@ -207,7 +210,9 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
     @property
     def state(self):
         """Return the state of the device."""
-        _state = parse_guard_state_from_coordinator(self.coordinator, self._guard_entity_id)
+        _state = parse_guard_state_from_coordinator(
+            self.coordinator, self._guard_entity_id
+        )
         if _state == "ARMED_AWAY":
             return STATE_ALARM_ARMED_AWAY
         elif _state == "ARMED_STAY":
@@ -228,7 +233,9 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
 
     @property
     def assumed_state(self) -> bool:
-        last_refresh_success = self.coordinator.data and self._guard_entity_id in self.coordinator.data
+        last_refresh_success = (
+            self.coordinator.data and self._guard_entity_id in self.coordinator.data
+        )
         return not last_refresh_success
 
     @property

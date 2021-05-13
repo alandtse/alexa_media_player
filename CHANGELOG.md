@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.2 (2021-05-13)
+### Fix
+* Prune devices removed from amazon ([`f75f8b9`](https://github.com/custom-components/alexa_media_player/commit/f75f8b92253e256f727f1f75c6516460a7774327))
+
+### Documentation
+* Update localization ([`74ec44b`](https://github.com/custom-components/alexa_media_player/commit/74ec44b00334e91678541c2c2b096ea022294e86))
+
 ## v3.10.1 (2021-05-08)
 ### Fix
 * Improve checking for skill backed appliances #1277 ([`ea04bae`](https://github.com/custom-components/alexa_media_player/commit/ea04bae4968df557fd6e8fab6b0745bae04b807c))

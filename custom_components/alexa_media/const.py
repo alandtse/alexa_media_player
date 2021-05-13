@@ -23,7 +23,13 @@ MIN_TIME_BETWEEN_FORCED_SCANS = timedelta(seconds=1)
 ALEXA_COMPONENTS = [
     "media_player",
 ]
-DEPENDENT_ALEXA_COMPONENTS = ["notify", "switch", "sensor", "alarm_control_panel", "light"]
+DEPENDENT_ALEXA_COMPONENTS = [
+    "notify",
+    "switch",
+    "sensor",
+    "alarm_control_panel",
+    "light",
+]
 
 HTTP_COOKIE_HEADER = "# HTTP Cookie File"
 CONF_ACCOUNTS = "accounts"

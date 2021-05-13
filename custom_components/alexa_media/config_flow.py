@@ -1031,9 +1031,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(
                     CONF_EXTENDED_ENTITY_DISCOVERY,
                     default=self.config_entry.options.get(
-                        CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
-                    )
-                ): bool
+                        CONF_EXTENDED_ENTITY_DISCOVERY,
+                        DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+                    ),
+                ): bool,
             }
         )
         return self.async_show_form(step_id="init", data_schema=data_schema)

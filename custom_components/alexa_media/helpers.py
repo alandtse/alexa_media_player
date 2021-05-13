@@ -285,11 +285,11 @@ async def calculate_uuid(hass, email: Text, url: Text) -> dict:
 
 
 def alarm_just_dismissed(
-        alarm: Dict[Text, Any],
-        previous_status: Optional[Text],
-        previous_version: Optional[Text]
+    alarm: Dict[Text, Any],
+    previous_status: Optional[Text],
+    previous_version: Optional[Text],
 ) -> bool:
-    """Given the previous state of an alarm, determine if it has just been dismissed. """
+    """Given the previous state of an alarm, determine if it has just been dismissed."""
 
     if previous_status not in ("SNOOZED", "ON"):
         # The alarm had to be in a status that supported being dismissed

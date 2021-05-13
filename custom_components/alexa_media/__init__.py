@@ -585,6 +585,23 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
+        # prune stale devices
+        device_registry = await dr.async_get_registry(hass)
+        for device_entry in dr.async_entries_for_config_entry(
+            device_registry, config_entry.entry_id
+        ):
+            for (_, identifier) in device_entry.identifiers:
+                if (
+                    identifier
+                    in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                        "media_player"
+                    ].keys()
+                ):
+                    break
+            else:
+                device_registry.async_remove_device(device_entry.id)
+                _LOGGER.debug("Removing stale device %s", device_entry.name)
+
         await login_obj.save_cookiefile()
         if login_obj.access_token:
             hass.config_entries.async_update_entry(

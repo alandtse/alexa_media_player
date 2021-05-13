@@ -37,7 +37,7 @@ from homeassistant.const import (
     EVENT_HOMEASSISTANT_STOP,
 )
 from homeassistant.data_entry_flow import UnknownFlow
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -258,7 +258,13 @@ async def async_setup_entry(hass, config_entry):
             "coordinator": None,
             "config_entry": config_entry,
             "setup_alexa": setup_alexa,
-            "devices": {"media_player": {}, "switch": {}, "guard": [], "light": [], "temperature": []},
+            "devices": {
+                "media_player": {},
+                "switch": {},
+                "guard": [],
+                "light": [],
+                "temperature": [],
+            },
             "entities": {
                 "media_player": {},
                 "switch": {},
@@ -282,7 +288,7 @@ async def async_setup_entry(hass, config_entry):
                 ),
                 CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.options.get(
                     CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
-                )
+                ),
             },
             DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         },
@@ -361,7 +367,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         ].values()
         auth_info = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("auth_info")
         new_devices = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
-        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["should_get_network"]
+        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "should_get_network"
+        ]
 
         devices = {}
         bluetooth = {}
@@ -379,7 +387,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             tasks.append(AlexaAPI.get_authentication(login_obj))
 
         entities_to_monitor = set()
-        for sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["sensor"].values():
+        for sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
+            "sensor"
+        ].values():
             temp = sensor.get("Temperature")
             if temp and temp.enabled:
                 entities_to_monitor.add(temp.alexa_entity_id)
@@ -388,7 +398,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             if light.enabled:
                 entities_to_monitor.add(light.alexa_entity_id)
 
-        for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["alarm_control_panel"].values():
+        for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
+            "alarm_control_panel"
+        ].values():
             if guard.enabled:
                 entities_to_monitor.add(guard.unique_id)
 
@@ -407,14 +419,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     bluetooth,
                     preferences,
                     dnd,
-                    *optional_task_results
-                )  = await asyncio.gather(*tasks)
+                    *optional_task_results,
+                ) = await asyncio.gather(*tasks)
 
                 if should_get_network:
-                    _LOGGER.debug("Alexa entities have been loaded. Prepared for discovery.")
+                    _LOGGER.debug(
+                        "Alexa entities have been loaded. Prepared for discovery."
+                    )
                     alexa_entities = parse_alexa_entities(optional_task_results.pop())
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(alexa_entities)
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["should_get_network"] = False
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
+                        alexa_entities
+                    )
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "should_get_network"
+                    ] = False
 
                 if entities_to_monitor:
                     entity_state = optional_task_results.pop()
@@ -585,6 +603,23 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
+        # prune stale devices
+        device_registry = await dr.async_get_registry(hass)
+        for device_entry in dr.async_entries_for_config_entry(
+            device_registry, config_entry.entry_id
+        ):
+            for (_, identifier) in device_entry.identifiers:
+                if (
+                    identifier
+                    in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                        "media_player"
+                    ].keys()
+                ):
+                    break
+            else:
+                device_registry.async_remove_device(device_entry.id)
+                _LOGGER.debug("Removing stale device %s", device_entry.name)
+
         await login_obj.save_cookiefile()
         if login_obj.access_token:
             hass.config_entries.async_update_entry(
@@ -606,7 +641,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if not raw_notifications:
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
         email: Text = login_obj.email
-        previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("notifications", {})
+        previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+            "notifications", {}
+        )
         notifications = {"process_timestamp": datetime.utcnow()}
         for notification in raw_notifications:
             n_dev_id = notification.get("deviceSerialNumber")
@@ -627,13 +664,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     f"{n_date} {n_time}" if n_date and n_time else None
                 )
                 previous_alarm = previous.get(n_dev_id, {}).get("Alarm", {}).get(n_id)
-                if previous_alarm and alarm_just_dismissed(notification, previous_alarm.get("status"), previous_alarm.get("version")):
+                if previous_alarm and alarm_just_dismissed(
+                    notification,
+                    previous_alarm.get("status"),
+                    previous_alarm.get("version"),
+                ):
                     hass.bus.async_fire(
                         "alexa_media_alarm_dismissal_event",
-                        event_data={
-                            "device": {"id": n_dev_id},
-                            "event": notification
-                        }
+                        event_data={"device": {"id": n_dev_id}, "event": notification},
                     )
 
             if n_dev_id not in notifications:

@@ -101,9 +101,6 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     le["name"],
                 )
 
-    if devices:
-        await coordinator.async_refresh()
-
     return await add_devices(
         hide_email(account),
         devices,

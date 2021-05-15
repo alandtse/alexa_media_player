@@ -370,6 +370,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "should_get_network"
         ]
+        extended_entity_discovery = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "options"
+        ].get(CONF_EXTENDED_ENTITY_DISCOVERY)
 
         devices = {}
         bluetooth = {}
@@ -434,7 +437,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         "should_get_network"
                     ] = False
 
-                if entities_to_monitor:
+                    # First run is a special case. Get the state of all entities(including disabled)
+                    # This ensures all entities have state during startup without needing to request coordinator refresh
+                    for typeOfEntity, entities in alexa_entities.items():
+                        if typeOfEntity == "guard" or extended_entity_discovery:
+                            for entity in entities:
+                                entities_to_monitor.add(entity.get("id"))
+                    entity_state = await get_entity_data(
+                        login_obj, list(entities_to_monitor)
+                    )
+                elif entities_to_monitor:
                     entity_state = optional_task_results.pop()
 
                 if new_devices:

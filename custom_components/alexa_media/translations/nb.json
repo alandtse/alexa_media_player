@@ -8,7 +8,7 @@
     "error": {
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Feil ved tilkobling; sjekk nettverket og prøv på nytt",
-      "hass_url_invalid": "Unable to connect to Home Assistant url. Please check the Internal Url under Configuration -> General",
+      "hass_url_invalid": "Kan ikke koble til nettadressen til hjemmeassistenten. Vennligst sjekk den eksterne nettadressen under Konfigurasjon - > Generelt",
       "identifier_exists": "E-post for Alexa URL allerede registrert",
       "invalid_credentials": "ugyldige legitimasjon",
       "unknown_error": "Ukjent feil, vennligst rapporter logginfo"

@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.3 (2021-05-15)
+### Fix
+* Update entity state after network discovery (#1291) ([#1295](https://github.com/custom-components/alexa_media_player/issues/1295)) ([`b2302ec`](https://github.com/custom-components/alexa_media_player/commit/b2302ec16da19657bc1dfd7c6cd0b4343c7404db))
+* Update entity state after network discovery ([#1291](https://github.com/custom-components/alexa_media_player/issues/1291)) ([`9804dd3`](https://github.com/custom-components/alexa_media_player/commit/9804dd35188befb7e1053369f7a6fa6befa1e860))
+
 ## v3.10.2 (2021-05-13)
 ### Fix
 * Prune devices removed from amazon ([`f75f8b9`](https://github.com/custom-components/alexa_media_player/commit/f75f8b92253e256f727f1f75c6516460a7774327))

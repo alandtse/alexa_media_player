@@ -166,7 +166,6 @@ async def create_temperature_sensors(account_dict, temperature_entities):
         account_dict["entities"]["sensor"].setdefault(serial, {})
         account_dict["entities"]["sensor"][serial]["Temperature"] = sensor
         devices.append(sensor)
-        await coordinator.async_request_refresh()
     return devices
 
 

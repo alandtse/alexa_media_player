@@ -8,7 +8,7 @@
     "error": {
       "2fa_key_invalid": "Nieprawidłowy klucz z wbudowanej aplikacji uwierzytelniania dwuskładnikowego",
       "connection_error": "Błąd podczas łączenia; sprawdź sieć i spróbuj ponownie",
-      "hass_url_invalid": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź wewnętrzny adres URL w sekcji Konfiguracja -> Ogólne",
+      "hass_url_invalid": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź publiczny adres URL w sekcji Konfiguracja -> Ogólne",
       "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
       "invalid_credentials": "Nieprawidłowe dane logowania",
       "unknown_error": "Nieznany błąd, zgłoś log z tego zdarzenia"

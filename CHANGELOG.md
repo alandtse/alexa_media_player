@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.4 (2021-05-15)
+### Fix
+* Handle case where alexa guard is disabled ([#1297](https://github.com/custom-components/alexa_media_player/issues/1297)) ([`6295e93`](https://github.com/custom-components/alexa_media_player/commit/6295e93a0761da1365f761a56e2d29d125998f9a))
+
+### Documentation
+* Update localization ([`e148ae4`](https://github.com/custom-components/alexa_media_player/commit/e148ae40219a0610a6e401dd97e81aaec75ba531))
+* Update localization ([`fb952ca`](https://github.com/custom-components/alexa_media_player/commit/fb952cadc34a47aaf4dba1d2760cf4d0ee5a54e4))
+
 ## v3.10.3 (2021-05-15)
 ### Fix
 * Update entity state after network discovery (#1291) ([#1295](https://github.com/custom-components/alexa_media_player/issues/1295)) ([`b2302ec`](https://github.com/custom-components/alexa_media_player/commit/b2302ec16da19657bc1dfd7c6cd0b4343c7404db))

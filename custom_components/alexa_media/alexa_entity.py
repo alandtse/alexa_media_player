@@ -206,15 +206,19 @@ async def get_entity_data(
     login_obj: AlexaLogin, entity_ids: List[Text]
 ) -> AlexaEntityData:
     """Get and process the entity data into a more usable format."""
-    raw = await AlexaAPI.get_entity_state(login_obj, entity_ids=entity_ids)
+
     entities = {}
-    device_states = raw.get("deviceStates")
-    if device_states:
-        for device_state in device_states:
-            entity_id = device_state["entity"]["entityId"]
-            entities[entity_id] = []
-            for cap_state in device_state["capabilityStates"]:
-                entities[entity_id].append(json.loads(cap_state))
+    if entity_ids:
+        raw = await AlexaAPI.get_entity_state(login_obj, entity_ids=entity_ids)
+        device_states = raw.get("deviceStates", []) if isinstance(raw, dict) else None
+        if device_states:
+            for device_state in device_states:
+                entity_id = device_state.get("entity", {}).get("entityId")
+                if entity_id:
+                    entities[entity_id] = []
+                    cap_states = device_state.get("capabilityStates", [])
+                    for cap_state in cap_states:
+                        entities[entity_id].append(json.loads(cap_state))
     return entities
 
 

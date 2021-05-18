@@ -621,16 +621,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             device_registry, config_entry.entry_id
         ):
             for (_, identifier) in device_entry.identifiers:
-                if (
-                    identifier
-                    in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                if identifier in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                    "devices"
+                ]["media_player"].keys() or identifier in map(
+                    lambda x: slugify(f"{x}_{email}"),
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
                         "media_player"
-                    ].keys()
+                    ].keys(),
                 ):
                     break
             else:
                 device_registry.async_remove_device(device_entry.id)
-                _LOGGER.debug("Removing stale device %s", device_entry.name)
+                _LOGGER.debug(
+                    "%s: Removing stale device %s", hide_email(email), device_entry.name
+                )
 
         await login_obj.save_cookiefile()
         if login_obj.access_token:

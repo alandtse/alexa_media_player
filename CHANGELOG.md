@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.5 (2021-05-18)
+### Fix
+* Avoid pruning devices in secondary accounts ([`a62a371`](https://github.com/custom-components/alexa_media_player/commit/a62a3710aee48e2ddb0ab72ca491384b1d95e597))
+
+### Documentation
+* Update localization ([`d368377`](https://github.com/custom-components/alexa_media_player/commit/d3683774e07e10c9416f189b8f7d654e33957b5b))
+
 ## v3.10.4 (2021-05-15)
 ### Fix
 * Handle case where alexa guard is disabled ([#1297](https://github.com/custom-components/alexa_media_player/issues/1297)) ([`6295e93`](https://github.com/custom-components/alexa_media_player/commit/6295e93a0761da1365f761a56e2d29d125998f9a))

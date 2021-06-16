@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.6 (2021-06-16)
+### Fix
+* Use timezone aware datetime for timers ([`de4a962`](https://github.com/custom-components/alexa_media_player/commit/de4a96230828e7226fb6c58461f983210892ca10))
+* Handle unknown recurrence patterns ([`a7a173c`](https://github.com/custom-components/alexa_media_player/commit/a7a173c4f82500eeb0a3525990777665920790ad))
+
+### Documentation
+* Update localization ([`9e8f7d9`](https://github.com/custom-components/alexa_media_player/commit/9e8f7d90084c88473e3449be11971d694e6953d6))
+
 ## v3.10.5 (2021-05-18)
 ### Fix
 * Avoid pruning devices in secondary accounts ([`a62a371`](https://github.com/custom-components/alexa_media_player/commit/a62a3710aee48e2ddb0ab72ca491384b1d95e597))

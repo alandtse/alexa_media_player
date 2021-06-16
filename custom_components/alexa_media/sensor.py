@@ -370,7 +370,7 @@ class AlexaMediaNotificationSensor(Entity):
         while (
             alarm_on
             and recurring_pattern
-            and RECURRING_PATTERN_ISO_SET[recurring_pattern]
+            and RECURRING_PATTERN_ISO_SET.get(recurring_pattern)
             and alarm.isoweekday not in RECURRING_PATTERN_ISO_SET[recurring_pattern]
             and alarm < dt.now()
         ):

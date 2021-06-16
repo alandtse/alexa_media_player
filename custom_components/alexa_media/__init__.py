@@ -660,7 +660,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
             "notifications", {}
         )
-        notifications = {"process_timestamp": datetime.utcnow()}
+        notifications = {"process_timestamp": dt.utcnow()}
         for notification in raw_notifications:
             n_dev_id = notification.get("deviceSerialNumber")
             if n_dev_id is None:

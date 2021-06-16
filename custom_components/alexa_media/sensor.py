@@ -370,7 +370,7 @@ class AlexaMediaNotificationSensor(Entity):
         while (
             alarm_on
             and recurring_pattern
-            and RECURRING_PATTERN_ISO_SET[recurring_pattern]
+            and RECURRING_PATTERN_ISO_SET.get(recurring_pattern)
             and alarm.isoweekday not in RECURRING_PATTERN_ISO_SET[recurring_pattern]
             and alarm < dt.now()
         ):
@@ -538,9 +538,7 @@ class AlexaMediaNotificationSensor(Entity):
 
         attr = {
             "recurrence": self.recurrence,
-            "process_timestamp": dt.as_local(
-                datetime.datetime.fromtimestamp(self._timestamp.timestamp())
-            ).isoformat(),
+            "process_timestamp": dt.as_local(self._timestamp).isoformat(),
             "prior_value": self._process_state(self._prior_value),
             "total_active": len(self._active),
             "total_all": len(self._all),
@@ -586,10 +584,8 @@ class TimerSensor(AlexaMediaNotificationSensor):
         return (
             dt.as_local(
                 super()._round_time(
-                    datetime.datetime.fromtimestamp(
-                        self._timestamp.timestamp()
-                        + value[self._sensor_property] / 1000
-                    )
+                    self._timestamp
+                    + datetime.timedelta(milliseconds=value[self._sensor_property])
                 )
             ).isoformat()
             if value and self._timestamp

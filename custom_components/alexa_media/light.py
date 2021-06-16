@@ -311,8 +311,8 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             self._requested_hs = None
         else:
             self._requested_hs = self.hs_color
-        self._requested_state_at = (
-            datetime.datetime.utcnow()
+        self._requested_state_at = datetime.datetime.now(
+            datetime.timezone.utc
         )  # must be set last so that previous getters work properly
         self.async_write_ha_state()
 

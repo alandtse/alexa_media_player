@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.7 (2021-07-15)
+### Fix
+* Fix comparison between offset-naive and offset-aware datetimes (#1338) ([#1339](https://github.com/custom-components/alexa_media_player/issues/1339)) ([`bcc996a`](https://github.com/custom-components/alexa_media_player/commit/bcc996a6088a0c2826d828cdb114f36abcf69ee9))
+* Fix comparison between offset-naive and offset-aware datetimes ([#1338](https://github.com/custom-components/alexa_media_player/issues/1338)) ([`0ccdb18`](https://github.com/custom-components/alexa_media_player/commit/0ccdb181c52f61f221eb50aad0fc2ad97b71b59f))
+
 ## v3.10.6 (2021-06-16)
 ### Fix
 * Use timezone aware datetime for timers ([`de4a962`](https://github.com/custom-components/alexa_media_player/commit/de4a96230828e7226fb6c58461f983210892ca10))

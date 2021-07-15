@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import re
@@ -325,7 +325,7 @@ def is_cap_state_still_acceptable(
             try:
                 time_of_sample = datetime.strptime(
                     formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S.%fZ"
-                )
+                ).replace(tzinfo=timezone.utc)
                 return time_of_sample >= since
             except ValueError:
                 pass

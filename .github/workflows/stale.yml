@@ -30,7 +30,7 @@ jobs:
             This feature request has been labelled as *help wanted* since
             there has been no activity in the last 3 weeks. It will not be
             closed automatically.
-          stale-issue-label: 'help-wanted'
+          stale-issue-label: 'help wanted'
       - uses: actions/stale@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -41,4 +41,4 @@ jobs:
             This bug report has been labelled as *help wanted* since
             there has been no activity in the last 3 weeks. It will not be
             closed automatically.
-          stale-issue-label: 'help-wanted'
+          stale-issue-label: 'help wanted'

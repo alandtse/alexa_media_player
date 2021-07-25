@@ -264,9 +264,7 @@ def parse_color_from_coordinator(
     if value is not None:
         hue = value.get("hue", 0)
         saturation = value.get("saturation", 0)
-        brightness = parse_brightness_from_coordinator(coordinator, entity_id, since)
-        if brightness is not None:
-            return hue, saturation, brightness / 100
+        return hue, saturation, 1
     return None
 
 

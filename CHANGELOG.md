@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.8 (2021-08-03)
+### Fix
+* Fix color mapping during color conversion ([#1345](https://github.com/custom-components/alexa_media_player/issues/1345)) ([`c296aef`](https://github.com/custom-components/alexa_media_player/commit/c296aefed824f0ba8acde166a4a43bf29c6f9cd8))
+* Parse timezone from timestamp ([`c7dc5f2`](https://github.com/custom-components/alexa_media_player/commit/c7dc5f27082e253903fd596d86947dcfd7c80cc5))
+
+### Documentation
+* Update localization ([`d1ece99`](https://github.com/custom-components/alexa_media_player/commit/d1ece992d5fdf8e5c7934d0db7c5f21a05707ea8))
+
 ## v3.10.7 (2021-07-15)
 ### Fix
 * Fix comparison between offset-naive and offset-aware datetimes (#1338) ([#1339](https://github.com/custom-components/alexa_media_player/issues/1339)) ([`bcc996a`](https://github.com/custom-components/alexa_media_player/commit/bcc996a6088a0c2826d828cdb114f36abcf69ee9))

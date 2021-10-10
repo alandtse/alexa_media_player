@@ -500,7 +500,7 @@ class AlexaMediaNotificationSensor(Entity):
         account_dict = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]
         self._timestamp = account_dict["notifications"]["process_timestamp"]
         try:
-            self._n_dict = account_dict["notifications"][self._dev_id][self._type]
+            self._n_dict = account_dict["notifications"][self._client.device_serial_number][self._type]
         except KeyError:
             self._n_dict = None
         self._process_raw_notifications()

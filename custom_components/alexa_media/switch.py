@@ -309,7 +309,7 @@ class DNDSwitch(AlexaMediaSwitch):
     @property
     def icon(self):
         """Return the icon of the switch."""
-        return super()._icon("mdi:do-not-disturb", "mdi:do-not-disturb-off")
+        return super()._icon("mdi:minus-circle", "mdi:minus-circle-off")
 
     def _handle_event(self, event):
         """Handle events."""

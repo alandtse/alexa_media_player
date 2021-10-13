@@ -62,24 +62,6 @@
         "description": "**{email} - alexa.{url}**  \nInserisci la password usa e getta (OTP).  \n{message}",
         "title": "Alexa Media Player - Autenticazione a Due Fattori"
       },
-      "user_legacy": {
-        "data": {
-          "cookies_txt": "config::step::user::data::cookies_txt",
-          "debug": "Debug avanzato",
-          "email": "Indirizzo email",
-          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
-          "include_devices": "Dispositivi da includere (separati da virgola)",
-          "oauth_login": "Abilitare il metodo oauth-token app",
-          "otp_secret": "Chiave 2FA interna (genera automaticamente i codici 2FA)",
-          "password": "Password",
-          "proxy": "Usa il Proxy come metodo di login (2FA non richiesta)",
-          "scan_interval": "Tempo in secondi fra le scansioni",
-          "securitycode": "Codice 2FA  (raccomandato per evitare problemi di login)",
-          "url": "Regione del dominio Amazon (e.g. amazon.it)"
-        },
-        "description": "Prego inserisci le tue [informazioni](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) potrebbe essere più semplice!**   \n**ATTENZIONE: Amazon risponde incorrettamente 'Inserire una mail valida o un numero di telefono' quando è richiesto il codice 2FA](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).** \n>{message}",
-        "title": "Alexa Media Player - Legacy Configuration"
-      },
       "user": {
         "data": {
           "cookies_txt": "Dati cookies.txt",
@@ -98,6 +80,24 @@
         },
         "description": "Confermare le informazioni sottostanti. Per le vecchie configurazioni, disabilitare l'opzione `Usa Proxy come metodo di login`.",
         "title": "Alexa Media Player - Configurazione"
+      },
+      "user_legacy": {
+        "data": {
+          "cookies_txt": "Dati cookies.txt",
+          "debug": "Debug avanzato",
+          "email": "Indirizzo email",
+          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
+          "include_devices": "Dispositivi da includere (separati da virgola)",
+          "oauth_login": "Abilitare il metodo oauth-token app",
+          "otp_secret": "Chiave 2FA interna (genera automaticamente i codici 2FA)",
+          "password": "Password",
+          "proxy": "Usa il Proxy come metodo di login (2FA non richiesta)",
+          "scan_interval": "Tempo in secondi fra le scansioni",
+          "securitycode": "Codice 2FA  (raccomandato per evitare problemi di login)",
+          "url": "Regione del dominio Amazon (e.g. amazon.it)"
+        },
+        "description": "Prego inserisci le tue [informazioni](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) potrebbe essere più semplice!**   \n**ATTENZIONE: Amazon risponde incorrettamente 'Inserire una mail valida o un numero di telefono' quando è richiesto il codice 2FA](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).** \n>{message}",
+        "title": "Alexa Media Player - Legacy Configuration"
       }
     }
   },

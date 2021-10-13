@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.9 (2021-10-13)
+### Fix
+* Fix icon on do not disturb switch ([#1377](https://github.com/custom-components/alexa_media_player/issues/1377)) ([`5407be3`](https://github.com/custom-components/alexa_media_player/commit/5407be36fd4e34782224212af5659a63d9dc306a))
+
+### Documentation
+* Update localization ([`a30af11`](https://github.com/custom-components/alexa_media_player/commit/a30af11fa5a8cd6848401023597b4be96d6c1104))
+
 ## v3.10.8 (2021-08-03)
 ### Fix
 * Fix color mapping during color conversion ([#1345](https://github.com/custom-components/alexa_media_player/issues/1345)) ([`c296aef`](https://github.com/custom-components/alexa_media_player/commit/c296aefed824f0ba8acde166a4a43bf29c6f9cd8))

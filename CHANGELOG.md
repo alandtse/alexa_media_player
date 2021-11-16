@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.11 (2021-11-16)
+### Fix
+* Bump alexapy to 1.25.2 ([`7de579d`](https://github.com/custom-components/alexa_media_player/commit/7de579d2fbd6fff7fb8a4196a5e79e8a65a31b44))
+* Bump alexapy to 1.25.2 ([`f41c8fe`](https://github.com/custom-components/alexa_media_player/commit/f41c8fe9a94150cd37311aaff845ad5511cdf881))
+
 ## v3.10.10 (2021-10-13)
 ### Fix
 * Fix issue where next_alarm would cancel on reload ([#1379](https://github.com/custom-components/alexa_media_player/issues/1379)) ([`a5dd83a`](https://github.com/custom-components/alexa_media_player/commit/a5dd83a3ab1a7bec565e470e11d28d3d5076b695))

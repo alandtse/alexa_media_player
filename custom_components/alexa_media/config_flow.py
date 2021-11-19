@@ -663,8 +663,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             }
             self.hass.data.setdefault(
                 DATA_ALEXAMEDIA,
-                {"accounts": {}, "config_flows": {}},
+                {"accounts": {}, "config_flows": {}, "notify_service": None},
             )
+            self.hass.data[DATA_ALEXAMEDIA].setdefault("accounts", {})
+            self.hass.data[DATA_ALEXAMEDIA].setdefault("config_flows", {})
             if existing_entry:
                 self.hass.config_entries.async_update_entry(
                     existing_entry, data=self.config

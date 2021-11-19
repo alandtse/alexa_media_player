@@ -26,6 +26,7 @@ jobs:
         uses: hacs/action@main
         with:
           CATEGORY: integration
+          ignore: requirements
       - uses: KTibow/ha-blueprint@stable
         name: CI
         with:

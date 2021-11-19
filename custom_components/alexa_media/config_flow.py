@@ -380,10 +380,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         )
         if self.login.lastreq:
             self.proxy.last_resp = self.login.lastreq
-            self.proxy.session.cookie_jar.update_cookies(
-                self.login._session.cookie_jar.filter_cookies(
-                    self.proxy._host_url.with_path("/")
-                )
+            self.proxy.session.cookies = self.login._session.cookie_jar.filter_cookies(
+                self.proxy._host_url.with_path("/")
             )
             proxy_url = (
                 self.proxy.access_url().with_path(AUTH_PROXY_PATH) / "resume"

@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.12 (2021-11-19)
+### Fix
+* Fix conversion of aiohttp cookie to httpx ([`598175f`](https://github.com/custom-components/alexa_media_player/commit/598175f3e8297aea256a22417565df79638c1d8b))
+* Set default `accounts` key in dictionary ([`ac4d3f9`](https://github.com/custom-components/alexa_media_player/commit/ac4d3f93db2249c16a02fe64d0b3a78e68cd039c))
+
 ## v3.10.11 (2021-11-16)
 ### Fix
 * Bump alexapy to 1.25.2 ([`7de579d`](https://github.com/custom-components/alexa_media_player/commit/7de579d2fbd6fff7fb8a4196a5e79e8a65a31b44))

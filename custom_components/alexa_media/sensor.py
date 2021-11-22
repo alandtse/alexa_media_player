@@ -532,7 +532,7 @@ class AlexaMediaNotificationSensor(Entity):
         )
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return additional attributes."""
         import json
 
@@ -638,8 +638,8 @@ class ReminderSensor(AlexaMediaNotificationSensor):
         return self._next["reminderLabel"] if self._next else None
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return the scene state attributes."""
-        attr = super().device_state_attributes
+        attr = super().extra_state_attributes
         attr.update({"reminder": self.reminder})
         return attr

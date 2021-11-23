@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.13 (2021-11-23)
+### Fix
+* Fix key error if entry exists ([`4f2a2b2`](https://github.com/custom-components/alexa_media_player/commit/4f2a2b2f328ec4855be1848c4889b1c513e99fd1))
+* Bump deps ([`f6fb70b`](https://github.com/custom-components/alexa_media_player/commit/f6fb70b467033c7f1da3f94c01655253d2c0dd56))
+* Handle deprecation of device_state_attributes ([`c224ee4`](https://github.com/custom-components/alexa_media_player/commit/c224ee4af0bff57efc89b6f8a9707b10ff548538))
+
 ## v3.10.12 (2021-11-19)
 ### Fix
 * Fix conversion of aiohttp cookie to httpx ([`598175f`](https://github.com/custom-components/alexa_media_player/commit/598175f3e8297aea256a22417565df79638c1d8b))

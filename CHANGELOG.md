@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.14 (2021-11-23)
+### Fix
+* Require 2021.12.0 ([`994a2fb`](https://github.com/custom-components/alexa_media_player/commit/994a2fbfab9203d2486007fdf177f68bf6d42971))
+
 ## v3.10.13 (2021-11-23)
 ### Fix
 * Fix key error if entry exists ([`4f2a2b2`](https://github.com/custom-components/alexa_media_player/commit/4f2a2b2f328ec4855be1848c4889b1c513e99fd1))

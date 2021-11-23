@@ -677,6 +677,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.hass.components.persistent_notification.async_dismiss(
                     f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
                 )
+                if not self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(
+                    self.config[CONF_EMAIL]
+                ):
+                    self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                        self.config[CONF_EMAIL]
+                    ] = {}
                 self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.config[CONF_EMAIL]][
                     "login_obj"
                 ] = self.login

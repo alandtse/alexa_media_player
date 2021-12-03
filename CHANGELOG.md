@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.10.15 (2021-12-03)
+### Fix
+* Loosen allowed versions of dependencies ([`f083f80`](https://github.com/custom-components/alexa_media_player/commit/f083f80677e644fb937ae58e739c56f8ab23d900))
+* Allow beta versions of 2021.12 ([`29e2032`](https://github.com/custom-components/alexa_media_player/commit/29e2032535296add0f77beef7bba3f5649da4645))
+
 ## v3.10.14 (2021-11-23)
 ### Fix
 * Require 2021.12.0 ([`994a2fb`](https://github.com/custom-components/alexa_media_player/commit/994a2fbfab9203d2486007fdf177f68bf6d42971))

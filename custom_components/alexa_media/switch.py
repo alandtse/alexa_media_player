@@ -311,6 +311,11 @@ class DNDSwitch(AlexaMediaSwitch):
         """Return the icon of the switch."""
         return super()._icon("mdi:minus-circle", "mdi:minus-circle-off")
 
+    @property
+    def entity_category(self):
+        """Return the entity category of the switch."""
+        return "config"
+
     def _handle_event(self, event):
         """Handle events."""
         try:
@@ -347,6 +352,10 @@ class ShuffleSwitch(AlexaMediaSwitch):
         """Return the icon of the switch."""
         return super()._icon("mdi:shuffle", "mdi:shuffle-disabled")
 
+    @property
+    def entity_category(self):
+        """Return the entity category of the switch."""
+        return "config"
 
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""
@@ -360,3 +369,8 @@ class RepeatSwitch(AlexaMediaSwitch):
     def icon(self):
         """Return the icon of the switch."""
         return super()._icon("mdi:repeat", "mdi:repeat-off")
+
+    @property
+    def entity_category(self):
+        """Return the entity category of the switch."""
+        return "config"

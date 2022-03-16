@@ -27,7 +27,5 @@ jobs:
         with:
           CATEGORY: integration
           #ignore: requirements
-      - uses: KTibow/ha-blueprint@stable
-        name: CI
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: hassfest
+        uses: home-assistant/actions/hassfest@master

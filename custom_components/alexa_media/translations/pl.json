@@ -11,7 +11,7 @@
       "hass_url_invalid": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź publiczny adres URL w sekcji Konfiguracja -> Ogólne",
       "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
       "invalid_credentials": "Nieprawidłowe dane logowania",
-      "unknown_error": "Nieznany błąd, zgłoś log z tego zdarzenia"
+      "unknown_error": "Nieznany błąd, włącz zaawansowane debugowanie i zgłoś log z tego zdarzenia"
     },
     "step": {
       "action_required": {

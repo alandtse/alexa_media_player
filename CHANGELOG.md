@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v3.11.0 (2022-03-16)
+### Feature
+* Add entity_category to the AlexaMediaSwitches ([#1537](https://github.com/custom-components/alexa_media_player/issues/1537)) ([`3f42a45`](https://github.com/custom-components/alexa_media_player/commit/3f42a4577219c3ab76e50d8f956640376bdcd9d5))
+
+### Documentation
+* Update localization ([`a19d9e2`](https://github.com/custom-components/alexa_media_player/commit/a19d9e2996df9e71645ef36144f23723c17b5578))
+
 ## v3.10.15 (2021-12-03)
 ### Fix
 * Loosen allowed versions of dependencies ([`f083f80`](https://github.com/custom-components/alexa_media_player/commit/f083f80677e644fb937ae58e739c56f8ab23d900))

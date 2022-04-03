@@ -1,0 +1,4 @@
+  alexapy==1.25.3
+  async_timeout==4.0.2
+  packaging>=20.3
+  wrapt>=1.12.1

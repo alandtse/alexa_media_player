@@ -37,6 +37,7 @@ from homeassistant.const import (
     EVENT_HOMEASSISTANT_STOP,
 )
 from homeassistant.data_entry_flow import UnknownFlow
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -321,11 +322,16 @@ async def async_setup_entry(hass, config_entry):
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
     hass.bus.async_listen("alexa_media_relogin_required", relogin)
     hass.bus.async_listen("alexa_media_relogin_success", login_success)
-    await login.login(cookies=await login.load_cookie())
-    if await test_login_status(hass, config_entry, login):
-        await setup_alexa(hass, config_entry, login)
-        return True
-    return False
+    try:
+        await login.login(cookies=await login.load_cookie())
+        if await test_login_status(hass, config_entry, login):
+            await setup_alexa(hass, config_entry, login)
+            return True
+        return False
+    except AlexapyConnectionError as err:
+        raise ConfigEntryNotReady(
+                str(err) or "Connection Error during login"
+            ) from err
 
 
 async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):

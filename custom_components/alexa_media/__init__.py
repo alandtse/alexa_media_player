@@ -190,7 +190,7 @@ async def async_setup_entry(hass, config_entry):
             for email, _ in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
                 await close_connections(hass, email)
 
-    async def complete_startup(event=None) -> None:
+    async def complete_startup() -> None:
         """Run final tasks after startup."""
         _LOGGER.debug("Completing remaining startup tasks.")
         await asyncio.sleep(10)
@@ -439,8 +439,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                     # First run is a special case. Get the state of all entities(including disabled)
                     # This ensures all entities have state during startup without needing to request coordinator refresh
-                    for typeOfEntity, entities in alexa_entities.items():
-                        if typeOfEntity == "guard" or extended_entity_discovery:
+                    for type_of_entity, entities in alexa_entities.items():
+                        if type_of_entity == "guard" or extended_entity_discovery:
                             for entity in entities:
                                 entities_to_monitor.add(entity.get("id"))
                     entity_state = await get_entity_data(
@@ -476,7 +476,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 )
             return
         except BaseException as err:
-            raise UpdateFailed(f"Error communicating with API: {err}")
+            raise UpdateFailed("Error communicating with API") from err
 
         new_alexa_clients = []  # list of newly discovered device names
         exclude_filter = []

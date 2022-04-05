@@ -11,6 +11,7 @@ from typing import List, Text  # noqa pylint: disable=unused-import
 
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity import EntityCategory
 
 from . import (
     CONF_EMAIL,
@@ -314,7 +315,7 @@ class DNDSwitch(AlexaMediaSwitch):
     @property
     def entity_category(self):
         """Return the entity category of the switch."""
-        return "config"
+        return EntityCategory.CONFIG 
 
     def _handle_event(self, event):
         """Handle events."""
@@ -355,7 +356,7 @@ class ShuffleSwitch(AlexaMediaSwitch):
     @property
     def entity_category(self):
         """Return the entity category of the switch."""
-        return "config"
+        return EntityCategory.CONFIG 
 
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""
@@ -373,4 +374,4 @@ class RepeatSwitch(AlexaMediaSwitch):
     @property
     def entity_category(self):
         """Return the entity category of the switch."""
-        return "config"
+        return EntityCategory.CONFIG 

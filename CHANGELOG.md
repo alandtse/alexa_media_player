@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.11.1 (2022-04-05)
+### Fix
+* Use EntityCategory enum instead of strings ([#1554](https://github.com/custom-components/alexa_media_player/issues/1554)) ([`695839c`](https://github.com/custom-components/alexa_media_player/commit/695839cbbf0a8cc51400f736c8c3d20ec99bb35b))
+* Use ConfigEntryNotReady during startup ([#1557](https://github.com/custom-components/alexa_media_player/issues/1557)) ([`2b14c3b`](https://github.com/custom-components/alexa_media_player/commit/2b14c3bf65c93cd39cf9992c912b29dcc8f28fb2))
+
 ## v3.11.0 (2022-03-16)
 ### Feature
 * Add entity_category to the AlexaMediaSwitches ([#1537](https://github.com/custom-components/alexa_media_player/issues/1537)) ([`3f42a45`](https://github.com/custom-components/alexa_media_player/commit/3f42a4577219c3ab76e50d8f956640376bdcd9d5))

@@ -378,16 +378,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         proxy_url = self.proxy.access_url().with_query(
             {"config_flow_id": self.flow_id, "callback_url": str(callback_url)}
         )
-        if self.login.lastreq:
-            self.proxy.last_resp = self.login.lastreq
-            self.proxy.session.cookies = self.login._session.cookie_jar.filter_cookies(
-                self.proxy._host_url.with_path("/")
-            )
-            proxy_url = (
-                self.proxy.access_url().with_path(AUTH_PROXY_PATH) / "resume"
-            ).with_query(
-                {"config_flow_id": self.flow_id, "callback_url": str(callback_url)}
-            )
+        self.login._session.cookie_jar.clear()
         return self.async_external_step(step_id="check_proxy", url=str(proxy_url))
 
     async def async_step_check_proxy(self, user_input=None):

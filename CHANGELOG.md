@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v3.11.2 (2022-04-17)
+### Fix
+* Reset cookies on proxy start ([#1568](https://github.com/custom-components/alexa_media_player/issues/1568)) ([`7aef24b`](https://github.com/custom-components/alexa_media_player/commit/7aef24b4d5be75fa302d9e1e12aff2b85ce057e5))
+* Reset cookies on proxy start ([`f064532`](https://github.com/custom-components/alexa_media_player/commit/f06453289189adb484a9b9a003489620b05abead))
+
 ## v3.11.1 (2022-04-05)
 ### Fix
 * Use EntityCategory enum instead of strings ([#1554](https://github.com/custom-components/alexa_media_player/issues/1554)) ([`695839c`](https://github.com/custom-components/alexa_media_player/commit/695839cbbf0a8cc51400f736c8c3d20ec99bb35b))

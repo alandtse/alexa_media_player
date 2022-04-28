@@ -64,7 +64,7 @@
       },
       "user": {
         "data": {
-          "cookies_txt": "Dados de cookies.txt",
+          "cookies_txt": "Cookies.txt data",
           "debug": "Depuração avançada",
           "email": "Endereço de e-mail",
           "exclude_devices": "Dispositivos excluídos (separado por vírgula)",

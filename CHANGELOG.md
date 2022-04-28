@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v3.11.3 (2022-04-28)
+### Fix
+* Bump dependencies ([`beedc06`](https://github.com/custom-components/alexa_media_player/commit/beedc062eb67114762ce2b322e68748f6e896ee6))
+
+### Documentation
+* Update localization ([`5f2de48`](https://github.com/custom-components/alexa_media_player/commit/5f2de48b9f113f56cf0a41bcb970dbca944d6924))
+
 ## v3.11.2 (2022-04-17)
 ### Fix
 * Reset cookies on proxy start ([#1568](https://github.com/custom-components/alexa_media_player/issues/1568)) ([`7aef24b`](https://github.com/custom-components/alexa_media_player/commit/7aef24b4d5be75fa302d9e1e12aff2b85ce057e5))

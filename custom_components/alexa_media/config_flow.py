@@ -34,6 +34,7 @@ from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
+import httpx
 import voluptuous as vol
 from yarl import URL
 
@@ -56,6 +57,7 @@ from .const import (
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
+    ISSUE_URL,
     STARTUP,
 )
 from .helpers import calculate_uuid

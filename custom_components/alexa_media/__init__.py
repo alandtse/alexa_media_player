@@ -326,9 +326,7 @@ async def async_setup_entry(hass, config_entry):
             return True
         return False
     except AlexapyConnectionError as err:
-        raise ConfigEntryNotReady(
-                str(err) or "Connection Error during login"
-            ) from err
+        raise ConfigEntryNotReady(str(err) or "Connection Error during login") from err
 
 
 async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
@@ -998,7 +996,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 "PUSH_LIST_ITEM_CHANGE",  # update shopping list
                 "PUSH_CONTENT_FOCUS_CHANGE",  # likely prime related refocus
                 "PUSH_DEVICE_SETUP_STATE_CHANGE",  # likely device changes mid setup
-                "PUSH_MEDIA_PREFERENCE_CHANGE", # disliking or liking songs, https://github.com/custom-components/alexa_media_player/issues/1599
+                "PUSH_MEDIA_PREFERENCE_CHANGE",  # disliking or liking songs, https://github.com/custom-components/alexa_media_player/issues/1599
             ]:
                 pass
             else:

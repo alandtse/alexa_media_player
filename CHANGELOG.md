@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.0.1 (2022-05-29)
+### Fix
+* Remove CONF_OAUTH_LOGIN calls ([`139fded`](https://github.com/custom-components/alexa_media_player/commit/139fded9a3dcd18b78e6bcecc16034f602f4bce4))
+
 ## v4.0.0 (2022-05-29)
 ### Fix
 * Catch httpx.ConnectError during proxy ([`96bbd55`](https://github.com/custom-components/alexa_media_player/commit/96bbd55ca99c3e314a08fe9d78e405416c0b9fcb))

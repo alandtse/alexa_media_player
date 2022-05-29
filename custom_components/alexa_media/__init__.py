@@ -50,13 +50,11 @@ from .config_flow import in_progess_instances
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
-    CONF_COOKIES_TXT,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_EXTENDED_ENTITY_DISCOVERY,
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
-    CONF_OAUTH_LOGIN,
     CONF_OTPSECRET,
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
@@ -218,12 +216,11 @@ async def async_setup_entry(hass, config_entry):
                     otp_secret=account.get(CONF_OTPSECRET, ""),
                     oauth=account.get(CONF_OAUTH, {}),
                     uuid=uuid,
-                    oauth_login=bool(
-                        account.get(CONF_OAUTH, {}).get("access_token")
-                        or account.get(CONF_OAUTH_LOGIN)
-                    ),
+                    oauth_login=True,
                 )
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
+            else:
+                login_obj.oauth_login = True
             await login_obj.reset()
             # await login_obj.login()
             if await test_login_status(hass, config_entry, login_obj):
@@ -1344,7 +1341,6 @@ async def test_login_status(hass, config_entry, login) -> bool:
             CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds()
             if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
             else account[CONF_SCAN_INTERVAL],
-            CONF_COOKIES_TXT: account.get(CONF_COOKIES_TXT, ""),
             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
         },
     )

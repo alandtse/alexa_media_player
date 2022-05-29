@@ -622,7 +622,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         # prune stale devices
-        device_registry = await dr.async_get_registry(hass)
+        device_registry = dr.async_get(hass)
         for device_entry in dr.async_entries_for_config_entry(
             device_registry, config_entry.entry_id
         ):

@@ -802,6 +802,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This will only attempt one login before failing.
         """
         websocket: Optional[WebsocketEchoClient] = None
+        email = login_obj.email
         try:
             if login_obj.session.closed:
                 _LOGGER.debug(
@@ -818,6 +819,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
             _LOGGER.debug("%s: Websocket created: %s", hide_email(email), websocket)
             await websocket.async_run()
+        except AlexapyLoginError as exception_:
+            _LOGGER.debug(
+                "%s: Login Error detected from websocket: %s",
+                hide_email(email),
+                exception_,
+            )
+            hass.bus.async_fire(
+                "alexa_media_relogin_required",
+                event_data={"email": hide_email(email), "url": login_obj.url},
+            )
+            return
         except BaseException as exception_:  # pylint: disable=broad-except
             _LOGGER.debug(
                 "%s: Websocket creation failed: %s", hide_email(email), exception_

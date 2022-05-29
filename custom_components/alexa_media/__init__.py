@@ -150,7 +150,6 @@ async def async_setup(hass, config, discovery_info=None):
                             ].total_seconds(),
                             CONF_OAUTH: account.get(CONF_OAUTH, {}),
                             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
-                            CONF_OAUTH_LOGIN: account.get(CONF_OAUTH_LOGIN, True),
                         },
                     )
                     entry_found = True
@@ -171,7 +170,6 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),
                         CONF_OAUTH: account.get(CONF_OAUTH, {}),
                         CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
-                        CONF_OAUTH_LOGIN: account.get(CONF_OAUTH_LOGIN, True),
                     },
                 )
             )
@@ -307,10 +305,7 @@ async def async_setup_entry(hass, config_entry):
             otp_secret=account.get(CONF_OTPSECRET, ""),
             oauth=account.get(CONF_OAUTH, {}),
             uuid=uuid,
-            oauth_login=bool(
-                account.get(CONF_OAUTH, {}).get("access_token")
-                or account.get(CONF_OAUTH_LOGIN)
-            ),
+            oauth_login=True,
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login

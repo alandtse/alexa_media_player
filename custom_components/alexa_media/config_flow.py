@@ -828,7 +828,14 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 if not success:
                     raise Unauthorized()
                 cls.known_ips[request.remote] = datetime.datetime.now()
-            return await cls.handler(request, **kwargs)
+            try:
+                return await cls.handler(request, **kwargs)
+            except httpx.ConnectError as ex:  # pylyint: disable=broad-except
+                _LOGGER.warning("Detected Connection error: %s", ex)
+                return web_response.Response(
+                    headers={"content-type": "text/html"},
+                    text=f"Connection Error! Please try refreshing. If this persists, please report this error to <a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
+                )
 
         return wrapped
 

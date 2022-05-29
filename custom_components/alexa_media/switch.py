@@ -315,7 +315,7 @@ class DNDSwitch(AlexaMediaSwitch):
     @property
     def entity_category(self):
         """Return the entity category of the switch."""
-        return EntityCategory.CONFIG 
+        return EntityCategory.CONFIG
 
     def _handle_event(self, event):
         """Handle events."""
@@ -356,7 +356,8 @@ class ShuffleSwitch(AlexaMediaSwitch):
     @property
     def entity_category(self):
         """Return the entity category of the switch."""
-        return EntityCategory.CONFIG 
+        return EntityCategory.CONFIG
+
 
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""
@@ -374,4 +375,4 @@ class RepeatSwitch(AlexaMediaSwitch):
     @property
     def entity_category(self):
         """Return the entity category of the switch."""
-        return EntityCategory.CONFIG 
+        return EntityCategory.CONFIG

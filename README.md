@@ -1,6 +1,6 @@
 ![Validate](https://github.com/custom-components/alexa_media_player/workflows/Validate/badge.svg)
 ![semantic_release](https://github.com/custom-components/alexa_media_player/workflows/semantic_release/badge.svg)
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 ![GitHub all releases](https://img.shields.io/github/downloads/custom-components/alexa_media_player/total)
 ![GitHub release (latest by SemVer)](https://img.shields.io/github/downloads/custom-components/alexa_media_player/latest/total)
 
@@ -8,7 +8,7 @@
 
 # What This Is:
 
-This is a custom component to allow control of Amazon Alexa devices in [Homeassistant](https://home-assistant.io) using the unofficial Alexa API. Please note this mimics the Alexa app but Amazon may cut off access at anytime.
+This is a custom component to allow control of Amazon Alexa devices in [Home Assistant](https://home-assistant.io) using the unofficial Alexa API. Please note this mimics the Alexa app but Amazon may cut off access at anytime.
 
 # What It Does:
 

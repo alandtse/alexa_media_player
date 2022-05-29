@@ -59,6 +59,7 @@ SERVICE_FORCE_LOGOUT = "force_logout"
 RECURRING_PATTERN = {
     None: "Never Repeat",
     "P1D": "Every day",
+    "P1M": "Every month",
     "XXXX-WE": "Weekends",
     "XXXX-WD": "Weekdays",
     "XXXX-WXX-1": "Every Monday",

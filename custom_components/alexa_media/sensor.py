@@ -381,7 +381,7 @@ class AlexaMediaNotificationSensor(Entity):
             _LOGGER.debug(
                 "%s with recurrence %s set to %s",
                 value[1]["type"],
-                RECURRING_PATTERN[recurring_pattern],
+                RECURRING_PATTERN.get(recurring_pattern),
                 alarm,
             )
             value[1][self._sensor_property] = alarm
@@ -526,7 +526,7 @@ class AlexaMediaNotificationSensor(Entity):
     def recurrence(self):
         """Return the recurrence pattern of the sensor."""
         return (
-            RECURRING_PATTERN[self._next.get("recurringPattern")]
+            RECURRING_PATTERN.get(self._next.get("recurringPattern"))
             if self._next
             else None
         )

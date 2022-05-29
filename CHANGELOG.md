@@ -2,6 +2,25 @@
 
 <!--next-version-placeholder-->
 
+## v4.0.0 (2022-05-29)
+### Fix
+* Catch httpx.ConnectError during proxy ([`96bbd55`](https://github.com/custom-components/alexa_media_player/commit/96bbd55ca99c3e314a08fe9d78e405416c0b9fcb))
+* Treat lack of mac_dms as login failure ([`d7c9a8c`](https://github.com/custom-components/alexa_media_player/commit/d7c9a8ce16745c747e5b83a3e4677c9c3f747c83))
+* Handle unknown recurring patterns ([`92bab7c`](https://github.com/custom-components/alexa_media_player/commit/92bab7c1ad73e9809cbab8de830aa7fb3d82bc55))
+* Use non-deprecated async_get ([`113b5e2`](https://github.com/custom-components/alexa_media_player/commit/113b5e274831687563659a8163b33e5d0bb39532))
+* Ignore PUSH_MEDIA_PREFERENCE_CHANGE ([`0dbcddf`](https://github.com/custom-components/alexa_media_player/commit/0dbcddfc3ed03b9c4874666d8b556e28f1102573))
+
+### Breaking
+* Legacy login and options have been removed. These options resulted in degraded operations and generated extra support requests. You will be forced to relogin if an older method is detected.  ([`ee724ab`](https://github.com/custom-components/alexa_media_player/commit/ee724ab693ef58cfc2b15d3b3eeee216b9ce7caa))
+
+### Documentation
+* Update localization ([`d5bbfd0`](https://github.com/custom-components/alexa_media_player/commit/d5bbfd09099da6f8197348ec17b50fad5d2c9410))
+* Change Homeassistant to Home Assistant ([#1597](https://github.com/custom-components/alexa_media_player/issues/1597)) ([`90037ed`](https://github.com/custom-components/alexa_media_player/commit/90037edc4db536b973b7f8d23d4a28f7df47f21c))
+* Update HACS url ([#1596](https://github.com/custom-components/alexa_media_player/issues/1596)) ([`d9d119a`](https://github.com/custom-components/alexa_media_player/commit/d9d119a6e8aca13bd0acf6a583ea808d2be87597))
+
+### Refactor
+* Remove legacy login options ([`ee724ab`](https://github.com/custom-components/alexa_media_player/commit/ee724ab693ef58cfc2b15d3b3eeee216b9ce7caa))
+
 ## v3.11.3 (2022-04-28)
 ### Fix
 * Bump dependencies ([`beedc06`](https://github.com/custom-components/alexa_media_player/commit/beedc062eb67114762ce2b322e68748f6e896ee6))

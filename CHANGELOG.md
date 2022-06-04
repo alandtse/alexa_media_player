@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v4.0.2 (2022-06-04)
+### Fix
+* Store and reuse mac_dms between sessions ([`d663209`](https://github.com/custom-components/alexa_media_player/commit/d6632093d39a989b705ee0f8b993abae97805819))
+
+### Documentation
+* Update localization ([`3afd369`](https://github.com/custom-components/alexa_media_player/commit/3afd369f82f10493f9a9ad3927e3bfc0dc8360cd))
+
 ## v4.0.1 (2022-05-29)
 ### Fix
 * Remove CONF_OAUTH_LOGIN calls ([`139fded`](https://github.com/custom-components/alexa_media_player/commit/139fded9a3dcd18b78e6bcecc16034f602f4bce4))

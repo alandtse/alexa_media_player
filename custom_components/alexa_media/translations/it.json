@@ -14,38 +14,10 @@
       "unknown_error": "Errore sconosciuto, si prega di abilitare il debug avanzato e riportare i log informativi"
     },
     "step": {
-      "action_required": {
-        "data": {
-          "proxy": "Usa metodo Proxy per il login (2FA non richiesto)"
-        },
-        "description": "**{email} - alexa. {url}**\n Amazon invierà una notifica push per il seguente messaggio. Si prega di rispondere completamente prima di continuare.\n {message}",
-        "title": "Alexa Media Player - Azione Richiesta"
-      },
-      "authselect": {
-        "data": {
-          "authselectoption": "Metodo password usa e getta (OTP)",
-          "proxy": "Usa metodo Proxy per il login (2FA non richiesto)"
-        },
-        "description": "**{email} - alexa.{url}**\n{message}",
-        "title": "Alexa Media Player - Password Usa e Getta (One Time Password)"
-      },
       "captcha": {
         "data": {
-          "captcha": "Captcha",
-          "password": "Password",
-          "proxy": "Usa metodo Proxy per il login (2FA non richiesto)",
           "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)"
-        },
-        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
-        "title": "Alexa Media Player - Captcha"
-      },
-      "claimspicker": {
-        "data": {
-          "authselectoption": "Metodo di verifica",
-          "proxy": "Usa metodo Proxy per il login (2FA non richiesto)"
-        },
-        "description": "**{email} - alexa.{url}**\nSelezionare un metodo di verifica con un numero. (ad es., `0` o `1`)\n{message}",
-        "title": "Alexa Media Player - Metodo di verifica"
+        }
       },
       "totp_register": {
         "data": {
@@ -54,50 +26,21 @@
         "description": "**{email} - alexa.{url}**\nHai confermato con successo una chiave usa e getta (OTP) dall'applicazione 2FA integrata con Amazon?\n>Codice OTP {message}",
         "title": "Alexa Media Player - Conferma OTP"
       },
-      "twofactor": {
-        "data": {
-          "proxy": "Usa metodo Proxy per il login (2FA non richiesto)",
-          "securitycode": "Codice autenticazione a due fattori (2FA)"
-        },
-        "description": "**{email} - alexa.{url}**  \nInserisci la password usa e getta (OTP).  \n{message}",
-        "title": "Alexa Media Player - Autenticazione a Due Fattori"
-      },
       "user": {
         "data": {
-          "cookies_txt": "Dati cookies.txt",
           "debug": "Debug avanzato",
           "email": "Indirizzo email",
           "exclude_devices": "Dispositivi da escludere (separati da virgola)",
           "hass_url": "URL per accedere a Home Assistant",
           "include_devices": "Dispositivi da includere (separati da virgola)",
-          "oauth_login": "Abilita metodo app oauth-token",
           "otp_secret": "Chiave dell'app 2FA integrata (generazione automatica di codici 2FA)",
           "password": "Password",
-          "proxy": "Usa metodo Proxy per il login (2FA non richiesto)",
           "scan_interval": "Tempo in secondi fra le scansioni",
           "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)",
           "url": "Regione del dominio Amazon (ad es., amazon.it)"
         },
-        "description": "Confermare le informazioni sottostanti. Per le vecchie configurazioni, disabilitare l'opzione `Usa Proxy come metodo di login`.",
+        "description": "Confermare le informazioni sottostanti.",
         "title": "Alexa Media Player - Configurazione"
-      },
-      "user_legacy": {
-        "data": {
-          "cookies_txt": "Dati cookies.txt",
-          "debug": "Debug avanzato",
-          "email": "Indirizzo email",
-          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
-          "include_devices": "Dispositivi da includere (separati da virgola)",
-          "oauth_login": "Abilitare il metodo oauth-token app",
-          "otp_secret": "Chiave 2FA integrata (genera automaticamente i codici 2FA)",
-          "password": "Password",
-          "proxy": "Usa metodo Proxy per il login (2FA non richiesto)",
-          "scan_interval": "Tempo in secondi fra le scansioni",
-          "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)",
-          "url": "Regione del dominio Amazon (ad es., amazon.it)"
-        },
-        "description": "Prego inserisci le tue [informazioni](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) potrebbe essere più semplice!**   \n**ATTENZIONE: Amazon risponde incorrettamente 'Inserire una mail valida o un numero di telefono' quando è richiesto il codice 2FA](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).** \n>{message}",
-        "title": "Alexa Media Player - Vecchia configurazione"
       }
     }
   },

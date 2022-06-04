@@ -642,6 +642,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         "access_token": login_obj.access_token,
                         "refresh_token": login_obj.refresh_token,
                         "expires_in": login_obj.expires_in,
+                        "mac_dms": login_obj.mac_dms
                     },
                 },
             )

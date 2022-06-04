@@ -7,23 +7,23 @@ license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-alexapy = "1.25.6"
+alexapy = "1.26.0"
 packaging = ">=20.3"
 wrapt = ">=1.12.1"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^2.10.1"
+pre-commit = ">2.10.1"
 flake8 = "*"
 mypy = "*"
 pydocstyle = "*"
 pylint = "*"
 pytest-cov = "*"
-safety = "^1.8.7"
-black = {version = "^20.8b1", allow-prereleases = true}
-pytest = "^6.2.2"
+safety = ">1.8.7"
+black = {version = ">20.8b1", allow-prereleases = true}
+pytest = ">6.2.2"
 # homeassistant = ">=2021.11.4"
-codespell = "^2.0.0"
-yamllint = "^1.26.0"
+codespell = ">2.0.0"
+yamllint = ">1.26.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

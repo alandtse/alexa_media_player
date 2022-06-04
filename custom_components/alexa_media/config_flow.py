@@ -523,6 +523,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "access_token": login.access_token,
                 "refresh_token": login.refresh_token,
                 "expires_in": login.expires_in,
+                "mac_dms": login.mac_dms
             }
             self.hass.data.setdefault(
                 DATA_ALEXAMEDIA,

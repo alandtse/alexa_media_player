@@ -146,22 +146,44 @@ class AlexaNotificationService(BaseNotificationService):
         for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
             if "entities" not in account_dict:
                 return devices
+            last_called_entity = None
             for _, entity in account_dict["entities"]["media_player"].items():
                 entity_name = (entity.entity_id).split(".")[1]
                 devices[entity_name] = entity.unique_id
                 if self.last_called and entity.extra_state_attributes.get(
                     "last_called"
                 ):
-                    entity_name_last_called = (
-                        f"last_called{'_'+ email if entity_name[-1:].isdigit() else ''}"
-                    )
-                    _LOGGER.debug(
-                        "%s: Creating last_called target %s using %s",
-                        hide_email(email),
-                        entity_name_last_called,
-                        entity,
-                    )
-                    devices[entity_name_last_called] = entity.unique_id
+                    if last_called_entity is None:
+                        _LOGGER.debug(
+                            "%s: Found last_called %s called at %s",
+                            hide_email(email),
+                            entity,
+                            entity.extra_state_attributes.get("last_called_timestamp"),
+                        )                                           
+                        last_called_entity = entity
+                    elif (last_called_entity.extra_state_attributes.get("last_called_timestamp")
+                            < entity.extra_state_attributes.get("last_called_timestamp")
+                    ):                        
+                        _LOGGER.debug(
+                            "%s: Found newer last_called %s called at %s",
+                            hide_email(email),
+                            entity,
+                            entity.extra_state_attributes.get("last_called_timestamp"),
+                        )                   
+                        last_called_entity = entity
+            if last_called_entity is not None:
+                entity_name = (last_called_entity.entity_id).split(".")[1]
+                entity_name_last_called = (
+                    f"last_called{'_'+ email if entity_name[-1:].isdigit() else ''}"
+                )
+                _LOGGER.debug(
+                    "%s: Creating last_called target %s using %s called at %s",
+                    hide_email(email),
+                    entity_name_last_called,
+                    last_called_entity,
+                    last_called_entity.extra_state_attributes.get("last_called_timestamp"),
+                )
+                devices[entity_name_last_called] = last_called_entity.unique_id
         return devices
 
     @property

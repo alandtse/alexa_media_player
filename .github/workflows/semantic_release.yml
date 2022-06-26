@@ -51,7 +51,7 @@ jobs:
           git add custom_components/alexa_media/translations/*.json
           git commit -m "docs: update localization" -a
       - name: Python Semantic Release
-        uses: relekang/python-semantic-release@master
+        uses: relekang/python-semantic-release@v7.28.1
         with:
           github_token: ${{ secrets.GH_TOKEN }}
       # Pack the alexa_media_player dir as a zip and upload to the release

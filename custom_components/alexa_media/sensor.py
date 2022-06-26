@@ -37,6 +37,7 @@ from . import (
 from .alexa_entity import parse_temperature_from_coordinator
 from .const import (
     CONF_EXTENDED_ENTITY_DISCOVERY,
+    RECURRING_DAY,
     RECURRING_PATTERN,
     RECURRING_PATTERN_ISO_SET,
 )
@@ -228,7 +229,7 @@ class AlexaMediaNotificationSensor(Entity):
         self,
         client,
         n_dict,
-        sensor_property: Text,
+        sensor_property: str,
         account,
         name="Next Notification",
         icon=None,
@@ -252,9 +253,9 @@ class AlexaMediaNotificationSensor(Entity):
         self._tracker: Optional[Callable] = None
         self._state: Optional[datetime.datetime] = None
         self._dismissed: Optional[datetime.datetime] = None
-        self._status: Optional[Text] = None
-        self._amz_id: Optional[Text] = None
-        self._version: Optional[Text] = None
+        self._status: Optional[str] = None
+        self._amz_id: Optional[str] = None
+        self._version: Optional[str] = None
 
     def _process_raw_notifications(self):
         self._all = (
@@ -356,35 +357,47 @@ class AlexaMediaNotificationSensor(Entity):
 
     def _update_recurring_alarm(self, value):
         _LOGGER.debug("Sensor value %s", value)
-        alarm = value[1][self._sensor_property]
+        next_item = value[1]
+        alarm = next_item[self._sensor_property]
         reminder = None
-        if isinstance(value[1][self._sensor_property], (int, float)):
+        recurrence = []
+        if isinstance(next_item[self._sensor_property], (int, float)):
             reminder = True
             alarm = dt.as_local(
                 self._round_time(
                     datetime.datetime.fromtimestamp(alarm / 1000, tz=LOCAL_TIMEZONE)
                 )
             )
-        alarm_on = value[1]["status"] == "ON"
-        recurring_pattern = value[1].get("recurringPattern")
+        alarm_on = next_item["status"] == "ON"
+        r_rule_data = next_item.get("rRuleData")
+        if r_rule_data:  # the new recurrence pattern; https://github.com/custom-components/alexa_media_player/issues/1608
+            next_trigger_times = r_rule_data.get("nextTriggerTimes")
+            weekdays = r_rule_data.get("byWeekDays")
+            if next_trigger_times:
+                alarm = next_trigger_times[0]
+            elif weekdays:
+                for day in weekdays:
+                    recurrence.append(RECURRING_DAY[day])
+        else:
+            recurring_pattern = next_item.get("recurringPattern")
+            recurrence = RECURRING_PATTERN_ISO_SET.get(recurring_pattern)
         while (
             alarm_on
-            and recurring_pattern
-            and RECURRING_PATTERN_ISO_SET.get(recurring_pattern)
-            and alarm.isoweekday not in RECURRING_PATTERN_ISO_SET[recurring_pattern]
+            and recurrence
+            and alarm.isoweekday not in recurrence
             and alarm < dt.now()
         ):
             alarm += datetime.timedelta(days=1)
         if reminder:
             alarm = dt.as_timestamp(alarm) * 1000
-        if alarm != value[1][self._sensor_property]:
+        if alarm != next_item[self._sensor_property]:
             _LOGGER.debug(
                 "%s with recurrence %s set to %s",
-                value[1]["type"],
-                RECURRING_PATTERN.get(recurring_pattern),
+                next_item["type"],
+                recurrence,
                 alarm,
             )
-            value[1][self._sensor_property] = alarm
+        next_item[self._sensor_property] = alarm
         return value
 
     @staticmethod

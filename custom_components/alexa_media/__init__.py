@@ -148,8 +148,12 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_SCAN_INTERVAL: account[
                                 CONF_SCAN_INTERVAL
                             ].total_seconds(),
-                            CONF_OAUTH: account.get(CONF_OAUTH, {}),
-                            CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
+                            CONF_OAUTH: account.get(
+                                CONF_OAUTH, entry.data.get(CONF_OAUTH, {})
+                            ),
+                            CONF_OTPSECRET: account.get(
+                                CONF_OTPSECRET, entry.data.get(CONF_OTPSECRET, "")
+                            ),
                         },
                     )
                     entry_found = True

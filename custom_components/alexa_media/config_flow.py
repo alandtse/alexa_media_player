@@ -103,7 +103,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.info(STARTUP)
             _LOGGER.info("Loaded alexapy==%s", alexapy_version)
         self.login = None
-        self.securitycode: Optional[Text] = None
+        self.securitycode: Optional[str] = None
         self.automatic_steps: int = 0
         self.config = OrderedDict()
         self.proxy_schema = None
@@ -132,7 +132,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Provide a proxy for login."""
         self._save_user_input_to_config(user_input=user_input)
         try:
-            hass_url: Text = get_url(self.hass, prefer_external=True)
+            hass_url: str = get_url(self.hass, prefer_external=True)
         except NoURLAvailableError:
             hass_url = ""
         self.proxy_schema = OrderedDict(
@@ -222,6 +222,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     outputpath=self.hass.config.path,
                     debug=self.config[CONF_DEBUG],
                     otp_secret=self.config.get(CONF_OTPSECRET, ""),
+                    oauth=self.config.get(CONF_OAUTH, {}),
                     uuid=uuid,
                     oauth_login=True,
                 )
@@ -239,7 +240,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 errors={"base": "2fa_key_invalid"},
                 description_placeholders={"message": ""},
             )
-        hass_url: Text = user_input.get(CONF_HASS_URL)
+        hass_url: str = user_input.get(CONF_HASS_URL)
         hass_url_valid: bool = False
         async with ClientSession() as session:
             try:
@@ -267,7 +268,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             and user_input.get(CONF_OTPSECRET)
             and user_input.get(CONF_OTPSECRET).replace(" ", "")
         ):
-            otp: Text = self.login.get_totp_token()
+            otp: str = self.login.get_totp_token()
             if otp:
                 _LOGGER.debug("Generating OTP from %s", otp)
                 return self.async_show_form(
@@ -387,7 +388,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 and user_input.get(CONF_OTPSECRET)
                 and user_input.get(CONF_OTPSECRET).replace(" ", "")
             ):
-                otp: Text = self.login.get_totp_token()
+                otp: str = self.login.get_totp_token()
                 if otp:
                     _LOGGER.debug("Generating OTP from %s", otp)
                     return self.async_show_form(
@@ -443,7 +444,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self._save_user_input_to_config(user_input=user_input)
         if user_input and user_input.get("registered") is False:
             _LOGGER.debug("Not registered, regenerating")
-            otp: Text = self.login.get_totp_token()
+            otp: str = self.login.get_totp_token()
             if otp:
                 _LOGGER.debug("Generating OTP from %s", otp)
                 return self.async_show_form(
@@ -568,7 +569,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "Creating config_flow to request 2FA. Saved security code %s",
                 self.securitycode,
             )
-            generated_securitycode: Text = login.get_totp_token()
+            generated_securitycode: str = login.get_totp_token()
             if (
                 self.securitycode or generated_securitycode
             ) and self.automatic_steps < 2:
@@ -784,12 +785,12 @@ class AlexaMediaAuthorizationCallbackView(HomeAssistantView):
 class AlexaMediaAuthorizationProxyView(HomeAssistantView):
     """Handle proxy connections."""
 
-    url: Text = AUTH_PROXY_PATH
-    extra_urls: List[Text] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
-    name: Text = AUTH_PROXY_NAME
+    url: str = AUTH_PROXY_PATH
+    extra_urls: List[str] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
+    name: str = AUTH_PROXY_NAME
     requires_auth: bool = False
     handler: web.RequestHandler = None
-    known_ips: Dict[Text, datetime.datetime] = {}
+    known_ips: Dict[str, datetime.datetime] = {}
     auth_seconds: int = 300
 
     def __init__(self, handler: web.RequestHandler):

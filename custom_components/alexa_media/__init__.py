@@ -148,8 +148,12 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_SCAN_INTERVAL: account[
                                 CONF_SCAN_INTERVAL
                             ].total_seconds(),
-                            CONF_OAUTH: account.get(CONF_OAUTH, {}),
-                            CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
+                            CONF_OAUTH: account.get(
+                                CONF_OAUTH, entry.data.get(CONF_OAUTH, {})
+                            ),
+                            CONF_OTPSECRET: account.get(
+                                CONF_OTPSECRET, entry.data.get(CONF_OTPSECRET, "")
+                            ),
                         },
                     )
                     entry_found = True
@@ -642,7 +646,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         "access_token": login_obj.access_token,
                         "refresh_token": login_obj.refresh_token,
                         "expires_in": login_obj.expires_in,
-                        "mac_dms": login_obj.mac_dms
+                        "mac_dms": login_obj.mac_dms,
                     },
                 },
             )
@@ -653,7 +657,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         """Process raw notifications json."""
         if not raw_notifications:
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
-        email: Text = login_obj.email
+        email: str = login_obj.email
         previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
             "notifications", {}
         )
@@ -1055,7 +1059,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     async def ws_open_handler():
         """Handle websocket open."""
 
-        email: Text = login_obj.email
+        email: str = login_obj.email
         _LOGGER.debug("%s: Websocket successfully connected", hide_email(email))
         hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "websocketerror"
@@ -1070,7 +1074,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This should attempt to reconnect up to 5 times
         """
 
-        email: Text = login_obj.email
+        email: str = login_obj.email
         if login_obj.close_requested:
             _LOGGER.debug(
                 "%s: Close requested; will not reconnect websocket", hide_email(email)
@@ -1082,7 +1086,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
             return
         errors: int = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
-        delay: int = 5 * 2 ** errors
+        delay: int = 5 * 2**errors
         last_attempt = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "websocket_lastattempt"
         ]
@@ -1108,7 +1112,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = (
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] + 1
             )
-            delay = 5 * 2 ** errors
+            delay = 5 * 2**errors
             errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
             await asyncio.sleep(delay)
         if not websocket_enabled:
@@ -1129,7 +1133,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         the websocket and determine if a reconnect should be done. By
         specification, websockets will issue a close after every error.
         """
-        email: Text = login_obj.email
+        email: str = login_obj.email
         errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
         _LOGGER.debug(
             "%s: Received websocket error #%i %s: type %s",
@@ -1246,7 +1250,7 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-async def close_connections(hass, email: Text) -> None:
+async def close_connections(hass, email: str) -> None:
     """Clear open aiohttp connections for email."""
     if (
         email not in hass.data[DATA_ALEXAMEDIA]["accounts"]
@@ -1294,7 +1298,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
     account = config_entry.data
     _LOGGER.debug("Logging in: %s %s", obfuscate(account), in_progess_instances(hass))
     _LOGGER.debug("Login stats: %s", login.stats)
-    message: Text = f"Reauthenticate {login.email} on the [Integrations](/config/integrations) page. "
+    message: str = f"Reauthenticate {login.email} on the [Integrations](/config/integrations) page. "
     if login.stats.get("login_timestamp") != datetime(1, 1, 1):
         elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
         api_calls: int = login.stats.get("api_calls")

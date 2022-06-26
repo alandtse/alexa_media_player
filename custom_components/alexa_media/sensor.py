@@ -10,6 +10,7 @@ import datetime
 import logging
 from typing import Callable, List, Optional, Text  # noqa pylint: disable=unused-import
 
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import (
     DEVICE_CLASS_TIMESTAMP,
     STATE_UNAVAILABLE,
@@ -18,7 +19,6 @@ from homeassistant.const import (
 )
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt
@@ -182,7 +182,7 @@ def lookup_device_info(account_dict, device_serial):
     return None
 
 
-class TemperatureSensor(CoordinatorEntity):
+class TemperatureSensor(SensorEntity, CoordinatorEntity):
     """A temperature sensor reported by an Echo."""
 
     def __init__(self, coordinator, entity_id, name, media_player_device_id):
@@ -222,7 +222,7 @@ class TemperatureSensor(CoordinatorEntity):
         return self.alexa_entity_id + "_temperature"
 
 
-class AlexaMediaNotificationSensor(Entity):
+class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""
 
     def __init__(

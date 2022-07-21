@@ -8,7 +8,7 @@
     "error": {
       "2fa_key_invalid": "Chiave 2FA incorporata non valida",
       "connection_error": "Errore durante la connessione; controlla la rete e riprova",
-      "hass_url_invalid": "Impossibile collegarsi all'URL di Home Assistant. Controllare l'URL esterno nel menu Configurazione -> Generale",
+      "unable_to_connect_hass_url": "Impossibile collegarsi all'URL di Home Assistant. Controllare l'URL esterno nel menu Configurazione -> Generale",
       "identifier_exists": "L'email per l'URL di Alexa è già stata registrata",
       "invalid_credentials": "Credenziali non valide",
       "unknown_error": "Errore sconosciuto, si prega di abilitare il debug avanzato e riportare i log informativi"

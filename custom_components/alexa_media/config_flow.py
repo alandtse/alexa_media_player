@@ -14,7 +14,7 @@ from functools import reduce
 import logging
 from typing import Any, Dict, List, Optional, Text
 
-from aiohttp import ClientConnectionError, ClientSession, web, web_response
+from aiohttp import ClientConnectionError, ClientSession, InvalidURL, web, web_response
 from aiohttp.web_exceptions import HTTPBadRequest
 from alexapy import (
     AlexaLogin,
@@ -50,6 +50,7 @@ from .const import (
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
     CONF_OTPSECRET,
+    CONF_PROXY_WARNING,
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
@@ -122,6 +123,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         )
         self.totp_register = OrderedDict(
             [(vol.Optional(CONF_TOTP_REGISTER, default=False), bool)]
+        )
+        self.proxy_warning = OrderedDict(
+            [(vol.Optional(CONF_PROXY_WARNING, default=False), bool)]
         )
 
     async def async_step_import(self, import_config):
@@ -242,27 +246,31 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             )
         hass_url: str = user_input.get(CONF_HASS_URL)
         hass_url_valid: bool = False
+        hass_url_error: str = ""
         async with ClientSession() as session:
             try:
                 async with session.get(hass_url) as resp:
                     hass_url_valid = resp.status == 200
-            except ClientConnectionError:
+            except (ClientConnectionError) as err:
                 hass_url_valid = False
+                hass_url_error = str(err)
+            except (InvalidURL) as err:
+                hass_url_valid = False
+                hass_url_error = str(err.__cause__)
         if not hass_url_valid:
             _LOGGER.debug(
                 "Unable to connect to provided Home Assistant url: %s", hass_url
             )
             return self.async_show_form(
-                step_id="user",
-                errors={"base": "hass_url_invalid"},
-                description_placeholders={"message": ""},
-            )
-        if not self.proxy:
-            self.proxy = AlexaProxy(
-                self.login, str(URL(hass_url).with_path(AUTH_PROXY_PATH))
-            )
-        # Swap the login object
-        self.proxy.change_login(self.login)
+                step_id="proxy_warning",
+                data_schema=vol.Schema(self.proxy_warning),
+                errors={},
+                description_placeholders={
+                    "email": self.login.email,
+                    "hass_url": hass_url,
+                    "error": hass_url_error
+                },
+            )        
         if (
             user_input
             and user_input.get(CONF_OTPSECRET)
@@ -290,6 +298,19 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             hide_email(self.login.email),
             self.login.url,
         )
+        if not self.proxy:
+            try:
+                self.proxy = AlexaProxy(
+                    self.login, str(URL(self.config.get(CONF_HASS_URL)).with_path(AUTH_PROXY_PATH))
+                )
+            except ValueError as ex:
+                return self.async_show_form(
+                    step_id="user",
+                    errors={"base": "invalid_url"},
+                    description_placeholders={"message": str(ex)},
+                )
+        # Swap the login object
+        self.proxy.change_login(self.login)
         if not self.proxy_view:
             self.proxy_view = AlexaMediaAuthorizationProxyView(self.proxy.all_handler)
         else:
@@ -298,7 +319,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.hass.http.register_view(AlexaMediaAuthorizationCallbackView())
         self.hass.http.register_view(self.proxy_view)
         callback_url = (
-            URL(self.config["hass_url"])
+            URL(self.config[CONF_HASS_URL])
             .with_path(AUTH_CALLBACK_PATH)
             .with_query({"flow_id": self.flow_id})
         )
@@ -436,13 +457,26 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             return self.async_show_form(
                 step_id="user_legacy",
                 errors={"base": "unknown_error"},
+                description_placeholders={"message": str(ex)},
+            )
+
+    async def async_step_proxy_warning(self, user_input=None):
+        """Handle the proxy_warning for the config flow."""
+        self._save_user_input_to_config(user_input=user_input)
+        if user_input and user_input.get(CONF_PROXY_WARNING) is False:
+            _LOGGER.debug("User is not accepting warning, go back")
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(self.proxy_schema),
                 description_placeholders={"message": ""},
             )
+        _LOGGER.debug("User is ignoring proxy warning; starting proxy anyway")
+        return await self.async_step_start_proxy(user_input)
 
     async def async_step_totp_register(self, user_input=None):
         """Handle the input processing of the config flow."""
         self._save_user_input_to_config(user_input=user_input)
-        if user_input and user_input.get("registered") is False:
+        if user_input and user_input.get(CONF_TOTP_REGISTER) is False:
             _LOGGER.debug("Not registered, regenerating")
             otp: str = self.login.get_totp_token()
             if otp:

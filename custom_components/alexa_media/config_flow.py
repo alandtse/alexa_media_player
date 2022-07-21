@@ -298,7 +298,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.hass.http.register_view(AlexaMediaAuthorizationCallbackView())
         self.hass.http.register_view(self.proxy_view)
         callback_url = (
-            URL(self.config["hass_url"])
+            URL(self.config[CONF_HASS_URL])
             .with_path(AUTH_CALLBACK_PATH)
             .with_query({"flow_id": self.flow_id})
         )
@@ -442,7 +442,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     async def async_step_totp_register(self, user_input=None):
         """Handle the input processing of the config flow."""
         self._save_user_input_to_config(user_input=user_input)
-        if user_input and user_input.get("registered") is False:
+        if user_input and user_input.get(CONF_TOTP_REGISTER) is False:
             _LOGGER.debug("Not registered, regenerating")
             otp: str = self.login.get_totp_token()
             if otp:

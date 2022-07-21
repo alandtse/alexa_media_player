@@ -1,7 +1,7 @@
 {
   "domain": "alexa_media",
   "name": "Alexa Media Player",
-  "version": "4.0.3",
+  "version": "4.1.0",
   "config_flow": true,
   "documentation": "https://github.com/custom-components/alexa_media_player/wiki",
   "issue_tracker": "https://github.com/custom-components/alexa_media_player/issues",

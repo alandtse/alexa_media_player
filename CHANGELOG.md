@@ -2,6 +2,16 @@
 
 <!--next-version-placeholder-->
 
+## v4.1.0 (2022-07-21)
+### Feature
+* Allow skipping of proxy warning ([`5ed2082`](https://github.com/custom-components/alexa_media_player/commit/5ed208250f6c3e951e653fa2f88ff3345c5496ce))
+
+### Documentation
+* Update localization ([`76cfff2`](https://github.com/custom-components/alexa_media_player/commit/76cfff281cbdad9d6ef27a05b6ec9585c7e9af6f))
+
+### Refactor
+* Replace hard coded strings ([`a08cc04`](https://github.com/custom-components/alexa_media_player/commit/a08cc04754d2fa960ffe5c89812717c4683994ab))
+
 ## v4.0.3 (2022-06-26)
 ### Fix
 * **sensor:** Inherit from SensorEntity ([`c28b8ef`](https://github.com/custom-components/alexa_media_player/commit/c28b8efd1f800b73761db6960dc97c68af71b7c3))

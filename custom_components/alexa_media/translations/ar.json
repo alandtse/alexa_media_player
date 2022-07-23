@@ -1,46 +1,46 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated."
+      "forgot_password": "تم الكشف عن صفحة نسيت كلمة المرور. عادة ما يكون هذا نتيجة لعمليات تسجيل الدخول الفاشلة أيضًا. قد تتطلب أمازون اتخاذ إجراء قبل محاولة إعادة تسجيل الدخول.",
+      "login_failed": "فشل تسجيل الدخول إلى Alexa Media Player.",
+      "reauth_successful": "تمت إعادة مصادقة Alexa Media Player بنجاح."
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
-      "connection_error": "Error connecting; check network and retry",
-      "hass_url_invalid": "Unable to connect to Home Assistant url. Please check the External Url under Configuration -> General",
-      "identifier_exists": "Email for Alexa URL already registered",
-      "invalid_credentials": "Invalid credentials",
-      "unknown_error": "Unknown error, please enable advanced debugging and report log info"
+      "2fa_key_invalid": "مفتاح 2FA غير صالح",
+      "connection_error": "خطأ في الاتصال؛ تحقق من الشبكة وإعادة الاتصال",
+      "hass_url_invalid": "تعذر الاتصال بعنوان URL الخاص بـ Home Assistant. يرجى التحقق من عنوان URL الخارجي ضمن الإعدادات -> الشبكة",
+      "identifier_exists": "البريد الإلكتروني الخاص بـ Alexa URL مسجل بالفعل",
+      "invalid_credentials": "بيانات دخول غير صالحة",
+      "unknown_error": "خطأ غير معروف، يرجى تفعيل التصحيح المتقدم (debugging) والإبلاغ عن معلومات السجل"
     },
     "step": {
       "captcha": {
         "data": {
-          "securitycode": "2FA Code (recommended to avoid login issues)"
+          "securitycode": "2FA Code (موصى به لتجنب مشاكل تسجيل الدخول)"
         }
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "تم تأكيد OTP من مفتاح التطبيق المدمج 2FA بنجاح."
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "description": "**{email} - alexa.{url}**  \nهل نجحت في تأكيد كلمة المرور لمرة واحدة (OTP) من مفتاح التطبيق المدمج 2FA مع أمازون؟  \n >رمز OTP {message}",
+        "title": "Alexa Media Player - تأكيد OTP"
       },
       "user": {
         "data": {
-          "debug": "Advanced debugging",
-          "email": "Email Address",
-          "exclude_devices": "Excluded device (comma separated)",
-          "hass_url": "Url to access Home Assistant",
-          "include_devices": "Included device (comma separated)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
-          "password": "Password",
-          "scan_interval": "Seconds between scans",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
-          "url": "Amazon region domain (e.g., amazon.co.uk)"
+          "debug": "التصحيح المتقدم",
+          "email": "البريد الالكترونى",
+          "exclude_devices": "جهاز مستبعد (افصل بفاصلة)",
+          "hass_url": "عنوان Url للوصول إلى Home Assistant",
+          "include_devices": "الجهاز المضمن (افصل بفاصلة)",
+          "otp_secret": "مفتاح تطبيق 2FA مدمج (ينشئ رموز 2FA تلقائيًا)",
+          "password": "كلمة المرور",
+          "scan_interval": "عدد الثواني بين عمليات الفحص",
+          "securitycode": "2FA Code (موصى به لتجنب مشاكل تسجيل الدخول)",
+          "url": "مجال منطقة أمازون (على سبيل المثال، amazon.co.uk)"
         },
-        "description": "Please confirm the information below.",
-        "title": "Alexa Media Player - Configuration"
+        "description": "يرجى تأكيد المعلومات أدناه.",
+        "title": "Alexa Media Player - الإعدادات"
       }
     }
   },
@@ -48,8 +48,8 @@
     "step": {
       "init": {
         "data": {
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "queue_delay": "Seconds to wait to queue commands together"
+          "extended_entity_discovery": "قم بتضمين الأجهزة المتصلة عبر Echo",
+          "queue_delay": "ثوانٍ للانتظار حتى يتم ترتيب الأوامر معًا"
         }
       }
     }

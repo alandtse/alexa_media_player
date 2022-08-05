@@ -2,6 +2,30 @@
 
 <!--next-version-placeholder-->
 
+## v4.1.0 (2022-07-21)
+### Feature
+* Allow skipping of proxy warning ([`5ed2082`](https://github.com/custom-components/alexa_media_player/commit/5ed208250f6c3e951e653fa2f88ff3345c5496ce))
+
+### Documentation
+* Update localization ([`76cfff2`](https://github.com/custom-components/alexa_media_player/commit/76cfff281cbdad9d6ef27a05b6ec9585c7e9af6f))
+
+### Refactor
+* Replace hard coded strings ([`a08cc04`](https://github.com/custom-components/alexa_media_player/commit/a08cc04754d2fa960ffe5c89812717c4683994ab))
+
+## v4.0.3 (2022-06-26)
+### Fix
+* **sensor:** Inherit from SensorEntity ([`c28b8ef`](https://github.com/custom-components/alexa_media_player/commit/c28b8efd1f800b73761db6960dc97c68af71b7c3))
+* Fix forced relogin using configuration.yaml ([`a006bcc`](https://github.com/custom-components/alexa_media_player/commit/a006bcc18f81ffcb1c734b77a06f9f320dbbf842))
+* **notifications:** Handle new recurrence rules ([`2c70eda`](https://github.com/custom-components/alexa_media_player/commit/2c70eda500d000547970c0d2d67657bcfea0e90c))
+* Bump alexapy==1.26.1 ([`56a1633`](https://github.com/custom-components/alexa_media_player/commit/56a1633fe0de965ee74b0ea217a14962fb768335))
+* Address potential race condition with last_called ([`f197307`](https://github.com/custom-components/alexa_media_player/commit/f19730729413c353997f5bb5f2edff8452deacad))
+
+### Documentation
+* Update localization ([`bc0ddbb`](https://github.com/custom-components/alexa_media_player/commit/bc0ddbbecea25b5dd864782d2c7ec03cfaaa0e30))
+
+### Refactor
+* Add next_alarm label ([`33f5d4c`](https://github.com/custom-components/alexa_media_player/commit/33f5d4c2b70c976641ff419d9d791ed0970b99d7))
+
 ## v4.0.2 (2022-06-04)
 ### Fix
 * Store and reuse mac_dms between sessions ([`d663209`](https://github.com/custom-components/alexa_media_player/commit/d6632093d39a989b705ee0f8b993abae97805819))

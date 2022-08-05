@@ -8,7 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from datetime import timedelta
 
-__version__ = "4.0.2"
+__version__ = "4.1.0"
 PROJECT_URL = "https://github.com/custom-components/alexa_media_player/"
 ISSUE_URL = f"{PROJECT_URL}issues"
 
@@ -42,6 +42,7 @@ CONF_EXTENDED_ENTITY_DISCOVERY = "extended_entity_discovery"
 CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
 CONF_PROXY = "proxy"
+CONF_PROXY_WARNING = "proxy_warning"
 CONF_TOTP_REGISTER = "registered"
 CONF_OAUTH = "oauth"
 DATA_LISTENER = "listener"

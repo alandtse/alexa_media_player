@@ -3,21 +3,24 @@
     "abort": {
       "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
       "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated."
+      "reauth_successful": "Alexa 媒体播放器已成功重新验证。请忽略来自 HA 的“Aborted”消息。"
     },
     "error": {
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "连接错误；检查网络并重试",
-      "hass_url_invalid": "Unable to connect to Home Assistant url. Please check the External Url under Configuration -> General",
       "identifier_exists": "Alexa URL的电子邮件已注册",
       "invalid_credentials": "Invalid credentials",
-      "unknown_error": "Unknown error, please report log info"
+      "invalid_url": "URL 无效： {message}",
+      "unable_to_connect_hass_url": "无法连接到 Home Assistant 网址。请检查配置下的外部 URL - >常规",
+      "unknown_error": "未知错误： {message}"
     },
     "step": {
-      "captcha": {
+      "proxy_warning": {
         "data": {
-          "securitycode": "2FA Code (recommended to avoid login issues)"
-        }
+          "proxy_warning": "忽略并继续 - 我了解不提供对登录问题的支持来绕过此警告。"
+        },
+        "description": "HA 服务器无法连接到提供的 URL： {hass_url} 。\n > {error} \n\n要解决此问题，请确认您的 **HA 服务器** 可以访问{hass_url} 。此字段来自配置 - >常规下的外部 URL，但您可以尝试使用内部 URL。 \n\n如果您**确定**您的客户可以访问此网址，则可以绕过此警告。",
+        "title": "Alexa 媒体播放器 - 无法连接到 HA URL"
       },
       "totp_register": {
         "data": {
@@ -33,13 +36,13 @@
           "exclude_devices": "Excluded device (comma separated)",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "otp_secret": "内置 2FA App Key（自动生成 2FA 代码）。这不是六位数长。",
           "password": "密码",
           "scan_interval": "Seconds between scans",
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
-        "description": "请确认以下信息。",
+        "description": "请确认以下信息。对于旧配置，请禁用“使用登录代理方法”选项。",
         "title": "Alexa Media Player-配置"
       }
     }
@@ -48,7 +51,7 @@
     "step": {
       "init": {
         "data": {
-          "extended_entity_discovery": "Include devices connected via Echo",
+          "extended_entity_discovery": "包括通过 Echo 连接的设备",
           "queue_delay": "Seconds to wait to queue commands together"
         }
       }

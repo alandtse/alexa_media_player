@@ -3,21 +3,24 @@
     "abort": {
       "forgot_password": "È stata rilevata la pagina di password dimenticata. Normalmente questo è il risultato di troppi accessi falliti. Amazon potrebbe richiedere di eseguire alcune azioni prima di poter tentare un nuovo accesso.",
       "login_failed": "Alexa Media Player ha fallito il login.",
-      "reauth_successful": "Alexa Media Player è stato riautenticato con successo."
+      "reauth_successful": "Alexa Media Player è stato riautenticato con successo. Ignorare il messaggio \"Abortito\" da HA"
     },
     "error": {
       "2fa_key_invalid": "Chiave 2FA incorporata non valida",
       "connection_error": "Errore durante la connessione; controlla la rete e riprova",
-      "hass_url_invalid": "Impossibile collegarsi all'URL di Home Assistant. Controllare l'URL esterno nel menu Configurazione -> Generale",
       "identifier_exists": "L'email per l'URL di Alexa è già stata registrata",
       "invalid_credentials": "Credenziali non valide",
-      "unknown_error": "Errore sconosciuto, si prega di abilitare il debug avanzato e riportare i log informativi"
+      "invalid_url": "URL non valido: {message}",
+      "unable_to_connect_hass_url": "Impossibile collegarsi all'URL di Home Assistant. Controllare l'URL esterno nel menu Configurazione -> Generale",
+      "unknown_error": "Errore sconosciuto:{message}"
     },
     "step": {
-      "captcha": {
+      "proxy_warning": {
         "data": {
-          "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)"
-        }
+          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+        },
+        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
+        "title": "Alexa Media Player - Impossibile connettersi all'URL HA"
       },
       "totp_register": {
         "data": {
@@ -39,7 +42,7 @@
           "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)",
           "url": "Regione del dominio Amazon (ad es., amazon.it)"
         },
-        "description": "Confermare le informazioni sottostanti.",
+        "description": "Confermare le informazioni di seguito. Per la configurazione legacy, disabilitare l'opzione \"Utilizza metodo proxy di accesso\".",
         "title": "Alexa Media Player - Configurazione"
       }
     }

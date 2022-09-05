@@ -3,21 +3,24 @@
     "abort": {
       "forgot_password": "Se ha detectado la página de \"Ha olvidado su contraseña\". Normalmente esto ocurre si has intentado iniciar sesión varias veces de forma fallida. Amazon puede que te pida alguna acción adicional antes de poder volver a intentar iniciar sesión.",
       "login_failed": "Alexa Media Player no pudo iniciar sesión.",
-      "reauth_successful": "Alexa Media Player se ha reautentificado correctamente."
+      "reauth_successful": "Alexa Media Player se volvió a autenticar con éxito. Ignore el mensaje \"Cancelado\" de HA."
     },
     "error": {
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Error al conectar, verifique la red y vuelva a intentarlo",
-      "hass_url_invalid": "No se puede conectar a la url de Home Assistant. Compruebe la dirección URL externa en Configuración -> General",
       "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
       "invalid_credentials": "Credenciales no válidas",
-      "unknown_error": "Error desconocido, habilite la depuración avanzada e informe la información de registro"
+      "invalid_url": "La URL no es válida: {message}",
+      "unable_to_connect_hass_url": "No se puede conectar con la URL de Home Assistant. Verifique la URL externa en Configuración - > General",
+      "unknown_error": "Error desconocido: {mensaje}"
     },
     "step": {
-      "captcha": {
+      "proxy_warning": {
         "data": {
-          "securitycode": "Código 2FA (recomendado para evitar problemas de inicio de sesión)"
-        }
+          "proxy_warning": "Ignorar y continuar: entiendo que no se proporciona soporte para problemas de inicio de sesión para eludir esta advertencia."
+        },
+        "description": "El servidor HA no puede conectarse a la URL proporcionada: {hass_url} .\n > {error} \n\n Para solucionar esto, confirme que su **servidor HA** puede llegar a {hass_url} . Este campo es de la URL externa en Configuración - > General, pero puede probar su URL interna. \n\n Si está **seguro** de que su cliente puede acceder a esta URL, puede omitir esta advertencia.",
+        "title": "Alexa Media Player: no se puede conectar a la URL de alta disponibilidad"
       },
       "totp_register": {
         "data": {
@@ -33,13 +36,13 @@
           "exclude_devices": "Dispositivo excluido (separado por comas)",
           "hass_url": "Url para acceder a Home Assistant",
           "include_devices": "Dispositivo incluido (separado por comas)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "otp_secret": "Clave de aplicación 2FA incorporada (genera automáticamente códigos 2FA). Esto no tiene seis dígitos.",
           "password": "Contraseña",
           "scan_interval": "Segundos entre escaneos",
           "securitycode": "Código 2FA (recomendado para evitar problemas de inicio de sesión)",
           "url": "Región del dominio de Amazon (por ejemplo, amazon.es)"
         },
-        "description": "Confirme la siguiente información.",
+        "description": "Por favor, confirme la información a continuación. Para la configuración heredada, deshabilite la opción 'Usar método de proxy de inicio de sesión'.",
         "title": "Alexa Media Player - Configuración"
       }
     }

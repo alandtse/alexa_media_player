@@ -3,21 +3,24 @@
     "abort": {
       "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
       "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated."
+      "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "مفتاح 2FA مضمّن غير صالح",
       "connection_error": "Error connecting; check network and retry",
-      "hass_url_invalid": "Unable to connect to Home Assistant url. Please check the External Url under Configuration -> General",
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
-      "unknown_error": "Unknown error, please enable advanced debugging and report log info"
+      "invalid_url": "URL غير صالح: {message}",
+      "unable_to_connect_hass_url": "Unable to connect to Home Assistant url. Please check the External Url under Configuration -> General",
+      "unknown_error": "Unknown error: {message}"
     },
     "step": {
-      "captcha": {
+      "proxy_warning": {
         "data": {
-          "securitycode": "2FA Code (recommended to avoid login issues)"
-        }
+          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+        },
+        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
+        "title": "Alexa Media Player - Unable to Connect to HA URL"
       },
       "totp_register": {
         "data": {
@@ -33,13 +36,13 @@
           "exclude_devices": "Excluded device (comma separated)",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This not six digits long.",
           "password": "Password",
           "scan_interval": "Seconds between scans",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "securitycode": "[%key_id:55616596%]",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
-        "description": "Please confirm the information below.",
+        "description": "Please confirm the information below. For legacy configuration, disable `Use Login Proxy method` option.",
         "title": "Alexa Media Player - Configuration"
       }
     }

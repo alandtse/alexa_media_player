@@ -3,21 +3,24 @@
     "abort": {
       "forgot_password": "A página 'Esqueci a senha' foi detectada. Normalmente, isso é o resultado de logins que falharam. A Amazon pode exigir uma ação antes que um relogin possa ser tentado.",
       "login_failed": "Alexa Media Player não conseguiu fazer o login.",
-      "reauth_successful": "Alexa Media Player reautenticada com sucesso."
+      "reauth_successful": "Alexa Media Player reautenticado com sucesso. Por favor, ignore a mensagem \"Aborted\" do HA."
     },
     "error": {
       "2fa_key_invalid": "Chave 2FA integrada inválida",
       "connection_error": "Erro ao conectar; verifique a rede e tente novamente",
-      "hass_url_invalid": "Não foi possível conectar ao URL do Home Assistant. Verifique o URL externo em Configuração - > Geral",
       "identifier_exists": "E-mail para URL Alexa já registado",
       "invalid_credentials": "Credenciais inválidas",
-      "unknown_error": "Erro desconhecido, por favor habilite depuração avançada e informações de log de relatório"
+      "invalid_url": "O URL é inválido: {message}",
+      "unable_to_connect_hass_url": "Não foi possível conectar ao URL do Home Assistant. Verifique o URL interno em Configuração - > Geral",
+      "unknown_error": "Erro desconhecido: {message}"
     },
     "step": {
-      "captcha": {
+      "proxy_warning": {
         "data": {
-          "securitycode": "Código 2FA (recomendado para evitar problemas de login)"
-        }
+          "proxy_warning": "Ignore e Continue - Entendo que não há suporte para problemas de login para ignorar este aviso."
+        },
+        "description": "O servidor de alta disponibilidade não pode se conectar ao URL fornecido: {hass_url} .\n > {error} \n\n Para corrigir isso, confirme se seu **servidor HA** pode alcançar {hass_url} . Este campo é do URL externo em Configuração - > Geral, mas você pode tentar seu URL interno. \n\n Se você tiver **certeza** de que seu cliente pode acessar esse URL, ignore este aviso.",
+        "title": "Alexa Media Player - Não é possível conectar ao URL de alta disponibilidade"
       },
       "totp_register": {
         "data": {
@@ -39,7 +42,7 @@
           "securitycode": "Código 2FA (recomendado para evitar problemas de login)",
           "url": "Região do domínio Amazon (ex. amazon.com.br)"
         },
-        "description": "Por favor, confirme as informações abaixo.",
+        "description": "Por favor, confirme as informações abaixo. Para configuração legada, desative a opção `Usar método de proxy de login`.",
         "title": "Alexa Media Player - Configuração"
       }
     }

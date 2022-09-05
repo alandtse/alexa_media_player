@@ -8,16 +8,19 @@
     "error": {
       "2fa_key_invalid": "Nieprawidłowy klucz z wbudowanej aplikacji uwierzytelniania dwuskładnikowego",
       "connection_error": "Błąd podczas łączenia; sprawdź sieć i spróbuj ponownie",
-      "hass_url_invalid": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź publiczny adres URL w sekcji Konfiguracja -> Ogólne",
       "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
       "invalid_credentials": "Nieprawidłowe dane logowania",
+      "invalid_url": "URL jest nieprawidłowy: {message}",
+      "unable_to_connect_hass_url": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź wewnętrzny adres URL w sekcji Konfiguracja -> Ogólne",
       "unknown_error": "Nieznany błąd, włącz zaawansowane debugowanie i zgłoś log z tego zdarzenia"
     },
     "step": {
-      "captcha": {
+      "proxy_warning": {
         "data": {
-          "securitycode": "Kod uwierzytelniania dwuskładnikowego"
-        }
+          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+        },
+        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
+        "title": "Alexa Media Player - Unable to Connect to HA URL"
       },
       "totp_register": {
         "data": {

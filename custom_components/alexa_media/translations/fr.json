@@ -1,23 +1,26 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "La page Mot de passe oublié a été détectée. Amazon peut nécessiter une action avant qu'une reconnexion puisse être tentée.",
+      "forgot_password": "La page \"Mot de passe oublié\" a été détectée. Ceci est normalement le résultat d'un trop grand nombre d'échecs de connexion. Amazon peut exiger une action avant qu'une nouvelle connexion puisse être tentée.",
       "login_failed": "Alexa Media Player n'a pas réussi à se connecter.",
-      "reauth_successful": "Alexa Media Player s'est authentifié avec succès."
+      "reauth_successful": "Alexa Media Player s'est ré-authentifié avec succès."
     },
     "error": {
       "2fa_key_invalid": "Clé 2FA intégrée non valide",
       "connection_error": "Erreur de connexion; vérifier le réseau et réessayer",
-      "hass_url_invalid": "Impossible de se connecter à l'URL de Home Assistant. Veuillez vérifier l'URL externe sous Configuration - > Général",
       "identifier_exists": "Email pour l'URL Alexa déjà enregistré",
       "invalid_credentials": "Informations d'identification invalides",
-      "unknown_error": "Erreur inconnue, veuillez signaler les informations du journal"
+      "invalid_url": "L'URL n'est pas valide: {message}",
+      "unable_to_connect_hass_url": "Impossible de se connecter à l'URL de Home Assistant. Veuillez vérifier l'URL interne sous Configuration - > Général",
+      "unknown_error": "Erreur inconnue, veuillez signaler les informations du journal: {message}"
     },
     "step": {
-      "captcha": {
+      "proxy_warning": {
         "data": {
-          "securitycode": "Code 2FA (recommandé pour éviter les problèmes de connexion)"
-        }
+          "proxy_warning": "Ignorer et continuer - Je comprends qu'aucune assistance pour les problèmes de connexion n'est fournie pour contourner cet avertissement."
+        },
+        "description": "Le serveur HA ne peut pas se connecter à l'URL fournie: {hass_url}.\n > {error} \n\n Pour résoudre ce problème, veuillez confirmer que votre **serveur HA** peut atteindre {hass_url}. Ce champ provient de l'URL externe sous Configuration - > Général mais vous pouvez essayer votre URL interne. \n\n Si vous êtes **certain** que votre client peut accéder à cette URL, vous pouvez ignorer cet avertissement.",
+        "title": "Alexa Media Player - Impossible de se connecter à HA URL"
       },
       "totp_register": {
         "data": {
@@ -31,15 +34,15 @@
           "debug": "Débogage avancé",
           "email": "Adresse Email",
           "exclude_devices": "Appareil exclu (séparé par des virgules)",
-          "hass_url": "Url to access Home Assistant",
+          "hass_url": "URL pour accéder à Home Assistant",
           "include_devices": "Appareil inclus (séparé par des virgules)",
-          "otp_secret": "Clé d'application 2FA intégrée (génère automatiquement des codes 2FA)",
+          "otp_secret": "Clé d'application 2FA  (2 facteurs) intégrée (génère automatiquement des codes 2FA). Il ne s'agit pas d'un code à six chiffres.",
           "password": "Mot de passe",
           "scan_interval": "Secondes entre les analyses",
           "securitycode": "Code 2FA (recommandé pour éviter les problèmes de connexion)",
           "url": "Domaine de la région Amazon (exemple, amazon.fr)"
         },
-        "description": "Veuillez confirmer les informations ci-dessous.",
+        "description": "Veuillez confirmer les informations ci-dessous. Pour la configuration héritée, désactivez l'option \"Utiliser la méthode de proxy de connexion\".",
         "title": "Alexa Media Player - Configuration"
       }
     }

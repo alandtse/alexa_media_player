@@ -2,6 +2,16 @@
 
 <!--next-version-placeholder-->
 
+## v4.1.1 (2022-09-05)
+### Fix
+* **notify:** Improve message for missing keys ([`c2ce6a4`](https://github.com/custom-components/alexa_media_player/commit/c2ce6a42caf7f9355671c4488358e318c45ff2a4))
+* Fix unnecessary reauth if 500 error detected ([`a8aab6b`](https://github.com/custom-components/alexa_media_player/commit/a8aab6bfe513bf4dbec361baa5d3b60fa98c99ef))
+* Ignore missing async_remove_listener ([`06626dc`](https://github.com/custom-components/alexa_media_player/commit/06626dc1455f8b6c288249544ecd8439782663a5))
+* Fix temperature showing in Celsius ([#1682](https://github.com/custom-components/alexa_media_player/issues/1682)) ([`13afaa8`](https://github.com/custom-components/alexa_media_player/commit/13afaa846e3b40c364699f873b54bd4feaa8b24e))
+
+### Documentation
+* Update localization ([`5b174b7`](https://github.com/custom-components/alexa_media_player/commit/5b174b7ada550485eaa02ffb48227aa529fed72a))
+
 ## v4.1.0 (2022-07-21)
 ### Feature
 * Allow skipping of proxy warning ([`5ed2082`](https://github.com/custom-components/alexa_media_player/commit/5ed208250f6c3e951e653fa2f88ff3345c5496ce))

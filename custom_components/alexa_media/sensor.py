@@ -206,14 +206,18 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         return None
 
     @property
-    def unit_of_measurement(self):
+    def native_unit_of_measurement(self):
         return TEMP_CELSIUS
 
     @property
-    def state(self):
+    def native_value(self):
         return parse_temperature_from_coordinator(
             self.coordinator, self.alexa_entity_id
         )
+
+    @property
+    def device_class(self):
+        return "temperature"
 
     @property
     def unique_id(self):

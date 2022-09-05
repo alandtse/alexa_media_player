@@ -277,7 +277,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "coordinator"
         )
         if coordinator:
-            coordinator.async_remove_listener(self.update)
+            try:
+                coordinator.async_remove_listener(self.update)
+            except AttributeError:
+                pass  # ignore missing listener
 
     async def _handle_event(self, event):
         """Handle events.
@@ -999,7 +1002,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         return self._last_update
 
     @property
-    def media_image_url(self) -> Optional[Text]:
+    def media_image_url(self) -> Optional[str]:
         """Return the image URL of current playing media."""
         if self._media_image_url:
             return re.sub("\\(", "%28", re.sub("\\)", "%29", self._media_image_url))

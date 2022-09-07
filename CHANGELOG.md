@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v4.1.2 (2022-09-07)
+### Fix
+* Check for missing hass_url during auto reauth ([`7d181a3`](https://github.com/custom-components/alexa_media_player/commit/7d181a39435cb7958d0b3ccba36e7a0ebd8eccdb))
+* Fix reauth caused by bad amazon response ([`58af5b3`](https://github.com/custom-components/alexa_media_player/commit/58af5b3027d34fdcf13c16dae9e12f92671958b3))
+
 ## v4.1.1 (2022-09-05)
 ### Fix
 * **notify:** Improve message for missing keys ([`c2ce6a4`](https://github.com/custom-components/alexa_media_player/commit/c2ce6a42caf7f9355671c4488358e318c45ff2a4))

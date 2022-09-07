@@ -7,7 +7,7 @@ license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-alexapy = "1.26.1"
+alexapy = "1.26.3"
 packaging = ">=20.3"
 wrapt = ">=1.12.1"
 

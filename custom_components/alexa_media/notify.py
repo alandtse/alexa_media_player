@@ -211,7 +211,7 @@ class AlexaNotificationService(BaseNotificationService):
         kwargs["message"] = message
         targets = kwargs.get(ATTR_TARGET)
         title = kwargs.get(ATTR_TITLE, ATTR_TITLE_DEFAULT)
-        data = kwargs.get(ATTR_DATA)
+        data = kwargs.get(ATTR_DATA, {})
         if isinstance(targets, str):
             try:
                 targets = json.loads(targets)
@@ -240,11 +240,7 @@ class AlexaNotificationService(BaseNotificationService):
             "accounts"
         ].items():
             for alexa in account_dict["entities"]["media_player"].values():
-                if data is None:
-                    errormessage = f"{account}: Missing `data` field. See {NOTIFY_URL}"
-                    _LOGGER.debug(errormessage)
-                    raise vol.Invalid(errormessage)
-                elif data.get("type", "") == "tts":
+                if data.get("type", "") == "tts":
                     targets = self.convert(
                         entities, type_="entities", filter_matches=True
                     )

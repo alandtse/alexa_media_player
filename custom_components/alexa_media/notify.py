@@ -239,8 +239,9 @@ class AlexaNotificationService(BaseNotificationService):
         for account, account_dict in self.hass.data[DATA_ALEXAMEDIA][
             "accounts"
         ].items():
+            data_type = data.get("type", "tts")
             for alexa in account_dict["entities"]["media_player"].values():
-                if data.get("type", "") == "tts":
+                if data_type == "tts":
                     targets = self.convert(
                         entities, type_="entities", filter_matches=True
                     )
@@ -255,7 +256,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
-                elif data.get("type", "") == "announce":
+                elif data_type == "announce":
                     targets = self.convert(
                         entities, type_="serialnumbers", filter_matches=True
                     )
@@ -284,7 +285,7 @@ class AlexaNotificationService(BaseNotificationService):
                             )
                         )
                         break
-                elif data.get("type", "") == "push":
+                elif data_type == "push":
                     targets = self.convert(
                         entities, type_="entities", filter_matches=True
                     )
@@ -299,7 +300,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
-                elif data.get("type", "") == "dropin_notification":
+                elif data_type == "dropin_notification":
                     targets = self.convert(
                         entities, type_="entities", filter_matches=True
                     )

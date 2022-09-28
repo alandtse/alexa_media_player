@@ -318,7 +318,10 @@ class AlexaNotificationService(BaseNotificationService):
                             )
                         )
                 else:
-                    errormessage = f"{account}: Missing `type` key in `data` field. See {NOTIFY_URL}"
+                    errormessage = (
+                        f"{account}: Data value `type={data_type}` is not implemented. "
+                        f"See {NOTIFY_URL}"
+                        )
                     _LOGGER.debug(errormessage)
                     raise vol.Invalid(errormessage)
         await asyncio.gather(*tasks)

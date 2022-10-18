@@ -263,6 +263,7 @@ async def async_setup_entry(hass, config_entry):
                 "switch": {},
                 "guard": [],
                 "light": [],
+                "binary_sensor": [],
                 "temperature": [],
             },
             "entities": {
@@ -270,6 +271,7 @@ async def async_setup_entry(hass, config_entry):
                 "switch": {},
                 "sensor": {},
                 "light": [],
+                "binary_sensor": [],
                 "alarm_control_panel": {},
             },
             "excluded": {},
@@ -400,6 +402,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["light"]:
             if light.enabled:
                 entities_to_monitor.add(light.alexa_entity_id)
+
+        for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["binary_sensor"]:
+            if binary_sensor.enabled:
+                entities_to_monitor.add(binary_sensor.alexa_entity_id)
 
         for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "alarm_control_panel"

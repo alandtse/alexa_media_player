@@ -211,7 +211,7 @@ class AlexaNotificationService(BaseNotificationService):
         kwargs["message"] = message
         targets = kwargs.get(ATTR_TARGET)
         title = kwargs.get(ATTR_TITLE, ATTR_TITLE_DEFAULT)
-        data = kwargs.get(ATTR_DATA)
+        data = kwargs.get(ATTR_DATA, {})
         if isinstance(targets, str):
             try:
                 targets = json.loads(targets)
@@ -239,12 +239,9 @@ class AlexaNotificationService(BaseNotificationService):
         for account, account_dict in self.hass.data[DATA_ALEXAMEDIA][
             "accounts"
         ].items():
+            data_type = data.get("type", "tts")
             for alexa in account_dict["entities"]["media_player"].values():
-                if data is None:
-                    errormessage = f"{account}: Missing `data` field. See {NOTIFY_URL}"
-                    _LOGGER.debug(errormessage)
-                    raise vol.Invalid(errormessage)
-                elif data.get("type", "") == "tts":
+                if data_type == "tts":
                     targets = self.convert(
                         entities, type_="entities", filter_matches=True
                     )
@@ -259,7 +256,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
-                elif data.get("type", "") == "announce":
+                elif data_type == "announce":
                     targets = self.convert(
                         entities, type_="serialnumbers", filter_matches=True
                     )
@@ -288,7 +285,7 @@ class AlexaNotificationService(BaseNotificationService):
                             )
                         )
                         break
-                elif data.get("type", "") == "push":
+                elif data_type == "push":
                     targets = self.convert(
                         entities, type_="entities", filter_matches=True
                     )
@@ -303,7 +300,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
-                elif data.get("type", "") == "dropin_notification":
+                elif data_type == "dropin_notification":
                     targets = self.convert(
                         entities, type_="entities", filter_matches=True
                     )
@@ -321,7 +318,10 @@ class AlexaNotificationService(BaseNotificationService):
                             )
                         )
                 else:
-                    errormessage = f"{account}: Missing `type` key in `data` field. See {NOTIFY_URL}"
+                    errormessage = (
+                        f"{account}: Data value `type={data_type}` is not implemented. "
+                        f"See {NOTIFY_URL}"
+                        )
                     _LOGGER.debug(errormessage)
                     raise vol.Invalid(errormessage)
         await asyncio.gather(*tasks)

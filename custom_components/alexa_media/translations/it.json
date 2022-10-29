@@ -36,7 +36,7 @@
           "exclude_devices": "Dispositivi da escludere (separati da virgola)",
           "hass_url": "URL per accedere a Home Assistant",
           "include_devices": "Dispositivi da includere (separati da virgola)",
-          "otp_secret": "Chiave dell'app 2FA integrata (generazione automatica di codici 2FA)",
+          "otp_secret": "Chiave app 2FA integrata (genera automaticamente codici 2FA). Questo non è lungo sei cifre.",
           "password": "Password",
           "scan_interval": "Tempo in secondi fra le scansioni",
           "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)",

@@ -2,6 +2,17 @@
 
 <!--next-version-placeholder-->
 
+## v4.2.0 (2022-10-29)
+### Feature
+* **notify:** Set default data `type` to `tts` ([#1739](https://github.com/custom-components/alexa_media_player/issues/1739)) ([`7027e4a`](https://github.com/custom-components/alexa_media_player/commit/7027e4a992259029a7745bc2d8b32ea08076d7da))
+
+### Fix
+* Handle None responses in clear_history ([`52b1c6e`](https://github.com/custom-components/alexa_media_player/commit/52b1c6e85b4aaa021ed5bc09f2ef6172f00b1700))
+* Handle key errors due to bad alexa responses ([`5788ab8`](https://github.com/custom-components/alexa_media_player/commit/5788ab887ec621d8811936f79f1308e5948b0e92))
+
+### Documentation
+* Update localization ([`9176592`](https://github.com/custom-components/alexa_media_player/commit/9176592572a160f5af04c575079688ac12be2a2e))
+
 ## v4.1.2 (2022-09-07)
 ### Fix
 * Check for missing hass_url during auto reauth ([`7d181a3`](https://github.com/custom-components/alexa_media_player/commit/7d181a39435cb7958d0b3ccba36e7a0ebd8eccdb))

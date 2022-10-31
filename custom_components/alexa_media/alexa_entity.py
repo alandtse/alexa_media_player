@@ -94,10 +94,17 @@ def is_light(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
     return (
         is_local(appliance)
-        and "LIGHT" in appliance["applianceTypes"]
+        and "LIGHT" in appliance.get("applianceTypes", [])
         and has_capability(appliance, "Alexa.PowerController", "powerState")
     )
 
+def is_contact_sensor(appliance: Dict[Text, Any]) -> bool:
+    """Is the given appliance a contact sensor controlled locally by an Echo."""
+    return (
+        is_local(appliance)
+        and "CONTACT_SENSOR" in appliance.get("applianceTypes", [])
+        and has_capability(appliance, "Alexa.ContactSensor", "detectionState")
+    )
 
 def get_friendliest_name(appliance: Dict[Text, Any]) -> Text:
     """Find the best friendly name. Alexa seems to store manual renames in aliases. Prefer that one."""
@@ -140,6 +147,11 @@ class AlexaTemperatureEntity(AlexaEntity):
 
     device_serial: Text
 
+class AlexaBinaryEntity(AlexaEntity):
+    """Class for AlexaBinaryEntity."""
+
+    battery_level: bool
+
 
 class AlexaEntities(TypedDict):
     """Class for holding entities."""
@@ -147,6 +159,7 @@ class AlexaEntities(TypedDict):
     light: List[AlexaLightEntity]
     guard: List[AlexaEntity]
     temperature: List[AlexaTemperatureEntity]
+    binary_sensor: List[AlexaBinaryEntity]
 
 
 def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEntities:
@@ -154,6 +167,7 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
     lights = []
     guards = []
     temperature_sensors = []
+    contact_sensors = []
     location_details = network_details["locationDetails"]["locationDetails"]
     for location in location_details.values():
         amazon_bridge_details = location["amazonBridgeDetails"]["amazonBridgeDetails"]
@@ -187,8 +201,15 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                         "colorTemperatureInKelvin",
                     )
                     lights.append(processed_appliance)
+                elif is_contact_sensor(appliance):
+                    processed_appliance["battery_level"] = has_capability(
+                        appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
+                    )
+                    contact_sensors.append(processed_appliance)
+                else:
+                    _LOGGER.debug("Found unsupported device %s", appliance)
 
-    return {"light": lights, "guard": guards, "temperature": temperature_sensors}
+    return {"light": lights, "guard": guards, "temperature": temperature_sensors, "binary_sensor": contact_sensors}
 
 
 class AlexaCapabilityState(TypedDict):
@@ -285,6 +306,14 @@ def parse_guard_state_from_coordinator(
         coordinator, entity_id, "Alexa.SecurityPanelController", "armState"
     )
 
+
+def parse_detection_state_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: Text
+) -> Optional[bool]:
+    """Get the detection state from the coordinator data."""
+    return parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.ContactSensor", "detectionState"
+    )
 
 def parse_value_from_coordinator(
     coordinator: DataUpdateCoordinator,

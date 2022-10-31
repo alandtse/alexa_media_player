@@ -94,7 +94,7 @@ def is_light(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
     return (
         is_local(appliance)
-        and "LIGHT" in appliance["applianceTypes"]
+        and "LIGHT" in appliance.get("applianceTypes", [])
         and has_capability(appliance, "Alexa.PowerController", "powerState")
     )
 
@@ -102,7 +102,7 @@ def is_contact_sensor(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance a contact sensor controlled locally by an Echo."""
     return (
         is_local(appliance)
-        and "CONTACT_SENSOR" in appliance["applianceTypes"]
+        and "CONTACT_SENSOR" in appliance.get("applianceTypes", [])
         and has_capability(appliance, "Alexa.ContactSensor", "detectionState")
     )
 

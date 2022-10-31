@@ -99,7 +99,7 @@ class AlexaContact(CoordinatorEntity, BinarySensorEntity):
             self.coordinator, self.alexa_entity_id
         )
 
-        return detection == 'DETECTED'
+        return detection == 'DETECTED' if detection is not None else None
 
     @property
     def assumed_state(self) -> bool:

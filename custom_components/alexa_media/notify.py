@@ -212,6 +212,7 @@ class AlexaNotificationService(BaseNotificationService):
         targets = kwargs.get(ATTR_TARGET)
         title = kwargs.get(ATTR_TITLE, ATTR_TITLE_DEFAULT)
         data = kwargs.get(ATTR_DATA, {})
+        data = data if data is not None else {}
         if isinstance(targets, str):
             try:
                 targets = json.loads(targets)

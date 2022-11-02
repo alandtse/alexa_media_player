@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.3.1 (2022-11-02)
+### Fix
+* **notify:** Handle null data key ([#1767](https://github.com/custom-components/alexa_media_player/issues/1767)) ([`08c2109`](https://github.com/custom-components/alexa_media_player/commit/08c2109ee24d673a7b29d1f1244569f5dee40004))
+
 ## v4.3.0 (2022-10-31)
 ### Feature
 * Add ZigBee contact sensors support ([#1754](https://github.com/custom-components/alexa_media_player/issues/1754)) ([`cd162cb`](https://github.com/custom-components/alexa_media_player/commit/cd162cbb8ebbea5af19c0d370621c4f8e169cf5a))

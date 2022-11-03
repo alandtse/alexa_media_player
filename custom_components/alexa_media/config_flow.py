@@ -244,17 +244,19 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 errors={"base": "2fa_key_invalid"},
                 description_placeholders={"message": ""},
             )
-        try:
-            hass_url: str = user_input.get(
-                CONF_HASS_URL, get_url(self.hass, prefer_external=True)
-            )
-        except NoURLAvailableError:
-            _LOGGER.debug("No Home Assistant URL found in config or detected; forcing user form")
-            return self.async_show_form(
-                step_id="user",
-                data_schema=vol.Schema(self.proxy_schema),
-                description_placeholders={"message": ""},
-            )
+        hass_url: str = user_input.get(CONF_HASS_URL)
+        if hass_url is None:
+            try:
+                hass_url = get_url(self.hass, prefer_external=True)
+            except NoURLAvailableError:
+                _LOGGER.debug(
+                    "No Home Assistant URL found in config or detected; forcing user form"
+                )
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=vol.Schema(self.proxy_schema),
+                    description_placeholders={"message": ""},
+                )
         hass_url_valid: bool = False
         hass_url_error: str = ""
         async with ClientSession() as session:

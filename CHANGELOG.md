@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.3.2 (2022-11-03)
+### Fix
+* Fix misconfigured HA url overriding url input ([`02297a4`](https://github.com/custom-components/alexa_media_player/commit/02297a4537ea36c77551ba10e4efe57e3dacfc8a))
+
 ## v4.3.1 (2022-11-02)
 ### Fix
 * **notify:** Handle null data key ([#1767](https://github.com/custom-components/alexa_media_player/issues/1767)) ([`08c2109`](https://github.com/custom-components/alexa_media_player/commit/08c2109ee24d673a7b29d1f1244569f5dee40004))

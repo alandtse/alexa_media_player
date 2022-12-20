@@ -15,6 +15,7 @@ from homeassistant.const import (
     DEVICE_CLASS_TIMESTAMP,
     STATE_UNAVAILABLE,
     TEMP_CELSIUS,
+    PERCENTAGE,
     __version__ as HA_VERSION,
 )
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
@@ -34,7 +35,7 @@ from . import (
     hide_email,
     hide_serial,
 )
-from .alexa_entity import parse_temperature_from_coordinator
+from .alexa_entity import parse_temperature_from_coordinator, parse_air_quality_from_coordinator
 from .const import (
     CONF_EXTENDED_ENTITY_DISCOVERY,
     RECURRING_DAY,
@@ -123,10 +124,20 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         temperature_sensors = await create_temperature_sensors(
             account_dict, temperature_entities
         )
+    
+    _LOGGER.debug("GC123 Create air quality sensors")
+    air_quality_sensors = []
+    air_quality_entities = account_dict.get("devices", {}).get("air_quality", [])
+    if air_quality_entities and account_dict["options"].get(
+        CONF_EXTENDED_ENTITY_DISCOVERY
+    ):
+        air_quality_sensors = await create_air_quality_sensors(
+            account_dict, air_quality_entities
+        )
 
     return await add_devices(
         hide_email(account),
-        devices + temperature_sensors,
+        devices + temperature_sensors + air_quality_sensors,
         add_devices_callback,
         include_filter,
         exclude_filter,
@@ -169,6 +180,36 @@ async def create_temperature_sensors(account_dict, temperature_entities):
         devices.append(sensor)
     return devices
 
+async def create_air_quality_sensors(account_dict, air_quality_entities):
+    devices = []
+    coordinator = account_dict["coordinator"]
+    
+    for temp in air_quality_entities:
+        _LOGGER.debug("GC123 Air quality sensor %s", temp)
+        _LOGGER.debug(
+            "Creating entity %s for a air quality sensor with name %s",
+            temp["id"],
+            temp["name"],
+        )
+        
+        for subsensor in temp["sensors"] :
+            _LOGGER.debug("GC123 create_air_quality_sensors %s", subsensor)
+            
+            sensor_type = subsensor["sensorType"]
+            instance = subsensor["instance"]        
+            serial = temp["device_serial"]
+            device_info = lookup_device_info(account_dict, serial)
+            _LOGGER.debug("GC123 create_air_quality_sensors 1")
+            sensor = AirQualitySensor(coordinator, temp["id"], temp["name"], device_info, sensor_type, instance)
+            _LOGGER.debug("GC123 create_air_quality_sensors %s", sensor)
+            account_dict["entities"]["sensor"].setdefault(serial, {})
+            account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
+            account_dict["entities"]["sensor"][serial][sensor_type]["Air_Quality"] = sensor
+            devices.append(sensor)
+            
+            
+    _LOGGER.debug("GC123 return devices %s", devices)        
+    return devices
 
 def lookup_device_info(account_dict, device_serial):
     """Get the device to use for a given Echo based on a given device serial id.
@@ -225,6 +266,65 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         # A single physical device could have multiple HA entities
         return self.alexa_entity_id + "_temperature"
 
+
+class AirQualitySensor(SensorEntity, CoordinatorEntity):
+    """A temperature sensor reported by an Echo."""
+
+    def __init__(self, coordinator, entity_id, name, media_player_device_id, sensor_type, instance):
+        #_LOGGER.debug("GC123 create_air_quality_sensors 2")
+        super().__init__(coordinator)
+        #_LOGGER.debug("GC123 create_air_quality_sensors 3")
+        self.alexa_entity_id = entity_id
+        #_LOGGER.debug("GC123 create_air_quality_sensors 4")
+        self._name = name
+        #_LOGGER.debug("GC123 create_air_quality_sensors 5")
+        self._media_player_device_id = media_player_device_id
+        #_LOGGER.debug("GC123 create_air_quality_sensors 6")
+        self._sensor_type = sensor_type
+        #_LOGGER.debug("GC123 create_air_quality_sensors 7")
+        #_LOGGER.debug("GC123 create_air_quality_sensors %s", instance)
+        self._instance = instance
+        #_LOGGER.debug("GC123 create_air_quality_sensors 8")
+
+    @property
+    def name(self):
+        return self._name + " " + self._sensor_type
+
+    @property
+    def device_info(self):
+        """Return the device_info of the device."""
+        if self._media_player_device_id:
+            return {
+                "identifiers": {self._media_player_device_id},
+                "via_device": self._media_player_device_id,
+            }
+        return None
+
+    @property
+    def native_unit_of_measurement(self):
+        return PERCENTAGE
+
+    @property
+    def native_value(self):
+        _LOGGER.debug("GC123 return parse_air_quality_from_coordinator %s", self._instance)
+        return parse_air_quality_from_coordinator(
+            self.coordinator, self.alexa_entity_id, self._instance
+        )
+
+    @property
+    def device_class(self):
+        return "air quality score"
+
+    @property
+    def unique_id(self):
+        # This includes "_temperature" because the Alexa entityId is for a physical device
+        # A single physical device could have multiple HA entities
+        return self.alexa_entity_id + self._sensor_type
+        
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return "mdi:percent-circle-outline"
 
 class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""

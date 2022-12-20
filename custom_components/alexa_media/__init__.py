@@ -332,7 +332,7 @@ async def async_setup_entry(hass, config_entry):
 
 async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     """Set up a alexa api based on host parameter."""
-
+    _LOGGER.debug("GC123 SETUP ALEXA")
     async def async_update_data() -> Optional[AlexaEntityData]:
         """Fetch data from API endpoint.
 
@@ -354,6 +354,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         media_player since this object is one per account.
         Each AlexaAPI call generally results in two webpage requests.
         """
+        _LOGGER.debug("GC123 ASYNC UPDATE DATA")
         email = config.get(CONF_EMAIL)
         login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
         if (
@@ -388,16 +389,29 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             AlexaAPI.get_device_preferences(login_obj),
             AlexaAPI.get_dnd_state(login_obj),
         ]
+        
+        _LOGGER.debug("GC123 AFTER TASKS")
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
-
+            
+        _LOGGER.debug("GC123 AFTER NEW DEVICES")
         entities_to_monitor = set()
+        _LOGGER.debug("GC123 AFTER ENTITIES TO MONITOR SET")
+        
+        
         for sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "sensor"
         ].values():
+            _LOGGER.debug("GC123 SENSOR %s",sensor)
             temp = sensor.get("Temperature")
             if temp and temp.enabled:
                 entities_to_monitor.add(temp.alexa_entity_id)
+                _LOGGER.debug("GC123 TEMP %s",temp)
+                
+            temp = sensor.get("Air_Quality")
+            if temp and temp.enabled:
+                entities_to_monitor.add(temp.alexa_entity_id)
+                _LOGGER.debug("GC123 AIR Q %s",temp)
 
         for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["light"]:
             if light.enabled:
@@ -435,7 +449,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     _LOGGER.debug(
                         "Alexa entities have been loaded. Prepared for discovery."
                     )
+                    _LOGGER.debug("GC123 PARSE ALEXA ENTITIES START")
                     alexa_entities = parse_alexa_entities(optional_task_results.pop())
+                    _LOGGER.debug("GC123 PARSE ALEXA ENTITIES END %s", alexa_entities)
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
                         alexa_entities
                     )
@@ -465,7 +481,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if bluetooth is not None
                         else "",
                     )
-
+            _LOGGER.debug("GC123 AWAIT PROCESS NOTIFICATIONS")
             await process_notifications(login_obj, raw_notifications)
             # Process last_called data to fire events
             await update_last_called(login_obj)
@@ -487,7 +503,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         new_alexa_clients = []  # list of newly discovered device names
         exclude_filter = []
         include_filter = []
-
+        
+        _LOGGER.debug("GC123 FOR DEVICES")
         for device in devices:
             serial = device["serialNumber"]
             dev_name = device["accountName"]
@@ -622,6 +639,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         # prune stale devices
+        _LOGGER.debug("GC123 PRUNE STALE")
         device_registry = dr.async_get(hass)
         for device_entry in dr.async_entries_for_config_entry(
             device_registry, config_entry.entry_id
@@ -656,6 +674,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     },
                 },
             )
+        _LOGGER.debug("GC123 RETURN STATE")
         return entity_state
 
     @_catch_login_errors
@@ -1129,7 +1148,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         if coordinator:
             coordinator.update_interval = timedelta(
-                seconds=scan_interval * 10 if websocket_enabled else scan_interval
+                seconds=scan_interval * 5 if websocket_enabled else scan_interval
             )
             await coordinator.async_request_refresh()
 
@@ -1185,13 +1204,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             update_method=async_update_data,
             # Polling interval. Will only be polled if there are subscribers.
             update_interval=timedelta(
-                seconds=scan_interval * 10 if websocket_enabled else scan_interval
+                seconds=scan_interval * 5 if websocket_enabled else scan_interval
             ),
         )
     else:
         _LOGGER.debug("%s: Reusing coordinator", hide_email(email))
         coordinator.update_interval = timedelta(
-            seconds=scan_interval * 10 if websocket_enabled else scan_interval
+            seconds=scan_interval * 5 if websocket_enabled else scan_interval
         )
     # Fetch initial data so we have data when entities subscribe
     _LOGGER.debug("%s: Refreshing coordinator", hide_email(email))

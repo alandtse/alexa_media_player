@@ -29,7 +29,12 @@ def has_capability(
         property_name(Text): The property that matches the interface name.
 
     """
+    #_LOGGER.debug("GC123 has_capability %s", appliance["friendlyDescription"])
+    
+    
+    
     for cap in appliance["capabilities"]:
+       
         props = cap.get("properties")
         if (
             cap["interfaceName"] == interface_name
@@ -89,6 +94,16 @@ def is_temperature_sensor(appliance: Dict[Text, Any]) -> bool:
         appliance, "Alexa.TemperatureSensor", "temperature"
     )
 
+# Checks if air quality sensor    
+def is_air_quality_sensor(appliance: Dict[Text, Any]) -> bool:
+    """Is the given appliance the Air Quality Sensor."""
+    return (
+        "AIR_QUALITY_MONITOR" in appliance.get("applianceTypes", [])
+        and has_capability(appliance, "Alexa.TemperatureSensor", "temperature")
+       # and has_capability(appliance, "Alexa.AirQuality.Humidity", "rangeValue")
+        and has_capability(appliance, "Alexa.RangeController", "rangeValue")        
+    )
+
 
 def is_light(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
@@ -146,6 +161,11 @@ class AlexaTemperatureEntity(AlexaEntity):
     """Class for AlexaTemperatureEntity."""
 
     device_serial: Text
+    
+class AlexaAirQualityEntity(AlexaEntity):
+    """Class for AlexaAirQualityEntity."""
+
+    device_serial: Text
 
 class AlexaBinaryEntity(AlexaEntity):
     """Class for AlexaBinaryEntity."""
@@ -159,14 +179,17 @@ class AlexaEntities(TypedDict):
     light: List[AlexaLightEntity]
     guard: List[AlexaEntity]
     temperature: List[AlexaTemperatureEntity]
+    air_quality: List[AlexaAirQualityEntity]
     binary_sensor: List[AlexaBinaryEntity]
 
 
 def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEntities:
     """Turn the network details into a list of useful entities with the important details extracted."""
+    #_LOGGER.debug("GC123 PARSE ENTITIES")
     lights = []
     guards = []
     temperature_sensors = []
+    air_quality_sensors = []
     contact_sensors = []
     location_details = network_details["locationDetails"]["locationDetails"]
     for location in location_details.values():
@@ -188,6 +211,37 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                         serial if serial else appliance["entityId"]
                     )
                     temperature_sensors.append(processed_appliance)
+                    _LOGGER.debug("TEMPDBG", appliance)
+                elif is_air_quality_sensor(appliance):
+                    serial = get_device_serial(appliance)
+                    
+                    processed_appliance["device_serial"] = (
+                        serial if serial else appliance["entityId"]
+                    )
+                    
+                    sensors = []
+                    if appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor" :
+                        for cap in appliance["capabilities"]:
+                            instance = cap.get("instance")
+                            if instance :
+                                #_LOGGER.debug("GC123 has_capability %s", cap["instance"])
+                                if cap["resources"] :
+                                    friendlyName = cap["resources"].get("friendlyNames")
+                                    #_LOGGER.debug("GC123 has_capability %s", friendlyName)
+                                    for entry in friendlyName:
+                                        #_LOGGER.debug("GC123 has_capability e %s", entry)
+                                        #_LOGGER.debug("GC123 has_capability v %s", entry["value"]) 
+                                        assetId = entry["value"].get("assetId")
+                                        if assetId and assetId.startswith("Alexa.AirQuality") :
+                                            _LOGGER.debug("GC123 instance %s has capability %s", instance, assetId)   
+                                            sensor = { "sensorType" : assetId , "instance" : instance}
+                                            sensors.append(sensor)
+                                            
+                    processed_appliance["sensors"] = sensors
+                    
+                    temperature_sensors.append(processed_appliance)
+                    air_quality_sensors.append(processed_appliance)
+                    _LOGGER.debug("AIRQDBG", appliance)
                 elif is_light(appliance):
                     processed_appliance["brightness"] = has_capability(
                         appliance, "Alexa.BrightnessController", "brightness"
@@ -209,7 +263,7 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                 else:
                     _LOGGER.debug("Found unsupported device %s", appliance)
 
-    return {"light": lights, "guard": guards, "temperature": temperature_sensors, "binary_sensor": contact_sensors}
+    return {"light": lights, "guard": guards, "temperature": temperature_sensors, "air_quality": air_quality_sensors, "binary_sensor": contact_sensors}
 
 
 class AlexaCapabilityState(TypedDict):
@@ -247,11 +301,23 @@ def parse_temperature_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: Text
 ) -> Optional[Text]:
     """Get the temperature of an entity from the coordinator data."""
+    _LOGGER.debug("GC123 parse_temperature_from_coordinator")
     value = parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.TemperatureSensor", "temperature"
     )
     return value.get("value") if value and "value" in value else None
 
+def parse_air_quality_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: Text, instance_id: Text
+) -> Optional[Text]:
+    """Get the temperature of an entity from the coordinator data."""
+    _LOGGER.debug("GC123 parse_air_quality_from_coordinator %s", instance_id)
+    value = parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.RangeController", "rangeValue", instance = instance_id
+    )
+    #return value.get("value") if value and "value" in value else None
+    return value
+    #return 99
 
 def parse_brightness_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
@@ -321,15 +387,33 @@ def parse_value_from_coordinator(
     namespace: Text,
     name: Text,
     since: Optional[datetime] = None,
+    instance: Text = None,
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
+    #_LOGGER.debug("############")
+    #_LOGGER.debug("GC123 instance = %s", instance)
+    #_LOGGER.debug("GC123 namespace = %s", namespace)
+    #_LOGGER.debug("GC123 name = %s", name)
     if coordinator.data and entity_id in coordinator.data:
+        #_LOGGER.debug("GC123 instance = %s", instance)
         for cap_state in coordinator.data[entity_id]:
+            #_LOGGER.debug("GC123 cap_state instance = %s", cap_state.get("instance"))
+            #if cap_state.get("instance") == instance:
+            #    _LOGGER.debug("GC123 TRUE")           
+            #_LOGGER.debug("GC123 cap_state namespace = %s", cap_state.get("namespace"))
+            #if cap_state.get("namespace") == namespace:
+            #    _LOGGER.debug("GC123 TRUE")       
+            #_LOGGER.debug("GC123 cap_state name = %s", cap_state.get("name"))
+            #if cap_state.get("name") == name:
+            #    _LOGGER.debug("GC123 TRUE")       
             if (
                 cap_state.get("namespace") == namespace
                 and cap_state.get("name") == name
+                and (cap_state.get("instance") == instance or instance is None)
             ):
+                #_LOGGER.debug("GC123 Found instance %s", instance)
                 if is_cap_state_still_acceptable(cap_state, since):
+                    #_LOGGER.debug("GC123 CAP STATE %s", cap_state.get("value"))
                     return cap_state.get("value")
                 else:
                     _LOGGER.debug(

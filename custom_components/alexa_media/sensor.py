@@ -177,7 +177,7 @@ async def create_temperature_sensors(account_dict, temperature_entities):
         sensor = TemperatureSensor(coordinator, temp["id"], temp["name"], device_info)
         account_dict["entities"]["sensor"].setdefault(serial, {})
         account_dict["entities"]["sensor"][serial]["Temperature"] = sensor
-        devices.append(sensor)        
+        devices.append(sensor)
     return devices
 
 async def create_air_quality_sensors(account_dict, air_quality_entities):

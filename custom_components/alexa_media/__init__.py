@@ -469,7 +469,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if bluetooth is not None
                         else "",
                     )
-                    
+
             await process_notifications(login_obj, raw_notifications)
             # Process last_called data to fire events
             await update_last_called(login_obj)

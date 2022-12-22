@@ -29,8 +29,7 @@ def has_capability(
         property_name(Text): The property that matches the interface name.
 
     """
-    for cap in appliance["capabilities"]:
-       
+    for cap in appliance["capabilities"]:       
         props = cap.get("properties")
         if (
             cap["interfaceName"] == interface_name

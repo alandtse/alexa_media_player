@@ -125,7 +125,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             account_dict, temperature_entities
         )
     
-    _LOGGER.debug("GC123 Create air quality sensors")
+    # AIAQM Sensors
     air_quality_sensors = []
     air_quality_entities = account_dict.get("devices", {}).get("air_quality", [])
     if air_quality_entities and account_dict["options"].get(
@@ -178,6 +178,7 @@ async def create_temperature_sensors(account_dict, temperature_entities):
         account_dict["entities"]["sensor"].setdefault(serial, {})
         account_dict["entities"]["sensor"][serial]["Temperature"] = sensor
         devices.append(sensor)
+        
     return devices
 
 async def create_air_quality_sensors(account_dict, air_quality_entities):
@@ -185,30 +186,24 @@ async def create_air_quality_sensors(account_dict, air_quality_entities):
     coordinator = account_dict["coordinator"]
     
     for temp in air_quality_entities:
-        _LOGGER.debug("GC123 Air quality sensor %s", temp)
         _LOGGER.debug(
             "Creating entity %s for a air quality sensor with name %s",
             temp["id"],
             temp["name"],
-        )
-        
+        )        
+        # Each AIAQM has 5 different sensors.
         for subsensor in temp["sensors"] :
-            _LOGGER.debug("GC123 create_air_quality_sensors %s", subsensor)
-            
             sensor_type = subsensor["sensorType"]
-            instance = subsensor["instance"]        
+            instance = subsensor["instance"]
+            unit = subsensor["unit"]
             serial = temp["device_serial"]
             device_info = lookup_device_info(account_dict, serial)
-            _LOGGER.debug("GC123 create_air_quality_sensors 1")
-            sensor = AirQualitySensor(coordinator, temp["id"], temp["name"], device_info, sensor_type, instance)
-            _LOGGER.debug("GC123 create_air_quality_sensors %s", sensor)
+            sensor = AirQualitySensor(coordinator, temp["id"], temp["name"], device_info, sensor_type, instance, unit)
+            _LOGGER.debug("Create air quality sensors %s", sensor)
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
             account_dict["entities"]["sensor"][serial][sensor_type]["Air_Quality"] = sensor
             devices.append(sensor)
-            
-            
-    _LOGGER.debug("GC123 return devices %s", devices)        
     return devices
 
 def lookup_device_info(account_dict, device_serial):
@@ -268,27 +263,43 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 
 
 class AirQualitySensor(SensorEntity, CoordinatorEntity):
-    """A temperature sensor reported by an Echo."""
+    """A air quality sensor reported by an Amazon indoor air quality monitor."""
 
-    def __init__(self, coordinator, entity_id, name, media_player_device_id, sensor_type, instance):
-        #_LOGGER.debug("GC123 create_air_quality_sensors 2")
+    def __init__(self, coordinator, entity_id, name, media_player_device_id, sensor_name, instance, unit):
         super().__init__(coordinator)
-        #_LOGGER.debug("GC123 create_air_quality_sensors 3")
         self.alexa_entity_id = entity_id
-        #_LOGGER.debug("GC123 create_air_quality_sensors 4")
-        self._name = name
-        #_LOGGER.debug("GC123 create_air_quality_sensors 5")
+        self._sensor_name = sensor_name
+        # tidy up name
+        self._sensor_name = self._sensor_name.replace("Alexa.AirQuality.",'')
+        self._sensor_name = ''.join(' ' + char if char.isupper() else char.strip() for char in self._sensor_name).strip()
+        self._name = name + " " + self._sensor_name
         self._media_player_device_id = media_player_device_id
-        #_LOGGER.debug("GC123 create_air_quality_sensors 6")
-        self._sensor_type = sensor_type
-        #_LOGGER.debug("GC123 create_air_quality_sensors 7")
-        #_LOGGER.debug("GC123 create_air_quality_sensors %s", instance)
+        
         self._instance = instance
-        #_LOGGER.debug("GC123 create_air_quality_sensors 8")
-
+        
+        match unit:
+            case "Alexa.Unit.Percent":
+                self._unit = PERCENTAGE
+            case "Alexa.Unit.PartsPerMillion":
+                self._unit = "ppm"                
+            case "Alexa.Unit.Density.MicroGramsPerCubicMeter":
+                self._unit = "µg/m3"  
+            case _:
+                self._unit = "" 
+       
+        match sensor_name:
+            case "Alexa.AirQuality.CarbonMonoxide":
+                self._icon = "mdi:molecule-co"
+            case "Alexa.AirQuality.Humidity":
+                self._icon = "mdi:water-percent"     
+            case "Alexa.AirQuality.IndoorAirQuality":
+                self._icon = "mdi:numeric"       
+            case _:
+                self._icon = "mdi:molecule"
+       
     @property
     def name(self):
-        return self._name + " " + self._sensor_type
+        return self._name
 
     @property
     def device_info(self):
@@ -302,29 +313,28 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
 
     @property
     def native_unit_of_measurement(self):
-        return PERCENTAGE
+        return self._unit
 
     @property
     def native_value(self):
-        _LOGGER.debug("GC123 return parse_air_quality_from_coordinator %s", self._instance)
         return parse_air_quality_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._instance
         )
 
     @property
     def device_class(self):
-        return "air quality score"
+        return self._sensor_name
 
     @property
     def unique_id(self):
         # This includes "_temperature" because the Alexa entityId is for a physical device
         # A single physical device could have multiple HA entities
-        return self.alexa_entity_id + self._sensor_type
+        return self.alexa_entity_id + " " + self._sensor_name
         
     @property
     def icon(self):
         """Return the icon of the sensor."""
-        return "mdi:percent-circle-outline"
+        return self._icon
 
 class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""

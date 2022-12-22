@@ -388,13 +388,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             AlexaAPI.get_device_preferences(login_obj),
             AlexaAPI.get_dnd_state(login_obj),
         ]
-        
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
 
         entities_to_monitor = set()
-        
-        
         for sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "sensor"
         ].values():
@@ -1135,7 +1132,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         if coordinator:
             coordinator.update_interval = timedelta(
-                seconds=scan_interval * 5 if websocket_enabled else scan_interval
+                seconds=scan_interval * 10 if websocket_enabled else scan_interval
             )
             await coordinator.async_request_refresh()
 
@@ -1191,13 +1188,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             update_method=async_update_data,
             # Polling interval. Will only be polled if there are subscribers.
             update_interval=timedelta(
-                seconds=scan_interval * 5 if websocket_enabled else scan_interval
+                seconds=scan_interval * 10 if websocket_enabled else scan_interval
             ),
         )
     else:
         _LOGGER.debug("%s: Reusing coordinator", hide_email(email))
         coordinator.update_interval = timedelta(
-            seconds=scan_interval * 5 if websocket_enabled else scan_interval
+            seconds=scan_interval * 10 if websocket_enabled else scan_interval
         )
     # Fetch initial data so we have data when entities subscribe
     _LOGGER.debug("%s: Refreshing coordinator", hide_email(email))

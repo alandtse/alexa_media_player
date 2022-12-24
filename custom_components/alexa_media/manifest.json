@@ -8,5 +8,6 @@
   "dependencies": ["persistent_notification", "http"],
   "codeowners": ["@alandtse", "@keatontaylor"],
   "requirements": ["alexapy==1.26.4", "packaging>=20.3", "wrapt>=1.12.1"],
-  "iot_class": "cloud_polling"
+  "iot_class": "cloud_polling",
+  "loggers": ["alexapy", "authcaptureproxy"]
 }

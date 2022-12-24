@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.4.0 (2022-12-24)
+### Feature
+* Add debug loggers support ([`37a795d`](https://github.com/custom-components/alexa_media_player/commit/37a795d42367f2e1527a01c9177c41443ccc386b))
+
 ## v4.3.2 (2022-11-03)
 ### Fix
 * Fix misconfigured HA url overriding url input ([`02297a4`](https://github.com/custom-components/alexa_media_player/commit/02297a4537ea36c77551ba10e4efe57e3dacfc8a))

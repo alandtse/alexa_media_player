@@ -15,7 +15,6 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import (
     DEVICE_CLASS_TEMPERATURE,
     DEVICE_CLASS_TIMESTAMP,
-    PERCENTAGE,
     STATE_UNAVAILABLE,
     TEMP_CELSIUS,
     __version__ as HA_VERSION,
@@ -42,6 +41,9 @@ from .alexa_entity import (
     parse_temperature_from_coordinator,
 )
 from .const import (
+    ALEXA_ICON_CONVERSION,
+    ALEXA_ICON_DEFAULT,
+    ALEXA_UNIT_CONVERSION,
     CONF_EXTENDED_ENTITY_DISCOVERY,
     RECURRING_DAY,
     RECURRING_PATTERN,
@@ -130,7 +132,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         temperature_sensors = await create_temperature_sensors(
             account_dict, temperature_entities
         )
-    
+
     # AIAQM Sensors
     air_quality_sensors = []
     air_quality_entities = account_dict.get("devices", {}).get("air_quality", [])
@@ -187,30 +189,42 @@ async def create_temperature_sensors(account_dict, temperature_entities):
         devices.append(sensor)
     return devices
 
+
 async def create_air_quality_sensors(account_dict, air_quality_entities):
     devices = []
     coordinator = account_dict["coordinator"]
-    
+
     for temp in air_quality_entities:
         _LOGGER.debug(
             "Creating entity %s for a air quality sensor with name %s",
             temp["id"],
             temp["name"],
-        )        
+        )
         # Each AIAQM has 5 different sensors.
-        for subsensor in temp["sensors"] :
+        for subsensor in temp["sensors"]:
             sensor_type = subsensor["sensorType"]
             instance = subsensor["instance"]
             unit = subsensor["unit"]
             serial = temp["device_serial"]
             device_info = lookup_device_info(account_dict, serial)
-            sensor = AirQualitySensor(coordinator, temp["id"], temp["name"], device_info, sensor_type, instance, unit)
+            sensor = AirQualitySensor(
+                coordinator,
+                temp["id"],
+                temp["name"],
+                device_info,
+                sensor_type,
+                instance,
+                unit,
+            )
             _LOGGER.debug("Create air quality sensors %s", sensor)
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
-            account_dict["entities"]["sensor"][serial][sensor_type]["Air_Quality"] = sensor
+            account_dict["entities"]["sensor"][serial][sensor_type][
+                "Air_Quality"
+            ] = sensor
             devices.append(sensor)
     return devices
+
 
 def lookup_device_info(account_dict, device_serial):
     """Get the device to use for a given Echo based on a given device serial id.
@@ -281,38 +295,32 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 class AirQualitySensor(SensorEntity, CoordinatorEntity):
     """A air quality sensor reported by an Amazon indoor air quality monitor."""
 
-    def __init__(self, coordinator, entity_id, name, media_player_device_id, sensor_name, instance, unit):
+    def __init__(
+        self,
+        coordinator,
+        entity_id,
+        name,
+        media_player_device_id,
+        sensor_name,
+        instance,
+        unit,
+    ):
         super().__init__(coordinator)
         self.alexa_entity_id = entity_id
         self._sensor_name = sensor_name
         # tidy up name
-        self._sensor_name = self._sensor_name.replace("Alexa.AirQuality.",'')
-        self._sensor_name = ''.join(' ' + char if char.isupper() else char.strip() for char in self._sensor_name).strip()
+        self._sensor_name = self._sensor_name.replace("Alexa.AirQuality.", "")
+        self._sensor_name = "".join(
+            " " + char if char.isupper() else char.strip() for char in self._sensor_name
+        ).strip()
         self._name = name + " " + self._sensor_name
         self._media_player_device_id = media_player_device_id
-        
+
         self._instance = instance
-        
-        match unit:
-            case "Alexa.Unit.Percent":
-                self._unit = PERCENTAGE
-            case "Alexa.Unit.PartsPerMillion":
-                self._unit = "ppm"                
-            case "Alexa.Unit.Density.MicroGramsPerCubicMeter":
-                self._unit = "µg/m3"  
-            case _:
-                self._unit = "" 
-       
-        match sensor_name:
-            case "Alexa.AirQuality.CarbonMonoxide":
-                self._icon = "mdi:molecule-co"
-            case "Alexa.AirQuality.Humidity":
-                self._icon = "mdi:water-percent"     
-            case "Alexa.AirQuality.IndoorAirQuality":
-                self._icon = "mdi:numeric"       
-            case _:
-                self._icon = "mdi:molecule"
-       
+
+        self._unit = ALEXA_UNIT_CONVERSION.get(unit)
+        self._icon = ALEXA_ICON_CONVERSION.get(sensor_name, ALEXA_ICON_DEFAULT)
+
     @property
     def name(self):
         return self._name
@@ -346,11 +354,12 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         # This includes "_temperature" because the Alexa entityId is for a physical device
         # A single physical device could have multiple HA entities
         return self.alexa_entity_id + " " + self._sensor_name
-        
+
     @property
     def icon(self):
         """Return the icon of the sensor."""
         return self._icon
+
 
 class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""

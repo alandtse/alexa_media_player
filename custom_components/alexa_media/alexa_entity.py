@@ -24,9 +24,9 @@ def has_capability(
     """Determine if an appliance from the Alexa network details offers a particular interface with enough support that is worth adding to Home Assistant.
 
     Args:
-        appliance(Dict[Text, Any]): An appliance from a call to AlexaAPI.get_network_details
-        interface_name(Text): One of the interfaces documented by the Alexa Smart Home Skills API
-        property_name(Text): The property that matches the interface name.
+        appliance(dict[str, Any]): An appliance from a call to AlexaAPI.get_network_details
+        interface_name(str): One of the interfaces documented by the Alexa Smart Home Skills API
+        property_name(str): The property that matches the interface name.
 
     """
     for cap in appliance["capabilities"]:
@@ -91,7 +91,7 @@ def is_temperature_sensor(appliance: dict[str, Any]) -> bool:
 
 
 # Checks if air quality sensor
-def is_air_quality_sensor(appliance: Dict[Text, Any]) -> bool:
+def is_air_quality_sensor(appliance: dict[str, Any]) -> bool:
     """Is the given appliance the Air Quality Sensor."""
     return (
         appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor"
@@ -184,6 +184,7 @@ class AlexaEntities(TypedDict):
 
 
 def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEntities:
+    # pylint: disable=too-many-locals
     """Turn the network details into a list of useful entities with the important details extracted."""
     lights = []
     guards = []
@@ -191,6 +192,7 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
     air_quality_sensors = []
     contact_sensors = []
     location_details = network_details["locationDetails"]["locationDetails"]
+    # pylint: disable=too-many-nested-blocks
     for location in location_details.values():
         amazon_bridge_details = location["amazonBridgeDetails"]["amazonBridgeDetails"]
         for bridge in amazon_bridge_details.values():
@@ -320,8 +322,8 @@ def parse_temperature_from_coordinator(
 
 
 def parse_air_quality_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text, instance_id: Text
-) -> Optional[Text]:
+    coordinator: DataUpdateCoordinator, entity_id: str, instance_id: str
+) -> Optional[str]:
     """Get the air quality of an entity from the coordinator data."""
     value = parse_value_from_coordinator(
         coordinator,
@@ -402,7 +404,7 @@ def parse_value_from_coordinator(
     namespace: str,
     name: str,
     since: Optional[datetime] = None,
-    instance: Text = None,
+    instance: str = None,
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:

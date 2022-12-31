@@ -8,7 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from asyncio import sleep
 import logging
-from typing import Dict, List, Optional, Text  # noqa pylint: disable=unused-import
+from typing import List, Optional
 
 from alexapy import hide_email, hide_serial
 from homeassistant.const import (
@@ -132,7 +132,6 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
     """Implementation of Alexa Media Player alarm control panel."""
 
     def __init__(self, login, coordinator, guard_entity, media_players=None) -> None:
-        # pylint: disable=unexpected-keyword-arg
         """Initialize the Alexa device."""
         AlexaMedia.__init__(self, None, login)
         CoordinatorEntity.__init__(self, coordinator)
@@ -144,7 +143,7 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
         self._guard_entity_id = guard_entity["id"]
         self._friendly_name = "Alexa Guard " + self._appliance_id[-5:]
         self._media_players = {} or media_players
-        self._attrs: Dict[Text, Text] = {}
+        self._attrs: dict[str, str] = {}
         _LOGGER.debug(
             "%s: Guard Discovered %s: %s %s",
             self.account,
@@ -154,8 +153,9 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
         )
 
     @_catch_login_errors
-    async def _async_alarm_set(self, command: Text = "", code=None) -> None:
-        # pylint: disable=unexpected-keyword-arg
+    async def _async_alarm_set(
+        self, command: str = "", code=None  # pylint: disable=unused-argument
+    ) -> None:
         """Send command."""
         try:
             if not self.enabled:
@@ -187,14 +187,16 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
             )
         await self.coordinator.async_request_refresh()
 
-    async def async_alarm_disarm(self, code=None) -> None:
-        # pylint: disable=unexpected-keyword-arg
+    async def async_alarm_disarm(
+        self, code=None  # pylint:disable=unused-argument
+    ) -> None:
         """Send disarm command."""
         await self._async_alarm_set(STATE_ALARM_DISARMED)
 
-    async def async_alarm_arm_away(self, code=None) -> None:
+    async def async_alarm_arm_away(
+        self, code=None  # pylint:disable=unused-argument
+    ) -> None:
         """Send arm away command."""
-        # pylint: disable=unexpected-keyword-arg
         await self._async_alarm_set(STATE_ALARM_ARMED_AWAY)
 
     @property
@@ -215,14 +217,14 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
         )
         if _state == "ARMED_AWAY":
             return STATE_ALARM_ARMED_AWAY
-        elif _state == "ARMED_STAY":
+        if _state == "ARMED_STAY":
             return STATE_ALARM_DISARMED
-        else:
-            return STATE_ALARM_DISARMED
+        return STATE_ALARM_DISARMED
 
     @property
     def supported_features(self) -> int:
         """Return the list of supported features."""
+        # pylint: disable=import-outside-toplevel
         try:
             from homeassistant.components.alarm_control_panel import (
                 SUPPORT_ALARM_ARM_AWAY,
@@ -233,6 +235,12 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
 
     @property
     def assumed_state(self) -> bool:
+        """Return assumed state.
+
+        Returns
+            bool: Whether the state is assumed
+
+        """
         last_refresh_success = (
             self.coordinator.data and self._guard_entity_id in self.coordinator.data
         )

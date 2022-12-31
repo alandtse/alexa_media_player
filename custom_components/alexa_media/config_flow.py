@@ -12,7 +12,7 @@ import datetime
 from datetime import timedelta
 from functools import reduce
 import logging
-from typing import Any, Dict, List, Optional, Text
+from typing import Any, Optional
 
 from aiohttp import ClientConnectionError, ClientSession, InvalidURL, web, web_response
 from aiohttp.web_exceptions import HTTPBadRequest
@@ -31,7 +31,6 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, C
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.exceptions import Unauthorized
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
 import httpx
@@ -89,7 +88,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     def _update_ord_dict(self, old_dict: OrderedDict, new_dict: dict) -> OrderedDict:
         result: OrderedDict = OrderedDict()
-        for k, v in old_dict.items():
+        for k, v in old_dict.items():  # pylint: disable=invalid-name
             for key, value in new_dict.items():
                 if k == key:
                     result.update([(key, value)])
@@ -133,6 +132,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         return await self.async_step_user_legacy(import_config)
 
     async def async_step_user(self, user_input=None):
+        # pylint: disable=too-many-branches
         """Provide a proxy for login."""
         self._save_user_input_to_config(user_input=user_input)
         try:
@@ -263,10 +263,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             try:
                 async with session.get(hass_url) as resp:
                     hass_url_valid = resp.status == 200
-            except (ClientConnectionError) as err:
+            except ClientConnectionError as err:
                 hass_url_valid = False
                 hass_url_error = str(err)
-            except (InvalidURL) as err:
+            except InvalidURL as err:
                 hass_url_valid = False
                 hass_url_error = str(err.__cause__)
         if not hass_url_valid:
@@ -305,6 +305,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_start_proxy(self, user_input=None):
         """Start proxy for login."""
+        # pylint: disable=unused-argument
         _LOGGER.debug(
             "Starting proxy for %s - %s",
             hide_email(self.login.email),
@@ -340,10 +341,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         proxy_url = self.proxy.access_url().with_query(
             {"config_flow_id": self.flow_id, "callback_url": str(callback_url)}
         )
-        self.login._session.cookie_jar.clear()
+        self.login._session.cookie_jar.clear()  # pylint: disable=protected-access
         return self.async_external_step(step_id="check_proxy", url=str(proxy_url))
 
     async def async_step_check_proxy(self, user_input=None):
+        # pylint: disable=unused-argument
         """Check status of proxy for login."""
         _LOGGER.debug(
             "Checking proxy response for %s - %s",
@@ -354,6 +356,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         return self.async_external_step_done(next_step_id="finish_proxy")
 
     async def async_step_finish_proxy(self, user_input=None):
+        # pylint: disable=unused-argument
         """Finish auth."""
         if await self.login.test_loggedin():
             await self.login.finalize_login()
@@ -462,7 +465,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 errors={"base": "2fa_key_invalid"},
                 description_placeholders={"message": ""},
             )
-        except BaseException as ex:  # pylyint: disable=broad-except
+        except BaseException as ex:  # pylint: disable=broad-except
             _LOGGER.warning("Unknown error: %s", ex)
             if self.config[CONF_DEBUG]:
                 raise
@@ -555,7 +558,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         return await self.async_step_user_legacy(self.config)
 
     async def _test_login(self):
-        # pylint: disable=too-many-statements, too-many-return-statements
         login = self.login
         email = login.email
         _LOGGER.debug("Testing login status: %s", login.status)
@@ -632,10 +634,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.automatic_steps += 1
                 await sleep(5)
                 if generated_securitycode:
-                    return await self.async_step_twofactor(
+                    return await self.async_step_user_legacy(
                         user_input={CONF_SECURITYCODE: generated_securitycode}
                     )
-                return await self.async_step_twofactor(
+                return await self.async_step_user_legacy(
                     user_input={CONF_SECURITYCODE: self.securitycode}
                 )
         if login.status and (login.status.get("login_failed")):
@@ -675,6 +677,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         )
 
     def _save_user_input_to_config(self, user_input=None) -> None:
+        # pylint: disable=too-many-branches
         """Process user_input to save to self.config.
 
         user_input can be a dictionary of strings or an internally
@@ -833,11 +836,11 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
     """Handle proxy connections."""
 
     url: str = AUTH_PROXY_PATH
-    extra_urls: List[str] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
+    extra_urls: list[str] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
     name: str = AUTH_PROXY_NAME
     requires_auth: bool = False
     handler: web.RequestHandler = None
-    known_ips: Dict[str, datetime.datetime] = {}
+    known_ips: dict[str, datetime.datetime] = {}
     auth_seconds: int = 300
 
     def __init__(self, handler: web.RequestHandler):
@@ -885,7 +888,9 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 _LOGGER.warning("Detected Connection error: %s", ex)
                 return web_response.Response(
                     headers={"content-type": "text/html"},
-                    text=f"Connection Error! Please try refreshing. If this persists, please report this error to <a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
+                    text="Connection Error! Please try refreshing. "
+                    + "If this persists, please report this error to "
+                    + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
                 )
 
         return wrapped

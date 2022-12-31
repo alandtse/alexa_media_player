@@ -7,7 +7,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 import logging
-from typing import List, Text  # noqa pylint: disable=unused-import
+from typing import List
 
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -36,7 +36,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa switch platform."""
     devices = []  # type: List[DNDSwitch]
-    SWITCH_TYPES = [
+    SWITCH_TYPES = [  # pylint: disable=invalid-name
         ("dnd", DNDSwitch),
         ("shuffle", ShuffleSwitch),
         ("repeat", RepeatSwitch),
@@ -62,7 +62,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"][
                 key
             ] = {}
-            for (switch_key, class_) in SWITCH_TYPES:
+            for switch_key, class_ in SWITCH_TYPES:
                 if (
                     switch_key == "dnd"
                     and not account_dict["devices"]["switch"].get(key, {}).get("dnd")
@@ -139,8 +139,8 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
     def __init__(
         self,
         client,
-        switch_property: Text,
-        switch_function: Text,
+        switch_property: str,
+        switch_function: str,
         name="Alexa",
     ):
         """Initialize the Alexa Switch device."""
@@ -188,6 +188,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
 
     @_catch_login_errors
     async def _set_switch(self, state, **kwargs):
+        # pylint: disable=unused-argument
         try:
             if not self.enabled:
                 return
@@ -290,7 +291,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         """Return the icon of the switch."""
         return self._icon()
 
-    def _icon(self, on=None, off=None):
+    def _icon(self, on=None, off=None):  # pylint: disable=invalid-name
         return on if self.is_on else off
 
 

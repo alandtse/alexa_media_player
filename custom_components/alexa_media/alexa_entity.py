@@ -10,7 +10,7 @@ from datetime import datetime
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Text, Tuple, TypedDict, Union
+from typing import Any, Optional, TypedDict, Union
 
 from alexapy import AlexaAPI, AlexaLogin, hide_serial
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -19,7 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def has_capability(
-    appliance: Dict[Text, Any], interface_name: Text, property_name: Text
+    appliance: dict[str, Any], interface_name: str, property_name: str
 ) -> bool:
     """Determine if an appliance from the Alexa network details offers a particular interface with enough support that is worth adding to Home Assistant.
 
@@ -42,7 +42,7 @@ def has_capability(
     return False
 
 
-def is_hue_v1(appliance: Dict[Text, Any]) -> bool:
+def is_hue_v1(appliance: dict[str, Any]) -> bool:
     """Determine if an appliance is managed via the Philips Hue v1 Hub.
 
     This check catches old Philips Hue bulbs and hubs, but critically, it also catches things pretending to be older
@@ -51,7 +51,7 @@ def is_hue_v1(appliance: Dict[Text, Any]) -> bool:
     return appliance.get("manufacturerName") == "Royal Philips Electronics"
 
 
-def is_local(appliance: Dict[Text, Any]) -> bool:
+def is_local(appliance: dict[str, Any]) -> bool:
     """Test whether locally connected.
 
     This is mainly present to prevent loops with the official Alexa integration.
@@ -76,21 +76,21 @@ def is_local(appliance: Dict[Text, Any]) -> bool:
     return zigbee_pattern.fullmatch(appliance.get("applianceId", "")) is not None
 
 
-def is_alexa_guard(appliance: Dict[Text, Any]) -> bool:
+def is_alexa_guard(appliance: dict[str, Any]) -> bool:
     """Is the given appliance the guard alarm system of an echo."""
     return appliance["modelName"] == "REDROCK_GUARD_PANEL" and has_capability(
         appliance, "Alexa.SecurityPanelController", "armState"
     )
 
 
-def is_temperature_sensor(appliance: Dict[Text, Any]) -> bool:
+def is_temperature_sensor(appliance: dict[str, Any]) -> bool:
     """Is the given appliance the temperature sensor of an Echo."""
     return is_local(appliance) and has_capability(
         appliance, "Alexa.TemperatureSensor", "temperature"
     )
 
 
-def is_light(appliance: Dict[Text, Any]) -> bool:
+def is_light(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
     return (
         is_local(appliance)
@@ -98,7 +98,8 @@ def is_light(appliance: Dict[Text, Any]) -> bool:
         and has_capability(appliance, "Alexa.PowerController", "powerState")
     )
 
-def is_contact_sensor(appliance: Dict[Text, Any]) -> bool:
+
+def is_contact_sensor(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a contact sensor controlled locally by an Echo."""
     return (
         is_local(appliance)
@@ -106,7 +107,8 @@ def is_contact_sensor(appliance: Dict[Text, Any]) -> bool:
         and has_capability(appliance, "Alexa.ContactSensor", "detectionState")
     )
 
-def get_friendliest_name(appliance: Dict[Text, Any]) -> Text:
+
+def get_friendliest_name(appliance: dict[str, Any]) -> str:
     """Find the best friendly name. Alexa seems to store manual renames in aliases. Prefer that one."""
     aliases = appliance.get("aliases", [])
     for alias in aliases:
@@ -116,7 +118,7 @@ def get_friendliest_name(appliance: Dict[Text, Any]) -> Text:
     return appliance["friendlyName"]
 
 
-def get_device_serial(appliance: Dict[Text, Any]) -> Optional[Text]:
+def get_device_serial(appliance: dict[str, Any]) -> Optional[str]:
     """Find the device serial id if it is present."""
     alexa_device_id_list = appliance.get("alexaDeviceIdentifierList", [])
     for alexa_device_id in alexa_device_id_list:
@@ -128,9 +130,9 @@ def get_device_serial(appliance: Dict[Text, Any]) -> Optional[Text]:
 class AlexaEntity(TypedDict):
     """Class for Alexaentity."""
 
-    id: Text
-    appliance_id: Text
-    name: Text
+    id: str
+    appliance_id: str
+    name: str
     is_hue_v1: bool
 
 
@@ -145,7 +147,8 @@ class AlexaLightEntity(AlexaEntity):
 class AlexaTemperatureEntity(AlexaEntity):
     """Class for AlexaTemperatureEntity."""
 
-    device_serial: Text
+    device_serial: str
+
 
 class AlexaBinaryEntity(AlexaEntity):
     """Class for AlexaBinaryEntity."""
@@ -156,13 +159,13 @@ class AlexaBinaryEntity(AlexaEntity):
 class AlexaEntities(TypedDict):
     """Class for holding entities."""
 
-    light: List[AlexaLightEntity]
-    guard: List[AlexaEntity]
-    temperature: List[AlexaTemperatureEntity]
-    binary_sensor: List[AlexaBinaryEntity]
+    light: list[AlexaLightEntity]
+    guard: list[AlexaEntity]
+    temperature: list[AlexaTemperatureEntity]
+    binary_sensor: list[AlexaBinaryEntity]
 
 
-def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEntities:
+def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEntities:
     """Turn the network details into a list of useful entities with the important details extracted."""
     lights = []
     guards = []
@@ -209,22 +212,27 @@ def parse_alexa_entities(network_details: Optional[Dict[Text, Any]]) -> AlexaEnt
                 else:
                     _LOGGER.debug("Found unsupported device %s", appliance)
 
-    return {"light": lights, "guard": guards, "temperature": temperature_sensors, "binary_sensor": contact_sensors}
+    return {
+        "light": lights,
+        "guard": guards,
+        "temperature": temperature_sensors,
+        "binary_sensor": contact_sensors,
+    }
 
 
 class AlexaCapabilityState(TypedDict):
     """Class for AlexaCapabilityState."""
 
-    name: Text
-    namespace: Text
-    value: Union[int, Text, TypedDict]
+    name: str
+    namespace: str
+    value: Union[int, str, TypedDict]
 
 
-AlexaEntityData = Dict[Text, List[AlexaCapabilityState]]
+AlexaEntityData = dict[str, list[AlexaCapabilityState]]
 
 
 async def get_entity_data(
-    login_obj: AlexaLogin, entity_ids: List[Text]
+    login_obj: AlexaLogin, entity_ids: list[str]
 ) -> AlexaEntityData:
     """Get and process the entity data into a more usable format."""
 
@@ -244,8 +252,8 @@ async def get_entity_data(
 
 
 def parse_temperature_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text
-) -> Optional[Text]:
+    coordinator: DataUpdateCoordinator, entity_id: str
+) -> Optional[str]:
     """Get the temperature of an entity from the coordinator data."""
     value = parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.TemperatureSensor", "temperature"
@@ -254,7 +262,7 @@ def parse_temperature_from_coordinator(
 
 
 def parse_brightness_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
 ) -> Optional[int]:
     """Get the brightness in the range 0-100."""
     return parse_value_from_coordinator(
@@ -263,9 +271,9 @@ def parse_brightness_from_coordinator(
 
 
 def parse_color_temp_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
 ) -> Optional[int]:
-    """Get the color temperature in kelvin"""
+    """Get the color temperature in kelvin."""
     return parse_value_from_coordinator(
         coordinator,
         entity_id,
@@ -276,9 +284,9 @@ def parse_color_temp_from_coordinator(
 
 
 def parse_color_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
-) -> Optional[Tuple[float, float, float]]:
-    """Get the color as a tuple of (hue, saturation, brightness)"""
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+) -> Optional[tuple[float, float, float]]:
+    """Get the color as a tuple of (hue, saturation, brightness)."""
     value = parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.ColorController", "color", since
     )
@@ -290,8 +298,8 @@ def parse_color_from_coordinator(
 
 
 def parse_power_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text, since: datetime
-) -> Optional[Text]:
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+) -> Optional[str]:
     """Get the power state of the entity."""
     return parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.PowerController", "powerState", since
@@ -299,8 +307,8 @@ def parse_power_from_coordinator(
 
 
 def parse_guard_state_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text
-) -> Optional[Text]:
+    coordinator: DataUpdateCoordinator, entity_id: str
+) -> Optional[str]:
     """Get the guard state from the coordinator data."""
     return parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.SecurityPanelController", "armState"
@@ -308,18 +316,19 @@ def parse_guard_state_from_coordinator(
 
 
 def parse_detection_state_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: Text
+    coordinator: DataUpdateCoordinator, entity_id: str
 ) -> Optional[bool]:
     """Get the detection state from the coordinator data."""
     return parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.ContactSensor", "detectionState"
     )
 
+
 def parse_value_from_coordinator(
     coordinator: DataUpdateCoordinator,
-    entity_id: Text,
-    namespace: Text,
-    name: Text,
+    entity_id: str,
+    namespace: str,
+    name: str,
     since: Optional[datetime] = None,
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
@@ -331,19 +340,18 @@ def parse_value_from_coordinator(
             ):
                 if is_cap_state_still_acceptable(cap_state, since):
                     return cap_state.get("value")
-                else:
-                    _LOGGER.debug(
-                        "Coordinator data for %s is too old to be returned.",
-                        hide_serial(entity_id),
-                    )
-                    return None
+                _LOGGER.debug(
+                    "Coordinator data for %s is too old to be returned.",
+                    hide_serial(entity_id),
+                )
+                return None
     else:
         _LOGGER.debug("Coordinator has no data for %s", hide_serial(entity_id))
     return None
 
 
 def is_cap_state_still_acceptable(
-    cap_state: Dict[Text, Any], since: Optional[datetime]
+    cap_state: dict[str, Any], since: Optional[datetime]
 ) -> bool:
     """Determine if a particular capability state is still usable given its age."""
     if since is not None:

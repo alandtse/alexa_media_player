@@ -92,7 +92,24 @@ repos:
     hooks:
       - id: sync_with_poetry
         args: [] # optional args
-
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.1.0
+    hooks:
+      - id: codespell
+        args:
+          - --ignore-words-list=hass
+          - --skip="./.*,*.csv,*.json,./*.lock"
+          - --quiet-level=2
+        exclude_types: [csv, json]
+        exclude: ^tests/fixtures/
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.9.2
+    hooks:
+      - id: flake8
+        additional_dependencies:
+          - flake8-docstrings==1.5.0
+          - pydocstyle==5.1.1
+        files: ^(homeassistant|script|tests)/.+\.py$
 ci:
   autofix_commit_msg: |
     style: auto fixes from pre-commit.com hooks

@@ -56,3 +56,4 @@ exclude = '''
 [tool.codespell]
 skip = './.*,*.csv,*.json,*.lock'
 quiet-level = 2
+ignore-words-list = "hass"

@@ -7,8 +7,11 @@
 # too-many-instance-attributes - This should be refactored later
 # duplicate-code - This should be refactored later as architecture has redundant Home-assistant devices.
 # too-many-arguments
+# import-error
+# locally-disabled
+# django-not-available
 disable=
-  format,unnecessary-pass,too-many-instance-attributes,duplicate-code,too-many-arguments,too-many-boolean-expressions
+  format,unnecessary-pass,too-many-instance-attributes,duplicate-code,too-many-arguments,too-many-boolean-expressions,import-error,locally-disabled,django-not-available
 
 [REPORTS]
 reports=no

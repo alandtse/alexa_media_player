@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 
+from alexapy.helpers import hide_email, hide_serial
 from homeassistant.components.notify import (
     ATTR_DATA,
     ATTR_TARGET,
@@ -18,18 +19,15 @@ from homeassistant.components.notify import (
     SERVICE_NOTIFY,
     BaseNotificationService,
 )
+from homeassistant.const import CONF_EMAIL
 import voluptuous as vol
 
-from custom_components.alexa_media.const import NOTIFY_URL
-
-from . import (
-    CONF_EMAIL,
+from .const import (
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
-    hide_email,
-    hide_serial,
+    NOTIFY_URL,
 )
 from .helpers import retry_async
 
@@ -205,6 +203,7 @@ class AlexaNotificationService(BaseNotificationService):
         return devices
 
     async def async_send_message(self, message="", **kwargs):
+        # pylint: disable=too-many-branches
         """Send a message to a Alexa device."""
         _LOGGER.debug("Message: %s, kwargs: %s", message, kwargs)
         _LOGGER.debug("Target type: %s", type(kwargs.get(ATTR_TARGET)))
@@ -268,7 +267,7 @@ class AlexaNotificationService(BaseNotificationService):
                     # )
                     if alexa.device_serial_number in targets and alexa.available:
                         _LOGGER.debug(
-                            ("%s: Announce by %s to " "targets: %s: %s"),
+                            ("%s: Announce by %s to targets: %s: %s"),
                             hide_email(account),
                             alexa,
                             list(map(hide_serial, targets)),
@@ -322,7 +321,7 @@ class AlexaNotificationService(BaseNotificationService):
                     errormessage = (
                         f"{account}: Data value `type={data_type}` is not implemented. "
                         f"See {NOTIFY_URL}"
-                        )
+                    )
                     _LOGGER.debug(errormessage)
                     raise vol.Invalid(errormessage)
         await asyncio.gather(*tasks)

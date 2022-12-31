@@ -25,7 +25,8 @@ repos:
         exclude: >
           (?x)^(
             .vscode/settings.json|
-            .vscode/launch.json
+            .vscode/launch.json|
+            .devcontainer/devcontainer.json
           )$
       # This one is slow and doesn't check for much
       # - detect-private-key
@@ -44,10 +45,10 @@ repos:
     repo: https://github.com/commitizen-tools/commitizen
     rev: v2.38.0
   # --- Linters ---
-  - hooks:
-      - id: dockerfile_lint
-    repo: https://github.com/Lucas-C/pre-commit-hooks-nodejs
-    rev: v1.1.2
+  # - hooks:
+  #     - id: dockerfile_lint
+  #   repo: https://github.com/Lucas-C/pre-commit-hooks-nodejs
+  #   rev: v1.1.2
   - hooks:
       - id: black
     repo: https://github.com/psf/black

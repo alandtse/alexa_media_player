@@ -402,11 +402,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             temp = sensor.get("Temperature")
             if temp and temp.enabled:
                 entities_to_monitor.add(temp.alexa_entity_id)
-                
+
             temp = sensor.get("Air_Quality")
             if temp and temp.enabled:
                 entities_to_monitor.add(temp.alexa_entity_id)
-                
+
         for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["light"]:
             if light.enabled:
                 entities_to_monitor.add(light.alexa_entity_id)

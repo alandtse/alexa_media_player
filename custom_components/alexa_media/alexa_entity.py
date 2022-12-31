@@ -89,15 +89,17 @@ def is_temperature_sensor(appliance: dict[str, Any]) -> bool:
         appliance, "Alexa.TemperatureSensor", "temperature"
     )
 
-# Checks if air quality sensor    
+
+# Checks if air quality sensor
 def is_air_quality_sensor(appliance: Dict[Text, Any]) -> bool:
     """Is the given appliance the Air Quality Sensor."""
     return (
-        appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor" 
+        appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor"
         and "AIR_QUALITY_MONITOR" in appliance.get("applianceTypes", [])
         and has_capability(appliance, "Alexa.TemperatureSensor", "temperature")
-        and has_capability(appliance, "Alexa.RangeController", "rangeValue")        
+        and has_capability(appliance, "Alexa.RangeController", "rangeValue")
     )
+
 
 def is_light(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
@@ -157,7 +159,8 @@ class AlexaTemperatureEntity(AlexaEntity):
     """Class for AlexaTemperatureEntity."""
 
     device_serial: str
-    
+
+
 class AlexaAirQualityEntity(AlexaEntity):
     """Class for AlexaAirQualityEntity."""
 
@@ -209,31 +212,42 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                     temperature_sensors.append(processed_appliance)
                 # Code for Amazon Smart Air Quality Monitor
                 elif is_air_quality_sensor(appliance):
-                    serial = get_device_serial(appliance)                    
+                    serial = get_device_serial(appliance)
                     processed_appliance["device_serial"] = (
                         serial if serial else appliance["entityId"]
-                    )                    
+                    )
                     # create array of air quality sensors. We must store the instance id against
                     # the assetId so we know which sensors are which.
                     sensors = []
-                    if appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor" :
+                    if (
+                        appliance["friendlyDescription"]
+                        == "Amazon Indoor Air Quality Monitor"
+                    ):
                         for cap in appliance["capabilities"]:
                             instance = cap.get("instance")
-                            if instance :                                
+                            if instance:
                                 friendlyName = cap["resources"].get("friendlyNames")
                                 for entry in friendlyName:
                                     assetId = entry["value"].get("assetId")
-                                    if assetId and assetId.startswith("Alexa.AirQuality") : 
+                                    if assetId and assetId.startswith(
+                                        "Alexa.AirQuality"
+                                    ):
                                         unit = cap["configuration"]["unitOfMeasure"]
-                                        sensor = { "sensorType" : assetId , "instance" : instance , "unit" : unit}
+                                        sensor = {
+                                            "sensorType": assetId,
+                                            "instance": instance,
+                                            "unit": unit,
+                                        }
                                         sensors.append(sensor)
-                                        _LOGGER.debug("AIAQM sensor detected %s", sensor)   
+                                        _LOGGER.debug(
+                                            "AIAQM sensor detected %s", sensor
+                                        )
                     processed_appliance["sensors"] = sensors
-                    
+
                     # Add as both temperature and air quality sensor
                     temperature_sensors.append(processed_appliance)
                     air_quality_sensors.append(processed_appliance)
-                    
+
                 elif is_light(appliance):
                     processed_appliance["brightness"] = has_capability(
                         appliance, "Alexa.BrightnessController", "brightness"
@@ -259,7 +273,7 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
         "light": lights,
         "guard": guards,
         "temperature": temperature_sensors,
-        "air_quality": air_quality_sensors, 
+        "air_quality": air_quality_sensors,
         "binary_sensor": contact_sensors,
     }
 
@@ -304,15 +318,21 @@ def parse_temperature_from_coordinator(
     )
     return value.get("value") if value and "value" in value else None
 
+
 def parse_air_quality_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: Text, instance_id: Text
 ) -> Optional[Text]:
     """Get the air quality of an entity from the coordinator data."""
     value = parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.RangeController", "rangeValue", instance = instance_id
+        coordinator,
+        entity_id,
+        "Alexa.RangeController",
+        "rangeValue",
+        instance=instance_id,
     )
     return value
-    
+
+
 def parse_brightness_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
 ) -> Optional[int]:

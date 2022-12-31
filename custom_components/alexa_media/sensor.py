@@ -15,9 +15,9 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import (
     DEVICE_CLASS_TEMPERATURE,
     DEVICE_CLASS_TIMESTAMP,
+    PERCENTAGE,
     STATE_UNAVAILABLE,
     TEMP_CELSIUS,
-    PERCENTAGE,
     __version__ as HA_VERSION,
 )
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
@@ -37,7 +37,10 @@ from . import (
     hide_email,
     hide_serial,
 )
-from .alexa_entity import parse_temperature_from_coordinator, parse_air_quality_from_coordinator
+from .alexa_entity import (
+    parse_air_quality_from_coordinator,
+    parse_temperature_from_coordinator,
+)
 from .const import (
     CONF_EXTENDED_ENTITY_DISCOVERY,
     RECURRING_DAY,

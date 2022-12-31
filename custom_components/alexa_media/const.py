@@ -8,7 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from datetime import timedelta
 
-__version__ = "4.3.2"
+__version__ = "4.4.0"
 PROJECT_URL = "https://github.com/custom-components/alexa_media_player/"
 ISSUE_URL = f"{PROJECT_URL}issues"
 NOTIFY_URL = f"{PROJECT_URL}wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
@@ -30,7 +30,7 @@ DEPENDENT_ALEXA_COMPONENTS = [
     "sensor",
     "alarm_control_panel",
     "light",
-    "binary_sensor"
+    "binary_sensor",
 ]
 
 HTTP_COOKIE_HEADER = "# HTTP Cookie File"
@@ -98,17 +98,15 @@ RECURRING_PATTERN_ISO_SET = {
 ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
 ATTR_NUM_ENTRIES = "entries"
-STARTUP = """
+STARTUP = f"""
 -------------------------------------------------------------------
-{}
-Version: {}
+{DOMAIN}
+Version: {__version__}
 This is a custom component
 If you have any issues with this you need to open an issue here:
-{}
+{ISSUE_URL}
 -------------------------------------------------------------------
-""".format(
-    DOMAIN, __version__, ISSUE_URL
-)
+"""
 
 AUTH_CALLBACK_PATH = "/auth/alexamedia/callback"
 AUTH_CALLBACK_NAME = "auth:alexamedia:callback"

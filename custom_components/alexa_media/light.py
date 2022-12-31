@@ -9,13 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import datetime
 import logging
 from math import sqrt
-from typing import (  # noqa pylint: disable=unused-import
-    Callable,
-    List,
-    Optional,
-    Text,
-    Tuple,
-)
+from typing import Optional
 
 from alexapy import AlexaAPI, hide_serial
 from homeassistant.components.light import (
@@ -74,7 +68,7 @@ LOCAL_TIMEZONE = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinf
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa sensor platform."""
-    devices: List[LightEntity] = []
+    devices: list[LightEntity] = []
     account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -85,20 +79,20 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     )
     light_entities = account_dict.get("devices", {}).get("light", [])
     if light_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
-        for le in light_entities:
-            if not (le["is_hue_v1"] and hue_emulated_enabled):
+        for light_entity in light_entities:
+            if not (light_entity["is_hue_v1"] and hue_emulated_enabled):
                 _LOGGER.debug(
                     "Creating entity %s for a light with name %s",
-                    hide_serial(le["id"]),
-                    le["name"],
+                    hide_serial(light_entity["id"]),
+                    light_entity["name"],
                 )
-                light = AlexaLight(coordinator, account_dict["login_obj"], le)
+                light = AlexaLight(coordinator, account_dict["login_obj"], light_entity)
                 account_dict["entities"]["light"].append(light)
                 devices.append(light)
             else:
                 _LOGGER.debug(
                     "Light '%s' has not been added because it may originate from emulated_hue",
-                    le["name"],
+                    light_entity["name"],
                 )
 
     return await add_devices(
@@ -127,23 +121,24 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-def color_modes(details):
+def color_modes(details) -> list:
+    """Return list of color modes."""
     if details["color"] and details["color_temperature"]:
         return [COLOR_MODE_HS, COLOR_MODE_COLOR_TEMP]
-    elif details["color"]:
+    if details["color"]:
         return [COLOR_MODE_HS]
-    elif details["color_temperature"]:
+    if details["color_temperature"]:
         return [COLOR_MODE_COLOR_TEMP]
-    elif details["brightness"]:
+    if details["brightness"]:
         return [COLOR_MODE_BRIGHTNESS]
-    else:
-        return [COLOR_MODE_ONOFF]
+    return [COLOR_MODE_ONOFF]
 
 
 class AlexaLight(CoordinatorEntity, LightEntity):
     """A light controlled by an Echo."""
 
     def __init__(self, coordinator, login, details):
+        """Initialize alexa light entity."""
         super().__init__(coordinator)
         self.alexa_entity_id = details["id"]
         self._name = details["name"]
@@ -163,14 +158,17 @@ class AlexaLight(CoordinatorEntity, LightEntity):
 
     @property
     def name(self):
+        """Return name."""
         return self._name
 
     @property
     def unique_id(self):
+        """Return unique id."""
         return self.alexa_entity_id
 
     @property
     def supported_features(self):
+        """Return supported features."""
         # The HA documentation marks every single feature that Alexa lights can support as deprecated.
         # The new alternative is the supported_color_modes and color_mode properties(HA 2021.4)
         # This SHOULD just need to return 0 according to the light entity docs.
@@ -178,95 +176,99 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         # So, continue to provide a backwards compatible method here until HA is fixed and the min HA version is raised.
         if COLOR_MODE_BRIGHTNESS in self._color_modes:
             return SUPPORT_BRIGHTNESS
-        elif (
-            COLOR_MODE_HS in self._color_modes
-            and COLOR_MODE_COLOR_TEMP in self._color_modes
-        ):
-            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
-        elif COLOR_MODE_HS in self._color_modes:
-            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR
-        elif COLOR_MODE_COLOR_TEMP in self._color_modes:
-            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR_TEMP
-        else:
-
-            return 0
-
-    @property
-    def color_mode(self):
         if (
             COLOR_MODE_HS in self._color_modes
             and COLOR_MODE_COLOR_TEMP in self._color_modes
         ):
-            hs = self.hs_color
-            if hs is None or (hs[0] == 0 and hs[1] == 0):
+            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
+        if COLOR_MODE_HS in self._color_modes:
+            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR
+        if COLOR_MODE_COLOR_TEMP in self._color_modes:
+            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR_TEMP
+        return 0
+
+    @property
+    def color_mode(self):
+        """Return color mode."""
+        if (
+            COLOR_MODE_HS in self._color_modes
+            and COLOR_MODE_COLOR_TEMP in self._color_modes
+        ):
+            hs_color = self.hs_color
+            if hs_color is None or (hs_color[0] == 0 and hs_color[1] == 0):
                 # (0,0) is white. When white, color temp is the better plan.
                 return COLOR_MODE_COLOR_TEMP
-            else:
-                return COLOR_MODE_HS
-        else:
-            return self._color_modes[0]
+            return COLOR_MODE_HS
+        return self._color_modes[0]
 
     @property
     def supported_color_modes(self):
+        """Return supported color modes."""
         return self._color_modes
 
     @property
     def is_on(self):
+        """Return whether on."""
         power = parse_power_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._requested_state_at
         )
         if power is None:
             return self._requested_power if self._requested_power is not None else False
-        else:
-            return power == "ON"
+        return power == "ON"
 
     @property
     def brightness(self):
+        """Return brightness."""
         bright = parse_brightness_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._requested_state_at
         )
         if bright is None:
             return self._requested_ha_brightness
-        else:
-            return alexa_brightness_to_ha(bright)
+        return alexa_brightness_to_ha(bright)
 
     @property
     def min_mireds(self):
+        """Return min mireds."""
         return 143
 
     @property
     def max_mireds(self):
+        """Return max mireds."""
         return 454
 
     @property
     def color_temp(self):
+        """Return color temperature."""
         kelvin = parse_color_temp_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._requested_state_at
         )
         if kelvin is None:
             return self._requested_mired
-        else:
-            return alexa_kelvin_to_mired(kelvin)
+        return alexa_kelvin_to_mired(kelvin)
 
     @property
     def hs_color(self):
+        """Return hs color."""
         hsb = parse_color_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._requested_state_at
         )
         if hsb is None:
             return self._requested_hs
-        else:
-            adjusted_hs, color_name = hsb_to_alexa_color(hsb)
-            return adjusted_hs
+        (
+            adjusted_hs,
+            color_name,  # pylint:disable=unused-variable
+        ) = hsb_to_alexa_color(hsb)
+        return adjusted_hs
 
     @property
     def assumed_state(self) -> bool:
+        """Return whether state is assumed."""
         last_refresh_success = (
             self.coordinator.data and self.alexa_entity_id in self.coordinator.data
         )
         return not last_refresh_success
 
-    async def _set_state(self, power_on, brightness=None, mired=None, hs=None):
+    async def _set_state(self, power_on, brightness=None, mired=None, hs_color=None):
         # This is "rounding" on mired to the closest value Alexa is willing to acknowledge the existence of.
         # The alternative implementation would be to use effects instead.
         # That is far more non-standard, and would lock users out of things like the Flux integration.
@@ -278,7 +280,7 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             # This is "rounding" on HS color to closest value Alexa supports.
             # The alexa color list is short, but covers a pretty broad spectrum.
             # Like for mired above, this sounds bad but works ok in practice.
-            adjusted_hs, color_name = hs_to_alexa_color(hs)
+            adjusted_hs, color_name = hs_to_alexa_color(hs_color)
         else:
             # If a color temperature is being set, it is not possible to also adjust the color.
             adjusted_hs = None
@@ -317,35 +319,36 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs):
+        """Turn on."""
         brightness = None
         mired = None
-        hs = None
+        hs_color = None
         if COLOR_MODE_ONOFF not in self._color_modes and ATTR_BRIGHTNESS in kwargs:
             brightness = kwargs[ATTR_BRIGHTNESS]
         if COLOR_MODE_COLOR_TEMP in self._color_modes and ATTR_COLOR_TEMP in kwargs:
             mired = kwargs[ATTR_COLOR_TEMP]
         if COLOR_MODE_HS in self._color_modes and ATTR_HS_COLOR in kwargs:
-            hs = kwargs[ATTR_HS_COLOR]
-        await self._set_state(True, brightness, mired, hs)
+            hs_color = kwargs[ATTR_HS_COLOR]
+        await self._set_state(True, brightness, mired, hs_color)
 
-    async def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs):  # pylint:disable=unused-argument
+        """Turn off."""
         await self._set_state(False)
 
 
-def mired_to_alexa(mired: Optional[float]) -> Tuple[Optional[float], Optional[Text]]:
+def mired_to_alexa(mired: Optional[float]) -> tuple[Optional[float], Optional[str]]:
     """Convert a given color temperature in mired to the closest available value that Alexa has support for."""
     if mired is None:
         return None, None
-    elif mired <= 162.5:
+    if mired <= 162.5:
         return 143, "cool_white"
-    elif mired <= 216:
+    if mired <= 216:
         return 182, "daylight_white"
-    elif mired <= 310:
+    if mired <= 310:
         return 250, "white"
-    elif mired <= 412:
+    if mired <= 412:
         return 370, "soft_white"
-    else:
-        return 454, "warm_white"
+    return 454, "warm_white"
 
 
 def alexa_kelvin_to_mired(kelvin: float) -> float:
@@ -354,11 +357,13 @@ def alexa_kelvin_to_mired(kelvin: float) -> float:
     return mired_to_alexa(raw_mired)[0]
 
 
-def ha_brightness_to_alexa(ha: Optional[float]) -> Optional[float]:
-    return (ha / 255 * 100) if ha is not None else None
+def ha_brightness_to_alexa(ha_brightness: Optional[float]) -> Optional[float]:
+    """Convert HA brightness to alexa brightness."""
+    return (ha_brightness / 255 * 100) if ha_brightness is not None else None
 
 
 def alexa_brightness_to_ha(alexa: Optional[float]) -> Optional[float]:
+    """Convert Alexa brightness to HA brightness."""
     return (alexa / 100 * 255) if alexa is not None else None
 
 
@@ -508,8 +513,9 @@ ALEXA_COLORS = {
 }
 
 
-def red_mean(color1: Tuple[int, int, int], color2: Tuple[int, int, int]) -> float:
+def red_mean(color1: tuple[int, int, int], color2: tuple[int, int, int]) -> float:
     """Get an approximate 'distance' between two colors using red mean.
+
     Wikipedia says this method is "one of the better low-cost approximations".
     """
     r_avg = (color2[0] + color1[0]) / 2
@@ -522,14 +528,14 @@ def red_mean(color1: Tuple[int, int, int], color2: Tuple[int, int, int]) -> floa
     return sqrt(r_term + g_term + b_term)
 
 
-def alexa_color_name_to_rgb(color_name: Text) -> Tuple[int, int, int]:
-    """Convert an alexa color name into RGB"""
+def alexa_color_name_to_rgb(color_name: str) -> tuple[int, int, int]:
+    """Convert an alexa color name into RGB."""
     return color_name_to_rgb(color_name.replace("_", ""))
 
 
 def rgb_to_alexa_color(
-    rgb: Tuple[int, int, int]
-) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
+    rgb: tuple[int, int, int]
+) -> tuple[Optional[tuple[float, float]], Optional[str]]:
     """Convert a given RGB value into the closest Alexa color."""
     (name, alexa_rgb) = min(
         ALEXA_COLORS.items(),
@@ -540,18 +546,18 @@ def rgb_to_alexa_color(
 
 
 def hs_to_alexa_color(
-    hs: Optional[Tuple[float, float]]
-) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
+    hs_color: Optional[tuple[float, float]]
+) -> tuple[Optional[tuple[float, float]], Optional[str]]:
     """Convert a given hue/saturation value into the closest Alexa color."""
-    if hs is None:
+    if hs_color is None:
         return None, None
-    hue, saturation = hs
+    hue, saturation = hs_color
     return rgb_to_alexa_color(color_hs_to_RGB(hue, saturation))
 
 
 def hsb_to_alexa_color(
-    hsb: Optional[Tuple[float, float, float]]
-) -> Tuple[Optional[Tuple[float, float]], Optional[Text]]:
+    hsb: Optional[tuple[float, float, float]]
+) -> tuple[Optional[tuple[float, float]], Optional[str]]:
     """Convert a given hue/saturation/brightness value into the closest Alexa color."""
     if hsb is None:
         return None, None

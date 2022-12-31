@@ -1,0 +1,4 @@
+output-format: grouped
+
+mccabe:
+  run: false

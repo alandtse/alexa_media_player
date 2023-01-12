@@ -24,9 +24,9 @@ def has_capability(
     """Determine if an appliance from the Alexa network details offers a particular interface with enough support that is worth adding to Home Assistant.
 
     Args:
-        appliance(Dict[Text, Any]): An appliance from a call to AlexaAPI.get_network_details
-        interface_name(Text): One of the interfaces documented by the Alexa Smart Home Skills API
-        property_name(Text): The property that matches the interface name.
+        appliance(dict[str, Any]): An appliance from a call to AlexaAPI.get_network_details
+        interface_name(str): One of the interfaces documented by the Alexa Smart Home Skills API
+        property_name(str): The property that matches the interface name.
 
     """
     for cap in appliance["capabilities"]:
@@ -90,6 +90,17 @@ def is_temperature_sensor(appliance: dict[str, Any]) -> bool:
     )
 
 
+# Checks if air quality sensor
+def is_air_quality_sensor(appliance: dict[str, Any]) -> bool:
+    """Is the given appliance the Air Quality Sensor."""
+    return (
+        appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor"
+        and "AIR_QUALITY_MONITOR" in appliance.get("applianceTypes", [])
+        and has_capability(appliance, "Alexa.TemperatureSensor", "temperature")
+        and has_capability(appliance, "Alexa.RangeController", "rangeValue")
+    )
+
+
 def is_light(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
     return (
@@ -150,6 +161,12 @@ class AlexaTemperatureEntity(AlexaEntity):
     device_serial: str
 
 
+class AlexaAirQualityEntity(AlexaEntity):
+    """Class for AlexaAirQualityEntity."""
+
+    device_serial: str
+
+
 class AlexaBinaryEntity(AlexaEntity):
     """Class for AlexaBinaryEntity."""
 
@@ -162,16 +179,20 @@ class AlexaEntities(TypedDict):
     light: list[AlexaLightEntity]
     guard: list[AlexaEntity]
     temperature: list[AlexaTemperatureEntity]
+    air_quality: list[AlexaAirQualityEntity]
     binary_sensor: list[AlexaBinaryEntity]
 
 
 def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEntities:
+    # pylint: disable=too-many-locals
     """Turn the network details into a list of useful entities with the important details extracted."""
     lights = []
     guards = []
     temperature_sensors = []
+    air_quality_sensors = []
     contact_sensors = []
     location_details = network_details["locationDetails"]["locationDetails"]
+    # pylint: disable=too-many-nested-blocks
     for location in location_details.values():
         amazon_bridge_details = location["amazonBridgeDetails"]["amazonBridgeDetails"]
         for bridge in amazon_bridge_details.values():
@@ -191,6 +212,44 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                         serial if serial else appliance["entityId"]
                     )
                     temperature_sensors.append(processed_appliance)
+                # Code for Amazon Smart Air Quality Monitor
+                elif is_air_quality_sensor(appliance):
+                    serial = get_device_serial(appliance)
+                    processed_appliance["device_serial"] = (
+                        serial if serial else appliance["entityId"]
+                    )
+                    # create array of air quality sensors. We must store the instance id against
+                    # the assetId so we know which sensors are which.
+                    sensors = []
+                    if (
+                        appliance["friendlyDescription"]
+                        == "Amazon Indoor Air Quality Monitor"
+                    ):
+                        for cap in appliance["capabilities"]:
+                            instance = cap.get("instance")
+                            if instance:
+                                friendlyName = cap["resources"].get("friendlyNames")
+                                for entry in friendlyName:
+                                    assetId = entry["value"].get("assetId")
+                                    if assetId and assetId.startswith(
+                                        "Alexa.AirQuality"
+                                    ):
+                                        unit = cap["configuration"]["unitOfMeasure"]
+                                        sensor = {
+                                            "sensorType": assetId,
+                                            "instance": instance,
+                                            "unit": unit,
+                                        }
+                                        sensors.append(sensor)
+                                        _LOGGER.debug(
+                                            "AIAQM sensor detected %s", sensor
+                                        )
+                    processed_appliance["sensors"] = sensors
+
+                    # Add as both temperature and air quality sensor
+                    temperature_sensors.append(processed_appliance)
+                    air_quality_sensors.append(processed_appliance)
+
                 elif is_light(appliance):
                     processed_appliance["brightness"] = has_capability(
                         appliance, "Alexa.BrightnessController", "brightness"
@@ -216,6 +275,7 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
         "light": lights,
         "guard": guards,
         "temperature": temperature_sensors,
+        "air_quality": air_quality_sensors,
         "binary_sensor": contact_sensors,
     }
 
@@ -259,6 +319,20 @@ def parse_temperature_from_coordinator(
         coordinator, entity_id, "Alexa.TemperatureSensor", "temperature"
     )
     return value.get("value") if value and "value" in value else None
+
+
+def parse_air_quality_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: str, instance_id: str
+) -> Optional[str]:
+    """Get the air quality of an entity from the coordinator data."""
+    value = parse_value_from_coordinator(
+        coordinator,
+        entity_id,
+        "Alexa.RangeController",
+        "rangeValue",
+        instance=instance_id,
+    )
+    return value
 
 
 def parse_brightness_from_coordinator(
@@ -330,6 +404,7 @@ def parse_value_from_coordinator(
     namespace: str,
     name: str,
     since: Optional[datetime] = None,
+    instance: str = None,
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
@@ -337,6 +412,7 @@ def parse_value_from_coordinator(
             if (
                 cap_state.get("namespace") == namespace
                 and cap_state.get("name") == name
+                and (cap_state.get("instance") == instance or instance is None)
             ):
                 if is_cap_state_still_acceptable(cap_state, since):
                     return cap_state.get("value")

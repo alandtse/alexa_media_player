@@ -8,6 +8,12 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from datetime import timedelta
 
+from homeassistant.const import (
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+    CONCENTRATION_PARTS_PER_MILLION,
+    PERCENTAGE,
+)
+
 __version__ = "4.4.0"
 PROJECT_URL = "https://github.com/custom-components/alexa_media_player/"
 ISSUE_URL = f"{PROJECT_URL}issues"
@@ -112,3 +118,16 @@ AUTH_CALLBACK_PATH = "/auth/alexamedia/callback"
 AUTH_CALLBACK_NAME = "auth:alexamedia:callback"
 AUTH_PROXY_PATH = "/auth/alexamedia/proxy"
 AUTH_PROXY_NAME = "auth:alexamedia:proxy"
+
+ALEXA_UNIT_CONVERSION = {
+    "Alexa.Unit.Percent": PERCENTAGE,
+    "Alexa.Unit.PartsPerMillion": CONCENTRATION_PARTS_PER_MILLION,
+    "Alexa.Unit.Density.MicroGramsPerCubicMeter": CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+}
+
+ALEXA_ICON_CONVERSION = {
+    "Alexa.AirQuality.CarbonMonoxide": "mdi:molecule-co",
+    "Alexa.AirQuality.Humidity": "mdi:water-percent",
+    "Alexa.AirQuality.IndoorAirQuality": "mdi:numeric",
+}
+ALEXA_ICON_DEFAULT = "mdi:molecule"

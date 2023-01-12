@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.5.0 (2023-01-12)
+### Feature
+* Add Amazon Indoor Air Quality Monitor ([#1803](https://github.com/custom-components/alexa_media_player/issues/1803)) ([`09915ea`](https://github.com/custom-components/alexa_media_player/commit/09915eafa8b8b54e8f00b8053b582538b5d96b02))
+
 ## v4.4.0 (2022-12-24)
 ### Feature
 * Add debug loggers support ([`37a795d`](https://github.com/custom-components/alexa_media_player/commit/37a795d42367f2e1527a01c9177c41443ccc386b))

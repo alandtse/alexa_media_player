@@ -3,7 +3,7 @@ on:
   push:
   pull_request:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v2
         name: Setup Python
         with:
-          python-version: '3.8.x'
+          python-version: "3.8.x"
       - uses: actions/cache@v2
         name: Cache
         with:

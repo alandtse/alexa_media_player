@@ -8,7 +8,6 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import logging
-from typing import Dict, Text  # noqa pylint: disable=unused-import
 
 from alexapy import AlexaAPI, hide_email
 
@@ -21,7 +20,6 @@ class AlexaMedia:
     """Implementation of Alexa Media Base object."""
 
     def __init__(self, device, login) -> None:
-        # pylint: disable=unexpected-keyword-arg
         """Initialize the Alexa device."""
 
         # Class info

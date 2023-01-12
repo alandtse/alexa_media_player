@@ -7,11 +7,13 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 import datetime
+import json
 import logging
-from typing import Callable, List, Optional, Text  # noqa pylint: disable=unused-import
+from typing import Callable, Optional
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import (
+    DEVICE_CLASS_TEMPERATURE,
     DEVICE_CLASS_TIMESTAMP,
     STATE_UNAVAILABLE,
     TEMP_CELSIUS,
@@ -34,8 +36,14 @@ from . import (
     hide_email,
     hide_serial,
 )
-from .alexa_entity import parse_temperature_from_coordinator
+from .alexa_entity import (
+    parse_air_quality_from_coordinator,
+    parse_temperature_from_coordinator,
+)
 from .const import (
+    ALEXA_ICON_CONVERSION,
+    ALEXA_ICON_DEFAULT,
+    ALEXA_UNIT_CONVERSION,
     CONF_EXTENDED_ENTITY_DISCOVERY,
     RECURRING_DAY,
     RECURRING_PATTERN,
@@ -49,9 +57,10 @@ LOCAL_TIMEZONE = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinf
 
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
+    # pylint: disable=too-many-locals
     """Set up the Alexa sensor platform."""
-    devices: List[AlexaMediaNotificationSensor] = []
-    SENSOR_TYPES = {
+    devices: list[AlexaMediaNotificationSensor] = []
+    SENSOR_TYPES = {  # pylint: disable=invalid-name
         "Alarm": AlarmSensor,
         "Timer": TimerSensor,
         "Reminder": ReminderSensor,
@@ -73,7 +82,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             raise ConfigEntryNotReady
         if key not in (account_dict["entities"]["sensor"]):
             (account_dict["entities"]["sensor"][key]) = {}
-            for (n_type, class_) in SENSOR_TYPES.items():
+            for n_type, class_ in SENSOR_TYPES.items():
                 n_type_dict = (
                     account_dict["notifications"][key][n_type]
                     if key in account_dict["notifications"]
@@ -124,9 +133,19 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             account_dict, temperature_entities
         )
 
+    # AIAQM Sensors
+    air_quality_sensors = []
+    air_quality_entities = account_dict.get("devices", {}).get("air_quality", [])
+    if air_quality_entities and account_dict["options"].get(
+        CONF_EXTENDED_ENTITY_DISCOVERY
+    ):
+        air_quality_sensors = await create_air_quality_sensors(
+            account_dict, air_quality_entities
+        )
+
     return await add_devices(
         hide_email(account),
-        devices + temperature_sensors,
+        devices + temperature_sensors + air_quality_sensors,
         add_devices_callback,
         include_filter,
         exclude_filter,
@@ -153,6 +172,7 @@ async def async_unload_entry(hass, entry) -> bool:
 
 
 async def create_temperature_sensors(account_dict, temperature_entities):
+    """Create temperature sensors."""
     devices = []
     coordinator = account_dict["coordinator"]
     for temp in temperature_entities:
@@ -170,14 +190,54 @@ async def create_temperature_sensors(account_dict, temperature_entities):
     return devices
 
 
+async def create_air_quality_sensors(account_dict, air_quality_entities):
+    devices = []
+    coordinator = account_dict["coordinator"]
+
+    for temp in air_quality_entities:
+        _LOGGER.debug(
+            "Creating entity %s for a air quality sensor with name %s",
+            temp["id"],
+            temp["name"],
+        )
+        # Each AIAQM has 5 different sensors.
+        for subsensor in temp["sensors"]:
+            sensor_type = subsensor["sensorType"]
+            instance = subsensor["instance"]
+            unit = subsensor["unit"]
+            serial = temp["device_serial"]
+            device_info = lookup_device_info(account_dict, serial)
+            sensor = AirQualitySensor(
+                coordinator,
+                temp["id"],
+                temp["name"],
+                device_info,
+                sensor_type,
+                instance,
+                unit,
+            )
+            _LOGGER.debug("Create air quality sensors %s", sensor)
+            account_dict["entities"]["sensor"].setdefault(serial, {})
+            account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
+            account_dict["entities"]["sensor"][serial][sensor_type][
+                "Air_Quality"
+            ] = sensor
+            devices.append(sensor)
+    return devices
+
+
 def lookup_device_info(account_dict, device_serial):
     """Get the device to use for a given Echo based on a given device serial id.
 
     This may return nothing as there is no guarantee that a given temperature sensor is actually attached to an Echo.
     """
-    for key, mp in account_dict["entities"]["media_player"].items():
-        if key == device_serial and mp.device_info and "identifiers" in mp.device_info:
-            for ident in mp.device_info["identifiers"]:
+    for key, mediaplayer in account_dict["entities"]["media_player"].items():
+        if (
+            key == device_serial
+            and mediaplayer.device_info
+            and "identifiers" in mediaplayer.device_info
+        ):
+            for ident in mediaplayer.device_info["identifiers"]:
                 return ident
     return None
 
@@ -186,6 +246,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
     """A temperature sensor reported by an Echo."""
 
     def __init__(self, coordinator, entity_id, name, media_player_device_id):
+        """Initialize temperature sensor."""
         super().__init__(coordinator)
         self.alexa_entity_id = entity_id
         self._name = name
@@ -193,6 +254,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 
     @property
     def name(self):
+        """Return name."""
         return self._name + " Temperature"
 
     @property
@@ -207,23 +269,96 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 
     @property
     def native_unit_of_measurement(self):
+        """Return native unit of measurement."""
         return TEMP_CELSIUS
 
     @property
     def native_value(self):
+        """Return native value."""
         return parse_temperature_from_coordinator(
             self.coordinator, self.alexa_entity_id
         )
 
     @property
     def device_class(self):
-        return "temperature"
+        """Return device class."""
+        return DEVICE_CLASS_TEMPERATURE
+
+    @property
+    def unique_id(self):
+        """Return unique id."""
+        # This includes "_temperature" because the Alexa entityId is for a physical device
+        # A single physical device could have multiple HA entities
+        return self.alexa_entity_id + "_temperature"
+
+
+class AirQualitySensor(SensorEntity, CoordinatorEntity):
+    """A air quality sensor reported by an Amazon indoor air quality monitor."""
+
+    def __init__(
+        self,
+        coordinator,
+        entity_id,
+        name,
+        media_player_device_id,
+        sensor_name,
+        instance,
+        unit,
+    ):
+        super().__init__(coordinator)
+        self.alexa_entity_id = entity_id
+        self._sensor_name = sensor_name
+        # tidy up name
+        self._sensor_name = self._sensor_name.replace("Alexa.AirQuality.", "")
+        self._sensor_name = "".join(
+            " " + char if char.isupper() else char.strip() for char in self._sensor_name
+        ).strip()
+        self._name = name + " " + self._sensor_name
+        self._media_player_device_id = media_player_device_id
+
+        self._instance = instance
+
+        self._unit = ALEXA_UNIT_CONVERSION.get(unit)
+        self._icon = ALEXA_ICON_CONVERSION.get(sensor_name, ALEXA_ICON_DEFAULT)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def device_info(self):
+        """Return the device_info of the device."""
+        if self._media_player_device_id:
+            return {
+                "identifiers": {self._media_player_device_id},
+                "via_device": self._media_player_device_id,
+            }
+        return None
+
+    @property
+    def native_unit_of_measurement(self):
+        return self._unit
+
+    @property
+    def native_value(self):
+        return parse_air_quality_from_coordinator(
+            self.coordinator, self.alexa_entity_id, self._instance
+        )
+
+    @property
+    def device_class(self):
+        return self._sensor_name
 
     @property
     def unique_id(self):
         # This includes "_temperature" because the Alexa entityId is for a physical device
         # A single physical device could have multiple HA entities
-        return self.alexa_entity_id + "_temperature"
+        return self.alexa_entity_id + " " + self._sensor_name
+
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return self._icon
 
 
 class AlexaMediaNotificationSensor(SensorEntity):
@@ -245,13 +380,14 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._sensor_property = sensor_property
         self._account = account
         self._dev_id = client.unique_id
+        self._type = ""
         self._name = name
         self._unit = None
         self._device_class = DEVICE_CLASS_TIMESTAMP
         self._icon = icon
         self._all = []
         self._active = []
-        self._next = None
+        self._next: Optional[dict] = None
         self._prior_value = None
         self._timestamp: Optional[datetime.datetime] = None
         self._tracker: Optional[Callable] = None
@@ -331,7 +467,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
         ):
             return value
         naive_time = dt.parse_datetime(value[1][self._sensor_property])
-        timezone = pytz.timezone(self._client._timezone)
+        timezone = pytz.timezone(
+            self._client._timezone  # pylint: disable=protected-access
+        )
         if timezone and naive_time:
             value[1][self._sensor_property] = timezone.localize(naive_time)
         elif not naive_time:
@@ -355,7 +493,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 self._client.name,
                 value[1],
                 naive_time,
-                self._client._timezone,
+                self._client._timezone,  # pylint: disable=protected-access
             )
         return value
 
@@ -374,7 +512,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
             )
         alarm_on = next_item["status"] == "ON"
         r_rule_data = next_item.get("rRuleData")
-        if r_rule_data:  # the new recurrence pattern; https://github.com/custom-components/alexa_media_player/issues/1608
+        if (
+            r_rule_data
+        ):  # the new recurrence pattern; https://github.com/custom-components/alexa_media_player/issues/1608
             next_trigger_times = r_rule_data.get("nextTriggerTimes")
             weekdays = r_rule_data.get("byWeekDays")
             if next_trigger_times:
@@ -485,22 +625,12 @@ class AlexaMediaNotificationSensor(SensorEntity):
             self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["websocket"]
         )
 
-    @property
-    def state(self) -> datetime.datetime:
-        """Return the state of the sensor."""
-        return self._state
-
     def _process_state(self, value):
         return (
             dt.as_local(value[self._sensor_property]).isoformat()
             if value
             else STATE_UNAVAILABLE
         )
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit_of_measurement of the device."""
-        return self._unit
 
     @property
     def device_class(self):
@@ -553,8 +683,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return additional attributes."""
-        import json
-
         attr = {
             "recurrence": self.recurrence,
             "process_timestamp": dt.as_local(self._timestamp).isoformat(),
@@ -614,7 +742,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
     @property
     def paused(self) -> Optional[bool]:
         """Return the paused state of the sensor."""
-        return self._next["status"] == "PAUSED" if self._next else None
+        return self._next.get("status") == "PAUSED" if self._next else None
 
     @property
     def icon(self):
@@ -654,7 +782,7 @@ class ReminderSensor(AlexaMediaNotificationSensor):
     @property
     def reminder(self):
         """Return the reminder of the sensor."""
-        return self._next["reminderLabel"] if self._next else None
+        return self._next.get("reminderLabel") if self._next else None
 
     @property
     def extra_state_attributes(self):

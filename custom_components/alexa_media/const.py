@@ -8,6 +8,12 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 from datetime import timedelta
 
+from homeassistant.const import (
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+    CONCENTRATION_PARTS_PER_MILLION,
+    PERCENTAGE,
+)
+
 __version__ = "4.4.0"
 PROJECT_URL = "https://github.com/custom-components/alexa_media_player/"
 ISSUE_URL = f"{PROJECT_URL}issues"
@@ -30,7 +36,7 @@ DEPENDENT_ALEXA_COMPONENTS = [
     "sensor",
     "alarm_control_panel",
     "light",
-    "binary_sensor"
+    "binary_sensor",
 ]
 
 HTTP_COOKIE_HEADER = "# HTTP Cookie File"
@@ -98,19 +104,30 @@ RECURRING_PATTERN_ISO_SET = {
 ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
 ATTR_NUM_ENTRIES = "entries"
-STARTUP = """
+STARTUP = f"""
 -------------------------------------------------------------------
-{}
-Version: {}
+{DOMAIN}
+Version: {__version__}
 This is a custom component
 If you have any issues with this you need to open an issue here:
-{}
+{ISSUE_URL}
 -------------------------------------------------------------------
-""".format(
-    DOMAIN, __version__, ISSUE_URL
-)
+"""
 
 AUTH_CALLBACK_PATH = "/auth/alexamedia/callback"
 AUTH_CALLBACK_NAME = "auth:alexamedia:callback"
 AUTH_PROXY_PATH = "/auth/alexamedia/proxy"
 AUTH_PROXY_NAME = "auth:alexamedia:proxy"
+
+ALEXA_UNIT_CONVERSION = {
+    "Alexa.Unit.Percent": PERCENTAGE,
+    "Alexa.Unit.PartsPerMillion": CONCENTRATION_PARTS_PER_MILLION,
+    "Alexa.Unit.Density.MicroGramsPerCubicMeter": CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+}
+
+ALEXA_ICON_CONVERSION = {
+    "Alexa.AirQuality.CarbonMonoxide": "mdi:molecule-co",
+    "Alexa.AirQuality.Humidity": "mdi:water-percent",
+    "Alexa.AirQuality.IndoorAirQuality": "mdi:numeric",
+}
+ALEXA_ICON_DEFAULT = "mdi:molecule"

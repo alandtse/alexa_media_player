@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.5.3 (2023-01-14)
+### Fix
+* Update coordinator callback to update sensors ([`708b6c5`](https://github.com/custom-components/alexa_media_player/commit/708b6c52eba7d2bb853005a5acb6ce6ad11ffa7a))
+
 ## v4.5.2 (2023-01-14)
 ### Fix
 * Restore alexa_entity_id attribute ([`7ca77d9`](https://github.com/custom-components/alexa_media_player/commit/7ca77d97e6f71d66aba036a260ee1553c0f55e39))

@@ -11,7 +11,11 @@ import json
 import logging
 from typing import Callable, Optional
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -244,6 +248,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         super().__init__(coordinator)
         self._attr_name = name + " Temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_value: Optional[
             datetime.datetime
         ] = parse_temperature_from_coordinator(coordinator, entity_id)
@@ -283,6 +288,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         ).strip()
         self._attr_name = name + " " + self._sensor_name
         self._attr_device_class = self._sensor_name
+        self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_value: Optional[
             datetime.datetime
         ] = parse_air_quality_from_coordinator(coordinator, entity_id, instance)

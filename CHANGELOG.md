@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v4.5.1 (2023-01-14)
+### Fix
+* Set state_class for numerical sensors ([`0a0788e`](https://github.com/custom-components/alexa_media_player/commit/0a0788e94eeb7b9be35c38580cdf4be7f96ff399))
+* Fix alarms, timers, and reminders ([`65ae48a`](https://github.com/custom-components/alexa_media_player/commit/65ae48a016204c7b45a3f9ae5f7018ee66dcd07c))
+
+### Refactor
+* Simplify code ([`6017a62`](https://github.com/custom-components/alexa_media_player/commit/6017a62e4965d2dc5678b37fdaf61189049906e7))
+
 ## v4.5.0 (2023-01-12)
 ### Feature
 * Add Amazon Indoor Air Quality Monitor ([#1803](https://github.com/custom-components/alexa_media_player/issues/1803)) ([`09915ea`](https://github.com/custom-components/alexa_media_player/commit/09915eafa8b8b54e8f00b8053b582538b5d96b02))

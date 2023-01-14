@@ -17,6 +17,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
+from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
@@ -266,6 +267,14 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             else None
         )
 
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_native_value = parse_temperature_from_coordinator(
+            self.coordinator, self.alexa_entity_id
+        )
+        super()._handle_coordinator_update()
+
 
 class AirQualitySensor(SensorEntity, CoordinatorEntity):
     """A air quality sensor reported by an Amazon indoor air quality monitor."""
@@ -307,6 +316,15 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             if media_player_device_id
             else None
         )
+        self._instance = instance
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_native_value = parse_air_quality_from_coordinator(
+            self.coordinator, self.alexa_entity_id, self._instance
+        )
+        super()._handle_coordinator_update()
 
 
 class AlexaMediaNotificationSensor(SensorEntity):

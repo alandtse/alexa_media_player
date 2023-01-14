@@ -242,48 +242,23 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
     def __init__(self, coordinator, entity_id, name, media_player_device_id):
         """Initialize temperature sensor."""
         super().__init__(coordinator)
-        self.alexa_entity_id = entity_id
-        self._name = name
-        self._media_player_device_id = media_player_device_id
-
-    @property
-    def name(self):
-        """Return name."""
-        return self._name + " Temperature"
-
-    @property
-    def device_info(self):
-        """Return the device_info of the device."""
-        if self._media_player_device_id:
-            return {
-                "identifiers": {self._media_player_device_id},
-                "via_device": self._media_player_device_id,
-            }
-        return None
-
-    @property
-    def native_unit_of_measurement(self):
-        """Return native unit of measurement."""
-        return UnitOfTemperature.CELSIUS
-
-    @property
-    def native_value(self):
-        """Return native value."""
-        return parse_temperature_from_coordinator(
-            self.coordinator, self.alexa_entity_id
-        )
-
-    @property
-    def device_class(self):
-        """Return device class."""
-        return SensorDeviceClass.TEMPERATURE
-
-    @property
-    def unique_id(self):
-        """Return unique id."""
+        self._attr_name = name + " Temperature"
+        self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        self._attr_native_value: Optional[
+            datetime.datetime
+        ] = parse_temperature_from_coordinator(coordinator, entity_id)
+        self._attr_native_unit_of_measurement: Optional[str] = UnitOfTemperature.CELSIUS
         # This includes "_temperature" because the Alexa entityId is for a physical device
         # A single physical device could have multiple HA entities
-        return self.alexa_entity_id + "_temperature"
+        self._attr_unique_id = entity_id + "_temperature"
+        self._attr_device_info = (
+            {
+                "identifiers": {media_player_device_id},
+                "via_device": media_player_device_id,
+            }
+            if media_player_device_id
+            else None
+        )
 
 
 class AirQualitySensor(SensorEntity, CoordinatorEntity):
@@ -300,59 +275,30 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         unit,
     ):
         super().__init__(coordinator)
-        self.alexa_entity_id = entity_id
         self._sensor_name = sensor_name
         # tidy up name
         self._sensor_name = self._sensor_name.replace("Alexa.AirQuality.", "")
         self._sensor_name = "".join(
             " " + char if char.isupper() else char.strip() for char in self._sensor_name
         ).strip()
-        self._name = name + " " + self._sensor_name
-        self._media_player_device_id = media_player_device_id
-
-        self._instance = instance
-
-        self._unit = ALEXA_UNIT_CONVERSION.get(unit)
-        self._icon = ALEXA_ICON_CONVERSION.get(sensor_name, ALEXA_ICON_DEFAULT)
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def device_info(self):
-        """Return the device_info of the device."""
-        if self._media_player_device_id:
-            return {
-                "identifiers": {self._media_player_device_id},
-                "via_device": self._media_player_device_id,
+        self._attr_name = name + " " + self._sensor_name
+        self._attr_device_class = self._sensor_name
+        self._attr_native_value: Optional[
+            datetime.datetime
+        ] = parse_air_quality_from_coordinator(coordinator, entity_id, instance)
+        self._attr_native_unit_of_measurement: Optional[
+            str
+        ] = ALEXA_UNIT_CONVERSION.get(unit)
+        self._attr_unique_id = entity_id + " " + self._sensor_name
+        self._attr_icon = ALEXA_ICON_CONVERSION.get(sensor_name, ALEXA_ICON_DEFAULT)
+        self._attr_device_info = (
+            {
+                "identifiers": {media_player_device_id},
+                "via_device": media_player_device_id,
             }
-        return None
-
-    @property
-    def native_unit_of_measurement(self):
-        return self._unit
-
-    @property
-    def native_value(self):
-        return parse_air_quality_from_coordinator(
-            self.coordinator, self.alexa_entity_id, self._instance
+            if media_player_device_id
+            else None
         )
-
-    @property
-    def device_class(self):
-        return self._sensor_name
-
-    @property
-    def unique_id(self):
-        # This includes "_temperature" because the Alexa entityId is for a physical device
-        # A single physical device could have multiple HA entities
-        return self.alexa_entity_id + " " + self._sensor_name
-
-    @property
-    def icon(self):
-        """Return the icon of the sensor."""
-        return self._icon
 
 
 class AlexaMediaNotificationSensor(SensorEntity):
@@ -369,23 +315,29 @@ class AlexaMediaNotificationSensor(SensorEntity):
     ):
         """Initialize the Alexa sensor device."""
         # Class info
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
+        self._attr_state_class = None
+        self._attr_native_value: Optional[datetime.datetime] = None
+        self._attr_name = f"{client.name} {name}"
+        self._attr_unique_id = f"{client.unique_id}_{name}"
+        self._attr_icon = icon
+        self._attr_device_info = {
+            "identifiers": {(ALEXA_DOMAIN, client.unique_id)},
+            "via_device": (ALEXA_DOMAIN, client.unique_id),
+        }
+        self._attr_assumed_state = client.assumed_state
+        self._attr_available = client.available
         self._client = client
         self._n_dict = n_dict
         self._sensor_property = sensor_property
         self._account = account
-        self._dev_id = client.unique_id
         self._type = "" if not self._type else self._type
-        self._name = name
-        self._unit = None
-        self._device_class = SensorDeviceClass.TIMESTAMP
-        self._icon = icon
         self._all = []
         self._active = []
         self._next: Optional[dict] = None
         self._prior_value = None
         self._timestamp: Optional[datetime.datetime] = None
         self._tracker: Optional[Callable] = None
-        self._state: Optional[datetime.datetime] = None
         self._dismissed: Optional[datetime.datetime] = None
         self._status: Optional[str] = None
         self._amz_id: Optional[str] = None
@@ -412,12 +364,12 @@ class AlexaMediaNotificationSensor(SensorEntity):
         )
         if alarm_just_dismissed(alarm, self._status, self._version):
             self._dismissed = dt.now().isoformat()
-        self._state = self._process_state(self._next)
+        self._attr_native_value = self._process_state(self._next)
         self._status = self._next.get("status", "OFF") if self._next else "OFF"
         self._version = self._next.get("version", "0") if self._next else None
         self._amz_id = self._next.get("id") if self._next else None
 
-        if self._state is None or self._next != self._prior_value:
+        if self._attr_native_value is None or self._next != self._prior_value:
             # cancel any event triggers
             if self._tracker:
                 _LOGGER.debug(
@@ -425,16 +377,16 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     self,
                 )
                 self._tracker()
-            if self._state is not None and self._status != "SNOOZED":
+            if self._attr_native_value is not None and self._status != "SNOOZED":
                 _LOGGER.debug(
                     "%s: Scheduling event in %s",
                     self,
-                    dt.as_utc(self._state) - dt.utcnow(),
+                    dt.as_utc(self._attr_native_value) - dt.utcnow(),
                 )
                 self._tracker = async_track_point_in_utc_time(
                     self.hass,
                     self._trigger_event,
-                    dt.as_utc(self._state),
+                    dt.as_utc(self._attr_native_value),
                 )
 
     def _trigger_event(self, time_date) -> None:
@@ -588,29 +540,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 self.schedule_update_ha_state(True)
 
     @property
-    def available(self):
-        """Return the availability of the sensor."""
-        return self._client.available
-
-    @property
-    def assumed_state(self):
-        """Return whether the state is an assumed_state."""
-        return self._client.assumed_state
-
-    @property
     def hidden(self):
         """Return whether the sensor should be hidden."""
         return self.state is None
-
-    @property
-    def unique_id(self):
-        """Return the unique ID."""
-        return f"{self._client.unique_id}_{self._name}"
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"{self._client.name} {self._name}"
 
     @property
     def should_poll(self):
@@ -621,16 +553,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
     def _process_state(self, value) -> Optional[datetime.datetime]:
         return dt.as_local(value[self._sensor_property]) if value else None
-
-    @property
-    def native_value(self) -> Optional[datetime.datetime]:
-        """Return native value."""
-        return self._state
-
-    @property
-    def device_class(self):
-        """Return the device_class of the device."""
-        return self._device_class
 
     async def async_update(self):
         """Update state."""
@@ -652,19 +574,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
             self.async_write_ha_state()
         except NoEntitySpecifiedError:
             pass  # we ignore this due to a harmless startup race condition
-
-    @property
-    def device_info(self):
-        """Return the device_info of the device."""
-        return {
-            "identifiers": {(ALEXA_DOMAIN, self._dev_id)},
-            "via_device": (ALEXA_DOMAIN, self._dev_id),
-        }
-
-    @property
-    def icon(self):
-        """Return the icon of the sensor."""
-        return self._icon
 
     @property
     def recurrence(self):
@@ -747,7 +656,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
             if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
             else "mdi:timer-off"
         )
-        return self._icon if not self.paused else off_icon
+        return self._attr_icon if not self.paused else off_icon
 
 
 class ReminderSensor(AlexaMediaNotificationSensor):

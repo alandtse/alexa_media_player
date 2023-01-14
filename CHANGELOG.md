@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.5.2 (2023-01-14)
+### Fix
+* Restore alexa_entity_id attribute ([`7ca77d9`](https://github.com/custom-components/alexa_media_player/commit/7ca77d97e6f71d66aba036a260ee1553c0f55e39))
+
 ## v4.5.1 (2023-01-14)
 ### Fix
 * Set state_class for numerical sensors ([`0a0788e`](https://github.com/custom-components/alexa_media_player/commit/0a0788e94eeb7b9be35c38580cdf4be7f96ff399))

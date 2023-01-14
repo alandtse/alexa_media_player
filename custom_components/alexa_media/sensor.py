@@ -246,6 +246,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
     def __init__(self, coordinator, entity_id, name, media_player_device_id):
         """Initialize temperature sensor."""
         super().__init__(coordinator)
+        self.alexa_entity_id = entity_id
         self._attr_name = name + " Temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -280,6 +281,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         unit,
     ):
         super().__init__(coordinator)
+        self.alexa_entity_id = entity_id
         self._sensor_name = sensor_name
         # tidy up name
         self._sensor_name = self._sensor_name.replace("Alexa.AirQuality.", "")

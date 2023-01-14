@@ -11,14 +11,8 @@ import json
 import logging
 from typing import Callable, Optional
 
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import (
-    DEVICE_CLASS_TEMPERATURE,
-    DEVICE_CLASS_TIMESTAMP,
-    STATE_UNAVAILABLE,
-    TEMP_CELSIUS,
-    __version__ as HA_VERSION,
-)
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
@@ -90,7 +84,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     else {}
                 )
                 if (
-                    n_type in ("Alarm, Timer")
+                    n_type in ("Alarm", "Timer")
                     and "TIMERS_AND_ALARMS" in device["capabilities"]
                 ):
                     alexa_client = class_(
@@ -270,7 +264,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
     @property
     def native_unit_of_measurement(self):
         """Return native unit of measurement."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def native_value(self):
@@ -282,7 +276,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
     @property
     def device_class(self):
         """Return device class."""
-        return DEVICE_CLASS_TEMPERATURE
+        return SensorDeviceClass.TEMPERATURE
 
     @property
     def unique_id(self):
@@ -380,10 +374,10 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._sensor_property = sensor_property
         self._account = account
         self._dev_id = client.unique_id
-        self._type = ""
+        self._type = "" if not self._type else self._type
         self._name = name
         self._unit = None
-        self._device_class = DEVICE_CLASS_TIMESTAMP
+        self._device_class = SensorDeviceClass.TIMESTAMP
         self._icon = icon
         self._all = []
         self._active = []
@@ -423,7 +417,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._version = self._next.get("version", "0") if self._next else None
         self._amz_id = self._next.get("id") if self._next else None
 
-        if self._state == STATE_UNAVAILABLE or self._next != self._prior_value:
+        if self._state is None or self._next != self._prior_value:
             # cancel any event triggers
             if self._tracker:
                 _LOGGER.debug(
@@ -431,16 +425,16 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     self,
                 )
                 self._tracker()
-            if self._state != STATE_UNAVAILABLE and self._status != "SNOOZED":
+            if self._state is not None and self._status != "SNOOZED":
                 _LOGGER.debug(
                     "%s: Scheduling event in %s",
                     self,
-                    dt.as_utc(dt.parse_datetime(self._state)) - dt.utcnow(),
+                    dt.as_utc(self._state) - dt.utcnow(),
                 )
                 self._tracker = async_track_point_in_utc_time(
                     self.hass,
                     self._trigger_event,
-                    dt.as_utc(dt.parse_datetime(self._state)),
+                    dt.as_utc(self._state),
                 )
 
     def _trigger_event(self, time_date) -> None:
@@ -591,7 +585,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 == self._client.device_serial_number
             ):
                 _LOGGER.debug("Updating sensor %s", self)
-                self.async_schedule_update_ha_state(True)
+                self.schedule_update_ha_state(True)
 
     @property
     def available(self):
@@ -606,7 +600,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
     @property
     def hidden(self):
         """Return whether the sensor should be hidden."""
-        return self.state == STATE_UNAVAILABLE
+        return self.state is None
 
     @property
     def unique_id(self):
@@ -625,12 +619,13 @@ class AlexaMediaNotificationSensor(SensorEntity):
             self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["websocket"]
         )
 
-    def _process_state(self, value):
-        return (
-            dt.as_local(value[self._sensor_property]).isoformat()
-            if value
-            else STATE_UNAVAILABLE
-        )
+    def _process_state(self, value) -> Optional[datetime.datetime]:
+        return dt.as_local(value[self._sensor_property]) if value else None
+
+    @property
+    def native_value(self) -> Optional[datetime.datetime]:
+        """Return native value."""
+        return self._state
 
     @property
     def device_class(self):
@@ -727,16 +722,16 @@ class TimerSensor(AlexaMediaNotificationSensor):
             else "mdi:timer",
         )
 
-    def _process_state(self, value):
+    def _process_state(self, value) -> Optional[datetime.datetime]:
         return (
             dt.as_local(
                 super()._round_time(
                     self._timestamp
                     + datetime.timedelta(milliseconds=value[self._sensor_property])
                 )
-            ).isoformat()
+            )
             if value and self._timestamp
-            else STATE_UNAVAILABLE
+            else None
         )
 
     @property
@@ -766,7 +761,7 @@ class ReminderSensor(AlexaMediaNotificationSensor):
             client, n_json, "alarmTime", account, f"next {self._type}", "mdi:reminder"
         )
 
-    def _process_state(self, value):
+    def _process_state(self, value) -> Optional[datetime.datetime]:
         return (
             dt.as_local(
                 super()._round_time(
@@ -774,9 +769,9 @@ class ReminderSensor(AlexaMediaNotificationSensor):
                         value[self._sensor_property] / 1000, tz=LOCAL_TIMEZONE
                     )
                 )
-            ).isoformat()
+            )
             if value
-            else STATE_UNAVAILABLE
+            else None
         )
 
     @property

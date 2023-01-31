@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.6.0 (2023-01-31)
+### Feature
+* Add ledvance bluetooth bulbs ([#1847](https://github.com/custom-components/alexa_media_player/issues/1847)) ([`5816afe`](https://github.com/custom-components/alexa_media_player/commit/5816afe60852218684594471fb86b8d399eda64b))
+
 ## v4.5.3 (2023-01-14)
 ### Fix
 * Update coordinator callback to update sensors ([`708b6c5`](https://github.com/custom-components/alexa_media_player/commit/708b6c52eba7d2bb853005a5acb6ce6ad11ffa7a))

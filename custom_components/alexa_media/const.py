@@ -14,7 +14,7 @@ from homeassistant.const import (
     PERCENTAGE,
 )
 
-__version__ = "4.5.3"
+__version__ = "4.6.0"
 PROJECT_URL = "https://github.com/custom-components/alexa_media_player/"
 ISSUE_URL = f"{PROJECT_URL}issues"
 NOTIFY_URL = f"{PROJECT_URL}wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"

@@ -51,6 +51,11 @@ def is_hue_v1(appliance: dict[str, Any]) -> bool:
     return appliance.get("manufacturerName") == "Royal Philips Electronics"
 
 
+def is_skill(appliance: dict[str, Any]) -> bool:
+    namespace = appliance.get("driverIdentity", {}).get("namespace", "")
+    return namespace and namespace == "SKILL"
+
+
 def is_local(appliance: dict[str, Any]) -> bool:
     """Test whether locally connected.
 
@@ -66,8 +71,12 @@ def is_local(appliance: dict[str, Any]) -> bool:
     # This catches the Echo/AVS devices. connectedVia isn't reliable in this case.
     # Only the first appears to get that set.
     if "ALEXA_VOICE_ENABLED" in appliance.get("applianceTypes", []):
-        namespace = appliance.get("driverIdentity", {}).get("namespace", "")
-        return namespace and namespace != "SKILL"
+        return not is_skill(appliance)
+
+    # Ledvance bulbs connected via bluetooth are hard to detect as locally connected
+    # There is probably a better way, but this works for now.
+    if appliance.get("manufacturerName") == "Ledvance":
+        return not is_skill(appliance)
 
     # Zigbee devices are guaranteed to be local and have a particular pattern of id
     zigbee_pattern = re.compile(

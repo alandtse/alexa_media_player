@@ -43,7 +43,7 @@ repos:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: v2.40.0
+    rev: v2.42.1
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -52,12 +52,12 @@ repos:
   - hooks:
       - id: black
     repo: https://github.com/psf/black
-    rev: 23.1a1
+    rev: 23.1.0
   - repo: https://github.com/pre-commit/mirrors-prettier
     hooks:
       - id: prettier
         exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
-    rev: v3.0.0-alpha.4
+    rev: v3.0.0-alpha.6
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.3.1
     hooks:
@@ -102,7 +102,7 @@ repos:
         exclude_types: [csv, json]
         exclude: ^tests/fixtures/
   - repo: https://github.com/PyCQA/prospector
-    rev: v1.8.4
+    rev: v1.9.0
     hooks:
       - id: prospector
         exclude: ^(tests)/.+\.py$

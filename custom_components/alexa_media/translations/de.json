@@ -6,12 +6,12 @@
       "reauth_successful": "Alexa Media Player erfolgreich authentifiziert"
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "Ungültiger 2-Faktor Schlüssel",
       "connection_error": "Verbindungsfehler; Netzwerk prüfen und erneut versuchen",
-      "identifier_exists": "Diese Email ist bereits registriert",
+      "identifier_exists": "Diese E-Mail-Adresse ist bereits registriert",
       "invalid_credentials": "Falsche Zugangsdaten",
       "invalid_url": "URL ist ungültig: {message}",
-      "unable_to_connect_hass_url": "Es kann keine Verbindung zur Home Assistant-URL hergestellt werden. Bitte überprüfen Sie die externe URL unter Konfiguration - > Allgemein",
+      "unable_to_connect_hass_url": "Es kann keine Verbindung zur Home Assistant-URL hergestellt werden. Bitte überprüfen Sie die externe URL unter Konfiguration -> Allgemein",
       "unknown_error": "Unbekannter Fehler, bitte Log-Info melden"
     },
     "step": {
@@ -20,21 +20,21 @@
           "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
         },
         "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
-        "title": "Alexa Media Player - Unable to Connect to HA URL"
+        "title": "Alexa Media Player - Keine Verbindung zur Home Assistant-URL möglich"
       },
       "totp_register": {
         "data": {
           "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
         },
         "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "title": "Alexa Media Player - OTP Bestätigung"
       },
       "user": {
         "data": {
-          "debug": "Erweitertes debugging",
-          "email": "Email Adresse",
+          "debug": "Erweitertes Debugging",
+          "email": "E-Mail Adresse",
           "exclude_devices": "Ausgeschlossene Geräte (komma getrennnt)",
-          "hass_url": "Url to access Home Assistant",
+          "hass_url": "Home Assistant-URL",
           "include_devices": "Eingebundene Geräte (komma getrennnt)",
           "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Passwort",

@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v4.6.1 (2023-03-07)
+### Fix
+* Add None checks ([`40bb9d2`](https://github.com/custom-components/alexa_media_player/commit/40bb9d23523faf13a4a8abc8ee84f6852dab0218))
+* Bump alexapy to 1.26.5 ([`289c611`](https://github.com/custom-components/alexa_media_player/commit/289c611a5331637f031a4e97b7f3a0e296bd1179))
+
+### Documentation
+* Update localization ([`f70d613`](https://github.com/custom-components/alexa_media_player/commit/f70d613a9959a6ebd5ed735ba30b1d30141d99ab))
+
 ## v4.6.0 (2023-01-31)
 ### Feature
 * Add ledvance bluetooth bulbs ([#1847](https://github.com/custom-components/alexa_media_player/issues/1847)) ([`5816afe`](https://github.com/custom-components/alexa_media_player/commit/5816afe60852218684594471fb86b8d399eda64b))

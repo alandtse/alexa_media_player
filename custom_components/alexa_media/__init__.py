@@ -540,13 +540,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 _LOGGER.debug("Excluding %s for lacking capability", dev_name)
                 continue
 
-            if "bluetoothStates" in bluetooth:
+            if bluetooth is not None and "bluetoothStates" in bluetooth:
                 for b_state in bluetooth["bluetoothStates"]:
                     if serial == b_state["deviceSerialNumber"]:
                         device["bluetooth_state"] = b_state
                         break
 
-            if "devicePreferences" in preferences:
+            if preferences is not None and "devicePreferences" in preferences:
                 for dev in preferences["devicePreferences"]:
                     if dev["deviceSerialNumber"] == serial:
                         device["locale"] = dev["locale"]
@@ -559,7 +559,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
                         break
 
-            if "doNotDisturbDeviceStatusList" in dnd:
+            if dnd is not None and "doNotDisturbDeviceStatusList" in dnd:
                 for dev in dnd["doNotDisturbDeviceStatusList"]:
                     if dev["deviceSerialNumber"] == serial:
                         device["dnd"] = dev["enabled"]

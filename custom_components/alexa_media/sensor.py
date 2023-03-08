@@ -17,7 +17,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
@@ -625,6 +625,11 @@ class AlexaMediaNotificationSensor(SensorEntity):
             "dismissed": self._dismissed,
         }
         return attr
+
+    @callback
+    def exclude_attributes(hass: HomeAssistant) -> set[str]:
+        """Exclude sorted_active and sorted_all from being recorded in the database."""
+        return {"sorted_active", "sorted_all"}
 
 
 class AlarmSensor(AlexaMediaNotificationSensor):

@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v4.6.2 (2023-03-08)
+### Fix
+* Exclude alarm json data from database ([`18e4bcf`](https://github.com/custom-components/alexa_media_player/commit/18e4bcf49c49e77cd37519d97b0cc5ac5556ecc7))
+
 ## v4.6.1 (2023-03-07)
 ### Fix
 * Add None checks ([`40bb9d2`](https://github.com/custom-components/alexa_media_player/commit/40bb9d23523faf13a4a8abc8ee84f6852dab0218))

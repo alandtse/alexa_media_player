@@ -68,7 +68,7 @@ repos:
     hooks:
       - id: yamllint
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.4
+    rev: 1.7.5
     hooks:
       - id: bandit
         args:
@@ -94,7 +94,7 @@ repos:
       - id: sync_with_poetry
         args: [] # optional args
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.2
+    rev: v2.2.4
     hooks:
       - id: codespell
         additional_dependencies:

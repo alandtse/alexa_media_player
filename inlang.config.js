@@ -15,7 +15,7 @@ export async function defineConfig(env) {
     referenceLanguage: 'en',
     plugins: [
       jsonPlugin({
-        pathPattern: './custom_components/translations/{language}.json'
+        pathPattern: './custom_components/alexa_media/translations/{language}.json'
       }),
       standardLintRules()
     ]

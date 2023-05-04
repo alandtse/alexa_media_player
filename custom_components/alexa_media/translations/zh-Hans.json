@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "forgot_password": "检测到忘记密码页面。这通常是登录失败的结果。在尝试重新登录之前，Amazon 可能需要执行操作。",
       "login_failed": "Alexa Media Player failed to login.",
       "reauth_successful": "Alexa 媒体播放器已成功重新验证。请忽略来自 HA 的“Aborted”消息。"
     },

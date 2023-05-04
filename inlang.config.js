@@ -1,23 +1,20 @@
 export async function defineConfig(env) {
-    const {
-      default: jsonPlugin
-    } = await env.$import(
-      "https://cdn.jsdelivr.net/gh/samuelstroschein/inlang-plugin-json@2/dist/index.js",
-    )
+  const { default: jsonPlugin } = await env.$import(
+    "https://cdn.jsdelivr.net/gh/samuelstroschein/inlang-plugin-json@2/dist/index.js",
+  );
 
-  const {
-    default: standardLintRules
-  } = await env.$import(
-    'https://cdn.jsdelivr.net/gh/inlang/standard-lint-rules@2/dist/index.js'
+  const { default: standardLintRules } = await env.$import(
+    "https://cdn.jsdelivr.net/gh/inlang/standard-lint-rules@2/dist/index.js",
   );
 
   return {
-    referenceLanguage: 'en',
+    referenceLanguage: "en",
     plugins: [
       jsonPlugin({
-        pathPattern: './custom_components/alexa_media/translations/{language}.json'
+        pathPattern:
+          "./custom_components/alexa_media/translations/{language}.json",
       }),
-      standardLintRules()
-    ]
+      standardLintRules(),
+    ],
   };
 }

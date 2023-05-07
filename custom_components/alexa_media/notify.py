@@ -149,6 +149,8 @@ class AlexaNotificationService(BaseNotificationService):
                 return devices
             last_called_entity = None
             for _, entity in account_dict["entities"]["media_player"].items():
+                if entity is None or entity.entity_id is None:
+                    continue
                 entity_name = (entity.entity_id).split(".")[1]
                 devices[entity_name] = entity.unique_id
                 if self.last_called and entity.extra_state_attributes.get(

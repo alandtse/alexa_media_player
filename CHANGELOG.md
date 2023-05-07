@@ -2,6 +2,17 @@
 
 <!--next-version-placeholder-->
 
+## v4.6.3 (2023-05-07)
+### Fix
+* Bump alexapy to 1.26.6 ([`06ec7be`](https://github.com/custom-components/alexa_media_player/commit/06ec7be963acab33bea721180b9ae7501de74543))
+* Handle missing email from config ([`358fd5c`](https://github.com/custom-components/alexa_media_player/commit/358fd5cb646267b4b2a2463e5a9cc37d84d0fcaa))
+* Skip null entity_ids for notify service ([`ed0c028`](https://github.com/custom-components/alexa_media_player/commit/ed0c0281006d89450a6d785cd7e0113e39dfe404))
+* Fix otp_secret grammar ([#1918](https://github.com/custom-components/alexa_media_player/issues/1918)) ([`4e1158e`](https://github.com/custom-components/alexa_media_player/commit/4e1158e4adc10cd14a7f67117d782a3edec63a66))
+
+### Documentation
+* Update localization ([`2ef2032`](https://github.com/custom-components/alexa_media_player/commit/2ef2032404ccee65a715f743946286f82e252bf4))
+* Replace deprecated Text with str ([`d6e706d`](https://github.com/custom-components/alexa_media_player/commit/d6e706d81eee81d3195f5a3d29752b5471f644bf))
+
 ## v4.6.2 (2023-03-08)
 ### Fix
 * Exclude alarm json data from database ([`18e4bcf`](https://github.com/custom-components/alexa_media_player/commit/18e4bcf49c49e77cd37519d97b0cc5ac5556ecc7))

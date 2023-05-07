@@ -36,7 +36,7 @@
           "exclude_devices": "Excluded device (comma separated)",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This not six digits long.",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
           "password": "Password",
           "scan_interval": "Seconds between scans",
           "securitycode": "[%key_id:55616596%]",

@@ -255,8 +255,8 @@ async def calculate_uuid(hass, email: str, url: str) -> dict:
 
     Args
         hass (bool): Hass entity
-        url (Text): url for account
-        email (Text): email for account
+        url (str): url for account
+        email (str): email for account
 
     Returns
         dict: dictionary with uuid and index

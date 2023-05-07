@@ -16,7 +16,7 @@
           "email": "Email Address",
           "url": "Amazon region domain (e.g., amazon.co.uk)",
           "hass_url": "Url to access Home Assistant",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This not six digits long.",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",
           "debug": "Advanced debugging",

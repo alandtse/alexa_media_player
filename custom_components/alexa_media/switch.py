@@ -41,7 +41,12 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         ("shuffle", ShuffleSwitch),
         ("repeat", RepeatSwitch),
     ]
-    account = config[CONF_EMAIL] if config else discovery_info["config"][CONF_EMAIL]
+    if config:
+        account = config.get(CONF_EMAIL)
+    if account is None and discovery_info:
+        account = discovery_info.get("config", {}).get(CONF_EMAIL)
+    if account is None:
+        raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]

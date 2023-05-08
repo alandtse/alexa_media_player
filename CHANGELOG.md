@@ -2,6 +2,11 @@
 
 <!--next-version-placeholder-->
 
+## v4.6.4 (2023-05-08)
+### Fix
+* Fix unbound account variable ([`3867a54`](https://github.com/custom-components/alexa_media_player/commit/3867a54e170b85239c8cd076e84125c47f1f2af4))
+* Bump alexapy to 1.26.8 ([`0c65b41`](https://github.com/custom-components/alexa_media_player/commit/0c65b4131de4c5fff20633250f05da44c58a1a01))
+
 ## v4.6.3 (2023-05-07)
 ### Fix
 * Bump alexapy to 1.26.6 ([`06ec7be`](https://github.com/custom-components/alexa_media_player/commit/06ec7be963acab33bea721180b9ae7501de74543))

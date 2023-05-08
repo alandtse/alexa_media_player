@@ -70,6 +70,7 @@ LOCAL_TIMEZONE = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinf
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa sensor platform."""
     devices: list[LightEntity] = []
+    account = None
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:

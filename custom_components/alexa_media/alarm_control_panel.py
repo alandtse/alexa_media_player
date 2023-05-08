@@ -50,6 +50,7 @@ async def async_setup_platform(
 ) -> bool:
     """Set up the Alexa alarm control panel platform."""
     devices = []  # type: List[AlexaAlarmControlPanel]
+    account = None
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:

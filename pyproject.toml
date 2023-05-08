@@ -6,8 +6,8 @@ authors = ["Keaton Taylor <keatonstaylor@gmail.com>","Alan D. Tse <alandtse@gmai
 license = "Apache-2.0"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4.0"
-alexapy = "1.26.6"
+python = ">=3.10,<4.0"
+alexapy = "1.26.8"
 aiohttp = ">=3.8.1"
 packaging = ">=20.3"
 wrapt = ">=1.12.1"

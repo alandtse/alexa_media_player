@@ -34,6 +34,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa sensor platform."""
     devices: list[BinarySensorEntity] = []
+    account = None
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:

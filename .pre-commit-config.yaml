@@ -52,14 +52,14 @@ repos:
   - hooks:
       - id: black
     repo: https://github.com/psf/black
-    rev: 23.1.0
+    rev: 23.3.0
   - repo: https://github.com/pre-commit/mirrors-prettier
     hooks:
       - id: prettier
         exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
     rev: v3.0.0-alpha.9-for-vscode
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
+    rev: v3.4.0
     hooks:
       - id: pyupgrade
         args: [--py39-plus]

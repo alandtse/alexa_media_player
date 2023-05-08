@@ -91,6 +91,7 @@ DEPENDENCIES = [ALEXA_DOMAIN]
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa media player platform."""
     devices = []  # type: List[AlexaClient]
+    account = None
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:

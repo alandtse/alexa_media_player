@@ -43,7 +43,7 @@ repos:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: 3.2.1
+    rev: 3.2.2
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -64,7 +64,7 @@ repos:
       - id: pyupgrade
         args: [--py39-plus]
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.31.0
+    rev: v1.32.0
     hooks:
       - id: yamllint
   - repo: https://github.com/PyCQA/bandit
@@ -89,7 +89,7 @@ repos:
   #        pass_filenames: false
   #        always_run: true
   - repo: https://github.com/floatingpurr/sync_with_poetry
-    rev: "0.4.0" # the revision or tag to clone at
+    rev: "1.0.0" # the revision or tag to clone at
     hooks:
       - id: sync_with_poetry
         args: [] # optional args
@@ -102,7 +102,7 @@ repos:
         exclude_types: [csv, json]
         exclude: ^tests/fixtures/
   - repo: https://github.com/PyCQA/prospector
-    rev: v1.9.0
+    rev: 1.10.2
     hooks:
       - id: prospector
         exclude: ^(tests)/.+\.py$

@@ -1,11 +1,9 @@
 # Check out https://pre-commit.com/ for documentation
 # and https://pre-commit.com/hooks.html for more hooks
 minimum_pre_commit_version: 2.9.0
-# Don't set language_version -- it's only useful if we have multiple
-# python versions or our build uses a different env than runtime
 repos:
   # --- Meta hooks ---
-  #- hooks:
+  # - hooks:
   # This one is useful, but it will fail if, e.g., you don't have a single yaml file
   #  - id: check-hooks-apply
   # This one will fail, e.g., if you don't have a recipes/ file, which is excluded here
@@ -31,7 +29,7 @@ repos:
       # This one is slow and doesn't check for much
       # - detect-private-key
       # This is very slow, so I recommend disabling it.
-      #- id: check-added-large-files
+      # - id: check-added-large-files
       # The Conda recipe meta.yaml files are actually templates, not valid YAML
       - id: check-yaml
         exclude: ^recipes/.*
@@ -89,10 +87,10 @@ repos:
   #        pass_filenames: false
   #        always_run: true
   - repo: https://github.com/floatingpurr/sync_with_poetry
-    rev: "1.1.0" # the revision or tag to clone at
+    rev: "1.1.0"
     hooks:
       - id: sync_with_poetry
-        args: [] # optional args
+        args: []
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.5
     hooks:

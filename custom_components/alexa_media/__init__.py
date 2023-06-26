@@ -317,7 +317,7 @@ async def async_setup_entry(hass, config_entry):
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
-    no_nt_push_support = ["it", "de"]
+    no_nt_push_support = ["it", "de", "com.au"]
     if any(d in login.url for d in no_nt_push_support):
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notification_push_support"] = False
         _LOGGER.debug("Amazon region does not support notification_push messages")
@@ -678,7 +678,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     async def process_notifications(login_obj, raw_notifications=None):
         """Process raw notifications json."""
         if not raw_notifications:
-            await asyncio.sleep(2)
+            await asyncio.sleep(4)
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
         email: str = login_obj.email
         previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(

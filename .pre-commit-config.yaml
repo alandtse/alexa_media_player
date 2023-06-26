@@ -43,7 +43,7 @@ repos:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: 3.2.2
+    rev: 3.5.2
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -59,7 +59,7 @@ repos:
         exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
     rev: v3.0.0-alpha.9-for-vscode
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.4.0
+    rev: v3.7.0
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
@@ -89,12 +89,12 @@ repos:
   #        pass_filenames: false
   #        always_run: true
   - repo: https://github.com/floatingpurr/sync_with_poetry
-    rev: "1.0.0" # the revision or tag to clone at
+    rev: "1.1.0" # the revision or tag to clone at
     hooks:
       - id: sync_with_poetry
         args: [] # optional args
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.4
+    rev: v2.2.5
     hooks:
       - id: codespell
         additional_dependencies:

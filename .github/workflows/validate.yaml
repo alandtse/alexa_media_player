@@ -26,6 +26,6 @@ jobs:
         uses: hacs/action@main
         with:
           CATEGORY: integration
-          #ignore: requirements
+          # ignore: requirements
       - name: hassfest
         uses: home-assistant/actions/hassfest@master

@@ -570,7 +570,12 @@ class AlexaMediaNotificationSensor(SensorEntity):
             ):
                 _LOGGER.debug("Updating sensor %s from PUSH_NOTIFICATION_CHANGE event", self)
                 self.schedule_update_ha_state(True)
-        elif "push_activity" in event and not self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["notification_push_support"]:
+        elif (
+            "push_activity" in event
+            and not self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account][
+                "notification_push_support"
+            ]
+        ):
             if (
                 event["push_activity"]["key"]["serialNumber"]
                 == self._client.device_serial_number

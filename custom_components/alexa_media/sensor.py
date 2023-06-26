@@ -563,17 +563,19 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 return
         except AttributeError:
             pass
-        event_message = "notification_update"
-        event_sn = event[event_message]["dopplerId"]["deviceSerialNumber"] if event.get(event_message) else None
-        if not self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["notification_push_support"]:
-            event_message = "push_activity"
-            event_sn = event[event_message]["key"]["serialNumber"]
-        if event_message in event:
+        if "notification_update" in event:
             if (
-                event_sn
+                event["notification_update"]["dopplerId"]["deviceSerialNumber"]
                 == self._client.device_serial_number
             ):
-                _LOGGER.debug("Updating sensor %s", self)
+                _LOGGER.debug("Updating sensor %s from PUSH_NOTIFICATION_CHANGE event", self)
+                self.schedule_update_ha_state(True)
+        elif "push_activity" in event and not self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["notification_push_support"]:
+            if (
+                event["push_activity"]["key"]["serialNumber"]
+                == self._client.device_serial_number
+            ):
+                _LOGGER.debug("Updating sensor %s from PUSH_ACTIVITY event", self)
                 self.schedule_update_ha_state(True)
 
     @property

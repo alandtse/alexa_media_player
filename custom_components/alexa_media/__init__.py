@@ -317,7 +317,7 @@ async def async_setup_entry(hass, config_entry):
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
-    no_nt_push_support = ["it"]
+    no_nt_push_support = ["it", "de"]
     if any(d in login.url for d in no_nt_push_support):
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notification_push_support"] = False
         _LOGGER.debug("Amazon region does not support notification_push messages")

@@ -59,7 +59,7 @@ repos:
         exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
     rev: v3.0.0-alpha.9-for-vscode
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.7.0
+    rev: v3.4.0
     hooks:
       - id: pyupgrade
         args: [--py39-plus]

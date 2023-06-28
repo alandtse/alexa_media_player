@@ -319,10 +319,14 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
     no_nt_push_support = ["it", "de", "com.au"]
     if any(d in login.url for d in no_nt_push_support):
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notification_push_support"] = False
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "notification_push_support"
+        ] = False
         _LOGGER.debug("Amazon region does not support notification_push messages")
     else:
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notification_push_support"] = True
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "notification_push_support"
+        ] = True
     if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)

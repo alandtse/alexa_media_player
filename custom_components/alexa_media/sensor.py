@@ -568,7 +568,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 event["notification_update"]["dopplerId"]["deviceSerialNumber"]
                 == self._client.device_serial_number
             ):
-                _LOGGER.debug("Updating sensor %s from PUSH_NOTIFICATION_CHANGE event", self)
+                _LOGGER.debug(
+                    "Updating sensor %s from PUSH_NOTIFICATION_CHANGE event", self
+                )
                 self.schedule_update_ha_state(True)
         elif (
             "push_activity" in event

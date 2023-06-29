@@ -317,16 +317,7 @@ async def async_setup_entry(hass, config_entry):
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
-    no_nt_push_support = ["it", "de", "com.au"]
-    if any(d in login.url for d in no_nt_push_support):
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "notification_push_support"
-        ] = False
-        _LOGGER.debug("Amazon region does not support notification_push messages")
-    else:
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "notification_push_support"
-        ] = True
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
     if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
@@ -918,23 +909,36 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             else:
                 serial = None
             if command == "PUSH_ACTIVITY":
-                #  Last_Alexa Updated
-                last_called = {
-                    "serialNumber": serial,
-                    "timestamp": json_payload["timestamp"],
-                }
-                try:
-                    await coord.async_request_refresh()
-                    if serial and serial in existing_serials:
-                        await update_last_called(login_obj, last_called)
-                    async_dispatcher_send(
-                        hass,
-                        f"{DOMAIN}_{hide_email(email)}"[0:32],
-                        {"push_activity": json_payload},
-                    )
-                except AlexapyConnectionError:
-                    # Catch case where activities doesn't report valid json
-                    pass
+                if (
+                    datetime.now().timestamp() * 1000
+                    - hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "last_push_activity"
+                    ]
+                    > 100
+                ):
+                    #  Last_Alexa Updated
+                    last_called = {
+                        "serialNumber": serial,
+                        "timestamp": json_payload["timestamp"],
+                    }
+                    try:
+                        await coord.async_request_refresh()
+                        if serial and serial in existing_serials:
+                            await update_last_called(login_obj, last_called)
+                        async_dispatcher_send(
+                            hass,
+                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                            {"push_activity": json_payload},
+                        )
+                    except AlexapyConnectionError:
+                        # Catch case where activities doesn't report valid json
+                        pass
+                else:
+                    # Duplicate PUSH_ACTIVITY message
+                    _LOGGER.debug("Skipped processing of double PUSH_ACTIVITY message")
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = (
+                    datetime.now().timestamp() * 1000
+                )
             elif command in (
                 "PUSH_AUDIO_PLAYER_STATE",
                 "PUSH_MEDIA_CHANGE",

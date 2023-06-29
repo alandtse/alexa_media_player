@@ -555,7 +555,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
     def _handle_event(self, event):
         """Handle events.
 
-        This will update PUSH_NOTIFICATION_CHANGE events to see if the sensor
+        This will update PUSH_ACTIVITY events to see if the sensor
         should be updated.
         """
         try:
@@ -563,9 +563,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 return
         except AttributeError:
             pass
-        if "notification_update" in event:
+        if "push_activity" in event:
             if (
-                event["notification_update"]["dopplerId"]["deviceSerialNumber"]
+                event["push_activity"]["key"]["serialNumber"]
                 == self._client.device_serial_number
             ):
                 _LOGGER.debug("Updating sensor %s", self)

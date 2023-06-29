@@ -565,7 +565,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             pass
         if "push_activity" in event:
             if (
-                event["activity_event"]["key"]["serialNumber"]
+                event["push_activity"]["key"]["serialNumber"]
                 == self._client.device_serial_number
             ):
                 _LOGGER.debug("Updating sensor %s", self)

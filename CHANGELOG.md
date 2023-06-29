@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v4.6.5 (2023-06-29)
+
+### Fix
+
+* Update notifications on PUSH_ACTIVITY ([#1974](https://github.com/custom-components/alexa_media_player/issues/1974)) ([`8f0dfa2`](https://github.com/custom-components/alexa_media_player/commit/8f0dfa2f6585ebac08bd5a708951155c80f63588))
+
 ## v4.6.4 (2023-05-08)
 ### Fix
 * Fix unbound account variable ([`3867a54`](https://github.com/custom-components/alexa_media_player/commit/3867a54e170b85239c8cd076e84125c47f1f2af4))

@@ -46,6 +46,7 @@ CONF_HASS_URL = "hass_url"
 CONF_INCLUDE_DEVICES = "include_devices"
 CONF_EXCLUDE_DEVICES = "exclude_devices"
 CONF_QUEUE_DELAY = "queue_delay"
+CONF_PUBLIC_URL = "public_url"
 CONF_EXTENDED_ENTITY_DISCOVERY = "extended_entity_discovery"
 CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
@@ -59,6 +60,7 @@ EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"
 
 DEFAULT_EXTENDED_ENTITY_DISCOVERY = False
 DEFAULT_QUEUE_DELAY = 1.5
+DEFAULT_PUBLIC_URL = ""
 SERVICE_CLEAR_HISTORY = "clear_history"
 SERVICE_UPDATE_LAST_CALLED = "update_last_called"
 SERVICE_FORCE_LOGOUT = "force_logout"
@@ -131,3 +133,5 @@ ALEXA_ICON_CONVERSION = {
     "Alexa.AirQuality.IndoorAirQuality": "mdi:numeric",
 }
 ALEXA_ICON_DEFAULT = "mdi:molecule"
+
+UPLOAD_PATH = "/config/www/alexa_tts"

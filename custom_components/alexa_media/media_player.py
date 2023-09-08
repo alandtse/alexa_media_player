@@ -1361,7 +1361,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     "24000",
                     output_file_path,
                 ]
-                if subprocess.run(command, check = True).returncode != 0:
+                if subprocess.run(command, check=True).returncode != 0:
                     _LOGGER.error(
                         "%s: %s:ffmpeg command FAILED converting %s to %s",
                         hide_email(self._login.email),

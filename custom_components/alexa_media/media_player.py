@@ -1361,7 +1361,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     "24000",
                     output_file_path,
                 ]
-                if subprocess.run(command, check = True).returncode != 0:
+                if subprocess.run(command, check=True).returncode != 0:
                     _LOGGER.error(
                         "%s: %s:ffmpeg command FAILED converting %s to %s",
                         hide_email(self._login.email),
@@ -1400,7 +1400,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         ].get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
         if media_type == "music":
             if public_url:
-                await self.async_play_cloud_tts_say(self, media_type, media_id, **kwargs)
+                await self.async_play_cloud_tts_say(
+                    self, media_type, media_id, **kwargs
+                )
             else:
                 await self.async_send_tts(
                     "To send TTS, set public url in integration configuration"

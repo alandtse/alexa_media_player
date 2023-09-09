@@ -100,9 +100,10 @@ DEPENDENCIES = [ALEXA_DOMAIN]
 
 # @retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
+    """Set up the Alexa media player platform."""
     if not os.path.exists(UPLOAD_PATH):
         os.mkdir(UPLOAD_PATH)
-    """Set up the Alexa media player platform."""
+
     devices = []  # type: List[AlexaClient]
     account = None
     if config:

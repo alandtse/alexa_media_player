@@ -134,4 +134,4 @@ ALEXA_ICON_CONVERSION = {
 }
 ALEXA_ICON_DEFAULT = "mdi:molecule"
 
-UPLOAD_PATH = "/config/www/alexa_tts"
+UPLOAD_PATH = "www/alexa_tts"

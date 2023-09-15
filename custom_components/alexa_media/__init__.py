@@ -56,10 +56,12 @@ from .const import (
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
     CONF_OTPSECRET,
+    CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DATA_LISTENER,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+    DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DEPENDENT_ALEXA_COMPONENTS,
     DOMAIN,
@@ -289,6 +291,9 @@ async def async_setup_entry(hass, config_entry):
             "options": {
                 CONF_QUEUE_DELAY: config_entry.options.get(
                     CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
+                ),
+                CONF_PUBLIC_URL: config_entry.options.get(
+                    CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
                 ),
                 CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.options.get(
                     CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY

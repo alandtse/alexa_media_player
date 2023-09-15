@@ -50,11 +50,13 @@ from .const import (
     CONF_OAUTH,
     CONF_OTPSECRET,
     CONF_PROXY_WARNING,
+    CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+    DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
     ISSUE_URL,
@@ -797,6 +799,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
                     ),
                 ): vol.All(vol.Coerce(float), vol.Clamp(min=0)),
+                vol.Optional(
+                    CONF_PUBLIC_URL,
+                    default=self.config_entry.options.get(
+                        CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
+                    ),
+                ): str,
                 vol.Required(
                     CONF_EXTENDED_ENTITY_DISCOVERY,
                     default=self.config_entry.options.get(

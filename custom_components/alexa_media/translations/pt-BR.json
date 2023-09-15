@@ -52,6 +52,7 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Incluir dispositivos conectados via Echo",
+          "public_url": "URL pública para acessar o Home Assistant (incluindo a barra final ''/')",
           "queue_delay": "Segundos para aguardar os comandos de fila juntos"
         }
       }

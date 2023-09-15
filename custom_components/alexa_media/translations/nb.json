@@ -52,6 +52,7 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Inkluder enheter som er koblet til via Echo",
+          "public_url": "Offentlig URL for å få tilgang til Home Assistant (inkludert etterfølgende ''/'')",
           "queue_delay": "Sekunder for å vente på køkommandoer sammen"
         }
       }

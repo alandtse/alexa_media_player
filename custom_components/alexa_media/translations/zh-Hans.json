@@ -52,6 +52,7 @@
       "init": {
         "data": {
           "extended_entity_discovery": "包括通过 Echo 连接的设备",
+          "public_url": "访问Home Assistant的公共URL（包括尾随的'/'）",
           "queue_delay": "Seconds to wait to queue commands together"
         }
       }

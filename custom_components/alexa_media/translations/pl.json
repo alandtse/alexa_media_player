@@ -52,6 +52,7 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Uwzględnij urządzenia podłączone przez Echo",
+          "public_url": "Publiczny URL do dostępu do Home Assistant (z końcowym '/')",
           "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń"
         }
       }

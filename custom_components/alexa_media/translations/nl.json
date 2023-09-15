@@ -52,6 +52,7 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Inclusief apparaten die zijn verbonden via Echo",
+          "public_url": "Openbare URL om toegang te krijgen tot Home Assistant (inclusief afsluitende '/')",
           "queue_delay": "Seconden om te wachten om opdrachten in de wachtrij te plaatsen"
         }
       }

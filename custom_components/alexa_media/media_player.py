@@ -8,10 +8,18 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import asyncio
 import logging
+import os
 import re
+import subprocess
 from typing import List, Optional
+import urllib.request
 
 from homeassistant import util
+from homeassistant.components import media_source
+from homeassistant.components.media_player import (
+    ATTR_MEDIA_ANNOUNCE,
+    async_process_play_media_url,
+)
 from homeassistant.components.media_player.const import (
     MEDIA_TYPE_MUSIC,
     SUPPORT_NEXT_TRACK,
@@ -44,8 +52,10 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.util import slugify
 
 from . import (
+    CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
+    DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DOMAIN as ALEXA_DOMAIN,
     hide_email,
@@ -57,6 +67,7 @@ from .const import (
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
     PLAY_SCAN_INTERVAL,
+    UPLOAD_PATH,
 )
 from .helpers import _catch_login_errors, add_devices
 
@@ -90,6 +101,9 @@ DEPENDENCIES = [ALEXA_DOMAIN]
 # @retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa media player platform."""
+    if not os.path.exists(UPLOAD_PATH):
+        os.mkdir(UPLOAD_PATH)
+
     devices = []  # type: List[AlexaClient]
     account = None
     if config:
@@ -1315,24 +1329,88 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
 
     @_catch_login_errors
+    async def async_play_tts_cloud_say(self, public_url, media_id, **kwargs):
+        file_name = media_id
+        if media_source.is_media_source_id(media_id):
+            media = await media_source.async_resolve_media(
+                self.hass, media_id, self.entity_id
+            )
+            file_name = media.url[media.url.rindex("/") : media.url.rindex(".")]
+            media_id = async_process_play_media_url(self.hass, media.url)
+
+        if kwargs.get(ATTR_MEDIA_ANNOUNCE):
+            input_file_path = f"{UPLOAD_PATH}{file_name}_input.mp3"
+            output_file_name = f"{file_name}_output.mp3"
+            output_file_path = f"{UPLOAD_PATH}{output_file_name}"
+
+            # file might already exist -> the same tts is cached from previous calls
+            if not os.path.exists(output_file_path):
+                await self.hass.async_add_executor_job(
+                    urllib.request.urlretrieve, media_id, input_file_path
+                )
+                command = [
+                    "ffmpeg",
+                    "-i",
+                    input_file_path,
+                    "-ac",
+                    "2",
+                    "-codec:a",
+                    "libmp3lame",
+                    "-b:a",
+                    "48k",
+                    "-ar",
+                    "24000",
+                    output_file_path,
+                ]
+                if subprocess.run(command, check=True).returncode != 0:
+                    _LOGGER.error(
+                        "%s: %s:ffmpeg command FAILED converting %s to %s",
+                        hide_email(self._login.email),
+                        self,
+                        input_file_path,
+                        output_file_path,
+                    )
+
+            _LOGGER.debug(
+                "%s: %s:Playing %slocal/alexa_tts%s",
+                hide_email(self._login.email),
+                self,
+                public_url,
+                output_file_name,
+            )
+            await self.async_send_tts(
+                f"<audio src='{public_url}local/alexa_tts{output_file_name}' />"
+            )
+        else:
+            await self.async_send_tts(
+                "To send TTS, please set Announce=true. Music can't be played this way."
+            )
+            _LOGGER.warning(
+                "To send TTS, please set Announce=true. Music can't be played this way."
+            )
+
+    @_catch_login_errors
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):
         # pylint: disable=unused-argument,too-many-branches
         """Send the play_media command to the media player."""
         queue_delay = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
             "options"
         ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY)
+        public_url = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
+            "options"
+        ].get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
         if media_type == "music":
-            await self.async_send_tts(
-                "Sorry, text to speech can only be called"
-                " with the notify.alexa_media service."
-                " Please see the alexa_media wiki for details."
-            )
-            _LOGGER.warning(
-                "Sorry, text to speech can only be called"
-                " with the notify.alexa_media service."
-                " Please see the alexa_media wiki for details."
-                "https://github.com/custom-components/alexa_media_player/wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
-            )
+            if public_url:
+                await self.async_play_tts_cloud_say(public_url, media_id, **kwargs)
+            else:
+                await self.async_send_tts(
+                    "To send TTS, set public url in integration configuration"
+                )
+                _LOGGER.warning(
+                    "To send TTS, set public url in integration configuration"
+                    " Please see the alexa_media wiki for details."
+                    "https://github.com/custom-components/alexa_media_player/wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
+                )
         elif media_type == "sequence":
             _LOGGER.debug(
                 "%s: %s:Running sequence %s with queue_delay %s",

@@ -101,8 +101,9 @@ DEPENDENCIES = [ALEXA_DOMAIN]
 # @retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa media player platform."""
-    if not os.path.exists(UPLOAD_PATH):
-        os.mkdir(UPLOAD_PATH)
+    upload_path = hass.config.path(UPLOAD_PATH)
+    if not os.path.exists(upload_path):
+        os.mkdir(upload_path)
 
     devices = []  # type: List[AlexaClient]
     account = None
@@ -1339,9 +1340,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             media_id = async_process_play_media_url(self.hass, media.url)
 
         if kwargs.get(ATTR_MEDIA_ANNOUNCE):
-            input_file_path = f"{UPLOAD_PATH}{file_name}_input.mp3"
+            input_file_path = self.hass.config.path(
+                f"{UPLOAD_PATH}{file_name}_input.mp3"
+            )
             output_file_name = f"{file_name}_output.mp3"
-            output_file_path = f"{UPLOAD_PATH}{output_file_name}"
+            output_file_path = self.hass.config.path(f"{UPLOAD_PATH}{output_file_name}")
 
             # file might already exist -> the same tts is cached from previous calls
             if not os.path.exists(output_file_path):

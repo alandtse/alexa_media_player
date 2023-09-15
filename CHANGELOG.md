@@ -2,6 +2,19 @@
 
 
 
+## v4.7.1 (2023-09-15)
+
+### Documentation
+
+* docs: update localization ([`38f81e9`](https://github.com/custom-components/alexa_media_player/commit/38f81e93e8f9d7a6b6ed5bb5633bbbd25e2b95d3))
+
+### Fix
+
+* fix: use native HA methods to create paths (#2025)
+
+closes #2022 ([`1f60c0b`](https://github.com/custom-components/alexa_media_player/commit/1f60c0b50f8696a1a2d66d748e0da33f364b47bc))
+
+
 ## v4.7.0 (2023-09-15)
 
 ### Build

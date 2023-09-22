@@ -52,7 +52,7 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Schließen Sie Geräte ein, die über Echo verbunden sind",
-          "public_url": "Öffentliche URL zum Zugriff auf Home Assistant (einschließlich nachgestelltem ''/'')",
+          "public_url": "Öffentliche URL zum Zugriff auf Home Assistant (einschließlich '/' am Ende)",
           "queue_delay": "Sekunden zu warten, um Befehle in die Warteschlange zu stellen"
         }
       }

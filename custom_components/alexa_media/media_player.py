@@ -45,6 +45,7 @@ from homeassistant.const import (
     STATE_STANDBY,
     STATE_UNAVAILABLE,
 )
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -98,12 +99,29 @@ _LOGGER = logging.getLogger(__name__)
 DEPENDENCIES = [ALEXA_DOMAIN]
 
 
+async def create_www_directory(hass: HomeAssistant):
+    """Create www directory."""
+    paths = [
+        hass.config.path("www"),  # http://homeassistant.local:8123/local
+        hass.config.path(
+            UPLOAD_PATH
+        ),  # http://homeassistant.local:8123/local/alexa_tts
+    ]
+
+    def mkdir() -> None:
+        """Create a directory."""
+        for path in paths:
+            if not os.path.exists(path):
+                _LOGGER.debug("Creating directory: %s", path)
+                os.makedirs(path, exist_ok=True)
+
+    await hass.async_add_executor_job(mkdir)
+
+
 # @retry_async(limit=5, delay=2, catch_exceptions=True)
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa media player platform."""
-    upload_path = hass.config.path(UPLOAD_PATH)
-    if not os.path.exists(upload_path):
-        os.mkdir(upload_path)
+    await create_www_directory(hass)
 
     devices = []  # type: List[AlexaClient]
     account = None

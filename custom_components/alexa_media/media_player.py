@@ -103,7 +103,9 @@ async def create_www_directory(hass: HomeAssistant):
     """Create www directory."""
     paths = [
         hass.config.path("www"),  # http://homeassistant.local:8123/local
-        hass.config.path(UPLOAD_PATH),  # http://homeassistant.local:8123/local/alexa_tts
+        hass.config.path(
+            UPLOAD_PATH
+        ),  # http://homeassistant.local:8123/local/alexa_tts
     ]
 
     def mkdir() -> None:

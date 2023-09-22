@@ -2,6 +2,31 @@
 
 
 
+## v4.7.2 (2023-09-22)
+
+### Documentation
+
+* docs: update localization ([`d430e7e`](https://github.com/custom-components/alexa_media_player/commit/d430e7e22b96569c395454970a326a59b4d25c38))
+
+* docs: update localization ([`3e41767`](https://github.com/custom-components/alexa_media_player/commit/3e41767ee98fd721e09f26955ca78f0077e703d4))
+
+### Fix
+
+* fix: create each subfolder for `www/alexa_tts` (#2034)
+
+Create the root www folder before trying to create alexa_tts.
+
+fixes #2032 ([`20cbfcd`](https://github.com/custom-components/alexa_media_player/commit/20cbfcde6d769ecc99dea16b3831883376bee5a3))
+
+### Unknown
+
+* Merge pull request #2036 from custom-components/dev
+
+chore: release 2023-09-22 ([`ed7d047`](https://github.com/custom-components/alexa_media_player/commit/ed7d047d309fe3fd7a0655e68404fdbd500ab93b))
+
+* Merge branch &#39;master&#39; into dev ([`a56374c`](https://github.com/custom-components/alexa_media_player/commit/a56374c17a11619acb9596905dd571142163fc3e))
+
+
 ## v4.7.1 (2023-09-15)
 
 ### Documentation
@@ -13,6 +38,10 @@
 * fix: use native HA methods to create paths (#2025)
 
 closes #2022 ([`1f60c0b`](https://github.com/custom-components/alexa_media_player/commit/1f60c0b50f8696a1a2d66d748e0da33f364b47bc))
+
+* fix: use native HA methods to create paths (#2025)
+
+closes #2022 ([`c31dacd`](https://github.com/custom-components/alexa_media_player/commit/c31dacdab0931213990abd87c2685f0f64b16d01))
 
 
 ## v4.7.0 (2023-09-15)

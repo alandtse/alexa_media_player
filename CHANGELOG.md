@@ -2,6 +2,43 @@
 
 
 
+## v4.7.3 (2023-09-29)
+
+### Build
+
+* build: fix precommit ignore ([`ca05a0a`](https://github.com/custom-components/alexa_media_player/commit/ca05a0a1b6c7f238ae40ce78d123526eea42b2a2))
+
+* build: ignore changelog.md spelling ([`a5be5c7`](https://github.com/custom-components/alexa_media_player/commit/a5be5c7f3e6fcf11529a0fbd313d5c7ae906a586))
+
+* build: update precommit ([`823e952`](https://github.com/custom-components/alexa_media_player/commit/823e952e6092544de8d00c74b90c858c37a499cf))
+
+### Documentation
+
+* docs: update localization ([`3bc121c`](https://github.com/custom-components/alexa_media_player/commit/3bc121cd772ca91f9bb014893d09da112bf319b2))
+
+### Fix
+
+* fix: add http2 push to replace websocket
+
+This should restore push updates.
+
+Also includes dependency updates.
+
+closes #1953
+closes #1976
+closes #1967 ([`a3dde7f`](https://github.com/custom-components/alexa_media_player/commit/a3dde7f42dcb24cbb69a365458d6e131cfdbd19e))
+
+### Unknown
+
+* Merge pull request #2041 from custom-components/dev
+
+chore: release 2023-09-29 ([`5833acc`](https://github.com/custom-components/alexa_media_player/commit/5833acc37b2e4d0649a3416f8357df93f18b8e8b))
+
+* Merge pull request #2040 from alandtse/dev
+
+fix: add http2 push to replace websocket ([`cfc723d`](https://github.com/custom-components/alexa_media_player/commit/cfc723d29608d7433298eb01482bd14a97116318))
+
+
 ## v4.7.2 (2023-09-22)
 
 ### Documentation

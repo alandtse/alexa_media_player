@@ -57,5 +57,41 @@
         }
       }
     }
+  },
+  "services": {
+    "clear_history": {
+      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "fields": {
+        "email": {
+          "description": "Accounts to clear. Empty will clear all.",
+          "name": "Email address"
+        },
+        "entries": {
+          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
+          "name": "Number of Entries"
+        }
+      },
+      "name": "Clear Amazon Voice History"
+    },
+    "force_logout": {
+      "description": "Force account to logout. Used mainly for debugging.",
+      "fields": {
+        "email": {
+          "description": "Accounts to clear. Empty will clear all.",
+          "name": "Email address"
+        }
+      },
+      "name": "Force Logout"
+    },
+    "update_last_called": {
+      "description": "Forces update of last_called echo device for each Alexa account.",
+      "fields": {
+        "email": {
+          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
+          "name": "Email address"
+        }
+      },
+      "name": "Update Last Called Sensor"
+    }
   }
 }

@@ -336,6 +336,8 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
 class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""
 
+    _unrecorded_attributes = frozenset({"sorted_active", "sorted_all"})
+
     def __init__(
         self,
         client,
@@ -579,9 +581,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
     @property
     def should_poll(self):
         """Return the polling state."""
-        return not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["websocket"]
-        )
+        return not (self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["http2"])
 
     def _process_state(self, value) -> Optional[datetime.datetime]:
         return dt.as_local(value[self._sensor_property]) if value else None

@@ -98,7 +98,7 @@ repos:
         additional_dependencies:
           - tomli
         exclude_types: [csv, json]
-        exclude: ^tests/fixtures/
+        exclude: ^tests/fixtures/,CHANGELOG.md
   - repo: https://github.com/PyCQA/prospector
     rev: 1.10.2
     hooks:

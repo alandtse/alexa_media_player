@@ -13,7 +13,7 @@ update_last_called:
 
 clear_history:
   # Description of the service
-  description: Clear last entries from Alexa history for each Alexa account.
+  description: Clear last entries from Alexa Voice history for each Alexa account.
   # Different fields that your service accepts
   fields:
     # Key of the field

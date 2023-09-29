@@ -8,7 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 import asyncio
 from datetime import datetime, timedelta
-from json import JSONDecodeError
+from json import JSONDecodeError, loads
 import logging
 import time
 from typing import Optional
@@ -18,7 +18,7 @@ from alexapy import (
     AlexaLogin,
     AlexapyConnectionError,
     AlexapyLoginError,
-    WebsocketEchoClient,
+    HTTP2EchoClient,
     __version__ as alexapy_version,
     hide_email,
     hide_serial,
@@ -36,6 +36,7 @@ from homeassistant.const import (
     EVENT_HOMEASSISTANT_STARTED,
     EVENT_HOMEASSISTANT_STOP,
 )
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
@@ -280,11 +281,11 @@ async def async_setup_entry(hass, config_entry):
             },
             "excluded": {},
             "new_devices": True,
-            "websocket_lastattempt": 0,
-            "websocketerror": 0,
-            "websocket_commands": {},
-            "websocket_activity": {"serials": {}, "refreshed": {}},
-            "websocket": None,
+            "http2_lastattempt": 0,
+            "http2error": 0,
+            "http2_commands": {},
+            "http2_activity": {"serials": {}, "refreshed": {}},
+            "http2": None,
             "auth_info": None,
             "second_account_index": 0,
             "should_get_network": True,
@@ -357,7 +358,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         This will add new devices and services when discovered. By default this
         runs every SCAN_INTERVAL seconds unless another method calls it. if
-        websockets is connected, it will increase the delay 10-fold between updates.
+        push is connected, it will increase the delay 10-fold between updates.
         While throttled at MIN_TIME_BETWEEN_SCANS, care should be taken to
         reduce the number of runs to avoid flooding. Slow changing states
         should be checked here instead of in spawned components like
@@ -669,6 +670,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         "refresh_token": login_obj.refresh_token,
                         "expires_in": login_obj.expires_in,
                         "mac_dms": login_obj.mac_dms,
+                        "code_verifier": login_obj.code_verifier,
+                        "authorization_code": login_obj.authorization_code,
                     },
                 },
             )
@@ -820,32 +823,33 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
         return
 
-    async def ws_connect() -> WebsocketEchoClient:
-        """Open WebSocket connection.
+    async def http2_connect() -> HTTP2EchoClient:
+        """Open HTTP2 Push connection.
 
         This will only attempt one login before failing.
         """
-        websocket: Optional[WebsocketEchoClient] = None
+        http2: Optional[HTTP2EchoClient] = None
         email = login_obj.email
         try:
             if login_obj.session.closed:
                 _LOGGER.debug(
-                    "%s: Websocket creation aborted. Session is closed.",
+                    "%s: HTTP2 creation aborted. Session is closed.",
                     hide_email(email),
                 )
                 return
-            websocket = WebsocketEchoClient(
+            http2 = HTTP2EchoClient(
+                hass,
                 login_obj,
-                ws_handler,
-                ws_open_handler,
-                ws_close_handler,
-                ws_error_handler,
+                msg_callback=http2_handler,
+                open_callback=http2_open_handler,
+                close_callback=http2_close_handler,
+                error_callback=http2_error_handler,
             )
-            _LOGGER.debug("%s: Websocket created: %s", hide_email(email), websocket)
-            await websocket.async_run()
+            _LOGGER.debug("%s: HTTP2 created: %s", hide_email(email), http2)
+            await http2.async_run()
         except AlexapyLoginError as exception_:
             _LOGGER.debug(
-                "%s: Login Error detected from websocket: %s",
+                "%s: Login Error detected from http2: %s",
                 hide_email(email),
                 exception_,
             )
@@ -856,71 +860,71 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
         except BaseException as exception_:  # pylint: disable=broad-except
             _LOGGER.debug(
-                "%s: Websocket creation failed: %s", hide_email(email), exception_
+                "%s: HTTP2 creation failed: %s", hide_email(email), exception_
             )
             return
-        return websocket
+        return http2
 
-    async def ws_handler(message_obj):
+    @callback
+    async def http2_handler(message_obj):
         # pylint: disable=too-many-branches
-        """Handle websocket messages.
+        """Handle http2 push messages.
 
         This allows push notifications from Alexa to update last_called
         and media state.
         """
-
-        command = (
-            message_obj.json_payload["command"]
-            if isinstance(message_obj.json_payload, dict)
-            and "command" in message_obj.json_payload
-            else None
+        updates = (
+            message_obj.get("directive", {})
+            .get("payload", {})
+            .get("renderingUpdates", [])
         )
-        json_payload = (
-            message_obj.json_payload["payload"]
-            if isinstance(message_obj.json_payload, dict)
-            and "payload" in message_obj.json_payload
-            else None
-        )
-        existing_serials = _existing_serials(hass, login_obj)
-        seen_commands = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "websocket_commands"
-        ]
-        coord = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["coordinator"]
-        if command and json_payload:
-            _LOGGER.debug(
-                "%s: Received websocket command: %s : %s",
-                hide_email(email),
-                command,
-                hide_serial(json_payload),
+        for item in updates:
+            resource = loads(item.get("resourceMetadata", ""))
+            command = (
+                resource["command"]
+                if isinstance(resource, dict) and "command" in resource
+                else None
             )
-            serial = None
-            command_time = time.time()
-            if command not in seen_commands:
-                _LOGGER.debug("Adding %s to seen_commands: %s", command, seen_commands)
-            seen_commands[command] = command_time
-
-            if (
-                "dopplerId" in json_payload
-                and "deviceSerialNumber" in json_payload["dopplerId"]
-            ):
-                serial = json_payload["dopplerId"]["deviceSerialNumber"]
-            elif (
-                "key" in json_payload
-                and "entryId" in json_payload["key"]
-                and json_payload["key"]["entryId"].find("#") != -1
-            ):
-                serial = (json_payload["key"]["entryId"]).split("#")[2]
-                json_payload["key"]["serialNumber"] = serial
-            else:
+            json_payload = (
+                loads(resource["payload"])
+                if isinstance(resource, dict) and "payload" in resource
+                else None
+            )
+            existing_serials = _existing_serials(hass, login_obj)
+            seen_commands = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                "http2_commands"
+            ]
+            coord = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["coordinator"]
+            if command and json_payload:
+                _LOGGER.debug(
+                    "%s: Received http2push command: %s : %s",
+                    hide_email(email),
+                    command,
+                    hide_serial(json_payload),
+                )
                 serial = None
-            if command == "PUSH_ACTIVITY":
+                command_time = time.time()
+                if command not in seen_commands:
+                    _LOGGER.debug(
+                        "Adding %s to seen_commands: %s", command, seen_commands
+                    )
+                seen_commands[command] = command_time
+
                 if (
-                    datetime.now().timestamp() * 1000
-                    - hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                        "last_push_activity"
-                    ]
-                    > 100
+                    "dopplerId" in json_payload
+                    and "deviceSerialNumber" in json_payload["dopplerId"]
                 ):
+                    serial = json_payload["dopplerId"]["deviceSerialNumber"]
+                elif (
+                    "key" in json_payload
+                    and "entryId" in json_payload["key"]
+                    and json_payload["key"]["entryId"].find("#") != -1
+                ):
+                    serial = (json_payload["key"]["entryId"]).split("#")[2]
+                    json_payload["key"]["serialNumber"] = serial
+                else:
+                    serial = None
+                if command == "PUSH_ACTIVITY":
                     #  Last_Alexa Updated
                     last_called = {
                         "serialNumber": serial,
@@ -938,180 +942,182 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     except AlexapyConnectionError:
                         # Catch case where activities doesn't report valid json
                         pass
-                else:
-                    # Duplicate PUSH_ACTIVITY message
-                    _LOGGER.debug("Skipped processing of double PUSH_ACTIVITY message")
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = (
-                    datetime.now().timestamp() * 1000
-                )
-            elif command in (
-                "PUSH_AUDIO_PLAYER_STATE",
-                "PUSH_MEDIA_CHANGE",
-                "PUSH_MEDIA_PROGRESS_CHANGE",
-            ):
-                # Player update/ Push_media from tune_in
-                if serial and serial in existing_serials:
-                    _LOGGER.debug(
-                        "Updating media_player: %s", hide_serial(json_payload)
-                    )
-                    async_dispatcher_send(
-                        hass,
-                        f"{DOMAIN}_{hide_email(email)}"[0:32],
-                        {"player_state": json_payload},
-                    )
-            elif command == "PUSH_VOLUME_CHANGE":
-                # Player volume update
-                if serial and serial in existing_serials:
-                    _LOGGER.debug(
-                        "Updating media_player volume: %s", hide_serial(json_payload)
-                    )
-                    async_dispatcher_send(
-                        hass,
-                        f"{DOMAIN}_{hide_email(email)}"[0:32],
-                        {"player_state": json_payload},
-                    )
-            elif command in (
-                "PUSH_DOPPLER_CONNECTION_CHANGE",
-                "PUSH_EQUALIZER_STATE_CHANGE",
-            ):
-                # Player availability update
-                if serial and serial in existing_serials:
-                    _LOGGER.debug(
-                        "Updating media_player availability %s",
-                        hide_serial(json_payload),
-                    )
-                    async_dispatcher_send(
-                        hass,
-                        f"{DOMAIN}_{hide_email(email)}"[0:32],
-                        {"player_state": json_payload},
-                    )
-            elif command == "PUSH_BLUETOOTH_STATE_CHANGE":
-                # Player bluetooth update
-                bt_event = json_payload["bluetoothEvent"]
-                bt_success = json_payload["bluetoothEventSuccess"]
-                if (
-                    serial
-                    and serial in existing_serials
-                    and bt_success
-                    and bt_event
-                    and bt_event in ["DEVICE_CONNECTED", "DEVICE_DISCONNECTED"]
+                elif command in (
+                    "PUSH_AUDIO_PLAYER_STATE",
+                    "PUSH_MEDIA_CHANGE",
+                    "PUSH_MEDIA_PROGRESS_CHANGE",
+                    "NotifyMediaSessionsUpdated",
+                    "NotifyNowPlayingUpdated",
                 ):
-                    _LOGGER.debug(
-                        "Updating media_player bluetooth %s", hide_serial(json_payload)
-                    )
-                    bluetooth_state = await update_bluetooth_state(login_obj, serial)
-                    # _LOGGER.debug("bluetooth_state %s",
-                    #               hide_serial(bluetooth_state))
-                    if bluetooth_state:
+                    # Player update/ Push_media from tune_in
+                    if serial and serial in existing_serials:
+                        _LOGGER.debug(
+                            "Updating media_player: %s", hide_serial(json_payload)
+                        )
                         async_dispatcher_send(
                             hass,
                             f"{DOMAIN}_{hide_email(email)}"[0:32],
-                            {"bluetooth_change": bluetooth_state},
+                            {"player_state": json_payload},
                         )
-            elif command == "PUSH_MEDIA_QUEUE_CHANGE":
-                # Player availability update
-                if serial and serial in existing_serials:
-                    _LOGGER.debug(
-                        "Updating media_player queue %s", hide_serial(json_payload)
-                    )
-                    async_dispatcher_send(
-                        hass,
-                        f"{DOMAIN}_{hide_email(email)}"[0:32],
-                        {"queue_state": json_payload},
-                    )
-            elif command == "PUSH_NOTIFICATION_CHANGE":
-                # Player update
-                await process_notifications(login_obj)
-                if serial and serial in existing_serials:
-                    _LOGGER.debug(
-                        "Updating mediaplayer notifications: %s",
-                        hide_serial(json_payload),
-                    )
-                    async_dispatcher_send(
-                        hass,
-                        f"{DOMAIN}_{hide_email(email)}"[0:32],
-                        {"notification_update": json_payload},
-                    )
-            elif command in [
-                "PUSH_DELETE_DOPPLER_ACTIVITIES",  # delete Alexa history
-                "PUSH_LIST_CHANGE",  # clear a shopping list https://github.com/custom-components/alexa_media_player/issues/1190
-                "PUSH_LIST_ITEM_CHANGE",  # update shopping list
-                "PUSH_CONTENT_FOCUS_CHANGE",  # likely prime related refocus
-                "PUSH_DEVICE_SETUP_STATE_CHANGE",  # likely device changes mid setup
-                "PUSH_MEDIA_PREFERENCE_CHANGE",  # disliking or liking songs, https://github.com/custom-components/alexa_media_player/issues/1599
-            ]:
-                pass
-            else:
-                _LOGGER.warning(
-                    "Unhandled command: %s with data %s. Please report at %s",
-                    command,
-                    hide_serial(json_payload),
-                    ISSUE_URL,
-                )
-            if serial in existing_serials:
-                history = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                    "websocket_activity"
-                ]["serials"].get(serial)
-                if history is None or (
-                    history and command_time - history[len(history) - 1][1] > 2
+                elif command == "PUSH_VOLUME_CHANGE":
+                    # Player volume update
+                    if serial and serial in existing_serials:
+                        _LOGGER.debug(
+                            "Updating media_player volume: %s",
+                            hide_serial(json_payload),
+                        )
+                        async_dispatcher_send(
+                            hass,
+                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                            {"player_state": json_payload},
+                        )
+                elif command in (
+                    "PUSH_DOPPLER_CONNECTION_CHANGE",
+                    "PUSH_EQUALIZER_STATE_CHANGE",
                 ):
-                    history = [(command, command_time)]
-                else:
-                    history.append([command, command_time])
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket_activity"][
-                    "serials"
-                ][serial] = history
-                events = []
-                for old_command, old_command_time in history:
-                    if (
-                        old_command
-                        in {"PUSH_VOLUME_CHANGE", "PUSH_EQUALIZER_STATE_CHANGE"}
-                        and command_time - old_command_time < 0.25
-                    ):
-                        events.append(
-                            (old_command, round(command_time - old_command_time, 2))
+                    # Player availability update
+                    if serial and serial in existing_serials:
+                        _LOGGER.debug(
+                            "Updating media_player availability %s",
+                            hide_serial(json_payload),
                         )
-                    elif old_command in {"PUSH_AUDIO_PLAYER_STATE"}:
-                        # There is a potential false positive generated during this event
-                        events = []
-                if len(events) >= 4:
-                    _LOGGER.debug(
-                        "%s: Detected potential DND websocket change with %s events %s",
-                        hide_serial(serial),
-                        len(events),
-                        events,
+                        async_dispatcher_send(
+                            hass,
+                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                            {"player_state": json_payload},
+                        )
+                elif command == "PUSH_BLUETOOTH_STATE_CHANGE":
+                    # Player bluetooth update
+                    bt_event = json_payload["bluetoothEvent"]
+                    bt_success = json_payload["bluetoothEventSuccess"]
+                    if (
+                        serial
+                        and serial in existing_serials
+                        and bt_success
+                        and bt_event
+                        and bt_event in ["DEVICE_CONNECTED", "DEVICE_DISCONNECTED"]
+                    ):
+                        _LOGGER.debug(
+                            "Updating media_player bluetooth %s",
+                            hide_serial(json_payload),
+                        )
+                        bluetooth_state = await update_bluetooth_state(
+                            login_obj, serial
+                        )
+                        # _LOGGER.debug("bluetooth_state %s",
+                        #               hide_serial(bluetooth_state))
+                        if bluetooth_state:
+                            async_dispatcher_send(
+                                hass,
+                                f"{DOMAIN}_{hide_email(email)}"[0:32],
+                                {"bluetooth_change": bluetooth_state},
+                            )
+                elif command == "PUSH_MEDIA_QUEUE_CHANGE":
+                    # Player availability update
+                    if serial and serial in existing_serials:
+                        _LOGGER.debug(
+                            "Updating media_player queue %s", hide_serial(json_payload)
+                        )
+                        async_dispatcher_send(
+                            hass,
+                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                            {"queue_state": json_payload},
+                        )
+                elif command == "PUSH_NOTIFICATION_CHANGE":
+                    # Player update
+                    await process_notifications(login_obj)
+                    if serial and serial in existing_serials:
+                        _LOGGER.debug(
+                            "Updating mediaplayer notifications: %s",
+                            hide_serial(json_payload),
+                        )
+                        async_dispatcher_send(
+                            hass,
+                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                            {"notification_update": json_payload},
+                        )
+                elif command in [
+                    "PUSH_DELETE_DOPPLER_ACTIVITIES",  # delete Alexa history
+                    "PUSH_LIST_CHANGE",  # clear a shopping list https://github.com/custom-components/alexa_media_player/issues/1190
+                    "PUSH_LIST_ITEM_CHANGE",  # update shopping list
+                    "PUSH_CONTENT_FOCUS_CHANGE",  # likely prime related refocus
+                    "PUSH_DEVICE_SETUP_STATE_CHANGE",  # likely device changes mid setup
+                    "PUSH_MEDIA_PREFERENCE_CHANGE",  # disliking or liking songs, https://github.com/custom-components/alexa_media_player/issues/1599
+                ]:
+                    pass
+                else:
+                    _LOGGER.warning(
+                        "Unhandled command: %s with data %s. Please report at %s",
+                        command,
+                        hide_serial(json_payload),
+                        ISSUE_URL,
                     )
-                    await update_dnd_state(login_obj)
-            if (
-                serial
-                and serial not in existing_serials
-                and serial
-                not in (
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"].keys()
-                )
-            ):
-                _LOGGER.debug("Discovered new media_player %s", serial)
-                (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]) = True
-                coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-                    "coordinator"
-                )
-                if coordinator:
-                    await coordinator.async_request_refresh()
+                if serial in existing_serials:
+                    history = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "http2_activity"
+                    ]["serials"].get(serial)
+                    if history is None or (
+                        history and command_time - history[len(history) - 1][1] > 2
+                    ):
+                        history = [(command, command_time)]
+                    else:
+                        history.append([command, command_time])
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_activity"][
+                        "serials"
+                    ][serial] = history
+                    events = []
+                    for old_command, old_command_time in history:
+                        if (
+                            old_command
+                            in {"PUSH_VOLUME_CHANGE", "PUSH_EQUALIZER_STATE_CHANGE"}
+                            and command_time - old_command_time < 0.25
+                        ):
+                            events.append(
+                                (old_command, round(command_time - old_command_time, 2))
+                            )
+                        elif old_command in {"PUSH_AUDIO_PLAYER_STATE"}:
+                            # There is a potential false positive generated during this event
+                            events = []
+                    if len(events) >= 4:
+                        _LOGGER.debug(
+                            "%s: Detected potential DND http2push change with %s events %s",
+                            hide_serial(serial),
+                            len(events),
+                            events,
+                        )
+                        await update_dnd_state(login_obj)
+                if (
+                    serial
+                    and serial not in existing_serials
+                    and serial
+                    not in (
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"].keys()
+                    )
+                ):
+                    _LOGGER.debug("Discovered new media_player %s", serial)
+                    (
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
+                    ) = True
+                    coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+                        "coordinator"
+                    )
+                    if coordinator:
+                        await coordinator.async_request_refresh()
 
-    async def ws_open_handler():
-        """Handle websocket open."""
+    @callback
+    async def http2_open_handler():
+        """Handle http2 open."""
 
         email: str = login_obj.email
-        _LOGGER.debug("%s: Websocket successfully connected", hide_email(email))
+        _LOGGER.debug("%s: HTTP2push successfully connected", hide_email(email))
         hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "websocketerror"
+            "http2error"
         ] = 0  # set errors to 0
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "websocket_lastattempt"
-        ] = time.time()
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_lastattempt"] = time.time()
 
-    async def ws_close_handler():
-        """Handle websocket close.
+    @callback
+    async def http2_close_handler():
+        """Handle http2 close.
 
         This should attempt to reconnect up to 5 times
         """
@@ -1119,79 +1125,78 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         email: str = login_obj.email
         if login_obj.close_requested:
             _LOGGER.debug(
-                "%s: Close requested; will not reconnect websocket", hide_email(email)
+                "%s: Close requested; will not reconnect http2", hide_email(email)
             )
             return
         if not login_obj.status.get("login_successful"):
             _LOGGER.debug(
-                "%s: Login error; will not reconnect websocket", hide_email(email)
+                "%s: Login error; will not reconnect http2", hide_email(email)
             )
             return
-        errors: int = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
+        errors: int = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"]
         delay: int = 5 * 2**errors
         last_attempt = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "websocket_lastattempt"
+            "http2_lastattempt"
         ]
         now = time.time()
         if (now - last_attempt) < delay:
             return
-        websocket_enabled: bool = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "websocket"
-        ]
-        while errors < 5 and not (websocket_enabled):
+        http2_enabled: bool = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"]
+        while errors < 5 and not (http2_enabled):
             _LOGGER.debug(
-                "%s: Websocket closed; reconnect #%i in %is",
+                "%s: HTTP2 push closed; reconnect #%i in %is",
                 hide_email(email),
                 errors,
                 delay,
             )
             hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                "websocket_lastattempt"
+                "http2_lastattempt"
             ] = time.time()
-            websocket_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                "websocket"
-            ] = await ws_connect()
-            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] + 1
+            http2_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                "http2"
+            ] = await http2_connect()
+            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = (
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] + 1
             )
             delay = 5 * 2**errors
-            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
+            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"]
             await asyncio.sleep(delay)
-        if not websocket_enabled:
+        if not http2_enabled:
             _LOGGER.debug(
-                "%s: Websocket closed; retries exceeded; polling", hide_email(email)
+                "%s: HTTP2Push connection closed; retries exceeded; polling",
+                hide_email(email),
             )
         coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         if coordinator:
             coordinator.update_interval = timedelta(
-                seconds=scan_interval * 10 if websocket_enabled else scan_interval
+                seconds=scan_interval * 10 if http2_enabled else scan_interval
             )
             await coordinator.async_request_refresh()
 
-    async def ws_error_handler(message):
-        """Handle websocket error.
+    @callback
+    async def http2_error_handler(message):
+        """Handle http2push error.
 
         This currently logs the error.  In the future, this should invalidate
-        the websocket and determine if a reconnect should be done. By
-        specification, websockets will issue a close after every error.
+        the http2push and determine if a reconnect should be done.
         """
         email: str = login_obj.email
-        errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"]
+        errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"]
         _LOGGER.debug(
-            "%s: Received websocket error #%i %s: type %s",
+            "%s: Received http2push error #%i %s: type %s",
             hide_email(email),
             errors,
             message,
             type(message),
         )
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocket"] = None
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = None
         if not login_obj.close_requested and (
             login_obj.session.closed or message == "<class 'aiohttp.streams.EofStream'>"
         ):
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = 5
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = 5
             _LOGGER.debug("%s: Immediate abort on EoFstream", hide_email(email))
             return
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["websocketerror"] = errors + 1
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = errors + 1
 
     _LOGGER.debug("Setting up Alexa devices for %s", hide_email(login_obj.email))
     config = config_entry.data
@@ -1204,9 +1209,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         else config.get(CONF_SCAN_INTERVAL)
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
-    websocket_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-        "websocket"
-    ] = await ws_connect()
+    http2_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+        "http2"
+    ] = await http2_connect()
     coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
     if coordinator is None:
         _LOGGER.debug("%s: Creating coordinator", hide_email(email))
@@ -1220,13 +1225,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             update_method=async_update_data,
             # Polling interval. Will only be polled if there are subscribers.
             update_interval=timedelta(
-                seconds=scan_interval * 10 if websocket_enabled else scan_interval
+                seconds=scan_interval * 10 if http2_enabled else scan_interval
             ),
         )
     else:
         _LOGGER.debug("%s: Reusing coordinator", hide_email(email))
         coordinator.update_interval = timedelta(
-            seconds=scan_interval * 10 if websocket_enabled else scan_interval
+            seconds=scan_interval * 10 if http2_enabled else scan_interval
         )
     # Fetch initial data so we have data when entities subscribe
     _LOGGER.debug("%s: Refreshing coordinator", hide_email(email))

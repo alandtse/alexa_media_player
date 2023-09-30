@@ -60,38 +60,38 @@
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "Elimina gli ultimi elementi dalla cronologia voce Alexa per ogni account.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Account da eliminare. Se vuoto, verranno cancellati tutti.",
+          "name": "Indirizzo email"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "Numero di elementi da eliminare da 1 a 50. Se vuoto, ne verranno eliminati 50.",
+          "name": "Numero di Elementi"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "Cancella cronologia voce Amazon"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "Forza logout dell'account. Usato principalmente per il debugging.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Account da eliminare. Se vuoto, verranno cancellati tutti.",
+          "name": "Indirizzo email"
         }
       },
-      "name": "Force Logout"
+      "name": "Forza Logout"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "Forza l'aggiornamento del dispositivo echo last_called per ogni account Alexa.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "Lista di account Alexa da aggiornare. Se vuoto, verranno aggiornati tutti.",
+          "name": "Indirizzo email"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "Aggiorna sensore last_called"
     }
   }
 }

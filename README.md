@@ -1,4 +1,4 @@
-![Validate](https://github.com/custom-components/alexa_media_player/workflows/Validate/badge.svg)
+[![Validate](https://github.com/custom-components/alexa_media_player/actions/workflows/validate.yaml/badge.svg)](https://github.com/custom-components/alexa_media_player/actions/workflows/validate.yaml)
 ![semantic_release](https://github.com/custom-components/alexa_media_player/workflows/semantic_release/badge.svg)
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
 ![GitHub all releases](https://img.shields.io/github/downloads/custom-components/alexa_media_player/total)

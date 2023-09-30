@@ -60,38 +60,38 @@
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "Lösche letzte Einträge der Alexa Stimmbefehl-Historie für jeden Alexa Account.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Zu löschende Accounts. Falls leer, werden alle gelöscht.",
+          "name": "E-Mail Adresse"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "Zu löschende Einträge von 1 bis 50. Falls leer, lösche 50.",
+          "name": "Anzahl der Einträge"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "Lösche Alexa Stimmbefehl-Historie."
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "Logout erzwingen. Primär für Debugging notwendig.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Zu löschende Accounts.  Falls leer werden alle gelöscht.",
+          "name": "E-Mail Adresse"
         }
       },
-      "name": "Force Logout"
+      "name": "Logout erzwingen"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "Erzwinge Updates der zuletzt aufgerufenen Echo Geräte für jeden Alexa Account  ",
       "fields": {
         "email": {
           "description": "Liste der zu aktualisierenden Alexa-Konten. Wenn leer, werden alle bekannten Konten aktualisiert.",
-          "name": "Email address"
+          "name": "E-Mail Adresse"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "Aktualisiere letzten aufgerufenen Sensor"
     }
   }
 }

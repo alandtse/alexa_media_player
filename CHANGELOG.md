@@ -2,6 +2,46 @@
 
 
 
+## v4.7.4 (2023-09-30)
+
+### Documentation
+
+* docs: update localization ([`6327d04`](https://github.com/custom-components/alexa_media_player/commit/6327d04ac05edc42be2634b6a9eaade572a751dc))
+
+### Fix
+
+* fix: fix http2 push for non-NA domains
+
+closes #1982
+closes #1953 ([`b83bfff`](https://github.com/custom-components/alexa_media_player/commit/b83bfffc108edea24a88ca45d30c17d9751102ec))
+
+* fix: fix unload error when entity_id None ([`d8f270e`](https://github.com/custom-components/alexa_media_player/commit/d8f270eb5ae9195d22b19237c4a06d7e743f13e5))
+
+* fix: Restore NOTIFICATION_CHANGE command (#2044)
+
+* Restore NOTIFICATION_CHANGE
+
+Partial revert of 8f0dfa2 to restore NOTIFICATION_CHANGE functionality for timers and alarms.
+
+* style: auto fixes from pre-commit.com hooks
+
+for more information, see https://pre-commit.ci
+
+---------
+
+Co-authored-by: pre-commit-ci[bot] &lt;66853113+pre-commit-ci[bot]@users.noreply.github.com&gt; ([`a4f8499`](https://github.com/custom-components/alexa_media_player/commit/a4f849918bd285b90f67065e94bfad60fe018c58))
+
+### Unknown
+
+* Merge pull request #2046 from custom-components/dev
+
+chore: release 2023-09-30 ([`b90221d`](https://github.com/custom-components/alexa_media_player/commit/b90221d3a34189c988b5d00d3065b844693fe04e))
+
+* Merge pull request #2045 from alandtse/dev
+
+fix: fix http2 push for non-NA domains ([`aaf81a0`](https://github.com/custom-components/alexa_media_player/commit/aaf81a091324f3718b20347a764fad37ce562239))
+
+
 ## v4.7.3 (2023-09-29)
 
 ### Build

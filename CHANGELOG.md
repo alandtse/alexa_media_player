@@ -2,6 +2,19 @@
 
 
 
+## v4.7.6 (2023-09-30)
+
+### Fix
+
+* fix: bump alexapy to 1.27.4
+
+Adds additional HTTP2 domains ([`9794b0a`](https://github.com/custom-components/alexa_media_player/commit/9794b0a2c290971bdfe6712792dbc82a5931ca7c))
+
+### Unknown
+
+* Merge pull request #2048 from alandtse/dev ([`0e22b69`](https://github.com/custom-components/alexa_media_player/commit/0e22b6955cb34b8f2db2e91ca177a1e05caf3903))
+
+
 ## v4.7.5 (2023-09-30)
 
 ### Documentation

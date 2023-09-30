@@ -64,8 +64,11 @@ async def async_unload_entry(hass, entry) -> bool:
             if "entities" not in account_dict:
                 continue
             for device in account_dict["entities"]["media_player"].values():
-                entity_id = device.entity_id.split(".")
-                hass.services.async_remove(SERVICE_NOTIFY, f"{DOMAIN}_{entity_id[1]}")
+                if device.entity_id:
+                    entity_id = device.entity_id.split(".")
+                    hass.services.async_remove(
+                        SERVICE_NOTIFY, f"{DOMAIN}_{entity_id[1]}"
+                    )
         else:
             other_accounts = True
     if not other_accounts:

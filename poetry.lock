@@ -135,13 +135,13 @@ frozenlist = ">=1.1.0"
 
 [[package]]
 name = "alexapy"
-version = "1.27.3"
+version = "1.27.4"
 description = "Python API to control Amazon Echo Devices Programmatically."
 optional = false
 python-versions = ">=3.11,<4"
 files = [
-    {file = "alexapy-1.27.3-py3-none-any.whl", hash = "sha256:a90cf8a117fb6aa21d19b638bffbd90685651f951873734e728eecfa3eb400ab"},
-    {file = "alexapy-1.27.3.tar.gz", hash = "sha256:0132a21ba7a917273a7f1898aa579a11a0912f854ab2101a07784e5747c0b9a2"},
+    {file = "alexapy-1.27.4-py3-none-any.whl", hash = "sha256:d20bd23e7a5b3cbc8c20a6e46bfcb89308e526fc7e2786ad8a28dc23a23c4f87"},
+    {file = "alexapy-1.27.4.tar.gz", hash = "sha256:70f7ab4bd640586fdf018743fbfc5d2713f58e729d94c19082696b7b88bf0009"},
 ]
 
 [package.dependencies]
@@ -1238,13 +1238,13 @@ files = [
 
 [[package]]
 name = "identify"
-version = "2.5.29"
+version = "2.5.30"
 description = "File identification library for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "identify-2.5.29-py2.py3-none-any.whl", hash = "sha256:24437fbf6f4d3fe6efd0eb9d67e24dd9106db99af5ceb27996a5f7895f24bf1b"},
-    {file = "identify-2.5.29.tar.gz", hash = "sha256:d43d52b86b15918c137e3a74fff5224f60385cd0e9c38e99d07c257f02f151a5"},
+    {file = "identify-2.5.30-py2.py3-none-any.whl", hash = "sha256:afe67f26ae29bab007ec21b03d4114f41316ab9dd15aa8736a167481e108da54"},
+    {file = "identify-2.5.30.tar.gz", hash = "sha256:f302a4256a15c849b91cfcdcec052a8ce914634b2f77ae87dad29cd749f2d88d"},
 ]
 
 [package.extras]
@@ -3385,4 +3385,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "ce841ecfabca409fc2ad108ad0c69dac69fc9a21e164c72793cfdbc995f27532"
+content-hash = "fa8e8826712c7f07be5d50353387e1daf39ffc0b10af48dae098ba2241204795"

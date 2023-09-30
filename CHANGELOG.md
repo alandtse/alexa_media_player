@@ -2,6 +2,23 @@
 
 
 
+## v4.7.5 (2023-09-30)
+
+### Documentation
+
+* docs: update localization ([`1753564`](https://github.com/custom-components/alexa_media_player/commit/1753564655a22fcf5c27881416d9e5ca26c3874e))
+
+* docs: fix validate badge in readme ([`9bd0ffc`](https://github.com/custom-components/alexa_media_player/commit/9bd0ffcb12965048df33c9e07a69c6899c563739))
+
+### Fix
+
+* fix: fix reconnect on http2 close ([`adbbf91`](https://github.com/custom-components/alexa_media_player/commit/adbbf910f26693737eda4535e04737e7c6d424d8))
+
+### Unknown
+
+* Merge pull request #2047 from alandtse/dev ([`f23fc18`](https://github.com/custom-components/alexa_media_player/commit/f23fc18a8668a9790914b9cd8515f377018d0250))
+
+
 ## v4.7.4 (2023-09-30)
 
 ### Documentation

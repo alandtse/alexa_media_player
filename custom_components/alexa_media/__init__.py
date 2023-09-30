@@ -1121,8 +1121,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         This should attempt to reconnect up to 5 times
         """
-
         email: str = login_obj.email
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = None
         if login_obj.close_requested:
             _LOGGER.debug(
                 "%s: Close requested; will not reconnect http2", hide_email(email)

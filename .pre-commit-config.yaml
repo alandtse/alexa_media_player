@@ -57,7 +57,7 @@ repos:
         exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
     rev: v3.0.3
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.13.0
+    rev: v3.15.0
     hooks:
       - id: pyupgrade
         args: [--py39-plus]

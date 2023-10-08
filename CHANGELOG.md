@@ -2,6 +2,39 @@
 
 
 
+## v4.7.7 (2023-10-08)
+
+### Build
+
+* build: pre-commit autoupdate
+
+updates:
+- [github.com/commitizen-tools/commitizen: 3.8.2 → 3.10.0](https://github.com/commitizen-tools/commitizen/compare/3.8.2...3.10.0) ([`b23f27a`](https://github.com/custom-components/alexa_media_player/commit/b23f27aaa541a93c4fd643ec393338d1e158d4d6))
+
+* build: Update required version of wrapt (#2050) ([`383ac6c`](https://github.com/custom-components/alexa_media_player/commit/383ac6c5da36f165774d0f72b9272f301feee32a))
+
+### Fix
+
+* fix: bump alexapy 1.27.6
+
+closes #2059 ([`1b48a38`](https://github.com/custom-components/alexa_media_player/commit/1b48a38e3895a31f8c89b531f90bb83d928ca71d))
+
+* fix: try to refresh tokens when http2 auth error
+
+The http2 stream is sensitive to auth token errors. Instead of declaring
+a bad login immediately, include one attempt to refresh auth tokens.
+This may help reduce the frequency of reauth requests but is not
+guaranteed. ([`4accda1`](https://github.com/custom-components/alexa_media_player/commit/4accda13412dc92a165915791b678de05ea3b77b))
+
+### Unknown
+
+* Merge pull request #2064 from custom-components/dev ([`1e28c9b`](https://github.com/custom-components/alexa_media_player/commit/1e28c9b1c805a21ff301f7a9aa0849353759df68))
+
+* Merge pull request #2063 from alandtse/dev ([`ba30ce1`](https://github.com/custom-components/alexa_media_player/commit/ba30ce15ba8154107fde230996ae687ac8b6ea14))
+
+* Merge pull request #2062 from alandtse/dev ([`4dfe25d`](https://github.com/custom-components/alexa_media_player/commit/4dfe25ddcdd4c8ff04bf51c561004a50b285c796))
+
+
 ## v4.7.6 (2023-09-30)
 
 ### Fix

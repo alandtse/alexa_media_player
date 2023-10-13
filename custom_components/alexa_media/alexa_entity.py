@@ -114,9 +114,11 @@ def is_light(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
     return (
         is_local(appliance)
-        and ("LIGHT" in appliance.get("applianceTypes", [])
-             or "SWITCH" in appliance.get("applianceTypes", [])
-             or "SMARTPLUG" in appliance.get("applianceTypes", []))
+        and (
+            "LIGHT" in appliance.get("applianceTypes", [])
+            or "SWITCH" in appliance.get("applianceTypes", [])
+            or "SMARTPLUG" in appliance.get("applianceTypes", [])
+        )
         and has_capability(appliance, "Alexa.PowerController", "powerState")
     )
 

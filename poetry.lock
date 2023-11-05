@@ -135,13 +135,13 @@ frozenlist = ">=1.1.0"
 
 [[package]]
 name = "alexapy"
-version = "1.27.7"
+version = "1.27.8"
 description = "Python API to control Amazon Echo Devices Programmatically."
 optional = false
 python-versions = ">=3.11,<4"
 files = [
-    {file = "alexapy-1.27.7-py3-none-any.whl", hash = "sha256:8e868c2c6463ab59f92347453752afa70cd154f339b573e3c01bff921295a725"},
-    {file = "alexapy-1.27.7.tar.gz", hash = "sha256:fca45bbae3c74d54cbea0b764359e6b4f1799ea708ae8ccd4746b36eeb618c69"},
+    {file = "alexapy-1.27.8-py3-none-any.whl", hash = "sha256:73a605b129c694b69add10192111081eb3576ca0f7d0fb3d4da50ed347ae852f"},
+    {file = "alexapy-1.27.8.tar.gz", hash = "sha256:6d267dd2a38c0b1c6d3ac97b7e12b71a97ae7e298955f6f23d6e9192aeb74bca"},
 ]
 
 [package.dependencies]
@@ -3380,4 +3380,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "387b1ef394a69dcb3b6aeacac42d4bb54641de018f6f74e23bf1fedd185e0a59"
+content-hash = "d662f1c0892200b674cdc37014230e8212ac977556f5259d95a61e83019aaaf0"

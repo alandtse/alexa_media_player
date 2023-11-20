@@ -34,14 +34,14 @@ repos:
       - id: check-yaml
         exclude: ^recipes/.*
     repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
 
   # --- Commit msg checks ---
   - hooks:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: 3.10.0
+    rev: 3.12.0
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -50,19 +50,19 @@ repos:
   - hooks:
       - id: black
     repo: https://github.com/psf/black
-    rev: 23.10.1
+    rev: 23.11.0
   - repo: https://github.com/pre-commit/mirrors-prettier
     hooks:
       - id: prettier
         exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
-    rev: v3.0.3
+    rev: v3.1.0
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.15.0
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.32.0
+    rev: v1.33.0
     hooks:
       - id: yamllint
   - repo: https://github.com/PyCQA/bandit
@@ -92,7 +92,7 @@ repos:
       - id: sync_with_poetry
         args: []
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.5
+    rev: v2.2.6
     hooks:
       - id: codespell
         additional_dependencies:
@@ -100,7 +100,7 @@ repos:
         exclude_types: [csv, json]
         exclude: (^tests/fixtures/|CHANGELOG.md)
   - repo: https://github.com/PyCQA/prospector
-    rev: 1.10.2
+    rev: v1.10.3
     hooks:
       - id: prospector
         exclude: ^(tests)/.+\.py$

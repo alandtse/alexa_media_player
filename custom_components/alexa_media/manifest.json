@@ -4,10 +4,10 @@
   "codeowners": ["@alandtse", "@keatontaylor"],
   "config_flow": true,
   "dependencies": ["persistent_notification", "http"],
-  "documentation": "https://github.com/custom-components/alexa_media_player/wiki",
+  "documentation": "https://github.com/alandtse/alexa_media_player/wiki",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/custom-components/alexa_media_player/issues",
+  "issue_tracker": "https://github.com/alandtse/alexa_media_player/issues",
   "loggers": ["alexapy", "authcaptureproxy"],
-  "requirements": ["alexapy==1.27.8", "packaging>=20.3", "wrapt>=1.14.0"],
+  "requirements": ["alexapy==1.27.10", "packaging>=20.3", "wrapt>=1.14.0"],
   "version": "4.7.9"
 }

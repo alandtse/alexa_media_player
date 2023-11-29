@@ -96,7 +96,7 @@
           "securitycode": "Código 2FA (recomendado para evitar problemas de login)",
           "url": "Domínio regional da amazon (ex: amazon.co.uk)"
         },
-        "description": "Por favor insira sua [informação](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) pode ser mais fácil!**   \n**AVISO! A amazon reporta incorretamente 'Insira um email ou número de telefone válido' quando [Código de 2FA é requirido](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
+        "description": "Por favor insira sua [informação](https://github.com/alandtse/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/alandtse/alexa_media_player/wiki/Configuration#cookie-import) pode ser mais fácil!**   \n**AVISO! A amazon reporta incorretamente 'Insira um email ou número de telefone válido' quando [Código de 2FA é requirido](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
         "title": "Alexa Media Player - Configurações legado"
       }
     }

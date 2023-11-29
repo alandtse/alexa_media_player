@@ -96,7 +96,7 @@
           "securitycode": "Código 2FA (recomendado para evitar problemas de login)",
           "url": "Região do domínio Amazon (ex. amazon.com.br)"
         },
-        "description": "Por favor, introduza a sua [informação](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) pode ser mais fácil!**   \n**Aviso: a Amazon informa incorretamente 'Insira um e-mail ou número de celular válido' quando [2FA Code é necessário](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
+        "description": "Por favor, introduza a sua [informação](https://github.com/alandtse/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/alandtse/alexa_media_player/wiki/Configuration#cookie-import) pode ser mais fácil!**   \n**Aviso: a Amazon informa incorretamente 'Insira um e-mail ou número de celular válido' quando [2FA Code é necessário](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
         "title": "Alexa Media Player - Configuração de Compatibilidade"
       }
     }

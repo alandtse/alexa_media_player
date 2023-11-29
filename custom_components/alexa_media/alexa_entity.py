@@ -73,9 +73,9 @@ def is_local(appliance: dict[str, Any]) -> bool:
     if "ALEXA_VOICE_ENABLED" in appliance.get("applianceTypes", []):
         return not is_skill(appliance)
 
-    # Ledvance bulbs connected via bluetooth are hard to detect as locally connected
+    # Ledvance/Sengled bulbs connected via bluetooth are hard to detect as locally connected
     # There is probably a better way, but this works for now.
-    if appliance.get("manufacturerName") == "Ledvance":
+    if appliance.get("manufacturerName") == "Ledvance" or appliance.get("manufacturerName") == "Sengled":
         return not is_skill(appliance)
 
     # Zigbee devices are guaranteed to be local and have a particular pattern of id

@@ -6,7 +6,7 @@ labels: ""
 assignees: ""
 ---
 
-**IMPORTANT: Please search the issues, including closed issues, and the [FAQ](https://github.com/custom-components/alexa_media_player/wiki/FAQ) before opening a new issue. The template is mandatory; failure to use it will result in issue closure.**
+**IMPORTANT: Please search the issues, including closed issues, and the [FAQ](https://github.com/alandtse/alexa_media_player/wiki/FAQ) before opening a new issue. The template is mandatory; failure to use it will result in issue closure.**
 
 **Describe the bug**
 
@@ -34,10 +34,10 @@ assignees: ""
 - Home-assistant (version):
 - alexa_media (version from `const.py` or HA startup):
 - alexapy (version from `pip show alexapy` or HA startup):
-- Amazon [2FA is enabled](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account) (y/n). <!---We will not debug login issues if unanswered--->:
+- Amazon [2FA is enabled](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account) (y/n). <!---We will not debug login issues if unanswered--->:
 
 **Logs**
-Please provide [logs](https://github.com/custom-components/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component).
+Please provide [logs](https://github.com/alandtse/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component).
 
 **Additional context**
 

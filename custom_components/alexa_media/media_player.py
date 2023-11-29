@@ -1430,7 +1430,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 _LOGGER.warning(
                     "To send TTS, set public url in integration configuration"
                     " Please see the alexa_media wiki for details."
-                    "https://github.com/custom-components/alexa_media_player/wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
+                    "https://github.com/alandtse/alexa_media_player/wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
                 )
         elif media_type == "sequence":
             _LOGGER.debug(

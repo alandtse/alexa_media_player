@@ -494,7 +494,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         r_rule_data = next_item.get("rRuleData")
         if (
             r_rule_data
-        ):  # the new recurrence pattern; https://github.com/custom-components/alexa_media_player/issues/1608
+        ):  # the new recurrence pattern; https://github.com/alandtse/alexa_media_player/issues/1608
             next_trigger_times = r_rule_data.get("nextTriggerTimes")
             weekdays = r_rule_data.get("byWeekDays")
             if next_trigger_times:

@@ -1,11 +1,11 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
-labels: ''
-assignees: ''
-
+title: ""
+labels: ""
+assignees: ""
 ---
+
 **NOTE: For a feature to be created it has to be doable in the Amazon app because we are basically replicating the app for HA. If you can't find it in the app, we probably can't create it here.**
 
 **Is your feature request related to a problem? Please describe.**

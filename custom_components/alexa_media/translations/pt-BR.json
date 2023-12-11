@@ -1,0 +1,97 @@
+{
+  "config": {
+    "abort": {
+      "forgot_password": "A página Esqueci minha senha foi detectada. Isso normalmente é o resultado de muitos logins com falha. A Amazon pode exigir uma ação antes que um novo login possa ser tentado.",
+      "login_failed": "Alexa Media Player falhou no login.",
+      "reauth_successful": "Alexa Media Player reautenticado com sucesso. Por favor, ignore a mensagem \"Abortado\" do Home Assistant."
+    },
+    "error": {
+      "2fa_key_invalid": "Chave integrada 2FA inválida",
+      "connection_error": "Erro de conexão; verifique a sua conexão e tente novamente",
+      "identifier_exists": "E-mail para URL Alexa já registrado",
+      "invalid_credentials": "Credenciais inválidas",
+      "invalid_url": "O URL é inválido: {message}",
+      "unable_to_connect_hass_url": "Não foi possível conectar ao URL do Home Assistant. Por favor, verifique o URL Externo em Configuração - > Geral",
+      "unknown_error": "Erro desconhecido: {message}"
+    },
+    "step": {
+      "proxy_warning": {
+        "data": {
+          "proxy_warning": "Ignorar e continuar - Entendo que nenhum suporte para problemas de login é fornecido para ignorar este aviso."
+        },
+        "description": "O servidor Home Assistant não pode se conectar a URL fornecida: {hass_url} .\n > {error} \n\n Para corrigir isso, confirme se seu **servidor Home Assistant** pode alcançar {hass_url} . Este campo é do URL externo em Configuração - > Geral, mas você pode tentar sua URL interna. \n\n Se você tiver **certeza** de que seu cliente pode acessar essa URL, ignore este aviso.",
+        "title": "Alexa Media Player - Não foi possível se conectar a URL do Home Assistant"
+      },
+      "totp_register": {
+        "data": {
+          "registered": "OTP da chave de aplicativo 2FA integrada confirmada com sucesso."
+        },
+        "description": "** {email} - alexa. {url} **\n Você confirmou com sucesso um OTP da chave de aplicativo 2FA integrada com a Amazon?\n > Código OTP {message}",
+        "title": "Alexa Media Player - Confirmação OTP"
+      },
+      "user": {
+        "data": {
+          "debug": "Depuração avançada",
+          "email": "Endereço de e-mail",
+          "exclude_devices": "Dispositivos excluídos (separado por vírgula)",
+          "hass_url": "Url para acesso ao Home Assistant",
+          "include_devices": "Dispositivos incluídos (separado por vírgula)",
+          "otp_secret": "Chave de aplicativo 2FA integrada (gera códigos 2FA automaticamente). Isso não tem seis dígitos.",
+          "password": "Senha",
+          "scan_interval": "Segundos entre varreduras",
+          "securitycode": "[%key_id:55616596%]",
+          "url": "Domínio regional da Amazon (ex: amazon.co.uk)"
+        },
+        "description": "Por favor, confirme as informações abaixo. Para configuração legada, desative a opção `Usar método de proxy de login`.",
+        "title": "Alexa Media Player - Configurações"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "extended_entity_discovery": "Incluir dispositivos conectados via Echo",
+          "public_url": "URL pública para acessar o Home Assistant (incluindo a barra final ''/')",
+          "queue_delay": "Segundos para aguardar os comandos de fila juntos"
+        }
+      }
+    }
+  },
+  "services": {
+    "clear_history": {
+      "description": "Limpe as últimas entradas do histórico de voz da Alexa para cada conta Alexa.",
+      "fields": {
+        "email": {
+          "description": "Contas para limpar. Deixar vazio limpará tudo.",
+          "name": "Endereço de email"
+        },
+        "entries": {
+          "description": "\nNúmero de entradas para limpar de 1 a 50. Se deixar vazio, vai limpar as 50.",
+          "name": "Número de entradas"
+        }
+      },
+      "name": "Limpar histórico de voz da Amazon"
+    },
+    "force_logout": {
+      "description": "Forçar o logout da conta. Usado principalmente para depuração.",
+      "fields": {
+        "email": {
+          "description": "Contas para limpar. Deixar vazio limpará tudo.",
+          "name": "Endereço de email"
+        }
+      },
+      "name": "Forçar o logout"
+    },
+    "update_last_called": {
+      "description": "Força a atualização do último dispositivo eco chamado para cada conta Alexa.",
+      "fields": {
+        "email": {
+          "description": "Lista de contas Alexa para atualizar. Se deixar vazio, atualizará todas as contas conhecidas.",
+          "name": "Endereço de email"
+        }
+      },
+      "name": "Atualizar último sensor chamado"
+    }
+  }
+}

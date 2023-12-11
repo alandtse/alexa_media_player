@@ -8,44 +8,19 @@
     "error": {
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Feil ved tilkobling; sjekk nettverket og prøv på nytt",
-      "hass_url_invalid": "Kan ikke koble til nettadressen til hjemmeassistenten. Vennligst sjekk den eksterne nettadressen under Konfigurasjon - > Generelt",
       "identifier_exists": "E-post for Alexa URL allerede registrert",
       "invalid_credentials": "ugyldige legitimasjon",
+      "invalid_url": "URL er ugyldig: {message}",
+      "unable_to_connect_hass_url": "Kan ikke koble til Home Assistant-nettadressen. Vennligst sjekk den eksterne nettadressen under Konfigurasjon - > Generelt",
       "unknown_error": "Ukjent feil, vennligst rapporter logginfo"
     },
     "step": {
-      "action_required": {
+      "proxy_warning": {
         "data": {
-          "proxy": "Use Login Proxy method (2FA not required)"
+          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
         },
-        "description": "**{email} - alexa.{url}**  \nAmazon vil sende et push-varsel i henhold til meldingen nedenfor. Fullfør svaret før du fortsetter.  \n{message}",
-        "title": "Alexa Media Player - Handling påkrevd"
-      },
-      "authselect": {
-        "data": {
-          "authselectoption": "OTP-metode",
-          "proxy": "Use Login Proxy method (2FA not required)"
-        },
-        "description": "**{email} - alexa.{url}**  \n{message}",
-        "title": "Alexa Media Player - Engangspassord"
-      },
-      "captcha": {
-        "data": {
-          "captcha": "Captcha",
-          "password": "Passord",
-          "proxy": "Use Login Proxy method (2FA not required)",
-          "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)"
-        },
-        "description": "**{email} - alexa.{url}**  \n>{message}  \n{captcha_image}",
-        "title": "Alexa Media Player - Captcha"
-      },
-      "claimspicker": {
-        "data": {
-          "authselectoption": "Bekreftelsesmetode",
-          "proxy": "Use Login Proxy method (2FA not required)"
-        },
-        "description": "**{email} - alexa.{url}**  \nVelg bekreftelsesmetode etter nummer. (f.eks. \"0\" eller \"1\")  \n{message}",
-        "title": "Alexa Media Player - Bekreftelsesmetode"
+        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
+        "title": "Alexa Media Player - Unable to Connect to HA URL"
       },
       "totp_register": {
         "data": {
@@ -54,50 +29,21 @@
         "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
         "title": "Alexa Media Player - OTP Confirmation"
       },
-      "twofactor": {
-        "data": {
-          "proxy": "Use Login Proxy method (2FA not required)",
-          "securitycode": "2FA Kode"
-        },
-        "description": "**{email} - alexa.{url}**  \nSkriv inn engangspassordet (OTP).  \n>{message}",
-        "title": "Alexa Media Player - Tofaktorautentisering"
-      },
       "user": {
         "data": {
-          "cookies_txt": "config::step::user::data::cookies_txt",
           "debug": "Avansert feilsøking",
           "email": "Epostadresse",
           "exclude_devices": "Ekskludert enhet (kommaseparert)",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Inkluder enhet (kommaseparert)",
-          "oauth_login": "Enable oauth-token app method",
           "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Passord",
-          "proxy": "Use Login Proxy method (2FA not required)",
           "scan_interval": "Sekunder mellom skanninger",
           "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)",
           "url": "Amazon-regiondomenet (f.eks. Amazon.co.uk)"
         },
-        "description": "Bekreft informasjonen nedenfor. For eldre konfigurasjon, deaktiver alternativet \"Bruk innlogging proxy-metode\".",
+        "description": "Bekreft informasjonen nedenfor.",
         "title": "Alexa Media Player - Konfigurasjon"
-      },
-      "user_legacy": {
-        "data": {
-          "cookies_txt": "config::step::user::data::cookies_txt",
-          "debug": "Avansert feilsøking",
-          "email": "Epostadresse",
-          "exclude_devices": "Ekskludert enhet (kommaseparert)",
-          "include_devices": "Inkluder enhet (kommaseparert)",
-          "oauth_login": "Enable oauth-token app method",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
-          "password": "Passord",
-          "proxy": "Use Login Proxy method (2FA not required)",
-          "scan_interval": "Sekunder mellom skanninger",
-          "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)",
-          "url": "Amazon-regiondomenet (f.eks. Amazon.co.uk)"
-        },
-        "description": "Please enter your [information](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) may be easiest!**   \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when [2FA Code is required](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
-        "title": "Alexa Media Player - Legacy Configuration"
       }
     }
   },
@@ -106,9 +52,46 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Inkluder enheter som er koblet til via Echo",
+          "public_url": "Offentlig URL for å få tilgang til Home Assistant (inkludert etterfølgende ''/'')",
           "queue_delay": "Sekunder for å vente på køkommandoer sammen"
         }
       }
+    }
+  },
+  "services": {
+    "clear_history": {
+      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "fields": {
+        "email": {
+          "description": "Accounts to clear. Empty will clear all.",
+          "name": "Email address"
+        },
+        "entries": {
+          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
+          "name": "Number of Entries"
+        }
+      },
+      "name": "Clear Amazon Voice History"
+    },
+    "force_logout": {
+      "description": "Force account to logout. Used mainly for debugging.",
+      "fields": {
+        "email": {
+          "description": "Accounts to clear. Empty will clear all.",
+          "name": "Email address"
+        }
+      },
+      "name": "Force Logout"
+    },
+    "update_last_called": {
+      "description": "Forces update of last_called echo device for each Alexa account.",
+      "fields": {
+        "email": {
+          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
+          "name": "Email address"
+        }
+      },
+      "name": "Update Last Called Sensor"
     }
   }
 }

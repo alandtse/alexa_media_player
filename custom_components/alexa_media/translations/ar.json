@@ -6,11 +6,11 @@
       "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "مفتاح 2FA مضمّن غير صالح",
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
-      "invalid_url": "URL is invalid: {message}",
+      "invalid_url": "URL غير صالح: {message}",
       "unable_to_connect_hass_url": "Unable to connect to Home Assistant url. Please check the External Url under Configuration -> General",
       "unknown_error": "Unknown error: {message}"
     },
@@ -52,7 +52,7 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Include devices connected via Echo",
-          "public_url": "Public URL to access Home Assistant (including trailing '/')",
+          "public_url": "عنوان URL العام للوصول إلى Home Assistant (بما في ذلك '/' المتبوعة)",
           "queue_delay": "Seconds to wait to queue commands together"
         }
       }

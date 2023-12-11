@@ -3,7 +3,7 @@ on:
   push:
   pull_request:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v2
         name: Setup Python
         with:
-          python-version: '3.8.x'
+          python-version: "3.8.x"
       - uses: actions/cache@v2
         name: Cache
         with:
@@ -26,8 +26,6 @@ jobs:
         uses: hacs/action@main
         with:
           CATEGORY: integration
-          #ignore: requirements
-      - uses: KTibow/ha-blueprint@stable
-        name: CI
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ignore: requirements
+      - name: hassfest
+        uses: home-assistant/actions/hassfest@master

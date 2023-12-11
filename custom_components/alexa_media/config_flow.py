@@ -12,10 +12,9 @@ import datetime
 from datetime import timedelta
 from functools import reduce
 import logging
-import re
-from typing import Any, Dict, List, Optional, Text
+from typing import Any, Optional
 
-from aiohttp import ClientConnectionError, ClientSession, web, web_response
+from aiohttp import ClientConnectionError, ClientSession, InvalidURL, web, web_response
 from aiohttp.web_exceptions import HTTPBadRequest
 from alexapy import (
     AlexaLogin,
@@ -32,9 +31,9 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, C
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.exceptions import Unauthorized
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
+import httpx
 import voluptuous as vol
 from yarl import URL
 
@@ -43,24 +42,24 @@ from .const import (
     AUTH_CALLBACK_PATH,
     AUTH_PROXY_NAME,
     AUTH_PROXY_PATH,
-    CONF_COOKIES_TXT,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_EXTENDED_ENTITY_DISCOVERY,
     CONF_HASS_URL,
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
-    CONF_OAUTH_LOGIN,
     CONF_OTPSECRET,
-    CONF_PROXY,
+    CONF_PROXY_WARNING,
+    CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+    DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
-    HTTP_COOKIE_HEADER,
+    ISSUE_URL,
     STARTUP,
 )
 from .helpers import calculate_uuid
@@ -91,7 +90,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     def _update_ord_dict(self, old_dict: OrderedDict, new_dict: dict) -> OrderedDict:
         result: OrderedDict = OrderedDict()
-        for k, v in old_dict.items():
+        for k, v in old_dict.items():  # pylint: disable=invalid-name
             for key, value in new_dict.items():
                 if k == key:
                     result.update([(key, value)])
@@ -106,13 +105,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.info(STARTUP)
             _LOGGER.info("Loaded alexapy==%s", alexapy_version)
         self.login = None
-        self.securitycode: Optional[Text] = None
+        self.securitycode: Optional[str] = None
         self.automatic_steps: int = 0
         self.config = OrderedDict()
         self.proxy_schema = None
         self.data_schema = OrderedDict(
             [
-                (vol.Optional(CONF_PROXY, default=False), bool),
                 (vol.Required(CONF_EMAIL), str),
                 (vol.Required(CONF_PASSWORD), str),
                 (vol.Required(CONF_URL, default="amazon.com"), str),
@@ -122,62 +120,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (vol.Optional(CONF_INCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_EXCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_SCAN_INTERVAL, default=60), int),
-                (vol.Optional(CONF_COOKIES_TXT, default=""), str),
-                (vol.Optional(CONF_OAUTH_LOGIN, default=True), bool),
-            ]
-        )
-        self.captcha_schema = OrderedDict(
-            [
-                (vol.Optional(CONF_PROXY, default=False), bool),
-                (vol.Required(CONF_PASSWORD), str),
-                (
-                    vol.Optional(
-                        CONF_SECURITYCODE,
-                        default=self.securitycode if self.securitycode else "",
-                    ),
-                    str,
-                ),
-                (vol.Required("captcha"), str),
-            ]
-        )
-        self.twofactor_schema = OrderedDict(
-            [
-                (vol.Optional(CONF_PROXY, default=False), bool),
-                (
-                    vol.Required(
-                        CONF_SECURITYCODE,
-                        default=self.securitycode if self.securitycode else "",
-                    ),
-                    str,
-                ),
-            ]
-        )
-        self.claimspicker_schema = OrderedDict(
-            [
-                (vol.Optional(CONF_PROXY, default=False), bool),
-                (
-                    vol.Required("claimsoption", default=0),
-                    vol.All(cv.positive_int, vol.Clamp(min=0)),
-                ),
-            ]
-        )
-        self.authselect_schema = OrderedDict(
-            [
-                (vol.Optional(CONF_PROXY, default=False), bool),
-                (
-                    vol.Required("authselectoption", default=0),
-                    vol.All(cv.positive_int, vol.Clamp(min=0)),
-                ),
-            ]
-        )
-        self.verificationcode_schema = OrderedDict(
-            [
-                (vol.Optional(CONF_PROXY, default=False), bool),
-                (vol.Required("verificationcode"), str),
             ]
         )
         self.totp_register = OrderedDict(
             [(vol.Optional(CONF_TOTP_REGISTER, default=False), bool)]
+        )
+        self.proxy_warning = OrderedDict(
+            [(vol.Optional(CONF_PROXY_WARNING, default=False), bool)]
         )
 
     async def async_step_import(self, import_config):
@@ -185,10 +134,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         return await self.async_step_user_legacy(import_config)
 
     async def async_step_user(self, user_input=None):
+        # pylint: disable=too-many-branches
         """Provide a proxy for login."""
         self._save_user_input_to_config(user_input=user_input)
         try:
-            hass_url: Text = get_url(self.hass, prefer_external=True)
+            hass_url: str = get_url(self.hass, prefer_external=True)
         except NoURLAvailableError:
             hass_url = ""
         self.proxy_schema = OrderedDict(
@@ -249,29 +199,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                     int,
                 ),
-                (
-                    vol.Optional(CONF_PROXY, default=self.config.get(CONF_PROXY, True)),
-                    bool,
-                ),
-                (
-                    vol.Optional(
-                        CONF_OAUTH_LOGIN,
-                        default=self.config.get(CONF_OAUTH_LOGIN, True),
-                    ),
-                    bool,
-                ),
             ]
         )
         if not user_input:
             return self.async_show_form(
                 step_id="user",
                 data_schema=vol.Schema(self.proxy_schema),
-                description_placeholders={"message": ""},
-            )
-        if user_input and not user_input.get(CONF_PROXY):
-            return self.async_show_form(
-                step_id="user_legacy",
-                data_schema=vol.Schema(self._update_schema_defaults()),
                 description_placeholders={"message": ""},
             )
         if self.login is None:
@@ -295,8 +228,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     outputpath=self.hass.config.path,
                     debug=self.config[CONF_DEBUG],
                     otp_secret=self.config.get(CONF_OTPSECRET, ""),
+                    oauth=self.config.get(CONF_OAUTH, {}),
                     uuid=uuid,
-                    oauth_login=self.config.get(CONF_OAUTH_LOGIN, True),
+                    oauth_login=True,
                 )
             else:
                 _LOGGER.debug("Using existing login")
@@ -312,35 +246,51 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 errors={"base": "2fa_key_invalid"},
                 description_placeholders={"message": ""},
             )
-        hass_url: Text = user_input.get(CONF_HASS_URL)
+        hass_url: str = user_input.get(CONF_HASS_URL)
+        if hass_url is None:
+            try:
+                hass_url = get_url(self.hass, prefer_external=True)
+            except NoURLAvailableError:
+                _LOGGER.debug(
+                    "No Home Assistant URL found in config or detected; forcing user form"
+                )
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=vol.Schema(self.proxy_schema),
+                    description_placeholders={"message": ""},
+                )
         hass_url_valid: bool = False
+        hass_url_error: str = ""
         async with ClientSession() as session:
             try:
                 async with session.get(hass_url) as resp:
                     hass_url_valid = resp.status == 200
-            except ClientConnectionError:
+            except ClientConnectionError as err:
                 hass_url_valid = False
+                hass_url_error = str(err)
+            except InvalidURL as err:
+                hass_url_valid = False
+                hass_url_error = str(err.__cause__)
         if not hass_url_valid:
             _LOGGER.debug(
                 "Unable to connect to provided Home Assistant url: %s", hass_url
             )
             return self.async_show_form(
-                step_id="user",
-                errors={"base": "hass_url_invalid"},
-                description_placeholders={"message": ""},
+                step_id="proxy_warning",
+                data_schema=vol.Schema(self.proxy_warning),
+                errors={},
+                description_placeholders={
+                    "email": self.login.email,
+                    "hass_url": hass_url,
+                    "error": hass_url_error,
+                },
             )
-        if not self.proxy:
-            self.proxy = AlexaProxy(
-                self.login, str(URL(hass_url).with_path(AUTH_PROXY_PATH))
-            )
-        # Swap the login object
-        self.proxy.change_login(self.login)
         if (
             user_input
             and user_input.get(CONF_OTPSECRET)
             and user_input.get(CONF_OTPSECRET).replace(" ", "")
         ):
-            otp: Text = self.login.get_totp_token()
+            otp: str = self.login.get_totp_token()
             if otp:
                 _LOGGER.debug("Generating OTP from %s", otp)
                 return self.async_show_form(
@@ -357,11 +307,26 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_start_proxy(self, user_input=None):
         """Start proxy for login."""
+        # pylint: disable=unused-argument
         _LOGGER.debug(
             "Starting proxy for %s - %s",
             hide_email(self.login.email),
             self.login.url,
         )
+        if not self.proxy:
+            try:
+                self.proxy = AlexaProxy(
+                    self.login,
+                    str(URL(self.config.get(CONF_HASS_URL)).with_path(AUTH_PROXY_PATH)),
+                )
+            except ValueError as ex:
+                return self.async_show_form(
+                    step_id="user",
+                    errors={"base": "invalid_url"},
+                    description_placeholders={"message": str(ex)},
+                )
+        # Swap the login object
+        self.proxy.change_login(self.login)
         if not self.proxy_view:
             self.proxy_view = AlexaMediaAuthorizationProxyView(self.proxy.all_handler)
         else:
@@ -370,7 +335,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.hass.http.register_view(AlexaMediaAuthorizationCallbackView())
         self.hass.http.register_view(self.proxy_view)
         callback_url = (
-            URL(self.config["hass_url"])
+            URL(self.config[CONF_HASS_URL])
             .with_path(AUTH_CALLBACK_PATH)
             .with_query({"flow_id": self.flow_id})
         )
@@ -378,19 +343,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         proxy_url = self.proxy.access_url().with_query(
             {"config_flow_id": self.flow_id, "callback_url": str(callback_url)}
         )
-        if self.login.lastreq:
-            self.proxy.last_resp = self.login.lastreq
-            self.proxy.session.cookies = self.login._session.cookie_jar.filter_cookies(
-                self.proxy._host_url.with_path("/")
-            )
-            proxy_url = (
-                self.proxy.access_url().with_path(AUTH_PROXY_PATH) / "resume"
-            ).with_query(
-                {"config_flow_id": self.flow_id, "callback_url": str(callback_url)}
-            )
+        self.login._session.cookie_jar.clear()  # pylint: disable=protected-access
+        self.login.proxy_url = proxy_url
         return self.async_external_step(step_id="check_proxy", url=str(proxy_url))
 
     async def async_step_check_proxy(self, user_input=None):
+        # pylint: disable=unused-argument
         """Check status of proxy for login."""
         _LOGGER.debug(
             "Checking proxy response for %s - %s",
@@ -401,6 +359,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         return self.async_external_step_done(next_step_id="finish_proxy")
 
     async def async_step_finish_proxy(self, user_input=None):
+        # pylint: disable=unused-argument
         """Finish auth."""
         if await self.login.test_loggedin():
             await self.login.finalize_login()
@@ -417,7 +376,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if not user_input:
             self.automatic_steps = 0
             return self.async_show_form(
-                step_id="user_legacy",
+                step_id="user",
                 data_schema=vol.Schema(self.data_schema),
                 description_placeholders={"message": ""},
             )
@@ -432,13 +391,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.debug("Existing account found")
             self.automatic_steps = 0
             return self.async_show_form(
-                step_id="user_legacy",
+                step_id="user",
                 data_schema=vol.Schema(self.data_schema),
                 errors={CONF_EMAIL: "identifier_exists"},
                 description_placeholders={"message": ""},
             )
-        if user_input and user_input.get(CONF_PROXY):
-            return await self.async_step_user(user_input=None)
         if self.login is None:
             try:
                 self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
@@ -461,7 +418,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     debug=self.config[CONF_DEBUG],
                     otp_secret=self.config.get(CONF_OTPSECRET, ""),
                     uuid=uuid,
-                    oauth_login=self.config.get(CONF_OAUTH_LOGIN, True),
+                    oauth_login=True,
                 )
             else:
                 _LOGGER.debug("Using existing login")
@@ -471,7 +428,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 and user_input.get(CONF_OTPSECRET)
                 and user_input.get(CONF_OTPSECRET).replace(" ", "")
             ):
-                otp: Text = self.login.get_totp_token()
+                otp: str = self.login.get_totp_token()
                 if otp:
                     _LOGGER.debug("Generating OTP from %s", otp)
                     return self.async_show_form(
@@ -485,7 +442,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         },
                     )
                 return self.async_show_form(
-                    step_id="user_legacy",
+                    step_id="user",
                     errors={"base": "2fa_key_invalid"},
                     description_placeholders={"message": ""},
                 )
@@ -494,9 +451,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 return await self._test_login()
             _LOGGER.debug("Trying to login %s", self.login.status)
             await self.login.login(
-                cookies=await self.login.load_cookie(
-                    cookies_txt=self.config.get(CONF_COOKIES_TXT, "")
-                ),
                 data=self.config,
             )
             return await self._test_login()
@@ -514,7 +468,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 errors={"base": "2fa_key_invalid"},
                 description_placeholders={"message": ""},
             )
-        except BaseException as ex:  # pylyint: disable=broad-except
+        except BaseException as ex:  # pylint: disable=broad-except
             _LOGGER.warning("Unknown error: %s", ex)
             if self.config[CONF_DEBUG]:
                 raise
@@ -522,23 +476,28 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             return self.async_show_form(
                 step_id="user_legacy",
                 errors={"base": "unknown_error"},
-                description_placeholders={"message": ""},
+                description_placeholders={"message": str(ex)},
             )
 
-    async def async_step_captcha(self, user_input=None):
-        """Handle the input processing of the config flow."""
-        return await self.async_step_process("captcha", user_input)
-
-    async def async_step_twofactor(self, user_input=None):
-        """Handle the input processing of the config flow."""
-        return await self.async_step_process("two_factor", user_input)
+    async def async_step_proxy_warning(self, user_input=None):
+        """Handle the proxy_warning for the config flow."""
+        self._save_user_input_to_config(user_input=user_input)
+        if user_input and user_input.get(CONF_PROXY_WARNING) is False:
+            _LOGGER.debug("User is not accepting warning, go back")
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(self.proxy_schema),
+                description_placeholders={"message": ""},
+            )
+        _LOGGER.debug("User is ignoring proxy warning; starting proxy anyway")
+        return await self.async_step_start_proxy(user_input)
 
     async def async_step_totp_register(self, user_input=None):
         """Handle the input processing of the config flow."""
         self._save_user_input_to_config(user_input=user_input)
-        if user_input and user_input.get("registered") is False:
+        if user_input and user_input.get(CONF_TOTP_REGISTER) is False:
             _LOGGER.debug("Not registered, regenerating")
-            otp: Text = self.login.get_totp_token()
+            otp: str = self.login.get_totp_token()
             if otp:
                 _LOGGER.debug("Generating OTP from %s", otp)
                 return self.async_show_form(
@@ -551,25 +510,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         "message": otp,
                     },
                 )
-        if self.proxy:
-            return await self.async_step_start_proxy(user_input)
-        return await self.async_step_process("totp_register", self.config)
-
-    async def async_step_claimspicker(self, user_input=None):
-        """Handle the input processing of the config flow."""
-        return await self.async_step_process("claimspicker", user_input)
-
-    async def async_step_authselect(self, user_input=None):
-        """Handle the input processing of the config flow."""
-        return await self.async_step_process("authselect", user_input)
-
-    async def async_step_verificationcode(self, user_input=None):
-        """Handle the input processing of the config flow."""
-        return await self.async_step_process("verificationcode", user_input)
-
-    async def async_step_action_required(self, user_input=None):
-        """Handle the input processing of the config flow."""
-        return await self.async_step_process("action_required", user_input)
+        return await self.async_step_start_proxy(user_input)
 
     async def async_step_process(self, step_id, user_input=None):
         """Handle the input processing of the config flow."""
@@ -579,28 +520,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             obfuscate(user_input),
         )
         self._save_user_input_to_config(user_input=user_input)
-        if user_input and user_input.get(CONF_PROXY):
-            return await self.async_step_user(user_input=None)
         if user_input:
-            try:
-                await self.login.login(data=user_input)
-            except AlexapyConnectionError:
-                self.automatic_steps = 0
-                return self.async_show_form(
-                    step_id=step_id,
-                    errors={"base": "connection_error"},
-                    description_placeholders={"message": ""},
-                )
-            except BaseException as ex:  # pylint: disable=broad-except
-                _LOGGER.warning("Unknown error: %s", ex)
-                if self.config[CONF_DEBUG]:
-                    raise
-                self.automatic_steps = 0
-                return self.async_show_form(
-                    step_id=step_id,
-                    errors={"base": "unknown_error"},
-                    description_placeholders={"message": ""},
-                )
+            return await self.async_step_user(user_input=None)
         return await self._test_login()
 
     async def async_step_reauth(self, user_input=None):
@@ -631,7 +552,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 seconds_since_login,
             )
             return self.async_show_form(
-                step_id="user_legacy",
+                step_id="user",
                 data_schema=vol.Schema(reauth_schema),
                 description_placeholders={"message": "REAUTH"},
             )
@@ -640,7 +561,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         return await self.async_step_user_legacy(self.config)
 
     async def _test_login(self):
-        # pylint: disable=too-many-statements, too-many-return-statements
         login = self.login
         email = login.email
         _LOGGER.debug("Testing login status: %s", login.status)
@@ -650,14 +570,15 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.config.pop("reauth")
             if self.config.get(CONF_SECURITYCODE):
                 self.config.pop(CONF_SECURITYCODE)
-            if self.config.get(CONF_PROXY):
-                self.config.pop(CONF_PROXY)
             if self.config.get("hass_url"):
                 self.config.pop("hass_url")
             self.config[CONF_OAUTH] = {
                 "access_token": login.access_token,
                 "refresh_token": login.refresh_token,
                 "expires_in": login.expires_in,
+                "mac_dms": login.mac_dms,
+                "code_verifier": login.code_verifier,
+                "authorization_code": login.authorization_code,
             }
             self.hass.data.setdefault(
                 DATA_ALEXAMEDIA,
@@ -697,40 +618,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             return self.async_create_entry(
                 title=f"{login.email} - {login.url}", data=self.config
             )
-        if login.status and login.status.get("captcha_required"):
-            new_schema = self._update_ord_dict(
-                self.captcha_schema,
-                {
-                    vol.Required(
-                        CONF_PASSWORD, default=self.config[CONF_PASSWORD]
-                    ): str,
-                    vol.Optional(
-                        CONF_SECURITYCODE,
-                        default=self.securitycode if self.securitycode else "",
-                    ): str,
-                },
-            )
-            _LOGGER.debug("Creating config_flow to request captcha")
-            self.automatic_steps = 0
-            return self.async_show_form(
-                step_id="captcha",
-                data_schema=vol.Schema(new_schema),
-                errors={},
-                description_placeholders={
-                    "email": login.email,
-                    "url": login.url,
-                    "captcha_image": "[![captcha]({0})]({0})".format(
-                        login.status["captcha_image_url"]
-                    ),
-                    "message": f"  \n> {login.status.get('error_message','')}",
-                },
-            )
         if login.status and login.status.get("securitycode_required"):
             _LOGGER.debug(
                 "Creating config_flow to request 2FA. Saved security code %s",
                 self.securitycode,
             )
-            generated_securitycode: Text = login.get_totp_token()
+            generated_securitycode: str = login.get_totp_token()
             if (
                 self.securitycode or generated_securitycode
             ) and self.automatic_steps < 2:
@@ -746,100 +639,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.automatic_steps += 1
                 await sleep(5)
                 if generated_securitycode:
-                    return await self.async_step_twofactor(
+                    return await self.async_step_user_legacy(
                         user_input={CONF_SECURITYCODE: generated_securitycode}
                     )
-                return await self.async_step_twofactor(
+                return await self.async_step_user_legacy(
                     user_input={CONF_SECURITYCODE: self.securitycode}
                 )
-            self.twofactor_schema = OrderedDict(
-                [
-                    (vol.Optional(CONF_PROXY, default=False), bool),
-                    (
-                        vol.Required(
-                            CONF_SECURITYCODE,
-                            default=self.securitycode if self.securitycode else "",
-                        ),
-                        str,
-                    ),
-                ]
-            )
-            self.automatic_steps = 0
-            return self.async_show_form(
-                step_id="twofactor",
-                data_schema=vol.Schema(self.twofactor_schema),
-                errors={},
-                description_placeholders={
-                    "email": login.email,
-                    "url": login.url,
-                    "message": f"  \n> {login.status.get('error_message','')}",
-                },
-            )
-        if login.status and login.status.get("claimspicker_required"):
-            error_message = f"  \n> {login.status.get('error_message', '')}"
-            _LOGGER.debug("Creating config_flow to select verification method")
-            claimspicker_message = login.status["claimspicker_message"]
-            self.automatic_steps = 0
-            return self.async_show_form(
-                step_id="claimspicker",
-                data_schema=vol.Schema(self.claimspicker_schema),
-                errors={},
-                description_placeholders={
-                    "email": login.email,
-                    "url": login.url,
-                    "message": "  \n> {}  \n> {}".format(
-                        claimspicker_message, error_message
-                    ),
-                },
-            )
-        if login.status and login.status.get("authselect_required"):
-            _LOGGER.debug("Creating config_flow to select OTA method")
-            error_message = login.status.get("error_message", "")
-            authselect_message = login.status["authselect_message"]
-            self.automatic_steps = 0
-            return self.async_show_form(
-                step_id="authselect",
-                data_schema=vol.Schema(self.authselect_schema),
-                description_placeholders={
-                    "email": login.email,
-                    "url": login.url,
-                    "message": "  \n> {}  \n> {}".format(
-                        authselect_message, error_message
-                    ),
-                },
-            )
-        if login.status and login.status.get("verificationcode_required"):
-            _LOGGER.debug("Creating config_flow to enter verification code")
-            self.automatic_steps = 0
-            return self.async_show_form(
-                step_id="verificationcode",
-                data_schema=vol.Schema(self.verificationcode_schema),
-            )
-        if (
-            login.status
-            and login.status.get("force_get")
-            and not login.status.get("ap_error_href")
-        ):
-            _LOGGER.debug("Creating config_flow to wait for user action")
-            self.automatic_steps = 0
-            return self.async_show_form(
-                step_id="action_required",
-                data_schema=vol.Schema(
-                    OrderedDict([(vol.Optional(CONF_PROXY, default=False), bool)])
-                ),
-                description_placeholders={
-                    "email": login.email,
-                    "url": login.url,
-                    "message": f"  \n>{login.status.get('message','')}  \n",
-                },
-            )
         if login.status and (login.status.get("login_failed")):
-            if login.oauth_login:
-                _LOGGER.debug("Trying non-oauth login")
-                await login.reset()
-                login.oauth_login = False
-                await login.login()
-                return await self._test_login()
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
             self.hass.components.persistent_notification.async_dismiss(
@@ -866,17 +672,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.debug(
                 "Done with automatic resubmission for error_message 'valid email'; returning error message",
             )
-            self.automatic_steps = 0
-            return self.async_show_form(
-                step_id="user_legacy",
-                data_schema=vol.Schema(new_schema),
-                description_placeholders={
-                    "message": f"  \n> {login.status.get('error_message','')}"
-                },
-            )
         self.automatic_steps = 0
         return self.async_show_form(
-            step_id="user_legacy",
+            step_id="user",
             data_schema=vol.Schema(new_schema),
             description_placeholders={
                 "message": f"  \n> {login.status.get('error_message','')}"
@@ -884,6 +682,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         )
 
     def _save_user_input_to_config(self, user_input=None) -> None:
+        # pylint: disable=too-many-branches
         """Process user_input to save to self.config.
 
         user_input can be a dictionary of strings or an internally
@@ -892,10 +691,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """
         if user_input is None:
             return
-        if CONF_PROXY in user_input:
-            self.config[CONF_PROXY] = user_input[CONF_PROXY]
-        if CONF_OAUTH_LOGIN in user_input:
-            self.config[CONF_OAUTH_LOGIN] = user_input[CONF_OAUTH_LOGIN]
         if CONF_HASS_URL in user_input:
             self.config[CONF_HASS_URL] = user_input[CONF_HASS_URL]
         self.securitycode = user_input.get(CONF_SECURITYCODE)
@@ -942,27 +737,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
             else:
                 self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
-        if (
-            user_input.get(CONF_COOKIES_TXT)
-            and f"{HTTP_COOKIE_HEADER}\n" != user_input[CONF_COOKIES_TXT]
-        ):
-            fixed_cookies_txt = re.sub(
-                r" ",
-                r"\n",
-                re.sub(
-                    r"#.*\n",
-                    r"",
-                    re.sub(
-                        r"# ((?:.(?!# ))+)$",
-                        r"\1",
-                        re.sub(r" #", r"\n#", user_input[CONF_COOKIES_TXT]),
-                    ),
-                ),
-            )
-            if not fixed_cookies_txt.startswith(HTTP_COOKIE_HEADER):
-                fixed_cookies_txt = f"{HTTP_COOKIE_HEADER}\n{fixed_cookies_txt}"
-            self.config[CONF_COOKIES_TXT] = fixed_cookies_txt
-            _LOGGER.debug("Setting cookies to:\n%s", fixed_cookies_txt)
 
     def _update_schema_defaults(self) -> Any:
         new_schema = self._update_ord_dict(
@@ -997,12 +771,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
                 ): int,
-                vol.Optional(
-                    CONF_COOKIES_TXT, default=self.config.get(CONF_COOKIES_TXT, "")
-                ): str,
-                vol.Optional(
-                    CONF_OAUTH_LOGIN, default=self.config.get(CONF_OAUTH_LOGIN, True)
-                ): bool,
             },
         )
         return new_schema
@@ -1034,6 +802,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
                     ),
                 ): vol.All(vol.Coerce(float), vol.Clamp(min=0)),
+                vol.Optional(
+                    CONF_PUBLIC_URL,
+                    default=self.config_entry.options.get(
+                        CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
+                    ),
+                ): str,
                 vol.Required(
                     CONF_EXTENDED_ENTITY_DISCOVERY,
                     default=self.config_entry.options.get(
@@ -1072,12 +846,12 @@ class AlexaMediaAuthorizationCallbackView(HomeAssistantView):
 class AlexaMediaAuthorizationProxyView(HomeAssistantView):
     """Handle proxy connections."""
 
-    url: Text = AUTH_PROXY_PATH
-    extra_urls: List[Text] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
-    name: Text = AUTH_PROXY_NAME
+    url: str = AUTH_PROXY_PATH
+    extra_urls: list[str] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
+    name: str = AUTH_PROXY_NAME
     requires_auth: bool = False
     handler: web.RequestHandler = None
-    known_ips: Dict[Text, datetime.datetime] = {}
+    known_ips: dict[str, datetime.datetime] = {}
     auth_seconds: int = 300
 
     def __init__(self, handler: web.RequestHandler):
@@ -1119,7 +893,16 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 if not success:
                     raise Unauthorized()
                 cls.known_ips[request.remote] = datetime.datetime.now()
-            return await cls.handler(request, **kwargs)
+            try:
+                return await cls.handler(request, **kwargs)
+            except httpx.ConnectError as ex:  # pylyint: disable=broad-except
+                _LOGGER.warning("Detected Connection error: %s", ex)
+                return web_response.Response(
+                    headers={"content-type": "text/html"},
+                    text="Connection Error! Please try refreshing. "
+                    + "If this persists, please report this error to "
+                    + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
+                )
 
         return wrapped
 

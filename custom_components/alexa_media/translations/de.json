@@ -6,98 +6,44 @@
       "reauth_successful": "Alexa Media Player erfolgreich authentifiziert"
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "Ungültiger 2-Faktor Schlüssel",
       "connection_error": "Verbindungsfehler; Netzwerk prüfen und erneut versuchen",
-      "hass_url_invalid": "Es kann keine Verbindung zur Home Assistant-URL hergestellt werden. Bitte überprüfen Sie die externe URL unter Konfiguration - > Allgemein",
-      "identifier_exists": "Diese Email ist bereits registriert",
+      "identifier_exists": "Diese E-Mail-Adresse ist bereits registriert",
       "invalid_credentials": "Falsche Zugangsdaten",
-      "unknown_error": "Unbekannter Fehler, bitte Log-Info melden"
+      "invalid_url": "URL ist ungültig: {message}",
+      "unable_to_connect_hass_url": "Es kann keine Verbindung zur Home Assistant-URL hergestellt werden. Bitte überprüfen Sie die externe URL unter Konfiguration -> Allgemein",
+      "unknown_error": "Unbekannter Fehler: {message}"
     },
     "step": {
-      "action_required": {
+      "proxy_warning": {
         "data": {
-          "proxy": "Use Login Proxy method (2FA not required)"
+          "proxy_warning": "Ignorieren und Fortfahren - Ich verstehe, dass keine Unterstützung für Anmeldeprobleme beim Umgehen dieser Warnung angeboten wird."
         },
-        "description": "**{email} - alexa.{url}**  \nAmazon sendet eine Push-Benachrichtigung je folgender Nachricht. Bitte antworte sie vollständig, bevor Du fortfährst.  \n{message}",
-        "title": "Alexa Media Player - Aktion erforderlich"
-      },
-      "authselect": {
-        "data": {
-          "authselectoption": "Einmal Pin Methode",
-          "proxy": "Use Login Proxy method (2FA not required)"
-        },
-        "description": "**{email} - alexa.{url}**  \n{message}",
-        "title": "Alexa Media Player - Einmal Pin Passwort"
-      },
-      "captcha": {
-        "data": {
-          "captcha": "Captcha",
-          "password": "Passwort",
-          "proxy": "Use Login Proxy method (2FA not required)",
-          "securitycode": "2FA Code (empfohlen, um Anmeldeprobleme zu vermeiden)"
-        },
-        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
-        "title": "Alexa Media Player - Captcha"
-      },
-      "claimspicker": {
-        "data": {
-          "authselectoption": "Verifizierungs Methode",
-          "proxy": "Use Login Proxy method (2FA not required)"
-        },
-        "description": "**{email} - alexa.{url}**  \nBitte Verifizierungs Methode auswählen. (z.B., `0` oder `1`)  \n{message}",
-        "title": "Alexa Media Player - Verifizierungs Methode"
+        "description": "Der HA-Server kann keine Verbindung zur bereitgestellten URL herstellen: {hass_url}.\n> {error}\n\nUm dies zu beheben, bestätigen Sie bitte, dass Ihr **HA-Server** {hass_url} erreichen kann. Dieses Feld stammt aus der externen URL unter Konfiguration -> Allgemein, aber Sie können auch Ihre interne URL ausprobieren.\n\nWenn Sie **sicher** sind, dass Ihr Client diese URL erreichen kann, können Sie diese Warnung ignorieren und fortsetzen.",
+        "title": "Alexa Media Player - Keine Verbindung zur Home Assistant-URL möglich"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "OTP aus dem integrierten 2FA-App-Schlüssel erfolgreich bestätigt."
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
-      },
-      "twofactor": {
-        "data": {
-          "proxy": "Use Login Proxy method (2FA not required)",
-          "securitycode": "2FA Code"
-        },
-        "description": "**{email} - alexa.{url}**  \nDen Zwei Faktor Pin eingeben.  \n{message}",
-        "title": "Alexa Media Player - Zwei Faktor Authentifizierung"
+        "description": "**{email} - alexa.{url}** \nHaben Sie erfolgreich einen OTP-Code aus dem integrierten 2FA-App-Schlüssel mit Amazon bestätigt?\n >OTP-Code {message}",
+        "title": "Alexa Media Player - OTP-Bestätigung"
       },
       "user": {
         "data": {
-          "cookies_txt": "config::step::user::data::cookies_txt",
-          "debug": "Erweitertes debugging",
-          "email": "Email Adresse",
-          "exclude_devices": "Ausgeschlossene Geräte (komma getrennnt)",
-          "hass_url": "Url to access Home Assistant",
-          "include_devices": "Eingebundene Geräte (komma getrennnt)",
-          "oauth_login": "Enable oauth-token app method",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "debug": "Erweitertes Debugging",
+          "email": "E-Mail-Adresse",
+          "exclude_devices": "Ausgeschlossene Geräte (Komma getrennt)",
+          "hass_url": "Home Assistant-URL",
+          "include_devices": "Eingebundene Geräte (Komma getrennt)",
+          "otp_secret": "Integrierter 2FA-App-Schlüssel (automatisch generierte 2FA-Code)",
           "password": "Passwort",
-          "proxy": "Use Login Proxy method (2FA not required)",
           "scan_interval": "Sekunden zwischen den Scans",
-          "securitycode": "2FA Code (empfohlen, um Anmeldeprobleme zu vermeiden)",
-          "url": "Amazon Region (z.B., amazon.de)"
+          "securitycode": "2FA-Code (empfohlen, um Anmeldeprobleme zu vermeiden)",
+          "url": "Amazon Region (z.B. amazon.de)"
         },
-        "description": "Bitte geben Sie ihre Informationen ein.",
+        "description": "Bitte geben Sie Ihre Informationen ein.",
         "title": "Alexa Media Player - Konfiguration"
-      },
-      "user_legacy": {
-        "data": {
-          "cookies_txt": "config::step::user::data::cookies_txt",
-          "debug": "Erweitertes debugging",
-          "email": "Email Adresse",
-          "exclude_devices": "Ausgeschlossene Geräte (komma getrennnt)",
-          "include_devices": "Eingebundene Geräte (komma getrennnt)",
-          "oauth_login": "Enable oauth-token app method",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
-          "password": "Passwort",
-          "proxy": "Use Login Proxy method (2FA not required)",
-          "scan_interval": "Sekunden zwischen den Scans",
-          "securitycode": "2FA Code (empfohlen, um Anmeldeprobleme zu vermeiden)",
-          "url": "Amazon Region (z.B., amazon.de)"
-        },
-        "description": "Please enter your [information](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Cookie import](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) may be easiest!**   \n**WARNING: Amazon incorrectly reports 'Enter a valid email or mobile number' when [2FA Code is required](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
-        "title": "Alexa Media Player - Legacy Configuration"
       }
     }
   },
@@ -106,9 +52,46 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Schließen Sie Geräte ein, die über Echo verbunden sind",
+          "public_url": "Öffentliche URL zum Zugriff auf Home Assistant (einschließlich '/' am Ende)",
           "queue_delay": "Sekunden zu warten, um Befehle in die Warteschlange zu stellen"
         }
       }
+    }
+  },
+  "services": {
+    "clear_history": {
+      "description": "Lösche letzte Einträge der Alexa Stimmbefehl-Historie für jeden Alexa Account.",
+      "fields": {
+        "email": {
+          "description": "Zu löschende Accounts. Falls leer, werden alle gelöscht.",
+          "name": "E-Mail Adresse"
+        },
+        "entries": {
+          "description": "Zu löschende Einträge von 1 bis 50. Falls leer, lösche 50.",
+          "name": "Anzahl der Einträge"
+        }
+      },
+      "name": "Lösche Alexa Stimmbefehl-Historie."
+    },
+    "force_logout": {
+      "description": "Logout erzwingen. Primär für Debugging notwendig.",
+      "fields": {
+        "email": {
+          "description": "Zu löschende Accounts.  Falls leer werden alle gelöscht.",
+          "name": "E-Mail Adresse"
+        }
+      },
+      "name": "Logout erzwingen"
+    },
+    "update_last_called": {
+      "description": "Erzwinge Updates der zuletzt aufgerufenen Echo Geräte für jeden Alexa Account  ",
+      "fields": {
+        "email": {
+          "description": "Liste der zu aktualisierenden Alexa-Konten. Wenn leer, werden alle bekannten Konten aktualisiert.",
+          "name": "E-Mail Adresse"
+        }
+      },
+      "name": "Aktualisiere den zuletzt aufgerufenen Sensor"
     }
   }
 }

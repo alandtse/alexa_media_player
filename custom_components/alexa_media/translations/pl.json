@@ -8,44 +8,19 @@
     "error": {
       "2fa_key_invalid": "Nieprawidłowy klucz z wbudowanej aplikacji uwierzytelniania dwuskładnikowego",
       "connection_error": "Błąd podczas łączenia; sprawdź sieć i spróbuj ponownie",
-      "hass_url_invalid": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź publiczny adres URL w sekcji Konfiguracja -> Ogólne",
       "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
       "invalid_credentials": "Nieprawidłowe dane logowania",
-      "unknown_error": "Nieznany błąd, zgłoś log z tego zdarzenia"
+      "invalid_url": "URL jest nieprawidłowy: {message}",
+      "unable_to_connect_hass_url": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź wewnętrzny adres URL w sekcji Konfiguracja -> Ogólne",
+      "unknown_error": "Nieznany błąd, włącz zaawansowane debugowanie i zgłoś log z tego zdarzenia"
     },
     "step": {
-      "action_required": {
+      "proxy_warning": {
         "data": {
-          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)"
+          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
         },
-        "description": "**{email} - alexa.{url}**  \nAmazon wyśle powiadomienie push zgodnie z poniższą wiadomością. Przed kontynuowaniem odpowiedz na wiadomość.  \n{message}",
-        "title": "Alexa Media Player — wymagane działanie"
-      },
-      "authselect": {
-        "data": {
-          "authselectoption": "Metoda OTP",
-          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)"
-        },
-        "description": "**{email} - alexa.{url}**  \n{message}",
-        "title": "Alexa Media Player — hasło jednorazowe"
-      },
-      "captcha": {
-        "data": {
-          "captcha": "Kod Captcha",
-          "password": "Hasło",
-          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)",
-          "securitycode": "Kod uwierzytelniania dwuskładnikowego"
-        },
-        "description": "**{email} - alexa.{url}**  \n{message}  \n {captcha_image}",
-        "title": "Alexa Media Player — kod Captcha"
-      },
-      "claimspicker": {
-        "data": {
-          "authselectoption": "Metoda weryfikacji",
-          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)"
-        },
-        "description": "**{email} - alexa.{url}**  \nWybierz metodę weryfikacji. (np., `0` lub `1`)  \n{message}",
-        "title": "Alexa Media Player — metoda weryfikacji"
+        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
+        "title": "Alexa Media Player - Unable to Connect to HA URL"
       },
       "totp_register": {
         "data": {
@@ -54,50 +29,21 @@
         "description": "**{email} - alexa.{url}**  \nCzy pomyślnie potwierdziłeś hasło jednorazowe z wbudowanej aplikacji uwierzytelniania dwuskładnikowego z Amazonu? \n >Kod hasła jednorazowego {message}",
         "title": "Alexa Media Player - Potwierdzanie hasła jednorazowego"
       },
-      "twofactor": {
-        "data": {
-          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)",
-          "securitycode": "Kod uwierzytelniania dwuskładnikowego"
-        },
-        "description": "**{email} - alexa.{url}**  \nWprowadź hasło jednorazowe (OTP).  \n{message}",
-        "title": "Alexa Media Player — uwierzytelnianie dwuskładnikowe"
-      },
       "user": {
         "data": {
-          "cookies_txt": "zawartość pliku cookies.txt",
           "debug": "Zaawansowane debugowanie",
           "email": "Adres email",
           "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
           "hass_url": "URL dostępu do Home Assistanta",
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
-          "oauth_login": "Włącz metodę tokena OAuth aplikacji",
           "otp_secret": "Wbudowana aplikacja kluczy uwierzytelniania dwuskładnikowego (automatycznie generuje kody uwierzytelniania dwuskładnikowego)",
           "password": "Hasło",
-          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)",
           "scan_interval": "Interwał skanowania (sekundy)",
           "securitycode": "Kod uwierzytelniania dwuskładnikowego (zalecany w celu uniknięcia problemów z logowaniem)",
           "url": "Region/domena Amazon (np. amazon.co.uk)"
         },
-        "description": "Potwierdź poniższe informacje. W przypadku starszych konfiguracji wyłącz opcję 'Użyj metody logowania proxy'.",
+        "description": "Potwierdź poniższe informacje.",
         "title": "Alexa Media Player — konfiguracja"
-      },
-      "user_legacy": {
-        "data": {
-          "cookies_txt": "zawartość pliku cookies.txt",
-          "debug": "Zaawansowane debugowanie",
-          "email": "Adres e-mail",
-          "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
-          "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
-          "oauth_login": "Włącz metodę tokena OAuth aplikacji",
-          "otp_secret": "Wbudowana aplikacja kluczy uwierzytelniania dwuskładnikowego (automatycznie generuje kody uwierzytelniania dwuskładnikowego)",
-          "password": "Hasło",
-          "proxy": "Użyj metody logowania proxy (2FA nie jest wymagane)",
-          "scan_interval": "Interwał skanowania (sekundy)",
-          "securitycode": "Kod uwierzytelniania dwuskładnikowego",
-          "url": "Region/domena Amazon (np. amazon.co.uk)"
-        },
-        "description": "Wprowadź [dane](https://github.com/custom-components/alexa_media_player/wiki/Configuration#integrations-page). **[Import pliku Cookie](https://github.com/custom-components/alexa_media_player/wiki/Configuration#cookie-import) może być najłatwiejszą metodą!**   \n**OSTRZEŻENIE: Amazon nieprawidłowo zgłasza 'Wprowadź prawidłowy adres e-mail lub numer telefonu komórkowego', gdy wymagany jest [kod uwierzytelniania dwuskładnikowego](https://github.com/custom-components/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account).**  \n>{message}",
-        "title": "Alexa Media Player — starsza konfiguracja"
       }
     }
   },
@@ -106,9 +52,46 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Uwzględnij urządzenia podłączone przez Echo",
+          "public_url": "Publiczny URL do dostępu do Home Assistant (z końcowym '/')",
           "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń"
         }
       }
+    }
+  },
+  "services": {
+    "clear_history": {
+      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "fields": {
+        "email": {
+          "description": "Accounts to clear. Empty will clear all.",
+          "name": "Email address"
+        },
+        "entries": {
+          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
+          "name": "Number of Entries"
+        }
+      },
+      "name": "Clear Amazon Voice History"
+    },
+    "force_logout": {
+      "description": "Force account to logout. Used mainly for debugging.",
+      "fields": {
+        "email": {
+          "description": "Accounts to clear. Empty will clear all.",
+          "name": "Email address"
+        }
+      },
+      "name": "Force Logout"
+    },
+    "update_last_called": {
+      "description": "Forces update of last_called echo device for each Alexa account.",
+      "fields": {
+        "email": {
+          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
+          "name": "Email address"
+        }
+      },
+      "name": "Update Last Called Sensor"
     }
   }
 }

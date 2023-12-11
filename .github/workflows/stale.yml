@@ -7,38 +7,40 @@ on:
 
 jobs:
   stale:
-
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
 
     steps:
-      - uses: actions/stale@v3
+      - uses: actions/stale@v8
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          exempt-issue-labels: 'help-wanted'
-          exempt-pr-labels: 'help-wanted'
-          stale-issue-message: 'The issue has received no activity for 60 days and will be closed in a week.'
-          stale-pr-message: 'The PR has received no activity for 60 days and will be closed in a week.'
-          stale-issue-label: 'no-issue-activity'
-          stale-pr-label: 'no-pr-activity'
-      - uses: actions/stale@v3
+          exempt-issue-labels: "help-wanted"
+          exempt-pr-labels: "help-wanted"
+          stale-issue-message: "The issue has received no activity for 60 days and will be closed in a week."
+          stale-pr-message: "The PR has received no activity for 60 days and will be closed in a week."
+          stale-issue-label: "no-issue-activity"
+          stale-pr-label: "no-pr-activity"
+      - uses: actions/stale@v8
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-stale: 21
           days-before-close: -1
-          only-labels: 'feature'
+          only-labels: "feature"
           stale-issue-message: >-
             This feature request has been labelled as *help wanted* since
             there has been no activity in the last 3 weeks. It will not be
             closed automatically.
-          stale-issue-label: 'help wanted'
-      - uses: actions/stale@v3
+          stale-issue-label: "help wanted"
+      - uses: actions/stale@v8
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-stale: 21
           days-before-close: -1
-          only-labels: 'bug'
+          only-labels: "bug"
           stale-issue-message: >-
             This bug report has been labelled as *help wanted* since
             there has been no activity in the last 3 weeks. It will not be
             closed automatically.
-          stale-issue-label: 'help wanted'
+          stale-issue-label: "help wanted"

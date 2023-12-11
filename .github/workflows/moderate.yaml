@@ -1,0 +1,32 @@
+# https://github.com/tachiyomiorg/issue-moderator-action
+name: Moderate issues
+on:
+  issues:
+    types:
+      # If you want the duplicate URL checker and/or the auto-closer
+      - opened
+      # If you want the auto-closer to run
+      - edited
+      - reopened
+  issue_comment:
+    types:
+      - created
+jobs:
+  moderate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Moderate issues
+        uses: tachiyomiorg/issue-moderator-action@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          duplicate-label: Duplicate
+          auto-close-rules: |
+            [
+              {
+              "type": "body",
+              "regex": ".*(Please search the issues, including closed issues,|Describe the bug|Home-assistant \\(version\\)|For a feature to be created it has to be doable in the Amazon app because we are basically replicating the app for HA|Is your feature request related to a problem)",
+              "message": "@${issue.user.login} this issue was automatically closed because it did not follow the [issue template](https://github.com/alandtse/alexa_media_player/issues/new/choose) and this warning: **IMPORTANT: Please search the issues, including closed issues, and the [FAQ](https://github.com/alandtse/alexa_media_player/wiki/FAQ) before opening a new issue. The template is mandatory; failure to use it will result in issue closure.**",
+              "ignoreCase": true,
+              "closeIfMatch": false
+              }
+            ]

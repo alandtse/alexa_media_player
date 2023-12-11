@@ -1,6 +1,16 @@
+# Check out https://pre-commit.com/ for documentation
+# and https://pre-commit.com/hooks.html for more hooks
 minimum_pre_commit_version: 2.9.0
-
 repos:
+  # --- Meta hooks ---
+  # - hooks:
+  # This one is useful, but it will fail if, e.g., you don't have a single yaml file
+  #  - id: check-hooks-apply
+  # This one will fail, e.g., if you don't have a recipes/ file, which is excluded here
+  #   - id: check-useless-excludes
+  #  repo: meta
+
+  # --- Built-in hooks --
   - hooks:
       - id: check-symlinks
       - id: check-case-conflict
@@ -10,43 +20,53 @@ repos:
       - id: debug-statements
       - id: check-toml
       - id: check-json
+        exclude: >
+          (?x)^(
+            .vscode/settings.json|
+            .vscode/launch.json|
+            .devcontainer/devcontainer.json
+          )$
+      # This one is slow and doesn't check for much
+      # - detect-private-key
+      # This is very slow, so I recommend disabling it.
+      # - id: check-added-large-files
+      # The Conda recipe meta.yaml files are actually templates, not valid YAML
       - id: check-yaml
         exclude: ^recipes/.*
     repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.4.0
+    rev: v4.4.0
+
+  # --- Commit msg checks ---
+  - hooks:
+      - id: commitizen
+        stages: ["commit-msg"]
+    repo: https://github.com/commitizen-tools/commitizen
+    rev: 3.10.0
+  # --- Linters ---
+  # - hooks:
+  #     - id: dockerfile_lint
+  #   repo: https://github.com/Lucas-C/pre-commit-hooks-nodejs
+  #   rev: v1.1.2
+  - hooks:
+      - id: black
+    repo: https://github.com/psf/black
+    rev: 23.11.0
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    hooks:
+      - id: prettier
+        exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
+    rev: v3.0.3
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.7.2
+    rev: v3.15.0
     hooks:
       - id: pyupgrade
-        args: [--py38-plus]
-  - repo: https://github.com/psf/black
-    rev: 20.8b1
+        args: [--py39-plus]
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.32.0
     hooks:
-      - id: black
-        args:
-          - --safe
-          - --quiet
-        files: ^((homeassistant|script|tests)/.+)?[^/]+\.py$
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.0.0
-    hooks:
-      - id: codespell
-        args:
-          - --ignore-words-list=hass
-          - --skip="./.*,*.csv,*.json,./*.lock"
-          - --quiet-level=2
-        exclude_types: [csv, json]
-        exclude: ^tests/fixtures/
-  - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.4
-    hooks:
-      - id: flake8
-        additional_dependencies:
-          - flake8-docstrings==1.5.0
-          - pydocstyle==5.1.1
-        files: ^(homeassistant|script|tests)/.+\.py$
+      - id: yamllint
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.0
+    rev: 1.7.5
     hooks:
       - id: bandit
         args:
@@ -55,31 +75,44 @@ repos:
           - --configfile=tests/bandit.yaml
         files: ^(homeassistant|script|tests)/.+\.py$
   - repo: https://github.com/PyCQA/isort
-    rev: 5.5.3
+    rev: 5.12.0
     hooks:
       - id: isort
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+  #  - repo: local
+  #    hooks:
+  #      - id: pytest-check
+  #        name: pytest-check
+  #        entry: pytest
+  #        language: system
+  #        pass_filenames: false
+  #        always_run: true
+  - repo: https://github.com/floatingpurr/sync_with_poetry
+    rev: "1.1.0"
     hooks:
-      - id: check-executables-have-shebangs
-        stages: [manual]
-      - id: check-json
-        exclude: (.vscode|.devcontainer)
-      - id: no-commit-to-branch
-        args:
-          - --branch=dev
-          - --branch=master
-  - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.24.2
+      - id: sync_with_poetry
+        args: []
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.5
     hooks:
-      - id: yamllint
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v2.2.1
+      - id: codespell
+        additional_dependencies:
+          - tomli
+        exclude_types: [csv, json]
+        exclude: (^tests/fixtures/|CHANGELOG.md)
+  - repo: https://github.com/PyCQA/prospector
+    rev: 1.10.2
     hooks:
-      - id: prettier
-        stages: [manual]
-  - hooks:
-      - id: commitizen
-        stages: ["commit-msg"]
-    repo: https://github.com/commitizen-tools/commitizen
-    rev: v2.14.0
+      - id: prospector
+        exclude: ^(tests)/.+\.py$
+
+ci:
+  autofix_commit_msg: |
+    style: auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ""
+  autoupdate_commit_msg: "build: pre-commit autoupdate"
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

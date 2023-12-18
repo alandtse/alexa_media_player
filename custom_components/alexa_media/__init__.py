@@ -750,7 +750,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         """
         if not last_called or not (last_called and last_called.get("summary")):
             try:
-                last_called = await AlexaAPI.get_last_device_serial(login_obj)
+                async with async_timeout.timeout(10):
+                    last_called = await AlexaAPI.get_last_device_serial(login_obj)
             except TypeError:
                 _LOGGER.debug(
                     "%s: Error updating last_called: %s",

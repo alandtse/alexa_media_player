@@ -20,21 +20,8 @@ from homeassistant.components.media_player import (
     ATTR_MEDIA_ANNOUNCE,
     async_process_play_media_url,
 )
-from homeassistant.components.media_player.const import (
-    MEDIA_TYPE_MUSIC,
-    SUPPORT_NEXT_TRACK,
-    SUPPORT_PAUSE,
-    SUPPORT_PLAY,
-    SUPPORT_PLAY_MEDIA,
-    SUPPORT_PREVIOUS_TRACK,
-    SUPPORT_SELECT_SOURCE,
-    SUPPORT_SHUFFLE_SET,
-    SUPPORT_STOP,
-    SUPPORT_TURN_OFF,
-    SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_MUTE,
-    SUPPORT_VOLUME_SET,
-)
+from homeassistant.components.media_player.const import MEDIA_TYPE_MUSIC
+
 from homeassistant.const import (
     CONF_EMAIL,
     CONF_NAME,
@@ -75,24 +62,24 @@ from .helpers import _catch_login_errors, add_devices
 try:
     from homeassistant.components.media_player import (
         MediaPlayerEntity as MediaPlayerDevice,
+        MediaPlayerEntityFeature
     )
 except ImportError:
     from homeassistant.components.media_player import MediaPlayerDevice
 
 SUPPORT_ALEXA = (
-    SUPPORT_PAUSE
-    | SUPPORT_PREVIOUS_TRACK
-    | SUPPORT_NEXT_TRACK
-    | SUPPORT_STOP
-    | SUPPORT_VOLUME_SET
-    | SUPPORT_PLAY
-    | SUPPORT_PLAY_MEDIA
-    | SUPPORT_TURN_OFF
-    | SUPPORT_TURN_ON
-    | SUPPORT_VOLUME_MUTE
-    | SUPPORT_PAUSE
-    | SUPPORT_SELECT_SOURCE
-    | SUPPORT_SHUFFLE_SET
+    MediaPlayerEntityFeature.PAUSE
+    | MediaPlayerEntityFeature.PREVIOUS_TRACK
+    | MediaPlayerEntityFeature.NEXT_TRACK
+    | MediaPlayerEntityFeature.STOP
+    | MediaPlayerEntityFeature.VOLUME_SET
+    | MediaPlayerEntityFeature.PLAY
+    | MediaPlayerEntityFeature.PLAY_MEDIA
+    | MediaPlayerEntityFeature.TURN_OFF
+    | MediaPlayerEntityFeature.TURN_ON
+    | MediaPlayerEntityFeature.VOLUME_MUTE
+    | MediaPlayerEntityFeature.SELECT_SOURCE
+    | MediaPlayerEntityFeature.SHUFFLE_SET  
 )
 _LOGGER = logging.getLogger(__name__)
 

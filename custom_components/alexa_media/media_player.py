@@ -20,16 +20,11 @@ from homeassistant.components.media_player import (
     ATTR_MEDIA_ANNOUNCE,
     async_process_play_media_url,
 )
-from homeassistant.components.media_player.const import MEDIA_TYPE_MUSIC
 
 from homeassistant.const import (
     CONF_EMAIL,
     CONF_NAME,
     CONF_PASSWORD,
-    STATE_IDLE,
-    STATE_PAUSED,
-    STATE_PLAYING,
-    STATE_STANDBY,
     STATE_UNAVAILABLE,
 )
 from homeassistant.core import HomeAssistant
@@ -62,7 +57,9 @@ from .helpers import _catch_login_errors, add_devices
 try:
     from homeassistant.components.media_player import (
         MediaPlayerEntity as MediaPlayerDevice,
-        MediaPlayerEntityFeature
+        MediaPlayerEntityFeature,
+        MediaPlayerState,
+        MediaType,
     )
 except ImportError:
     from homeassistant.components.media_player import MediaPlayerDevice
@@ -480,7 +477,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         self.async_write_ha_state()
                 await _refresh_if_no_audiopush(already_refreshed)
         elif "push_activity" in event:
-            if self.state in {STATE_IDLE, STATE_PAUSED, STATE_PLAYING}:
+            if self.state in {MediaPlayerState.IDLE, MediaPlayerState.PAUSED, MediaPlayerState.PLAYING}:
                 _LOGGER.debug(
                     "%s: %s checking for potential state update due to push activity on %s",
                     hide_email(self._login.email),
@@ -607,7 +604,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                                 and self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                                     self._login.email
                                 ]["entities"]["media_player"][x].state
-                                == STATE_PLAYING
+                                == MediaPlayerState.PLAYING
                             ),
                             self._parent_clusters,
                         )
@@ -885,12 +882,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if not self.available:
             return STATE_UNAVAILABLE
         if self._media_player_state == "PLAYING":
-            return STATE_PLAYING
+            return MediaPlayerState.PLAYING
         if self._media_player_state == "PAUSED":
-            return STATE_PAUSED
+            return MediaPlayerState.PAUSED
         if self._media_player_state == "IDLE":
-            return STATE_IDLE
-        return STATE_STANDBY
+            return MediaPlayerState.IDLE
+        return MediaPlayerState.STANDBY
 
     def update(self):
         """Get the latest details on a media player synchronously."""
@@ -939,7 +936,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(email, {}).get("http2")
         )
         if (
-            self.state in [STATE_PLAYING]
+            self.state in [MediaPlayerState.PLAYING]
             and
             #  only enable polling if websocket not connected
             (
@@ -996,9 +993,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def media_content_type(self):
         """Return the content type of current playing media."""
-        if self.state in [STATE_PLAYING, STATE_PAUSED]:
-            return MEDIA_TYPE_MUSIC
-        return STATE_STANDBY
+        if self.state in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED]:
+            return MediaType.MUSIC
+        return MediaPlayerState.STANDBY
 
     @property
     def media_artist(self):
@@ -1160,7 +1157,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @_catch_login_errors
     async def async_media_play(self):
         """Send play command."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED] and self.available):
+        if not (self.state in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED] and self.available):
             return
         if self._playing_parent:
             await self._playing_parent.async_media_play()
@@ -1177,7 +1174,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @_catch_login_errors
     async def async_media_pause(self):
         """Send pause command."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED] and self.available):
+        if not (self.state in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED] and self.available):
             return
         if self._playing_parent:
             await self._playing_parent.async_media_pause()
@@ -1244,7 +1241,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @_catch_login_errors
     async def async_media_next_track(self):
         """Send next track command."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED] and self.available):
+        if not (self.state in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED] and self.available):
             return
         if self._playing_parent:
             await self._playing_parent.async_media_next_track()
@@ -1261,7 +1258,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @_catch_login_errors
     async def async_media_previous_track(self):
         """Send previous track command."""
-        if not (self.state in [STATE_PLAYING, STATE_PAUSED] and self.available):
+        if not (self.state in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED] and self.available):
             return
         if self._playing_parent:
             await self._playing_parent.async_media_previous_track()

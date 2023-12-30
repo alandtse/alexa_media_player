@@ -6,12 +6,14 @@ SPDX-License-Identifier: Apache-2.0
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
+import datetime
 import logging
 from typing import List
 
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import (
     CONF_EMAIL,
@@ -22,7 +24,10 @@ from . import (
     hide_email,
     hide_serial,
 )
+from alexapy import AlexaAPI
+from .alexa_entity import parse_power_from_coordinator
 from .alexa_media import AlexaMedia
+from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .helpers import _catch_login_errors, add_devices
 
 try:
@@ -110,6 +115,25 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     "%s: Skipping already added device: %s",
                     hide_email(account),
                     alexa_client,
+                )
+    # Add Amazon Smart Plug devices
+    switch_entities = account_dict.get("devices", {}).get("smart_switch", [])
+    if switch_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
+        for switch_entity in switch_entities:
+            if not (switch_entity["is_hue_v1"] and hue_emulated_enabled):
+                _LOGGER.debug(
+                    "Creating entity %s for a switch with name %s",
+                    hide_serial(switch_entity["id"]),
+                    switch_entity["name"],
+                )
+                coordinator = account_dict["coordinator"]
+                switch = SmartSwitch(coordinator, account_dict["login_obj"], switch_entity)
+                account_dict["entities"]["smart_switch"].append(switch)
+                devices.append(switch)
+            else:
+                _LOGGER.debug(
+                    "Switch '%s' has not been added because it may originate from emulated_hue",
+                    switch_entity["name"],
                 )
     return await add_devices(
         hide_email(account),
@@ -383,3 +407,72 @@ class RepeatSwitch(AlexaMediaSwitch):
     def entity_category(self):
         """Return the entity category of the switch."""
         return EntityCategory.CONFIG
+
+class SmartSwitch(CoordinatorEntity, SwitchDevice):
+    def __init__(self, coordinator, login, details):
+        """Initialize alexa light entity."""
+        super().__init__(coordinator)
+        self.alexa_entity_id = details["id"]
+        self._name = details["name"]
+        self._login = login
+
+        # Store the requested state from the last call to _set_state
+        # This is so that no new network call is needed just to get values that are already known
+        # This is useful because refreshing the full state can take a bit when many switches are in play.
+        # Especially since Alexa actually polls the switches and that appears to be error-prone with some Zigbee lights.
+        # That delay(1-5s in practice) causes the UI controls to jump all over the place after _set_state
+        self._requested_state_at = None  # When was state last set in UTC
+        self._requested_power = None
+
+    @property
+    def name(self):
+        """Return name."""
+        return self._name
+
+    @property
+    def unique_id(self):
+        """Return unique id."""
+        return self.alexa_entity_id
+
+    @property
+    def is_on(self):
+        """Return whether on."""
+        power = parse_power_from_coordinator(
+            self.coordinator, self.alexa_entity_id, self._requested_state_at
+        )
+        if power is None:
+            return self._requested_power if self._requested_power is not None else False
+        return power == "ON"
+
+    @property
+    def assumed_state(self) -> bool:
+        """Return whether state is assumed."""
+        last_refresh_success = (
+            self.coordinator.data and self.alexa_entity_id in self.coordinator.data
+        )
+        return not last_refresh_success
+
+    async def _set_state(self, power_on):
+        response = await AlexaAPI.set_light_state(
+            self._login,
+            self.alexa_entity_id,
+            power_on,
+        )
+        control_responses = response.get("controlResponses", [])
+        for response in control_responses:
+            if not response.get("code") == "SUCCESS":
+                # If something failed any state is possible, fallback to a full refresh
+                return await self.coordinator.async_request_refresh()
+        self._requested_power = power_on
+        self._requested_state_at = datetime.datetime.now(
+            datetime.timezone.utc
+        )  # must be set last so that previous getters work properly
+        self.async_write_ha_state()
+
+    async def async_turn_on(self, **kwargs):
+        """Turn on."""
+        await self._set_state(True)
+
+    async def async_turn_off(self, **kwargs):  # pylint:disable=unused-argument
+        """Turn off."""
+        await self._set_state(False)

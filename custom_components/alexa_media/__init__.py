@@ -270,6 +270,7 @@ async def async_setup_entry(hass, config_entry):
                 "light": [],
                 "binary_sensor": [],
                 "temperature": [],
+                "smart_switch": [],
             },
             "entities": {
                 "media_player": {},
@@ -278,6 +279,7 @@ async def async_setup_entry(hass, config_entry):
                 "light": [],
                 "binary_sensor": [],
                 "alarm_control_panel": {},
+                "smart_switch": [],
             },
             "excluded": {},
             "new_devices": True,

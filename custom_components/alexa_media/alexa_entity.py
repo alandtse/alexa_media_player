@@ -127,6 +127,15 @@ def is_contact_sensor(appliance: dict[str, Any]) -> bool:
         and has_capability(appliance, "Alexa.ContactSensor", "detectionState")
     )
 
+def is_switch(appliance: dict[str, Any]) -> bool:
+    """Is the given appliance a switch controlled locally by an Echo."""
+    return (
+        is_local(appliance)
+        and "SMARTPLUG" in appliance.get("applianceTypes", [])
+        and appliance["manufacturerName"] == "Amazon"
+        and has_capability(appliance, "Alexa.PowerController", "powerState")
+    )
+
 
 def get_friendliest_name(appliance: dict[str, Any]) -> str:
     """Find the best friendly name. Alexa seems to store manual renames in aliases. Prefer that one."""
@@ -200,6 +209,7 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
     temperature_sensors = []
     air_quality_sensors = []
     contact_sensors = []
+    switches = []
     location_details = network_details["locationDetails"]["locationDetails"]
     # pylint: disable=too-many-nested-blocks
     for location in location_details.values():
@@ -258,7 +268,8 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                     # Add as both temperature and air quality sensor
                     temperature_sensors.append(processed_appliance)
                     air_quality_sensors.append(processed_appliance)
-
+                elif is_switch(appliance):
+                    switches.append(processed_appliance)
                 elif is_light(appliance):
                     processed_appliance["brightness"] = has_capability(
                         appliance, "Alexa.BrightnessController", "brightness"
@@ -286,6 +297,7 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
         "temperature": temperature_sensors,
         "air_quality": air_quality_sensors,
         "binary_sensor": contact_sensors,
+        "smart_switch": switches,
     }
 
 

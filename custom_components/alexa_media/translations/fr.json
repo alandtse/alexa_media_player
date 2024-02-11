@@ -60,38 +60,38 @@
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "Effacez les dernières entrées de l'historique Alexa Voice pour chaque compte Alexa.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Comptes à effacer. Si vide, cela effacera tout.",
+          "name": "Adresse email"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "Nombre d'entrées à effacer de 1 à 50. Si vide, cela en effacera 50.",
+          "name": "Nombre d'entrées"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "Effacer l'historique vocal d'Amazon"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "Forcer le compte à se déconnecter. Utilisé principalement pour le débogage.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Comptes à effacer. Laisser à vide effacera tout.",
+          "name": "Adresse email"
         }
       },
-      "name": "Force Logout"
+      "name": "Forcer la déconnexion"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "Force la mise à jour du dernier périphérique Echo appelé pour chaque compte Alexa.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "Liste des comptes Alexa à mettre à jour. Si vide, mettra à jour tous les comptes connus.",
+          "name": "Adresse email"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "Mettre à jour le dernier capteur appelé"
     }
   }
 }

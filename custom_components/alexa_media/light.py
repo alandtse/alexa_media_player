@@ -14,36 +14,18 @@ from typing import Optional
 from alexapy import AlexaAPI, hide_serial
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
-    ATTR_COLOR_TEMP,
+    ATTR_COLOR_TEMP_KELVIN,
     ATTR_HS_COLOR,
-    SUPPORT_BRIGHTNESS,
-    SUPPORT_COLOR,
-    SUPPORT_COLOR_TEMP,
+    ColorMode,
     LightEntity,
 )
 from homeassistant.exceptions import ConfigEntryNotReady
-
-try:
-    from homeassistant.components.light import (
-        COLOR_MODE_BRIGHTNESS,
-        COLOR_MODE_COLOR_TEMP,
-        COLOR_MODE_HS,
-        COLOR_MODE_ONOFF,
-    )
-except ImportError:
-    # Continue to support HA < 2021.4.
-    COLOR_MODE_BRIGHTNESS = "brightness"
-    COLOR_MODE_COLOR_TEMP = "color_temp"
-    COLOR_MODE_HS = "hs"
-    COLOR_MODE_ONOFF = "onoff"
-
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util.color import (
     color_hs_to_RGB,
     color_hsb_to_RGB,
     color_name_to_rgb,
     color_RGB_to_hs,
-    color_temperature_kelvin_to_mired,
 )
 
 from . import (
@@ -131,14 +113,14 @@ async def async_unload_entry(hass, entry) -> bool:
 def color_modes(details) -> list:
     """Return list of color modes."""
     if details["color"] and details["color_temperature"]:
-        return [COLOR_MODE_HS, COLOR_MODE_COLOR_TEMP]
+        return [ColorMode.HS_COLOR, ColorMode.COLOR_TEMP]
     if details["color"]:
-        return [COLOR_MODE_HS]
+        return [ColorMode.HS_COLOR]
     if details["color_temperature"]:
-        return [COLOR_MODE_COLOR_TEMP]
+        return [ColorMode.COLOR_TEMP]
     if details["brightness"]:
-        return [COLOR_MODE_BRIGHTNESS]
-    return [COLOR_MODE_ONOFF]
+        return [ColorMode.BRIGHTNESS]
+    return [ColorMode.ONOFF]
 
 
 class AlexaLight(CoordinatorEntity, LightEntity):
@@ -150,7 +132,9 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         self.alexa_entity_id = details["id"]
         self._name = details["name"]
         self._login = login
-        self._color_modes = color_modes(details)
+        self._attr_supported_color_modes = color_modes(details)
+        self._attr_min_color_temp_kelvin = 2200
+        self._attr_max_color_temp_kelvin = 6500
 
         # Store the requested state from the last call to _set_state
         # This is so that no new network call is needed just to get values that are already known
@@ -160,7 +144,7 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         self._requested_state_at = None  # When was state last set in UTC
         self._requested_power = None
         self._requested_ha_brightness = None
-        self._requested_mired = None
+        self._requested_kelvin = None
         self._requested_hs = None
 
     @property
@@ -174,44 +158,18 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         return self.alexa_entity_id
 
     @property
-    def supported_features(self):
-        """Return supported features."""
-        # The HA documentation marks every single feature that Alexa lights can support as deprecated.
-        # The new alternative is the supported_color_modes and color_mode properties(HA 2021.4)
-        # This SHOULD just need to return 0 according to the light entity docs.
-        # Actually doing that causes the UI to remove color controls even in HA 2021.4.
-        # So, continue to provide a backwards compatible method here until HA is fixed and the min HA version is raised.
-        if COLOR_MODE_BRIGHTNESS in self._color_modes:
-            return SUPPORT_BRIGHTNESS
-        if (
-            COLOR_MODE_HS in self._color_modes
-            and COLOR_MODE_COLOR_TEMP in self._color_modes
-        ):
-            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
-        if COLOR_MODE_HS in self._color_modes:
-            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR
-        if COLOR_MODE_COLOR_TEMP in self._color_modes:
-            return SUPPORT_BRIGHTNESS | SUPPORT_COLOR_TEMP
-        return 0
-
-    @property
     def color_mode(self):
         """Return color mode."""
         if (
-            COLOR_MODE_HS in self._color_modes
-            and COLOR_MODE_COLOR_TEMP in self._color_modes
+            ColorMode.HS_COLOR in self._attr_supported_color_modes
+            and ColorMode.COLOR_TEMP in self._attr_supported_color_modes
         ):
             hs_color = self.hs_color
             if hs_color is None or (hs_color[0] == 0 and hs_color[1] == 0):
                 # (0,0) is white. When white, color temp is the better plan.
-                return COLOR_MODE_COLOR_TEMP
-            return COLOR_MODE_HS
-        return self._color_modes[0]
-
-    @property
-    def supported_color_modes(self):
-        """Return supported color modes."""
-        return self._color_modes
+                return ColorMode.COLOR_TEMP
+            return ColorMode.HS_COLOR
+        return self._attr_supported_color_modes[0]
 
     @property
     def is_on(self):
@@ -234,24 +192,14 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         return alexa_brightness_to_ha(bright)
 
     @property
-    def min_mireds(self):
-        """Return min mireds."""
-        return 143
-
-    @property
-    def max_mireds(self):
-        """Return max mireds."""
-        return 454
-
-    @property
-    def color_temp(self):
+    def color_temp_kelvin(self):
         """Return color temperature."""
         kelvin = parse_color_temp_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._requested_state_at
         )
         if kelvin is None:
-            return self._requested_mired
-        return alexa_kelvin_to_mired(kelvin)
+            return self._requested_kelvin
+        return kelvin_to_alexa(kelvin)[0]
 
     @property
     def hs_color(self):
@@ -275,18 +223,18 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         )
         return not last_refresh_success
 
-    async def _set_state(self, power_on, brightness=None, mired=None, hs_color=None):
-        # This is "rounding" on mired to the closest value Alexa is willing to acknowledge the existence of.
+    async def _set_state(self, power_on, brightness=None, kelvin=None, hs_color=None):
+        # This is "rounding" on kelvin to the closest value Alexa is willing to acknowledge the existence of.
         # The alternative implementation would be to use effects instead.
         # That is far more non-standard, and would lock users out of things like the Flux integration.
         # The downsides to this approach is that the UI is giving the user a slider
         # When the user picks a slider value, the UI will "jump" to the closest possible value.
         # This trade-off doesn't feel as bad in practice as it sounds.
-        adjusted_mired, color_temperature_name = mired_to_alexa(mired)
+        adjusted_kelvin, color_temperature_name = kelvin_to_alexa(kelvin)
         if color_temperature_name is None:
             # This is "rounding" on HS color to closest value Alexa supports.
             # The alexa color list is short, but covers a pretty broad spectrum.
-            # Like for mired above, this sounds bad but works ok in practice.
+            # Like for kelvin above, this sounds bad but works ok in practice.
             adjusted_hs, color_name = hs_to_alexa_color(hs_color)
         else:
             # If a color temperature is being set, it is not possible to also adjust the color.
@@ -310,13 +258,13 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         self._requested_ha_brightness = (
             brightness if brightness is not None else self.brightness
         )
-        self._requested_mired = (
-            adjusted_mired if adjusted_mired is not None else self.color_temp
+        self._requested_kelvin = (
+            adjusted_kelvin if adjusted_kelvin is not None else self.color_temp
         )
         if adjusted_hs is not None:
             self._requested_hs = adjusted_hs
-        elif adjusted_mired is not None:
-            # If a mired value was set, it is critical that color is cleared out so that color mode is set properly
+        elif adjusted_kelvin is not None:
+            # If a kelvin value was set, it is critical that color is cleared out so that color mode is set properly
             self._requested_hs = None
         else:
             self._requested_hs = self.hs_color
@@ -328,40 +276,34 @@ class AlexaLight(CoordinatorEntity, LightEntity):
     async def async_turn_on(self, **kwargs):
         """Turn on."""
         brightness = None
-        mired = None
+        kelvin = None
         hs_color = None
-        if COLOR_MODE_ONOFF not in self._color_modes and ATTR_BRIGHTNESS in kwargs:
+        if ColorMode.ONOFF not in self._attr_supported_color_modes and ATTR_BRIGHTNESS in kwargs:
             brightness = kwargs[ATTR_BRIGHTNESS]
-        if COLOR_MODE_COLOR_TEMP in self._color_modes and ATTR_COLOR_TEMP in kwargs:
-            mired = kwargs[ATTR_COLOR_TEMP]
-        if COLOR_MODE_HS in self._color_modes and ATTR_HS_COLOR in kwargs:
+        if ColorMode.COLOR_TEMP in self._attr_supported_color_modes and ATTR_COLOR_TEMP_KELVIN in kwargs:
+            kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
+        if ColorMode.HS_COLOR in self._attr_supported_color_modes and ATTR_HS_COLOR in kwargs:
             hs_color = kwargs[ATTR_HS_COLOR]
-        await self._set_state(True, brightness, mired, hs_color)
+        await self._set_state(True, brightness, kelvin, hs_color)
 
     async def async_turn_off(self, **kwargs):  # pylint:disable=unused-argument
         """Turn off."""
         await self._set_state(False)
 
 
-def mired_to_alexa(mired: Optional[float]) -> tuple[Optional[float], Optional[str]]:
-    """Convert a given color temperature in mired to the closest available value that Alexa has support for."""
-    if mired is None:
+def kelvin_to_alexa(kelvin: Optional[float]) -> tuple[Optional[float], Optional[str]]:
+    """Convert a given color temperature in kelvin to the closest available value that Alexa has support for."""
+    if kelvin is None:
         return None, None
-    if mired <= 162.5:
-        return 143, "cool_white"
-    if mired <= 216:
-        return 182, "daylight_white"
-    if mired <= 310:
-        return 250, "white"
-    if mired <= 412:
-        return 370, "soft_white"
-    return 454, "warm_white"
-
-
-def alexa_kelvin_to_mired(kelvin: float) -> float:
-    """Convert a value in kelvin to the closest mired value that Alexa has support for."""
-    raw_mired = color_temperature_kelvin_to_mired(kelvin)
-    return mired_to_alexa(raw_mired)[0]
+    if kelvin <= 2400:
+        return 2200, "warm_white"
+    if kelvin <= 3200:
+        return 2700, "soft_white"
+    if kelvin <= 4400:
+        return 4000, "white"
+    if kelvin <= 6000:
+        return 5400, "daylight_white"
+    return 6500, "cool_white"
 
 
 def ha_brightness_to_alexa(ha_brightness: Optional[float]) -> Optional[float]:

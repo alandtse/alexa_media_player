@@ -233,11 +233,11 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
         # pylint: disable=import-outside-toplevel
         try:
             from homeassistant.components.alarm_control_panel import (
-                SUPPORT_ALARM_ARM_AWAY,
+                AlarmControlPanelEntityFeature,
             )
         except ImportError:
             return 0
-        return SUPPORT_ALARM_ARM_AWAY
+        return AlarmControlPanelEntityFeature.ARM_AWAY
 
     @property
     def assumed_state(self) -> bool:

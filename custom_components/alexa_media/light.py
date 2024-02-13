@@ -113,9 +113,9 @@ async def async_unload_entry(hass, entry) -> bool:
 def color_modes(details) -> list:
     """Return list of color modes."""
     if details["color"] and details["color_temperature"]:
-        return [ColorMode.HS_COLOR, ColorMode.COLOR_TEMP]
+        return [ColorMode.HS, ColorMode.COLOR_TEMP]
     if details["color"]:
-        return [ColorMode.HS_COLOR]
+        return [ColorMode.HS]
     if details["color_temperature"]:
         return [ColorMode.COLOR_TEMP]
     if details["brightness"]:
@@ -161,14 +161,14 @@ class AlexaLight(CoordinatorEntity, LightEntity):
     def color_mode(self):
         """Return color mode."""
         if (
-            ColorMode.HS_COLOR in self._attr_supported_color_modes
+            ColorMode.HS in self._attr_supported_color_modes
             and ColorMode.COLOR_TEMP in self._attr_supported_color_modes
         ):
             hs_color = self.hs_color
             if hs_color is None or (hs_color[0] == 0 and hs_color[1] == 0):
                 # (0,0) is white. When white, color temp is the better plan.
                 return ColorMode.COLOR_TEMP
-            return ColorMode.HS_COLOR
+            return ColorMode.HS
         return self._attr_supported_color_modes[0]
 
     @property
@@ -282,7 +282,7 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             brightness = kwargs[ATTR_BRIGHTNESS]
         if ColorMode.COLOR_TEMP in self._attr_supported_color_modes and ATTR_COLOR_TEMP_KELVIN in kwargs:
             kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
-        if ColorMode.HS_COLOR in self._attr_supported_color_modes and ATTR_HS_COLOR in kwargs:
+        if ColorMode.HS in self._attr_supported_color_modes and ATTR_HS_COLOR in kwargs:
             hs_color = kwargs[ATTR_HS_COLOR]
         await self._set_state(True, brightness, kelvin, hs_color)
 

@@ -1292,6 +1292,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @_catch_login_errors
     async def async_send_announcement(self, message, **kwargs):
         """Send announcement to the media player."""
+        
+        if self.dnd_state and kwargs.get("dnd", False):
+            _LOGGER.info("DND active for device %s, ignoring message", self.name)
+            return
+        
         if self.hass:
             self.hass.async_create_task(
                 self.alexa_api.send_announcement(

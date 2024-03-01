@@ -135,7 +135,6 @@ def is_switch(appliance: dict[str, Any]) -> bool:
             "SMARTPLUG" in appliance.get("applianceTypes", [])
             or "SWITCH" in appliance.get("applianceTypes", [])
         )
-        and appliance["manufacturerName"] == "Amazon"
         and has_capability(appliance, "Alexa.PowerController", "powerState")
     )
 

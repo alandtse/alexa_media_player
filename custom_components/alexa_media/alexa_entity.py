@@ -131,7 +131,10 @@ def is_switch(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a switch controlled locally by an Echo."""
     return (
         is_local(appliance)
-        and "SMARTPLUG" in appliance.get("applianceTypes", [])
+        and (
+            "SMARTPLUG" in appliance.get("applianceTypes", [])
+            or "SWITCH" in appliance.get("applianceTypes", [])
+        )
         and appliance["manufacturerName"] == "Amazon"
         and has_capability(appliance, "Alexa.PowerController", "powerState")
     )

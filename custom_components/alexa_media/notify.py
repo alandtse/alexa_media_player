@@ -287,6 +287,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                                     account
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                                dnd=data["dnd"],
                             )
                         )
                         break

@@ -622,7 +622,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 )
                 if not entry_setup:
                     _LOGGER.debug("Loading config entry for %s", component)
-                    hass.async_add_job(
+                    config_entry.async_create_task(
+                        hass,
                         hass.config_entries.async_forward_entry_setup(
                             config_entry, component
                         )

@@ -1,48 +1,48 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated."
+      "forgot_password": "Обнаружена страница «Забыли пароль». Обычно это является результатом неудачных попыток входа в систему. Amazon может потребовать действия, прежде чем будет предпринята попытка повторного входа.",
+      "login_failed": "Алекса Медиа Проигрыватель логин не удался.",
+      "reauth_successful": "Алекса Медиа Проигрыватель успешно прошел повторную аутентификацию. Пожалуйста, игнорируйте сообщение «Прервано» от HA."
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "Неверный встроенный ключ 2FA",
       "connection_error": "Ошибка подключения; проверьте сеть и повторите попытку",
       "identifier_exists": "Электронная почта для Alexa уже зарегистрирована",
       "invalid_credentials": "Неверные учетные данные",
       "invalid_url": "Недопустимый URL-адрес: {message}",
       "unable_to_connect_hass_url": "Не удалось подключиться к URL-адресу Home Assistant. Проверьте внешний URL-адрес в разделе «Конфигурация» - > «Общие».",
-      "unknown_error": "Неизвестная ошибка, пожалуйста, сообщите информацию журнала"
+      "unknown_error": "Неизвестная ошибка: {message}"
     },
     "step": {
       "proxy_warning": {
         "data": {
-          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+          "proxy_warning": "Игнорировать и продолжить. Я понимаю, что для обхода этого предупреждения не предоставляется никакой поддержки при проблемах со входом в систему."
         },
-        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
-        "title": "Alexa Media Player - Unable to Connect to HA URL"
+        "description": "Homa Assistant сервер не может подключиться по указанному адресу: {hass_url}.\n> {error}\nЧтобы это исправить, подтвердите, что ваш **сервер высокой доступности** может подключаться к домену {hass_url} . Это поле взято из внешнего URL-адреса в разделе «Конфигурация» -> «Общие», но вы можете попробовать свой внутренний URL-адрес.\n\nЕсли вы **уверены**, что ваш клиент может получить доступ к этому URL-адресу, вы можете обойти это предупреждение.",
+        "title": "Алекса Медиа Проигрыватель - не может подключиться к Home Assistant адресу"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "OTP от встроенного ключа приложения 2FA успешно подтвержден."
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "description": "**{email} - Алекса .{url}**  \nВы успешно подтвердили OTP от встроенного ключа приложения 2FA с Amazon?\n  >ОТП-кодe {message}",
+        "title": "Алекса Медиа Проигрыватель — подтверждение OTP"
       },
       "user": {
         "data": {
           "debug": "Расширенные возможности отладки",
           "email": "Адрес электронной почты",
           "exclude_devices": "Исключенные устройства (через запятую)",
-          "hass_url": "Url to access Home Assistant",
+          "hass_url": "URL-адрес для доступа к Home Assistant",
           "include_devices": "Включенные устройства (разделенное запятыми)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "otp_secret": "Встроенный ключ приложения 2FA (автоматически генерирует коды 2FA). Это не шесть цифр.",
           "password": "Пароль",
           "scan_interval": "Секунды между сканированиями",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "securitycode": "[%key_id:55616596%]",
           "url": "Домен региона Amazon (например, amazon.co.uk)"
         },
-        "description": "Пожалуйста, подтвердите информацию ниже.",
+        "description": "Пожалуйста, подтвердите информацию ниже. Для устаревшей конфигурации отключите опцию «Использовать метод прокси-сервера для входа».",
         "title": "Alexa Media Player - Конфигурация"
       }
     }
@@ -52,7 +52,7 @@
       "init": {
         "data": {
           "extended_entity_discovery": "Включить устройства, подключенные через Echo",
-          "public_url": "Public URL to access Home Assistant (including trailing '/')",
+          "public_url": "Публичный URL-адрес для доступа к Home Assistant (включая завершающий '/')",
           "queue_delay": "Секунды ожидания, чтобы выполнить команды вместе"
         }
       }
@@ -60,38 +60,38 @@
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "Очистить последнюю сущность из Алекса Голосовой Истории для каждого аккаунта.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Аккаунты к очистке. Если пустое, то очистить все.",
+          "name": "Почтовые адреса"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "Количество сущностей для очистки, от 1 до 50. Если пустое, то очистить 50.",
+          "name": "Количество сущностей"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "Очистить Алекса Голосовую Историю"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "Принудительный выход из аккаунта. В основном используется для отладки.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Аккаунты для очистки. Если пустое, то будут очищены все.",
+          "name": "Почтовые адреса"
         }
       },
-      "name": "Force Logout"
+      "name": "Принудительный выход"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "Принудительное обновление последнего вызванного устройства для каждого аккаунта Алекса.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "Список аккаунтов Алекса для обновления. Если пустое, будут обновлены все аккаунты.",
+          "name": "Почтовые адреса"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "Обновление последнего вызванного сенсора"
     }
   }
 }

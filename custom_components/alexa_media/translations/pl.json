@@ -12,7 +12,7 @@
       "invalid_credentials": "Nieprawidłowe dane logowania",
       "invalid_url": "URL jest nieprawidłowy: {message}",
       "unable_to_connect_hass_url": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź wewnętrzny adres URL w sekcji Konfiguracja -> Ogólne",
-      "unknown_error": "Nieznany błąd, włącz zaawansowane debugowanie i zgłoś log z tego zdarzenia"
+      "unknown_error": "Nieznany błąd: {message}"
     },
     "step": {
       "proxy_warning": {
@@ -32,7 +32,7 @@
       "user": {
         "data": {
           "debug": "Zaawansowane debugowanie",
-          "email": "Adres email",
+          "email": "Adres e-mail",
           "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
           "hass_url": "URL dostępu do Home Assistanta",
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",

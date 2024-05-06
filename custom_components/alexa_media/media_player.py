@@ -185,7 +185,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                 _LOGGER.debug(
                     "%s: Loading config entry for %s", hide_email(account), component
                 )
-                hass.async_add_job(
+                config_entry.async_create_task(
+                    hass,
                     hass.config_entries.async_forward_entry_setup(
                         config_entry, component
                     )

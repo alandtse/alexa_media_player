@@ -17,6 +17,7 @@ from alexapy.alexalogin import AlexaLogin
 from homeassistant.const import CONF_EMAIL, CONF_URL
 from homeassistant.exceptions import ConditionErrorMessage
 from homeassistant.helpers.entity_component import EntityComponent
+from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 import wrapt
 
 from .const import DATA_ALEXAMEDIA, EXCEPTION_TEMPLATE
@@ -271,7 +272,7 @@ async def calculate_uuid(hass, email: str, url: str) -> dict:
             if entry.data.get(CONF_EMAIL) == email and entry.data.get(CONF_URL) == url:
                 return_index = index
                 break
-    uuid = await hass.helpers.instance_id.async_get()
+    uuid = await async_get_instance_id(hass)
     result["uuid"] = hex(
         int(uuid, 16)
         # increment uuid for second accounts

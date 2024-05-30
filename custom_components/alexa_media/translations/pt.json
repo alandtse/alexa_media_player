@@ -36,7 +36,7 @@
           "exclude_devices": "Dispositivo excluído (separado por vírgula)",
           "hass_url": "URL para aceder o Home Assistant",
           "include_devices": "Dispositivo incluído (separado por vírgula)",
-          "otp_secret": "Chave de aplicativo 2FA integrada (gerar códigos 2FA automaticamente)",
+          "otp_secret": "Chave de aplicativo 2FA integrada (gera códigos 2FA automaticamente). Isso não tem seis dígitos.",
           "password": "Senha",
           "scan_interval": "Segundos entre análises",
           "securitycode": "Código 2FA (recomendado para evitar problemas de login)",
@@ -60,38 +60,38 @@
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "Limpe as últimas entradas do histórico do Alexa Voice para cada conta Alexa.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Contas a limpar. Vazio vai limpar tudo.",
+          "name": "Endereço de email"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "Número de entradas a limpar de 1 a 50. Se estiver vazio, limpe 50.",
+          "name": "Número de entradas"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "Limpar histórico de voz da Amazon"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "Forçar o logout da conta. Usado principalmente para depuração.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Contas a limpar. Vazio vai limpar tudo.",
+          "name": "Endereço de email"
         }
       },
-      "name": "Force Logout"
+      "name": "Forçar logout"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "Força a atualização do dispositivo de echo last_called para cada conta Alexa.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "Lista de contas Alexa para atualizar. Se estiver vazio, atualizará todas as contas conhecidas.",
+          "name": "Endereço de email"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "Atualizar último sensor chamado"
     }
   }
 }

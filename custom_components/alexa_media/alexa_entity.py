@@ -131,13 +131,14 @@ def is_contact_sensor(appliance: dict[str, Any]) -> bool:
     )
 
 def is_switch(appliance: dict[str, Any]) -> bool:
-    """Is the given appliance a switch controlled locally by an Echo."""
+    """Is the given appliance a switch controlled locally by an Echo, which ist not redeclared as a light."""
     return (
         is_local(appliance)
         and (
             "SMARTPLUG" in appliance.get("applianceTypes", [])
             or "SWITCH" in appliance.get("applianceTypes", [])
         )
+        and appliance.get("customerDefinedDeviceType") != "LIGHT"
         and has_capability(appliance, "Alexa.PowerController", "powerState")
     )
 

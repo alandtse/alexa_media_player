@@ -610,7 +610,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             self._n_dict = None
         self._process_raw_notifications()
         try:
-            self.async_write_ha_state()
+            self.schedule_update_ha_state()
         except NoEntitySpecifiedError:
             pass  # we ignore this due to a harmless startup race condition
 

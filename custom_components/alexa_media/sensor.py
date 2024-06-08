@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
+
 import datetime
 import json
 import logging
@@ -24,7 +25,6 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt
 from packaging import version
-import pytz
 
 from . import (
     CONF_EMAIL,
@@ -257,9 +257,9 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_name = name + " Temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_value: Optional[
-            datetime.datetime
-        ] = parse_temperature_from_coordinator(coordinator, entity_id)
+        self._attr_native_value: Optional[datetime.datetime] = (
+            parse_temperature_from_coordinator(coordinator, entity_id)
+        )
         self._attr_native_unit_of_measurement: Optional[str] = UnitOfTemperature.CELSIUS
         # This includes "_temperature" because the Alexa entityId is for a physical device
         # A single physical device could have multiple HA entities
@@ -306,12 +306,12 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_name = name + " " + self._sensor_name
         self._attr_device_class = self._sensor_name
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_value: Optional[
-            datetime.datetime
-        ] = parse_air_quality_from_coordinator(coordinator, entity_id, instance)
-        self._attr_native_unit_of_measurement: Optional[
-            str
-        ] = ALEXA_UNIT_CONVERSION.get(unit)
+        self._attr_native_value: Optional[datetime.datetime] = (
+            parse_air_quality_from_coordinator(coordinator, entity_id, instance)
+        )
+        self._attr_native_unit_of_measurement: Optional[str] = (
+            ALEXA_UNIT_CONVERSION.get(unit)
+        )
         self._attr_unique_id = entity_id + " " + self._sensor_name
         self._attr_icon = ALEXA_ICON_CONVERSION.get(sensor_name, ALEXA_ICON_DEFAULT)
         self._attr_device_info = (
@@ -447,11 +447,11 @@ class AlexaMediaNotificationSensor(SensorEntity):
         ):
             return value
         naive_time = dt.parse_datetime(value[1][self._sensor_property])
-        timezone = pytz.timezone(
+        timezone = dt.get_time_zone(
             self._client._timezone  # pylint: disable=protected-access
         )
         if timezone and naive_time:
-            value[1][self._sensor_property] = timezone.localize(naive_time)
+            value[1][self._sensor_property] = naive_time.replace(tzinfo=timezone)
         elif not naive_time:
             # this is typically an older alarm
             value[1][self._sensor_property] = datetime.datetime.fromtimestamp(
@@ -610,7 +610,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             self._n_dict = None
         self._process_raw_notifications()
         try:
-            self.async_write_ha_state()
+            self.schedule_update_ha_state()
         except NoEntitySpecifiedError:
             pass  # we ignore this due to a harmless startup race condition
 
@@ -670,9 +670,11 @@ class TimerSensor(AlexaMediaNotificationSensor):
             "remainingTime",
             account,
             f"next {self._type}",
-            "mdi:timer-outline"
-            if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
-            else "mdi:timer",
+            (
+                "mdi:timer-outline"
+                if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
+                else "mdi:timer"
+            ),
         )
 
     def _process_state(self, value) -> Optional[datetime.datetime]:

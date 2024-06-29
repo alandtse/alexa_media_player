@@ -271,7 +271,7 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         self._requested_state_at = datetime.datetime.now(
             datetime.timezone.utc
         )  # must be set last so that previous getters work properly
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
 
     async def async_turn_on(self, **kwargs):
         """Turn on."""

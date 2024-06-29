@@ -60,35 +60,35 @@
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "清除每个 Alexa 帐户的 Alexa Voice 历史记录中的最后条目。",
       "fields": {
         "email": {
           "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "name": "电子邮件地址"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "要清除的条目数从 1 到 50。如果为空，则清除 50。",
+          "name": "参赛作品数量"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "清除 Amazon 语音历史记录"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "强制帐户注销。主要用于调试。",
       "fields": {
         "email": {
           "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "name": "电子邮件地址"
         }
       },
-      "name": "Force Logout"
+      "name": "强制注销"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "强制更新每个 Alexa 帐户的 last_called 回声设备。",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "要更新的 Alexa 帐户列表。如果为空，将更新所有已知帐户。",
+          "name": "电子邮件地址"
         }
       },
       "name": "Update Last Called Sensor"

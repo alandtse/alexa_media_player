@@ -11,8 +11,8 @@
       "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
       "invalid_credentials": "Credenciales no válidas",
       "invalid_url": "La URL no es válida: {message}",
-      "unable_to_connect_hass_url": "No se puede conectar con la URL de Home Assistant. Verifique la URL externa en Configuración - > General",
-      "unknown_error": "Error desconocido: {mensaje}"
+      "unable_to_connect_hass_url": "No se puede conectar con la URL de Home Assistant. Verifique la URL externa en Configuración -> General",
+      "unknown_error": "Error desconocido: {message}"
     },
     "step": {
       "proxy_warning": {
@@ -60,38 +60,38 @@
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "Borrar las últimas entradas del historial de voz de Alexa para cada cuenta.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Cuentas a borrar. Si se deja vacío se borraran todas.",
+          "name": "Dirección de correo electrónico"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "Número de entradas a borrar del 1 al 50. Si se deja vacío, se borraran 50.",
+          "name": "Número de entradas"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "Borrar el historial de voz de Amazon"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "Obligar el cierre de sesión de la cuenta. Usar principalmente para depuración.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Cuentas a borrar. Si se deja vacío se borraran todas.",
+          "name": "Dirección de correo electrónico"
         }
       },
-      "name": "Force Logout"
+      "name": "Obligar cierre de sesión"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "Obligar la actualización del último dispositivo Echo llamado para cada cuenta Alexa.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "Cuentas de Alexa para actualizar. Si se deja vacío, se actualizaran todas las cuentas.",
+          "name": "Dirección de correo electrónico"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "Actualizar el último sensor utilizado"
     }
   }
 }

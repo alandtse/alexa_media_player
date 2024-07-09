@@ -50,13 +50,11 @@ from .const import (
     CONF_OAUTH,
     CONF_OTPSECRET,
     CONF_PROXY_WARNING,
-    CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
-    DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DOMAIN,
     ISSUE_URL,
@@ -780,7 +778,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
                 ): str,
                 vol.Required(
-                    CONF_PUBLIC_URL, default=self.config.get(CONF_PUBLIC_URL, "hass_url)
+                    CONF_HASS_URL, default=self.config.get(CONF_HASS_URL, "hass_url)
                 ): str,
                 vol.Optional(
                     CONF_DEBUG, default=bool(self.config.get(CONF_DEBUG, False))
@@ -829,7 +827,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         schema = self.build_options_schema()
         if user_input is not None:
-            user_input[CONF_PUBLIC_URL] = str(user_input[CONF_PUBLIC_URL])
+            user_input[CONF_HASS_URL] = str(user_input[CONF_HASS_URL])
             user_input[CONF_DEBUG] = bool(user_input[CONF_DEBUG_DEVICES])
             user_input[CONF_EXCLUDED_DEVICES] = str(user_input[CONF_EXCLUDE_DEVICES])
             user_input[CONF_EXCLUDED_DEVICES] = str(user_input[CONF_EXCLUDE_DEVICES])

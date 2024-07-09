@@ -1,31 +1,30 @@
 {
   "config": {
     "error": {
+      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL is invalid: {message}",
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "unable_to_connect_hass_url": "Unable to connect to Home Assistant url. Please check the Internal Url under Configuration -> General",
       "unknown_error": "Unknown error: {message}"
     },
     "step": {
       "user": {
         "data": {
-          "password": "Password",
-          "email": "Email Address",
-          "url": "Amazon region domain (e.g., amazon.co.uk)",
-          "hass_url": "Url to access Home Assistant",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
-          "include_devices": "Included device (comma separated)",
-          "exclude_devices": "Excluded device (comma separated)",
           "debug": "Advanced debugging",
-          "scan_interval": "Seconds between scans",
-          "proxy": "Use Login Proxy method (2FA not required)",
-          "oauth_login": "Enable oauth-token app method",
-          "queue_delay": "Seconds to wait to queue commands together",
+          "email": "Email Address",
+          "exclude_devices": "Excluded device (comma separated)",
           "extended_entity_discovery": "Include devices connected via Echo",
-          "public_url": "Public URL to access Home Assistant (including trailing '/')"
+          "hass_url": "URL to access Home Assistant (including trailing '/')",
+          "include_devices": "Included device (comma separated)",
+          "oauth_login": "Enable oauth-token app method",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
+          "password": "Password",
+          "proxy": "Use Login Proxy method (2FA not required)",
+          "queue_delay": "Seconds to wait to queue commands together",
+          "scan_interval": "Seconds between scans",
+          "url": "Amazon region domain (e.g., amazon.co.uk)",
 
         },
         "description": "Please confirm the information below. For legacy configuration, disable `Use Login Proxy method` option.",

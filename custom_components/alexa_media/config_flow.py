@@ -199,6 +199,20 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                     int,
                 ),
+                (
+                    vol.Optional(
+                        CONF_QUEUE_DELAY,
+                        default=self.config.get(CONF_QUEUE_DELAY, 1.5),
+                    ),
+                    int,
+                ),
+                (
+                    vol.Optional(
+                        CONF_EXTENDED_ENTITY_DISCOVERY,
+                        default=self.config.get(CONF_EXTENDED_ENTITY_DISCOVERY, False),
+                    ),
+                    int,
+                ),
             ]
         )
         if not user_input:
@@ -737,6 +751,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
             else:
                 self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
+        if CONF_QUEUE_DELAY in user_input:
+            self.config[CONF_SCAN_INTERVAL] = (
+                user_input[CONF_QUEUE_DELAY]
+                if not isinstance(user_input[CONF_SCAN_INTERVAL], timedelta)
+                else user_input[CONF_SCAN_INTERVAL].total_seconds()
+            )
+        if CONF_EXTENDED_ENTITY_DISCOVERY in user_input:
+            self.config[CONF_DEBUG] = user_input[CONF_EXTENDED_ENTITY_DISCOVERY]
 
     def _update_schema_defaults(self) -> Any:
         new_schema = self._update_ord_dict(
@@ -757,6 +779,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 vol.Required(
                     CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
                 ): str,
+                vol.Required(
+                    CONF_PUBLIC_URL, default=self.config.get(CONF_PUBLIC_URL, "hass_url)
+                ): str,
                 vol.Optional(
                     CONF_DEBUG, default=bool(self.config.get(CONF_DEBUG, False))
                 ): bool,
@@ -771,6 +796,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
                 ): int,
+                vol.Optional(
+                    CONF_QUEUE_DELAY, default=self.config.get(CONF_QUEUE_DELAY, 1.5)
+                ): int,
+                vol.Optional(
+                    CONF_EXTENDED_ENTITY_DISCOVERY, default=self.config.get(CONF_EXTENDED_ENTITY_DISCOVERY, False)
+                ): int,
             },
         )
         return new_schema
@@ -781,44 +812,42 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
-
 class OptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle a option flow for Alexa Media."""
+    """Handle an option flow for Alexa Media."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry):
         """Initialize options flow."""
         self.config_entry = config_entry
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(
+        self, 
+        user_input: dict(str, Any] | None = None),
+    ) -> FlowResult:
         """Handle options flow."""
+        errors = {}
+        self-current_config = dict(self.config_entry_data)
+
+        schema = self.build_options_schema()
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            user_input[CONF_PUBLIC_URL] = str(user_input[CONF_PUBLIC_URL])
+            user_input[CONF_DEBUG] = bool(user_input[CONF_DEBUG_DEVICES])
+            user_input[CONF_EXCLUDED_DEVICES] = str(user_input[CONF_EXCLUDE_DEVICES])
+            user_input[CONF_EXCLUDED_DEVICES] = str(user_input[CONF_EXCLUDE_DEVICES])
+            user_input[SCAN_INTERVAL] = int(user_input[SCAN_INTERVAL])
+            user_input[CONF_QUEUE_DELAY] = int(user_input[CONF_QUEUE_DELAY])
+            user_input[CONF_EXTENDED_ENTITY_DISCOVERY] = bool(user_input[CONF_EXTENDED_ENTITY_DISCOVERY])
+            )
+            
+            errors = await self.save_options(user_input, schema)
+            if not errors:
+                return self.async_create_entry(title="", data={})
+            # return self.async_create_entry(title="", data=user_input)
 
-        data_schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_QUEUE_DELAY,
-                    default=self.config_entry.options.get(
-                        CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
-                    ),
-                ): vol.All(vol.Coerce(float), vol.Clamp(min=0)),
-                vol.Optional(
-                    CONF_PUBLIC_URL,
-                    default=self.config_entry.options.get(
-                        CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
-                    ),
-                ): str,
-                vol.Required(
-                    CONF_EXTENDED_ENTITY_DISCOVERY,
-                    default=self.config_entry.options.get(
-                        CONF_EXTENDED_ENTITY_DISCOVERY,
-                        DEFAULT_EXTENDED_ENTITY_DISCOVERY,
-                    ),
-                ): bool,
-            }
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            errors=errors,
         )
-        return self.async_show_form(step_id="init", data_schema=data_schema)
-
 
 class AlexaMediaAuthorizationCallbackView(HomeAssistantView):
     """Handle callback from external auth."""

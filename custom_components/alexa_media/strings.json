@@ -22,7 +22,11 @@
           "debug": "Advanced debugging",
           "scan_interval": "Seconds between scans",
           "proxy": "Use Login Proxy method (2FA not required)",
-          "oauth_login": "Enable oauth-token app method"
+          "oauth_login": "Enable oauth-token app method",
+          "queue_delay": "Seconds to wait to queue commands together",
+          "extended_entity_discovery": "Include devices connected via Echo",
+          "public_url": "Public URL to access Home Assistant (including trailing '/')"
+
         },
         "description": "Please confirm the information below. For legacy configuration, disable `Use Login Proxy method` option.",
         "title": "Alexa Media Player - Configuration"
@@ -46,17 +50,6 @@
       "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
       "login_failed": "Alexa Media Player failed to login.",
       "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "data": {
-          "queue_delay": "Seconds to wait to queue commands together",
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "public_url": "Public URL to access Home Assistant (including trailing '/')"
-        }
-      }
     }
   },
   "services": {

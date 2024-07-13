@@ -6,7 +6,7 @@
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL is invalid: {message}",
       "2fa_key_invalid": "Invalid Built-In 2FA key",
-      "unable_to_connect_hass_url": "Unable to connect to Home Assistant URL. Please check the Internal Url under Configuration -> General",
+      "unable_to_connect_hass_url": "Unable to connect to Home Assistant URL. Please check the Internal URL under Configuration -> General",
       "unknown_error": "Unknown error: {message}"
     },
     "step": {
@@ -16,8 +16,8 @@
           "email": "Email Address",
           "password": "Password",
           "securitycode": "[%key_id:55616596%]",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
-          "hass_url": "URL to access Home Assistant",
+          "otp_secret": ""Built-in 2FA App Key - This is 52 characters, not six!",",
+          "hass_url": "Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",
           "scan_interval": "Seconds between scans",
@@ -25,14 +25,14 @@
           "extended_entity_discovery": "Include devices connected via Echo",
           "debug": "Advanced debugging"
         },
-        "description": "Please modify configuration settings below.\n (*) = required fields",
+        "description": "Required *",
         "title": "Alexa Media Player - Configuration"
       },
       "proxy_warning": {
         "data": {
           "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
         },
-        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal URL.\n\nIf you are **certain** your client can reach this URL, you can bypass this warning.",
+        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External URL under Configuration -> General but you can try your internal URL.\n\nIf you are **certain** your client can reach this URL, you can bypass this warning.",
         "title": "Alexa Media Player - Unable to Connect to HA URL"
       },
       "totp_register": {
@@ -60,7 +60,7 @@
           "extended_entity_discovery": "Include devices connected via Echo",
           "debug": "Advanced debugging"
         },
-        "description": "Please reconfigure new settings below.\n (*) = required"",
+        "description": "Required *",
         "title": "Alexa Media Player - Reconfiguration"
       }
     }

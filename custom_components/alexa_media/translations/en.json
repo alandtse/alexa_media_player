@@ -68,7 +68,7 @@
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account. <Deprecated>",
+      "description": "Clear last entries from Alexa Voice history for each Alexa account - NO LONGER WORKS",
       "fields": {
         "email": {
           "description": "Accounts to clear. Empty will clear all.",

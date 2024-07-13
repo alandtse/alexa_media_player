@@ -1,33 +1,31 @@
 {
   "config": {
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL is invalid: {message}",
+      "2fa_key_invalid": "Invalid Built-In 2FA key",
       "unable_to_connect_hass_url": "Unable to connect to Home Assistant url. Please check the Internal Url under Configuration -> General",
       "unknown_error": "Unknown error: {message}"
     },
     "step": {
       "user": {
         "data": {
-          "debug": "Advanced debugging",
-          "email": "Email Address",
-          "exclude_devices": "Excluded device (comma separated)",
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "hass_url": "URL to access Home Assistant (including trailing '/')",
-          "include_devices": "Included device (comma separated)",
-          "oauth_login": "Enable oauth-token app method",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
-          "password": "Password",
-          "proxy": "Use Login Proxy method (2FA not required)",
-          "queue_delay": "Seconds to wait to queue commands together",
-          "scan_interval": "Seconds between scans",
           "url": "Amazon region domain (e.g., amazon.co.uk)",
-
+          "email": "Email Address",
+          "password": "Password",
+          "securitycode": "[%key_id:55616596%]",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
+          "hass_url": "Url to access Home Assistant",
+          "include_devices": "Included device (comma separated)",
+          "exclude_devices": "Excluded device (comma separated)",
+          "scan_interval": "Seconds between scans",
+          "queue_delay": "Seconds to wait to queue commands together",
+          "extended_entity_discovery": "Include devices connected via Echo",
+          "debug": "Advanced debugging"
         },
-        "description": "Please confirm the information below. For legacy configuration, disable `Use Login Proxy method` option.",
+        "description": "Please modify configuration settings below.\n * = required fields",
         "title": "Alexa Media Player - Configuration"
       },
       "proxy_warning": {
@@ -43,7 +41,6 @@
         },
         "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
         "title": "Alexa Media Player - OTP Confirmation"
-      }
     },
     "abort": {
       "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
@@ -51,6 +48,24 @@
       "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "hass_url": "Public URL to access Home Assistant (including trailing '/')",
+          "include_devices": "Included device (comma separated)",
+          "exclude_devices": "Excluded device (comma separated)",
+          "scan_interval": "Seconds between scans",
+          "queue_delay": "Seconds to wait to queue commands together",
+          "extended_entity_discovery": "Include devices connected via Echo",
+          "debug": "Advanced debugging"
+        },
+        "description": "Please reconfigure new settings below. (*) = required"",
+        "title": "Alexa Media Player - Reconfiguration"
+      }
+    }
+  },
+
   "services": {
     "clear_history": {
       "name": "Clear Amazon Voice History",

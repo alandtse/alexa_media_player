@@ -15,6 +15,24 @@
       "unknown_error": "Unknown error: {message}"
     },
     "step": {
+      "user": {
+        "data": {
+          "url": "Amazon region domain (e.g., amazon.co.uk)",
+          "email": "Email Address",
+          "password": "Password",
+          "securitycode": "[%key_id:55616596%]",
+          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
+          "hass_url": "Public URL to access Home Assistant",
+          "include_devices": "Included device (comma separated)",
+          "exclude_devices": "Excluded device (comma separated)",
+          "scan_interval": "Seconds between cloud scans for new/removed devices",
+          "queue_delay": "Seconds to wait to queue multiple ommands together",
+          "extended_entity_discovery": "Include auxiliary devices connected to Echo devices",
+          "debug": "Advanced debugging"
+        },
+        "description": "Please enter configuration setting below.\n * = required fields",
+        "title": "Alexa Media Player - Configuration"
+      },
       "proxy_warning": {
         "data": {
           "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
@@ -24,26 +42,10 @@
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "TOTP from the Built-in 2FA App Key confirmed successfully."
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
-      },
-      "user": {
-        "data": {
-          "debug": "Advanced debugging",
-          "email": "Email Address",
-          "exclude_devices": "Excluded device (comma separated)",
-          "hass_url": "Url to access Home Assistant",
-          "include_devices": "Included device (comma separated)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
-          "password": "Password",
-          "scan_interval": "Seconds between scans",
-          "securitycode": "[%key_id:55616596%]",
-          "url": "Amazon region domain (e.g., amazon.co.uk)"
-        },
-        "description": "Please confirm the information below. For legacy configuration, disable `Use Login Proxy method` option.",
-        "title": "Alexa Media Player - Configuration"
+        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed a TOTP from the Built-in 2FA App Key with Amazon?  \n >TOTP Code {message}",
+        "title": "Alexa Media Player - TOTP Confirmation"
       }
     }
   },
@@ -51,16 +53,22 @@
     "step": {
       "init": {
         "data": {
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "public_url": "Public URL to access Home Assistant (including trailing '/')",
-          "queue_delay": "Seconds to wait to queue commands together"
-        }
+          "hass_url": "* Public URL to access Home Assistant (including trailing '/')",
+          "include_devices": "Include devices (comma separated)",
+          "exclude_devices": "Exclude devices (comma separated)",
+          "scan_interval": "Seconds between cloud scans for new/removed devices",
+          "queue_delay": "Seconds to wait to queue multiple commands together",
+          "extended_entity_discovery": "Include auxiliary devices connected to Echo devices",
+          "debug": "Advanced debugging"
+        },
+        "description": "Please reconfigure new settings below. (*) = required",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "Clear last entries from Alexa Voice history for each Alexa account. <Deprecated>",
       "fields": {
         "email": {
           "description": "Accounts to clear. Empty will clear all.",

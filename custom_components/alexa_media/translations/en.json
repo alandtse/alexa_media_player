@@ -30,7 +30,7 @@
           "extended_entity_discovery": "Include auxiliary devices connected to Echo devices",
           "debug": "Advanced debugging"
         },
-        "description": "Required entries *",
+        "description": "Required settings *",
         "title": "Alexa Media Player - Configuration"
       },
       "proxy_warning": {
@@ -61,7 +61,7 @@
           "extended_entity_discovery": "Include auxiliary devices connected to Echo devices",
           "debug": "Advanced debugging"
         },
-        "description": "Required entries *",
+        "description": "Required settings *",
         "title": "Alexa Media Player - Reconfiguration"
       }
     }

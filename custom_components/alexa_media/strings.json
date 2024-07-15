@@ -65,7 +65,6 @@
       }
     }
   },
-
   "services": {
     "clear_history": {
       "name": "Clear Amazon Voice History",
@@ -102,4 +101,4 @@
       }
     }
   }
-}
+},

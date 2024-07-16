@@ -186,8 +186,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                     "%s: Loading config entry for %s", hide_email(account), component
                 )
                 await hass.config_entries.async_forward_entry_setups(
-                        config_entry, [component]
-                    )
+                    config_entry, [component]
                 )
         return True
     raise ConfigEntryNotReady

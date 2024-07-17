@@ -1,5 +1,10 @@
 {
   "config": {
+    "abort": {
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "login_failed": "Alexa Media Player failed to login.",
+      "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
+    },
     "error": {
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
@@ -16,7 +21,7 @@
           "email": "Email Address",
           "password": "Password",
           "securitycode": "[%key_id:55616596%]",
-          "otp_secret": ""Built-in 2FA App Key - This is 52 characters, not six!",
+          "otp_secret": "Built-in 2FA App Key - This is 52 characters, not six!",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",
@@ -41,11 +46,6 @@
         },
         "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
         "title": "Alexa Media Player - OTP Confirmation"
-    },
-    "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
     }
   },
   "options": {

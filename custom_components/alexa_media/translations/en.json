@@ -46,6 +46,7 @@
         },
         "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
         "title": "Alexa Media Player - OTP Confirmation"
+      }
     }
   },
   "options": {
@@ -101,4 +102,4 @@
       }
     }
   }
-},
+}

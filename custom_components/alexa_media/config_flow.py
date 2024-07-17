@@ -793,10 +793,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     CONF_OTPSECRET,
                     default=self.config.get(CONF_OTPSECRET, ""),
                 ): str,
-#                vol.Required(
-#                    CONF_HASS_URL,
-#                    default=self.config_entry.options.get(CONF_HASS_URL, ""),
-#                ): str,
                 vol.Optional(
                     CONF_INCLUDE_DEVICES,
                     default=self.config.get(CONF_INCLUDE_DEVICES, ""),

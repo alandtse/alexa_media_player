@@ -179,7 +179,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (
                     vol.Optional(
                         CONF_HASS_URL,
-                        default=self.config.get(CONF_HASS_URL, ""),
+                        default=self.config.get(CONF_HASS_URL, hass_url),
                     ),
                     str,
                 ),

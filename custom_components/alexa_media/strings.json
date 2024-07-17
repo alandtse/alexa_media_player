@@ -16,7 +16,7 @@
           "email": "Email Address",
           "password": "Password",
           "securitycode": "[%key_id:55616596%]",
-          "otp_secret": ""Built-in 2FA App Key - This is 52 characters, not six!",",
+          "otp_secret": ""Built-in 2FA App Key - This is 52 characters, not six!",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",

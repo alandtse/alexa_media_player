@@ -6,10 +6,12 @@ SPDX-License-Identifier: Apache-2.0
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
+
 import datetime
 import logging
 from typing import List
 
+from alexapy import AlexaAPI
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
@@ -24,7 +26,6 @@ from . import (
     hide_email,
     hide_serial,
 )
-from alexapy import AlexaAPI
 from .alexa_entity import parse_power_from_coordinator
 from .alexa_media import AlexaMedia
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
@@ -127,7 +128,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     switch_entity["name"],
                 )
                 coordinator = account_dict["coordinator"]
-                switch = SmartSwitch(coordinator, account_dict["login_obj"], switch_entity)
+                switch = SmartSwitch(
+                    coordinator, account_dict["login_obj"], switch_entity
+                )
                 account_dict["entities"]["smart_switch"].append(switch)
                 devices.append(switch)
             else:
@@ -407,6 +410,7 @@ class RepeatSwitch(AlexaMediaSwitch):
     def entity_category(self):
         """Return the entity category of the switch."""
         return EntityCategory.CONFIG
+
 
 class SmartSwitch(CoordinatorEntity, SwitchDevice):
     def __init__(self, coordinator, login, details):

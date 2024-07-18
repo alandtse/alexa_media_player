@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
+
 from asyncio import sleep
 from collections import OrderedDict
 import datetime
@@ -56,11 +57,11 @@ from .const import (
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
+    DEFAULT_DEBUG,
+    DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DEFAULT_SCAN_DELAY,
-    DEFAULT_EXTENDED_ENTITY_DISCOVERY,
-    DEFAULT_DEBUG,
     DOMAIN,
     ISSUE_URL,
     STARTUP,
@@ -151,28 +152,23 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (
                     vol.Required(
-                        CONF_URL,
-                        default=self.config.get(CONF_URL, "amazon.com")
+                        CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
                     ),
                     str,
                 ),
                 (
-                    vol.Required(
-                        CONF_EMAIL,
-                        default=self.config.get(CONF_EMAIL, "")),
+                    vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")),
                     str,
                 ),
                 (
                     vol.Required(
-                        CONF_PASSWORD,
-                        default=self.config.get(CONF_PASSWORD, "")
+                        CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
                     ),
                     str,
                 ),
                 (
                     vol.Optional(
-                        CONF_OTPSECRET,
-                        default=self.config.get(CONF_OTPSECRET, "")
+                        CONF_OTPSECRET, default=self.config.get(CONF_OTPSECRET, "")
                     ),
                     str,
                 ),
@@ -214,14 +210,16 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (
                     vol.Optional(
                         CONF_EXTENDED_ENTITY_DISCOVERY,
-                        default=self.config.get(CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY)
+                        default=self.config.get(
+                            CONF_EXTENDED_ENTITY_DISCOVERY,
+                            DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+                        ),
                     ),
                     bool,
                 ),
                 (
                     vol.Optional(
-                        CONF_DEBUG,
-                        default=self.config.get(CONF_DEBUG, DEFAULT_DEBUG)
+                        CONF_DEBUG, default=self.config.get(CONF_DEBUG, DEFAULT_DEBUG)
                     ),
                     bool,
                 ),
@@ -744,9 +742,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 else user_input[CONF_SCAN_INTERVAL].total_seconds()
             )
         if CONF_QUEUE_DELAY in user_input:
-            self.config[CONF_QUEUE_DELAY] = (
-                user_input[CONF_QUEUE_DELAY]
-            )
+            self.config[CONF_QUEUE_DELAY] = user_input[CONF_QUEUE_DELAY]
         if CONF_INCLUDE_DEVICES in user_input:
             if isinstance(user_input[CONF_INCLUDE_DEVICES], list):
                 self.config[CONF_INCLUDE_DEVICES] = (
@@ -766,7 +762,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             else:
                 self.config[CONF_EXCLUDE_DEVICES] = user_input[CONF_EXCLUDE_DEVICES]
         if CONF_EXTENDED_ENTITY_DISCOVERY in user_input:
-            self.config[CONF_EXTENDED_ENTITY_DISCOVERY] = user_input[CONF_EXTENDED_ENTITY_DISCOVERY]
+            self.config[CONF_EXTENDED_ENTITY_DISCOVERY] = user_input[
+                CONF_EXTENDED_ENTITY_DISCOVERY
+            ]
         if CONF_DEBUG in user_input:
             self.config[CONF_DEBUG] = user_input[CONF_DEBUG]
 
@@ -775,15 +773,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.data_schema,
             {
                 vol.Required(
-                    CONF_URL,
-                    default=self.config.get(CONF_URL, "amazon.com")
+                    CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
                 ): str,
-                vol.Required(CONF_EMAIL,
-                default=self.config.get(CONF_EMAIL, "")
-                ): str,
+                vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")): str,
                 vol.Required(
-                    CONF_PASSWORD,
-                    default=self.config.get(CONF_PASSWORD, "")
+                    CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
                 ): str,
                 vol.Required(
                     CONF_SECURITYCODE,
@@ -802,14 +796,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     default=self.config.get(CONF_EXCLUDE_DEVICES, ""),
                 ): str,
                 vol.Optional(
-                    CONF_SCAN_INTERVAL,
-                    default=self.config.get(CONF_SCAN_INTERVAL, 60)
+                    CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
                 ): int,
                 vol.Optional(
                     CONF_QUEUE_DELAY,
-                    default=self.config_entry.options.get(CONF_QUEUE_DELAY, 1.5
-                    ),
-                ):float,
+                    default=self.config_entry.options.get(CONF_QUEUE_DELAY, 1.5),
+                ): float,
                 vol.Optional(
                     CONF_EXTENDED_ENTITY_DISCOVERY,
                     default=self.config_entry.options.get(
@@ -830,6 +822,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
+
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle a option flow for Alexa Media."""
 
@@ -848,7 +841,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if CONF_PASSWORD in self.config_entry.data:
                 user_input[CONF_PASSWORD] = self.config_entry.data[CONF_PASSWORD]
             if CONF_SECURITYCODE in self.config_entry.data:
-                user_input[CONF_SECURITYCODE] = self.config_entry.data[CONF_SECURITYCODE]
+                user_input[CONF_SECURITYCODE] = self.config_entry.data[
+                    CONF_SECURITYCODE
+                ]
             if CONF_OTPSECRET in self.config_entry.data:
                 user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET]
 
@@ -861,10 +856,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-#                    vol.Optional(
-#                        CONF_HASS_URL,
-#                        default=self.config_entry.data[CONF_HASS_URL],
-#                    ): cv.string,
+                    #                    vol.Optional(
+                    #                        CONF_HASS_URL,
+                    #                        default=self.config_entry.data[CONF_HASS_URL],
+                    #                    ): cv.string,
                     vol.Optional(
                         CONF_INCLUDE_DEVICES,
                         default=self.config_entry.data[CONF_INCLUDE_DEVICES],
@@ -892,6 +887,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 }
             ),
         )
+
 
 class AlexaMediaAuthorizationCallbackView(HomeAssistantView):
     """Handle callback from external auth."""

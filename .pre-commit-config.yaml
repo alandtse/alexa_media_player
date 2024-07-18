@@ -41,7 +41,7 @@ repos:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: 3.28.0
+    rev: v3.28.0
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint

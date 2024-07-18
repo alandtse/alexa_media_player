@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
+
 import datetime
 import logging
 from math import sqrt
@@ -278,9 +279,15 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         brightness = None
         kelvin = None
         hs_color = None
-        if ColorMode.ONOFF not in self._attr_supported_color_modes and ATTR_BRIGHTNESS in kwargs:
+        if (
+            ColorMode.ONOFF not in self._attr_supported_color_modes
+            and ATTR_BRIGHTNESS in kwargs
+        ):
             brightness = kwargs[ATTR_BRIGHTNESS]
-        if ColorMode.COLOR_TEMP in self._attr_supported_color_modes and ATTR_COLOR_TEMP_KELVIN in kwargs:
+        if (
+            ColorMode.COLOR_TEMP in self._attr_supported_color_modes
+            and ATTR_COLOR_TEMP_KELVIN in kwargs
+        ):
             kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
         if ColorMode.HS in self._attr_supported_color_modes and ATTR_HS_COLOR in kwargs:
             hs_color = kwargs[ATTR_HS_COLOR]

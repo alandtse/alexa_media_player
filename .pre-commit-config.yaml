@@ -99,11 +99,11 @@ repos:
           - tomli
         exclude_types: [csv, json]
         exclude: (^tests/fixtures/|CHANGELOG.md)
-  - repo: https://github.com/PyCQA/prospector
-    rev: 1.10.2
-    hooks:
-      - id: prospector
-        exclude: ^(tests)/.+\.py$
+#  - repo: https://github.com/PyCQA/prospector
+#    rev: 1.10.2
+#    hooks:
+#      - id: prospector
+#        exclude: ^(tests)/.+\.py$
 
 ci:
   autofix_commit_msg: |

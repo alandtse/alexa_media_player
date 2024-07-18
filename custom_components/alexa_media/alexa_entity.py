@@ -131,7 +131,7 @@ def is_contact_sensor(appliance: dict[str, Any]) -> bool:
     )
 
 def is_switch(appliance: dict[str, Any]) -> bool:
-    """Is the given appliance a switch controlled locally by an Echo, which ist not redeclared as a light."""
+    """Is the given appliance a switch controlled locally by an Echo, which is not redeclared as a light."""
     return (
         is_local(appliance)
         and (

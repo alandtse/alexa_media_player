@@ -160,7 +160,9 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_OTPSECRET: account.get(
                                 CONF_OTPSECRET, entry.data.get(CONF_OTPSECRET, "")
                             ),
-                            CONF_EXTENDED_ENTITY_DISCOVERY: account[CONF_EXTENDED_ENTITY_DISCOVERY],
+                            CONF_EXTENDED_ENTITY_DISCOVERY: account[
+                                CONF_EXTENDED_ENTITY_DISCOVERY
+                            ],
                             CONF_DEBUG: account[CONF_DEBUG],
                         },
                     )
@@ -182,7 +184,9 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_QUEUE_DELAY: account[CONF_QUEUE_DELAY],
                         CONF_OAUTH: account.get(CONF_OAUTH, {}),
                         CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
-                        CONF_EXTENDED_ENTITY_DISCOVERY: account[CONF_EXTENDED_ENTITY_DISCOVERY],
+                        CONF_EXTENDED_ENTITY_DISCOVERY: account[
+                            CONF_EXTENDED_ENTITY_DISCOVERY
+                        ],
                         CONF_DEBUG: account[CONF_DEBUG],
                     },
                 )
@@ -308,9 +312,7 @@ async def async_setup_entry(hass, config_entry):
                 CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.options.get(
                     CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
                 ),
-                CONF_DEBUG: config_entry.options.get(
-                    CONF_DEBUG, False
-                ),
+                CONF_DEBUG: config_entry.options.get(CONF_DEBUG, False),
             },
             DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         },
@@ -635,10 +637,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if not entry_setup:
                     _LOGGER.debug("Loading config entry for %s", component)
                     try:
-                        await hass.config_entries.async_forward_entry_setups(config_entry, [component]
+                        await hass.config_entries.async_forward_entry_setups(
+                            config_entry, [component]
                         )
                     except (asyncio.TimeoutError, TimeoutException) as ex:
-                        raise ConfigEntryNotReady(f"Timeout while loading config entry for {component}") from ex
+                        raise ConfigEntryNotReady(
+                            f"Timeout while loading config entry for {component}"
+                        ) from ex
                 else:
                     _LOGGER.debug("Loading %s", component)
                     hass.async_create_task(

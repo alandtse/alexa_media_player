@@ -90,7 +90,6 @@ ACCOUNT_CONFIG_SCHEMA = vol.Schema(
         vol.Required(CONF_EMAIL): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
         vol.Required(CONF_URL): cv.string,
-        vol.Optional(CONF_DEBUG, default=False): cv.boolean,
         vol.Optional(CONF_INCLUDE_DEVICES, default=[]): vol.All(
             cv.ensure_list, [cv.string]
         ),
@@ -98,6 +97,9 @@ ACCOUNT_CONFIG_SCHEMA = vol.Schema(
             cv.ensure_list, [cv.string]
         ),
         vol.Optional(CONF_SCAN_INTERVAL, default=SCAN_INTERVAL): cv.time_period,
+        vol.Optional(CONF_QUEUE_DELAY, default=DEFAULT_QUEUE_DELAY): cv.positive_float,
+        vol.Optional(CONF_EXTENDED_ENTITY_DISCOVERY, default=False): cv.boolean,
+        vol.Optional(CONF_DEBUG, default=False): cv.boolean,
     }
 )
 
@@ -146,18 +148,22 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_EMAIL: account[CONF_EMAIL],
                             CONF_PASSWORD: account[CONF_PASSWORD],
                             CONF_URL: account[CONF_URL],
-                            CONF_DEBUG: account[CONF_DEBUG],
                             CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                             CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                             CONF_SCAN_INTERVAL: account[
                                 CONF_SCAN_INTERVAL
                             ].total_seconds(),
+                            CONF_QUEUE_DELAY: account[CONF_QUEUE_DELAY],
                             CONF_OAUTH: account.get(
                                 CONF_OAUTH, entry.data.get(CONF_OAUTH, {})
                             ),
                             CONF_OTPSECRET: account.get(
                                 CONF_OTPSECRET, entry.data.get(CONF_OTPSECRET, "")
                             ),
+                            CONF_EXTENDED_ENTITY_DISCOVERY: account[
+                                CONF_EXTENDED_ENTITY_DISCOVERY
+                            ],
+                            CONF_DEBUG: account[CONF_DEBUG],
                         },
                     )
                     entry_found = True
@@ -172,12 +178,16 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_EMAIL: account[CONF_EMAIL],
                         CONF_PASSWORD: account[CONF_PASSWORD],
                         CONF_URL: account[CONF_URL],
-                        CONF_DEBUG: account[CONF_DEBUG],
                         CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                         CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),
+                        CONF_QUEUE_DELAY: account[CONF_QUEUE_DELAY],
                         CONF_OAUTH: account.get(CONF_OAUTH, {}),
                         CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
+                        CONF_EXTENDED_ENTITY_DISCOVERY: account[
+                            CONF_EXTENDED_ENTITY_DISCOVERY
+                        ],
+                        CONF_DEBUG: account[CONF_DEBUG],
                     },
                 )
             )
@@ -302,6 +312,7 @@ async def async_setup_entry(hass, config_entry):
                 CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.options.get(
                     CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
                 ),
+                CONF_DEBUG: config_entry.options.get(CONF_DEBUG, False),
             },
             DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         },

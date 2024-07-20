@@ -805,7 +805,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 ): int,
                 vol.Optional(
                     CONF_QUEUE_DELAY,
-                    default=self.config_entry.options.get(CONF_QUEUE_DELAY, 1.5),
+                    default=self.config.get(CONF_QUEUE_DELAY, 1.5),
                 ): float,
                 vol.Optional(
                     CONF_EXTENDED_ENTITY_DISCOVERY,

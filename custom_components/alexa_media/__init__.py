@@ -636,9 +636,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 )
                 if not entry_setup:
                     _LOGGER.debug("Loading config entry for %s", component)
-                    await hass.config_entries.async_forward_entry_setups(
-                        config_entry, [component]
-                    )
+                    try:
+                        await hass.config_entries.async_forward_entry_setups(
+                            config_entry, [component]
+                        )
+                    except (asyncio.TimeoutError, TimeoutException) as ex:
+                        raise ConfigEntryNotReady(
+                            f"Timeout while loading config entry for {component}"
+                        ) from ex
                 else:
                     _LOGGER.debug("Loading %s", component)
                     hass.async_create_task(

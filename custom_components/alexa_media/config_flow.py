@@ -72,22 +72,25 @@ _LOGGER = logging.getLogger(__name__)
 
 CONFIG_VERSION = 1
 
+
 @callback
 def configured_instances(hass):
     """Return a set of configured Alexa Media instances."""
     return {entry.title for entry in hass.config_entries.async_entries(DOMAIN)}
+
 
 @callback
 def in_progess_instances(hass):
     """Return a set of in progress Alexa Media flows."""
     return {entry["flow_id"] for entry in hass.config_entries.flow.async_progress()}
 
+
 @config_entries.HANDLERS.register(DOMAIN)
 class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     """Handle a Alexa Media config flow."""
 
     VERSION = CONFIG_VERSION
-    
+
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
     proxy: AlexaProxy = None
     proxy_view: "AlexaMediaAuthorizationProxyView" = None
@@ -196,7 +199,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (
                     vol.Optional(
                         CONF_SCAN_INTERVAL,
-                        default=self.config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                        default=self.config.get(
+                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        ),
                     ),
                     int,
                 ),
@@ -822,6 +827,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
+
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle a option flow for Alexa Media."""
 
@@ -834,7 +840,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options"""
-        
+
         self.options_schema = OrderedDict(
             [
                 (
@@ -854,7 +860,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 (
                     vol.Optional(
                         CONF_SCAN_INTERVAL,
-                        default=self.config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                        default=self.config.get(
+                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        ),
                     ),
                     int,
                 ),
@@ -893,7 +901,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if CONF_PASSWORD in self.config_entry.data:
                 user_input[CONF_PASSWORD] = self.config_entry.data[CONF_PASSWORD]
             if CONF_SECURITYCODE in self.config_entry.data:
-                user_input[CONF_SECURITYCODE] = self.config_entry.data[CONF_SECURITYCODE                ]
+                user_input[CONF_SECURITYCODE] = self.config_entry.data[
+                    CONF_SECURITYCODE
+                ]
             if CONF_OTPSECRET in self.config_entry.data:
                 user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET]
             if CONF_OAUTH in self.config_entry.data:
@@ -908,6 +918,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(self.options_schema),
             description_placeholders={"message": ""},
         )
+
 
 class AlexaMediaAuthorizationCallbackView(HomeAssistantView):
     """Handle callback from external auth."""
@@ -930,6 +941,7 @@ class AlexaMediaAuthorizationCallbackView(HomeAssistantView):
             headers={"content-type": "text/html"},
             text="<script>window.close()</script>Success! This window can be closed",
         )
+
 
 class AlexaMediaAuthorizationProxyView(HomeAssistantView):
     """Handle proxy connections."""
@@ -991,6 +1003,7 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     + "If this persists, please report this error to "
                     + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
                 )
+
         return wrapped
 
     @classmethod

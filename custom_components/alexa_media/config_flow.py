@@ -809,7 +809,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 ): float,
                 vol.Optional(
                     CONF_EXTENDED_ENTITY_DISCOVERY,
-                    default=self.config_entry.options.get(
+                    default=self.config.get(
                         CONF_EXTENDED_ENTITY_DISCOVERY,
                         DEFAULT_EXTENDED_ENTITY_DISCOVERY,
                     ),

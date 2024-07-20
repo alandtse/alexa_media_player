@@ -30,7 +30,7 @@ from homeassistant import config_entries
 from homeassistant.components.http.view import HomeAssistantView
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_URL
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import UnknownFlow
+from homeassistant.data_entry_flow import FlowResult, UnknownFlow
 from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.network import NoURLAvailableError, get_url
@@ -61,7 +61,7 @@ from .const import (
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
-    DEFAULT_SCAN_DELAY,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     ISSUE_URL,
     STARTUP,
@@ -70,24 +70,24 @@ from .helpers import calculate_uuid
 
 _LOGGER = logging.getLogger(__name__)
 
+CONFIG_VERSION = 1
 
 @callback
 def configured_instances(hass):
     """Return a set of configured Alexa Media instances."""
     return {entry.title for entry in hass.config_entries.async_entries(DOMAIN)}
 
-
 @callback
 def in_progess_instances(hass):
     """Return a set of in progress Alexa Media flows."""
     return {entry["flow_id"] for entry in hass.config_entries.flow.async_progress()}
 
-
 @config_entries.HANDLERS.register(DOMAIN)
 class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     """Handle a Alexa Media config flow."""
 
-    VERSION = 1
+    VERSION = CONFIG_VERSION
+    
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
     proxy: AlexaProxy = None
     proxy_view: "AlexaMediaAuthorizationProxyView" = None
@@ -196,7 +196,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (
                     vol.Optional(
                         CONF_SCAN_INTERVAL,
-                        default=self.config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_DELAY),
+                        default=self.config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     ),
                     int,
                 ),
@@ -822,16 +822,68 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
-
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle a option flow for Alexa Media."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
+        self.config = OrderedDict()
         self.config_entry = config_entry
 
-    async def async_step_init(self, user_input=None):
-        """Handle options flow."""
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options"""
+        
+        self.options_schema = OrderedDict(
+            [
+                (
+                    vol.Optional(
+                        CONF_INCLUDE_DEVICES,
+                        default=self.config.get(CONF_INCLUDE_DEVICES, ""),
+                    ),
+                    str,
+                ),
+                (
+                    vol.Optional(
+                        CONF_EXCLUDE_DEVICES,
+                        default=self.config.get(CONF_EXCLUDE_DEVICES, ""),
+                    ),
+                    str,
+                ),
+                (
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL,
+                        default=self.config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    ),
+                    int,
+                ),
+                (
+                    vol.Optional(
+                        CONF_QUEUE_DELAY,
+                        default=self.config.get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                    ),
+                    float,
+                ),
+                (
+                    vol.Optional(
+                        CONF_EXTENDED_ENTITY_DISCOVERY,
+                        default=self.config.get(
+                            CONF_EXTENDED_ENTITY_DISCOVERY,
+                            DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+                        ),
+                    ),
+                    bool,
+                ),
+                (
+                    vol.Optional(
+                        CONF_DEBUG, default=self.config.get(CONF_DEBUG, DEFAULT_DEBUG)
+                    ),
+                    bool,
+                ),
+            ]
+        )
+
         if user_input is not None:
             """Preserve these parameters"""
             if CONF_URL in self.config_entry.data:
@@ -841,12 +893,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if CONF_PASSWORD in self.config_entry.data:
                 user_input[CONF_PASSWORD] = self.config_entry.data[CONF_PASSWORD]
             if CONF_SECURITYCODE in self.config_entry.data:
-                user_input[CONF_SECURITYCODE] = self.config_entry.data[
-                    CONF_SECURITYCODE
-                ]
+                user_input[CONF_SECURITYCODE] = self.config_entry.data[CONF_SECURITYCODE                ]
             if CONF_OTPSECRET in self.config_entry.data:
                 user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET]
-
+            if CONF_OAUTH in self.config_entry.data:
+                user_input[CONF_OAUTH] = self.config_entry.data[CONF_OAUTH]
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data=user_input, options=self.config_entry.options
             )
@@ -854,40 +905,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    #                    vol.Optional(
-                    #                        CONF_HASS_URL,
-                    #                        default=self.config_entry.data[CONF_HASS_URL],
-                    #                    ): cv.string,
-                    vol.Optional(
-                        CONF_INCLUDE_DEVICES,
-                        default=self.config_entry.data[CONF_INCLUDE_DEVICES],
-                    ): cv.string,
-                    vol.Optional(
-                        CONF_EXCLUDE_DEVICES,
-                        default=self.config_entry.data[CONF_EXCLUDE_DEVICES],
-                    ): cv.string,
-                    vol.Optional(
-                        CONF_SCAN_INTERVAL,
-                        default=self.config_entry.data[CONF_SCAN_INTERVAL],
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1800)),
-                    vol.Optional(
-                        CONF_QUEUE_DELAY,
-                        default=self.config_entry.data[CONF_QUEUE_DELAY],
-                    ): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=5.0)),
-                    vol.Optional(
-                        CONF_EXTENDED_ENTITY_DISCOVERY,
-                        default=self.config_entry.data[CONF_EXTENDED_ENTITY_DISCOVERY],
-                    ): cv.boolean,
-                    vol.Optional(
-                        CONF_DEBUG,
-                        default=self.config_entry.data[CONF_DEBUG],
-                    ): cv.boolean,
-                }
-            ),
+            data_schema=vol.Schema(self.options_schema),
+            description_placeholders={"message": ""},
         )
-
 
 class AlexaMediaAuthorizationCallbackView(HomeAssistantView):
     """Handle callback from external auth."""
@@ -910,7 +930,6 @@ class AlexaMediaAuthorizationCallbackView(HomeAssistantView):
             headers={"content-type": "text/html"},
             text="<script>window.close()</script>Success! This window can be closed",
         )
-
 
 class AlexaMediaAuthorizationProxyView(HomeAssistantView):
     """Handle proxy connections."""
@@ -972,7 +991,6 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     + "If this persists, please report this error to "
                     + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
                 )
-
         return wrapped
 
     @classmethod

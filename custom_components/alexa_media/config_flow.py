@@ -830,9 +830,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         return OptionsFlowHandler(config_entry)
 
 
-######
-
-
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle a option flow for Alexa Media."""
 
@@ -865,16 +862,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 (
                     vol.Optional(
                         CONF_SCAN_INTERVAL,
-                        default=self.config_entry.data.get(CONF_SCAN_INTERVAL, 120),
+                        default=self.config_entry.data.get(
+                            CONF_SCAN_INTERVAL, 120
+                        ),
                     ),
                     int,
                 ),
                 (
                     vol.Optional(
                         CONF_QUEUE_DELAY,
-                        default=self.config_entry.data.get(
-                            CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
-                        ),
+                        default=self.config_entry.data.get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                     ),
                     float,
                 ),
@@ -890,8 +887,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ),
                 (
                     vol.Optional(
-                        CONF_DEBUG,
-                        default=self.config_entry.data.get(CONF_DEBUG, DEFAULT_DEBUG),
+                        CONF_DEBUG, default=self.config_entry.data.get(CONF_DEBUG, DEFAULT_DEBUG)
                     ),
                     bool,
                 ),
@@ -914,14 +910,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET]
             if CONF_OAUTH in self.config_entry.data:
                 user_input[CONF_OAUTH] = self.config_entry.data[CONF_OAUTH]
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=user_input, options=self.config_entry.options
-            )
 
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data=user_input, options=self.config_entry.options
             )
-
             return self.async_create_entry(title="", data={})
 
         return self.async_show_form(

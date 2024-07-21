@@ -6,15 +6,33 @@
       "reauth_successful": "Alexa Media Player è stato riautenticato con successo. Ignorare il messaggio \"Abortito\" da HA"
     },
     "error": {
-      "2fa_key_invalid": "Chiave 2FA incorporata non valida",
       "connection_error": "Errore durante la connessione; controlla la rete e riprova",
       "identifier_exists": "L'email per l'URL di Alexa è già stata registrata",
       "invalid_credentials": "Credenziali non valide",
       "invalid_url": "URL non valido: {message}",
+      "2fa_key_invalid": "Chiave 2FA incorporata non valida",
       "unable_to_connect_hass_url": "Impossibile collegarsi all'URL di Home Assistant. Controllare l'URL esterno nel menu Configurazione -> Generale",
       "unknown_error": "Errore sconosciuto:{message}"
     },
     "step": {
+      "user": {
+        "data": {
+          "url": "Regione del dominio Amazon (ad es., amazon.it)",
+          "email": "Indirizzo email",
+          "password": "Password",
+          "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)",
+          "otp_secret": "Chiave app 2FA integrata (genera automaticamente codici 2FA). Questo non è lungo sei cifre.",
+          "hass_url": "URL per accedere a Home Assistant",
+          "include_devices": "Dispositivi da includere (separati da virgola)",
+          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
+          "scan_interval": "Tempo in secondi fra le scansioni",
+          "queue_delay": "Secondi di attesa per accodare i comandi insieme",
+          "extended_entity_discovery": "Includi i dispositivi collegati tramite Echo",
+          "debug": "Debug avanzato"
+        },
+        "description": "Confermare le informazioni di seguito. Per la configurazione legacy, disabilitare l'opzione \"Utilizza metodo proxy di accesso\".",
+        "title": "Alexa Media Player - Configurazione"
+      },
       "proxy_warning": {
         "data": {
           "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
@@ -28,22 +46,6 @@
         },
         "description": "**{email} - alexa.{url}**\nHai confermato con successo una chiave usa e getta (OTP) dall'applicazione 2FA integrata con Amazon?\n>Codice OTP {message}",
         "title": "Alexa Media Player - Conferma OTP"
-      },
-      "user": {
-        "data": {
-          "debug": "Debug avanzato",
-          "email": "Indirizzo email",
-          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
-          "hass_url": "URL per accedere a Home Assistant",
-          "include_devices": "Dispositivi da includere (separati da virgola)",
-          "otp_secret": "Chiave app 2FA integrata (genera automaticamente codici 2FA). Questo non è lungo sei cifre.",
-          "password": "Password",
-          "scan_interval": "Tempo in secondi fra le scansioni",
-          "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)",
-          "url": "Regione del dominio Amazon (ad es., amazon.it)"
-        },
-        "description": "Confermare le informazioni di seguito. Per la configurazione legacy, disabilitare l'opzione \"Utilizza metodo proxy di accesso\".",
-        "title": "Alexa Media Player - Configurazione"
       }
     }
   },
@@ -53,45 +55,52 @@
         "data": {
           "extended_entity_discovery": "Includi i dispositivi collegati tramite Echo",
           "public_url": "URL pubblico per accedere a Home Assistant (incluso il '/' finale)",
-          "queue_delay": "Secondi di attesa per accodare i comandi insieme"
-        }
+          "queue_delay": "Secondi di attesa per accodare i comandi insieme",
+          "hass_url": "Public URL to access Home Assistant (including trailing '/')",
+          "include_devices": "Dispositivi da includere (separati da virgola)",
+          "exclude_devices": "Dispositivi da escludere (separati da virgola)",
+          "scan_interval": "Tempo in secondi fra le scansioni",
+          "debug": "Debug avanzato"
+        },
+        "description": "* Richiesto",
+        "title": "Alexa Media Player - Configurazione"
       }
     }
   },
   "services": {
     "clear_history": {
+      "name": "Cancella cronologia voce Amazon",
       "description": "Elimina gli ultimi elementi dalla cronologia voce Alexa per ogni account.",
       "fields": {
         "email": {
-          "description": "Account da eliminare. Se vuoto, verranno cancellati tutti.",
-          "name": "Indirizzo email"
+          "name": "Indirizzo email",
+          "description": "Account da eliminare. Se vuoto, verranno cancellati tutti."
         },
         "entries": {
-          "description": "Numero di elementi da eliminare da 1 a 50. Se vuoto, ne verranno eliminati 50.",
-          "name": "Numero di Elementi"
+          "name": "Numero di Elementi",
+          "description": "Numero di elementi da eliminare da 1 a 50. Se vuoto, ne verranno eliminati 50."
         }
-      },
-      "name": "Cancella cronologia voce Amazon"
+      }
     },
     "force_logout": {
+      "name": "Forza Logout",
       "description": "Forza logout dell'account. Usato principalmente per il debugging.",
       "fields": {
         "email": {
-          "description": "Account da eliminare. Se vuoto, verranno cancellati tutti.",
-          "name": "Indirizzo email"
+          "name": "Indirizzo email",
+          "description": "Account da eliminare. Se vuoto, verranno cancellati tutti."
         }
-      },
-      "name": "Forza Logout"
+      }
     },
     "update_last_called": {
+      "name": "Aggiorna sensore last_called",
       "description": "Forza l'aggiornamento del dispositivo echo last_called per ogni account Alexa.",
       "fields": {
         "email": {
-          "description": "Lista di account Alexa da aggiornare. Se vuoto, verranno aggiornati tutti.",
-          "name": "Indirizzo email"
+          "name": "Indirizzo email",
+          "description": "Lista di account Alexa da aggiornare. Se vuoto, verranno aggiornati tutti."
         }
-      },
-      "name": "Aggiorna sensore last_called"
+      }
     }
   }
 }

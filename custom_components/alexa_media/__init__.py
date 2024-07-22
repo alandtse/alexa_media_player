@@ -304,12 +304,8 @@ async def async_setup_entry(hass, config_entry):
             "second_account_index": 0,
             "should_get_network": True,
             "options": {
-                CONF_INCLUDE_DEVICES: config_entry.data.get(
-                    CONF_INCLUDE_DEVICES, ""
-                ),
-                CONF_EXCLUDE_DEVICES: config_entry.data.get(
-                    CONF_EXCLUDE_DEVICES, ""
-                ),
+                CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
+                CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
                 CONF_QUEUE_DELAY: config_entry.data.get(
                     CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
                 ),
@@ -487,7 +483,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     # First run is a special case. Get the state of all entities(including disabled)
                     # This ensures all entities have state during startup without needing to request coordinator refresh
                     for type_of_entity, entities in alexa_entities.items():
-                        if type_of_entity == "guard" or extended_entity_discovery or queue_delay or scan_interval or debug:
+                        if (
+                            type_of_entity == "guard"
+                            or extended_entity_discovery
+                            or queue_delay
+                            or scan_interval
+                            or debug
+                        ):
                             for entity in entities:
                                 entities_to_monitor.add(entity.get("id"))
                     entity_state = await get_entity_data(
@@ -823,10 +825,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if bluetooth is not None and "bluetoothStates" in bluetooth:
             for b_state in bluetooth["bluetoothStates"]:
                 if device_serial == b_state["deviceSerialNumber"]:
-                    _LOGGER.debug("%s: setting value for: %s to %s",
-                       hide_email(email),
-                       hide_serial(device_serial),
-                       hide_serial(b_state)
+                    _LOGGER.debug(
+                        "%s: setting value for: %s to %s",
+                        hide_email(email),
+                        hide_serial(device_serial),
+                        hide_serial(b_state),
                     )
                     device["bluetooth_state"] = b_state
                     return device["bluetooth_state"]
@@ -965,9 +968,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         await coord.async_request_refresh()
                         if serial and serial in existing_serials:
                             await update_last_called(login_obj, last_called)
-                        _LOGGER.debug(
-                            "Updating last_called: %s", last_called
-                        )
+                        _LOGGER.debug("Updating last_called: %s", last_called)
                         async_dispatcher_send(
                             hass,
                             f"{DOMAIN}_{hide_email(email)}"[0:32],
@@ -1038,8 +1039,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         bluetooth_state = await update_bluetooth_state(
                             login_obj, serial
                         )
-                        _LOGGER.debug("bluetooth_state %s",
-                            hide_serial(bluetooth_state)
+                        _LOGGER.debug(
+                            "bluetooth_state %s", hide_serial(bluetooth_state)
                         )
                         if bluetooth_state:
                             async_dispatcher_send(
@@ -1369,7 +1370,7 @@ async def update_listener(hass, config_entry):
                 old_value,
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key],
             )
-#            if key == CONF_EXTENDED_ENTITY_DISCOVERY:
+            #            if key == CONF_EXTENDED_ENTITY_DISCOVERY:
             reload_needed = True
     if reload_needed:
         await hass.config_entries.async_reload(config_entry.entry_id)
@@ -1377,6 +1378,7 @@ async def update_listener(hass, config_entry):
             "%s options reloaded",
             hass.data[DATA_ALEXAMEDIA]["accounts"][email],
         )
+
 
 async def test_login_status(hass, config_entry, login) -> bool:
     """Test the login status and spawn requests for info."""

@@ -34,10 +34,12 @@
           "debug": "Geavanceerd debuggen",
           "email": "E-mailadres",
           "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
+          "extended_entity_discovery": "Include devices connected via Echo",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Apparaten toevoegen (Scheiding: komma)",
           "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Paswoord",
+          "queue_delay": "Seconden om te wachten om opdrachten in de wachtrij te plaatsen",
           "scan_interval": "Aantal seconden tussen scans",
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Domeinnaam van Amazon regio (bv.amazon.co.uk)"
@@ -51,10 +53,17 @@
     "step": {
       "init": {
         "data": {
+          "debug": "Geavanceerd debuggen",
+          "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
           "extended_entity_discovery": "Inclusief apparaten die zijn verbonden via Echo",
+          "hass_url": "Openbare URL om toegang te krijgen tot Home Assistant (inclusief afsluitende '/')",
+          "include_devices": "Apparaten toevoegen (Scheiding: komma)",
           "public_url": "Openbare URL om toegang te krijgen tot Home Assistant (inclusief afsluitende '/')",
-          "queue_delay": "Seconden om te wachten om opdrachten in de wachtrij te plaatsen"
-        }
+          "queue_delay": "Seconden om te wachten om opdrachten in de wachtrij te plaatsen",
+          "scan_interval": "Aantal seconden tussen scans"
+        },
+        "description": "Required *",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },

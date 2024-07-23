@@ -34,10 +34,12 @@
           "debug": "Расширенные возможности отладки",
           "email": "Адрес электронной почты",
           "exclude_devices": "Исключенные устройства (через запятую)",
+          "extended_entity_discovery": "Include devices connected via Echo",
           "hass_url": "URL-адрес для доступа к Home Assistant",
           "include_devices": "Включенные устройства (разделенное запятыми)",
           "otp_secret": "Встроенный ключ приложения 2FA (автоматически генерирует коды 2FA). Это не шесть цифр.",
           "password": "Пароль",
+          "queue_delay": "Секунды ожидания, чтобы выполнить команды вместе",
           "scan_interval": "Секунды между сканированиями",
           "securitycode": "[%key_id:55616596%]",
           "url": "Домен региона Amazon (например, amazon.co.uk)"
@@ -51,10 +53,17 @@
     "step": {
       "init": {
         "data": {
+          "debug": "Расширенные возможности отладки",
+          "exclude_devices": "Исключенные устройства (через запятую)",
           "extended_entity_discovery": "Включить устройства, подключенные через Echo",
+          "hass_url": "Публичный URL-адрес для доступа к Home Assistant (включая завершающий '/')",
+          "include_devices": "Включенные устройства (разделенное запятыми)",
           "public_url": "Публичный URL-адрес для доступа к Home Assistant (включая завершающий '/')",
-          "queue_delay": "Секунды ожидания, чтобы выполнить команды вместе"
-        }
+          "queue_delay": "Секунды ожидания, чтобы выполнить команды вместе",
+          "scan_interval": "Секунды между сканированиями"
+        },
+        "description": "Required *",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },

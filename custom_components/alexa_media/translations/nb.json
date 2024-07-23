@@ -34,10 +34,12 @@
           "debug": "Avansert feilsøking",
           "email": "Epostadresse",
           "exclude_devices": "Ekskludert enhet (kommaseparert)",
+          "extended_entity_discovery": "Include devices connected via Echo",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Inkluder enhet (kommaseparert)",
           "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
           "password": "Passord",
+          "queue_delay": "Sekunder for å vente på køkommandoer sammen",
           "scan_interval": "Sekunder mellom skanninger",
           "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)",
           "url": "Amazon-regiondomenet (f.eks. Amazon.co.uk)"
@@ -51,10 +53,17 @@
     "step": {
       "init": {
         "data": {
+          "debug": "Avansert feilsøking",
+          "exclude_devices": "Ekskludert enhet (kommaseparert)",
           "extended_entity_discovery": "Inkluder enheter som er koblet til via Echo",
+          "hass_url": "Offentlig URL for å få tilgang til Home Assistant (inkludert etterfølgende ''/'')",
+          "include_devices": "Inkluder enhet (kommaseparert)",
           "public_url": "Offentlig URL for å få tilgang til Home Assistant (inkludert etterfølgende ''/'')",
-          "queue_delay": "Sekunder for å vente på køkommandoer sammen"
-        }
+          "queue_delay": "Sekunder for å vente på køkommandoer sammen",
+          "scan_interval": "Sekunder mellom skanninger"
+        },
+        "description": "Required *",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },

@@ -34,10 +34,12 @@
           "debug": "Débogage avancé",
           "email": "Adresse Email",
           "exclude_devices": "Appareil exclu (séparé par des virgules)",
+          "extended_entity_discovery": "Include devices connected via Echo",
           "hass_url": "URL pour accéder à Home Assistant",
           "include_devices": "Appareil inclus (séparé par des virgules)",
           "otp_secret": "Clé d'application 2FA (2 facteurs) intégrée (génère automatiquement des codes 2FA). Il ne s'agit pas d'un code à six chiffres.",
           "password": "Mot de passe",
+          "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble",
           "scan_interval": "Secondes entre les analyses",
           "securitycode": "Code 2FA (recommandé pour éviter les problèmes de connexion)",
           "url": "Domaine de la région Amazon (exemple, amazon.fr)"
@@ -51,10 +53,17 @@
     "step": {
       "init": {
         "data": {
+          "debug": "Débogage avancé",
+          "exclude_devices": "Appareil exclu (séparé par des virgules)",
           "extended_entity_discovery": "Inclure les appareils connectés via Echo",
+          "hass_url": "URL publique pour accéder à Home Assistant (y compris le '/' final)",
+          "include_devices": "Appareil inclus (séparé par des virgules)",
           "public_url": "URL publique pour accéder à Home Assistant (y compris le '/' final)",
-          "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble"
-        }
+          "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble",
+          "scan_interval": "Secondes entre les analyses"
+        },
+        "description": "Required *",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },

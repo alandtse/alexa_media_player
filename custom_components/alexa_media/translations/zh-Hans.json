@@ -34,10 +34,12 @@
           "debug": "高级调试",
           "email": "电子邮件地址",
           "exclude_devices": "Excluded device (comma separated)",
+          "extended_entity_discovery": "包括通过 Echo 连接的设备",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
           "otp_secret": "内置 2FA App Key（自动生成 2FA 代码）。这不是六位数长。",
           "password": "密码",
+          "queue_delay": "Seconds to wait to queue commands together",
           "scan_interval": "Seconds between scans",
           "securitycode": "2FA Code (recommended to avoid login issues)",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
@@ -51,10 +53,17 @@
     "step": {
       "init": {
         "data": {
+          "debug": "高级调试",
+          "exclude_devices": "Excluded device (comma separated)",
           "extended_entity_discovery": "包括通过 Echo 连接的设备",
+          "hass_url": "访问Home Assistant的公共URL（包括尾随的'/'）",
+          "include_devices": "Included device (comma separated)",
           "public_url": "访问Home Assistant的公共URL（包括尾随的'/'）",
-          "queue_delay": "Seconds to wait to queue commands together"
-        }
+          "queue_delay": "Seconds to wait to queue commands together",
+          "scan_interval": "Seconds between scans"
+        },
+        "description": "Required *",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },

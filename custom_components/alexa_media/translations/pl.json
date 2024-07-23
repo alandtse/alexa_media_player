@@ -34,10 +34,12 @@
           "debug": "Zaawansowane debugowanie",
           "email": "Adres e-mail",
           "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
+          "extended_entity_discovery": "Include devices connected via Echo",
           "hass_url": "URL dostępu do Home Assistanta",
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
           "otp_secret": "Wbudowana aplikacja kluczy uwierzytelniania dwuskładnikowego (automatycznie generuje kody uwierzytelniania dwuskładnikowego)",
           "password": "Hasło",
+          "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń",
           "scan_interval": "Interwał skanowania (sekundy)",
           "securitycode": "Kod uwierzytelniania dwuskładnikowego (zalecany w celu uniknięcia problemów z logowaniem)",
           "url": "Region/domena Amazon (np. amazon.co.uk)"
@@ -51,10 +53,17 @@
     "step": {
       "init": {
         "data": {
+          "debug": "Zaawansowane debugowanie",
+          "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
           "extended_entity_discovery": "Uwzględnij urządzenia podłączone przez Echo",
+          "hass_url": "Publiczny URL do dostępu do Home Assistant (z końcowym '/')",
+          "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
           "public_url": "Publiczny URL do dostępu do Home Assistant (z końcowym '/')",
-          "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń"
-        }
+          "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń",
+          "scan_interval": "Interwał skanowania (sekundy)"
+        },
+        "description": "Required *",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },

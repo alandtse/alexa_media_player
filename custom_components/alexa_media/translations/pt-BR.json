@@ -34,10 +34,12 @@
           "debug": "Depuração avançada",
           "email": "Endereço de e-mail",
           "exclude_devices": "Dispositivos excluídos (separado por vírgula)",
+          "extended_entity_discovery": "Incluir dispositivos conectados via Echo",
           "hass_url": "Url para acesso ao Home Assistant",
           "include_devices": "Dispositivos incluídos (separado por vírgula)",
           "otp_secret": "Chave de aplicativo 2FA integrada (gera códigos 2FA automaticamente). Isso não tem seis dígitos.",
           "password": "Senha",
+          "queue_delay": "Segundos para aguardar os comandos de fila juntos",
           "scan_interval": "Segundos entre varreduras",
           "securitycode": "[%key_id:55616596%]",
           "url": "Domínio regional da Amazon (ex: amazon.co.uk)"
@@ -51,10 +53,17 @@
     "step": {
       "init": {
         "data": {
+          "debug": "Depuração avançada",
+          "exclude_devices": "Dispositivos excluídos (separado por vírgula)",
           "extended_entity_discovery": "Incluir dispositivos conectados via Echo",
+          "hass_url": "URL pública para acessar o Home Assistant (incluindo a barra final ''/')",
+          "include_devices": "Dispositivos incluídos (separado por vírgula)",
           "public_url": "URL pública para acessar o Home Assistant (incluindo a barra final ''/')",
-          "queue_delay": "Segundos para aguardar os comandos de fila juntos"
-        }
+          "queue_delay": "Segundos para aguardar os comandos de fila juntos",
+          "scan_interval": "Segundos entre escaneamentos"
+        },
+        "description": "Required *",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },

@@ -486,9 +486,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if (
                             type_of_entity == "guard"
                             or extended_entity_discovery
-                            or queue_delay
-                            or scan_interval
-                            or debug
                         ):
                             for entity in entities:
                                 entities_to_monitor.add(entity.get("id"))

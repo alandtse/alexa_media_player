@@ -65,6 +65,7 @@ from .const import (
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
+    DEFAULT_SCAN_INTERVAL,
     DEPENDENT_ALEXA_COMPONENTS,
     DOMAIN,
     ISSUE_URL,
@@ -254,8 +255,8 @@ async def async_setup_entry(hass, config_entry):
             await setup_alexa(hass, config_entry, login_obj)
 
     if not hass.data.get(DATA_ALEXAMEDIA):
-        _LOGGER.info(STARTUP)
-        _LOGGER.info("Loaded alexapy==%s", alexapy_version)
+        _LOGGER.debug(STARTUP)
+        _LOGGER.debug("Loaded alexapy==%s", alexapy_version)
     hass.data.setdefault(
         DATA_ALEXAMEDIA, {"accounts": {}, "config_flows": {}, "notify_service": None}
     )
@@ -303,16 +304,21 @@ async def async_setup_entry(hass, config_entry):
             "second_account_index": 0,
             "should_get_network": True,
             "options": {
-                CONF_QUEUE_DELAY: config_entry.options.get(
+                CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
+                CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
+                CONF_QUEUE_DELAY: config_entry.data.get(
                     CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
                 ),
-                CONF_PUBLIC_URL: config_entry.options.get(
+                CONF_SCAN_INTERVAL: config_entry.data.get(
+                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                ),
+                CONF_PUBLIC_URL: config_entry.data.get(
                     CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
                 ),
-                CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.options.get(
+                CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.data.get(
                     CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
                 ),
-                CONF_DEBUG: config_entry.options.get(CONF_DEBUG, False),
+                CONF_DEBUG: config_entry.data.get(CONF_DEBUG, False),
             },
             DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         },
@@ -813,10 +819,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if bluetooth is not None and "bluetoothStates" in bluetooth:
             for b_state in bluetooth["bluetoothStates"]:
                 if device_serial == b_state["deviceSerialNumber"]:
-                    # _LOGGER.debug("%s: setting value for: %s to %s",
-                    #               hide_email(email),
-                    #               hide_serial(device_serial),
-                    #               hide_serial(b_state))
+                    _LOGGER.debug(
+                        "%s: setting value for: %s to %s",
+                        hide_email(email),
+                        hide_serial(device_serial),
+                        hide_serial(b_state),
+                    )
                     device["bluetooth_state"] = b_state
                     return device["bluetooth_state"]
         _LOGGER.debug(
@@ -954,6 +962,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         await coord.async_request_refresh()
                         if serial and serial in existing_serials:
                             await update_last_called(login_obj, last_called)
+                        _LOGGER.debug("Updating last_called: %s", last_called)
                         async_dispatcher_send(
                             hass,
                             f"{DOMAIN}_{hide_email(email)}"[0:32],
@@ -1024,8 +1033,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         bluetooth_state = await update_bluetooth_state(
                             login_obj, serial
                         )
-                        # _LOGGER.debug("bluetooth_state %s",
-                        #               hide_serial(bluetooth_state))
+                        _LOGGER.debug(
+                            "bluetooth_state %s", hide_serial(bluetooth_state)
+                        )
                         if bluetooth_state:
                             async_dispatcher_send(
                                 hass,
@@ -1066,7 +1076,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ]:
                     pass
                 else:
-                    _LOGGER.warning(
+                    _LOGGER.debug(
                         "Unhandled command: %s with data %s. Please report at %s",
                         command,
                         hide_serial(json_payload),
@@ -1345,19 +1355,22 @@ async def update_listener(hass, config_entry):
     for key, old_value in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
         "options"
     ].items():
-        new_value = config_entry.options.get(key)
+        new_value = config_entry.data.get(key)
         if new_value is not None and new_value != old_value:
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key] = new_value
             _LOGGER.debug(
-                "Changing option %s from %s to %s",
+                "Option %s changed from %s to %s",
                 key,
                 old_value,
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key],
             )
-            if key == CONF_EXTENDED_ENTITY_DISCOVERY:
-                reload_needed = True
+            reload_needed = True
     if reload_needed:
         await hass.config_entries.async_reload(config_entry.entry_id)
+        _LOGGER.debug(
+            "%s options reloaded",
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email],
+        )
 
 
 async def test_login_status(hass, config_entry, login) -> bool:

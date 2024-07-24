@@ -423,6 +423,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     dt.as_utc(self._attr_native_value),
                 )
 
+    @callback
     def _trigger_event(self, time_date) -> None:
         _LOGGER.debug(
             "%s:Firing %s at %s",

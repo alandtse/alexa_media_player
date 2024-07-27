@@ -705,6 +705,18 @@ class TimerSensor(AlexaMediaNotificationSensor):
         )
         return self._attr_icon if not self.paused else off_icon
 
+    @property
+    def timer(self):
+        """Return the timer of the sensor."""
+        return self._next.get("timerLabel") if self._next else None
+
+    @property
+    def extra_state_attributes(self):
+        """Return the scene state attributes."""
+        attr = super().extra_state_attributes
+        attr.update({"timer": self.timer})
+        return attr
+
 
 class ReminderSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Reminder sensor."""

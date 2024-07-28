@@ -62,8 +62,8 @@
           "queue_delay": "Segundos para aguardar os comandos de fila juntos",
           "scan_interval": "Segundos entre escaneamentos"
         },
-        "description": "Required *",
-        "title": "Alexa Media Player - Reconfiguration"
+        "description": "Obrigatório *",
+        "title": "Alexa Media Player - Reconfiguração"
       }
     }
   },

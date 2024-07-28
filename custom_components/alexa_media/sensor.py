@@ -423,7 +423,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     dt.as_utc(self._attr_native_value),
                 )
 
-    @callback
     def _trigger_event(self, time_date) -> None:
         _LOGGER.debug(
             "%s:Firing %s at %s",
@@ -431,7 +430,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             "alexa_media_notification_event",
             dt.as_local(time_date),
         )
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             "alexa_media_notification_event",
             event_data={
                 "email": hide_email(self._account),

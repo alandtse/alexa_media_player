@@ -423,6 +423,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     dt.as_utc(self._attr_native_value),
                 )
 
+    @callback
     def _trigger_event(self, time_date) -> None:
         _LOGGER.debug(
             "%s:Firing %s at %s",
@@ -703,6 +704,18 @@ class TimerSensor(AlexaMediaNotificationSensor):
             else "mdi:timer-off"
         )
         return self._attr_icon if not self.paused else off_icon
+
+    @property
+    def timer(self):
+        """Return the timer of the sensor."""
+        return self._next.get("timerLabel") if self._next else None
+
+    @property
+    def extra_state_attributes(self):
+        """Return the scene state attributes."""
+        attr = super().extra_state_attributes
+        attr.update({"timer": self.timer})
+        return attr
 
 
 class ReminderSensor(AlexaMediaNotificationSensor):

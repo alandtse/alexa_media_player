@@ -9,6 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 import asyncio
 from datetime import datetime, timedelta
+from httpx import TimeoutException
 from json import JSONDecodeError, loads
 import logging
 import time

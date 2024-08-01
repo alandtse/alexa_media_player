@@ -124,6 +124,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (vol.Required(CONF_PASSWORD), str),
                 (vol.Optional(CONF_OTPSECRET), str),
                 (vol.Optional(CONF_SECURITYCODE), str),
+                (vol.Optional(CONF_PUBLIC_URL), str),
                 (vol.Optional(CONF_INCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_EXCLUDE_DEVICES, default=""), str),
                 (vol.Optional(CONF_SCAN_INTERVAL, default=60), int),
@@ -179,6 +180,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     vol.Optional(
                         CONF_HASS_URL,
                         default=self.config.get(CONF_HASS_URL, hass_url),
+                    ),
+                    str,
+                ),
+                (
+                    vol.Optional(
+                        CONF_PUBLIC_URL,
+                        default=self.config.get(CONF_PUBLIC_URL, hass_url),
                     ),
                     str,
                 ),
@@ -738,8 +746,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:
             self.config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
-        if CONF_HASS_URL in user_input:
-            self.config[CONF_HASS_URL] = user_input[CONF_HASS_URL]
+        if CONF_URL in user_input:
+            self.config[CONF_URL] = user_input[CONF_URL]
+        if CONFP_UBLIC_URL in user_input:
+            self.config[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL]
         if CONF_SCAN_INTERVAL in user_input:
             self.config[CONF_SCAN_INTERVAL] = (
                 user_input[CONF_SCAN_INTERVAL]
@@ -778,19 +788,32 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.data_schema,
             {
                 vol.Required(
-                    CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
-                ): str,
-                vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")): str,
-                vol.Required(
-                    CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
+                    CONF_URL, 
+                    default=self.config.get(CONF_URL, "amazon.com")
                 ): str,
                 vol.Required(
-                    CONF_SECURITYCODE,
+                    CONF_EMAIL, 
+                    default=self.config.get(CONF_EMAIL, "")
+                ): str,
+                vol.Required(
+                    CONF_PASSWORD, 
+                    default=self.config.get(CONF_PASSWORD, "")
+                ): str,
+                vol.Required(
+                    CONF_SECURITYCODE, 
                     default=self.securitycode if self.securitycode else "",
                 ): str,
                 vol.Required(
                     CONF_OTPSECRET,
                     default=self.config.get(CONF_OTPSECRET, ""),
+                ): str,
+                vol.Required(
+                    CONF_HASS_URL, 
+                    default=self.config.get(CONF_HASS_URL, hass_url)
+                ): str,
+                vol.Optional(
+                    CONF_PUBLIC_URL,
+                    default=self.config.get(CONF_PUBLIC_URL, hass_url),
                 ): str,
                 vol.Optional(
                     CONF_INCLUDE_DEVICES,
@@ -801,7 +824,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     default=self.config.get(CONF_EXCLUDE_DEVICES, ""),
                 ): str,
                 vol.Optional(
-                    CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
+                    CONF_SCAN_INTERVAL, 
+                    default=self.config.get(CONF_SCAN_INTERVAL, 60)
                 ): int,
                 vol.Optional(
                     CONF_QUEUE_DELAY,
@@ -815,7 +839,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                 ): bool,
                 vol.Optional(
-                    CONF_DEBUG, default=bool(self.config.get(CONF_DEBUG, False))
+                    CONF_DEBUG, 
+                    default=bool(self.config.get(CONF_DEBUG, False))
                 ): bool,
             },
         )
@@ -845,6 +870,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         self.options_schema = OrderedDict(
             [
+                (
+                    vol.Optional(
+                        CONF_PUBLIC_URL,
+                        default=self.config_entry.data.get(CONF_PUBLIC_URL, hass_url),
+                    ),
+                    str,
+                ),
                 (
                     vol.Optional(
                         CONF_INCLUDE_DEVICES,

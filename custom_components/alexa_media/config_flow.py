@@ -789,19 +789,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.data_schema,
             {
                 vol.Required(
-                    CONF_URL, 
-                    default=self.config.get(CONF_URL, "amazon.com")
+                    CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
+                ): str,
+                vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")): str,
+                vol.Required(
+                    CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
                 ): str,
                 vol.Required(
-                    CONF_EMAIL, 
-                    default=self.config.get(CONF_EMAIL, "")
-                ): str,
-                vol.Required(
-                    CONF_PASSWORD, 
-                    default=self.config.get(CONF_PASSWORD, "")
-                ): str,
-                vol.Required(
-                    CONF_SECURITYCODE, 
+                    CONF_SECURITYCODE,
                     default=self.securitycode if self.securitycode else "",
                 ): str,
                 vol.Required(
@@ -809,8 +804,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     default=self.config.get(CONF_OTPSECRET, ""),
                 ): str,
                 vol.Required(
-                    CONF_HASS_URL, 
-                    default=self.config.get(CONF_HASS_URL, hass_url)
+                    CONF_HASS_URL, default=self.config.get(CONF_HASS_URL, hass_url)
                 ): str,
                 vol.Optional(
                     CONF_PUBLIC_URL,
@@ -825,8 +819,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     default=self.config.get(CONF_EXCLUDE_DEVICES, ""),
                 ): str,
                 vol.Optional(
-                    CONF_SCAN_INTERVAL, 
-                    default=self.config.get(CONF_SCAN_INTERVAL, 60)
+                    CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
                 ): int,
                 vol.Optional(
                     CONF_QUEUE_DELAY,
@@ -840,8 +833,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                 ): bool,
                 vol.Optional(
-                    CONF_DEBUG, 
-                    default=bool(self.config.get(CONF_DEBUG, False))
+                    CONF_DEBUG, default=bool(self.config.get(CONF_DEBUG, False))
                 ): bool,
             },
         )
@@ -874,7 +866,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 (
                     vol.Optional(
                         CONF_PUBLIC_URL,
-                        default=self.config_entry.data.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),
+                        default=self.config_entry.data.get(
+                            CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
+                        ),
                     ),
                     str,
                 ),

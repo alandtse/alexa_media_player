@@ -152,6 +152,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             hass_url: str = get_url(self.hass, prefer_external=True)
         except NoURLAvailableError:
             hass_url = ""
+        DEFAULT_PUBLIC_URL = hass_url
         self.proxy_schema = OrderedDict(
             [
                 (
@@ -186,7 +187,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (
                     vol.Optional(
                         CONF_PUBLIC_URL,
-                        default=self.config.get(CONF_PUBLIC_URL, hass_url),
+                        default=self.config.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),
                     ),
                     str,
                 ),
@@ -748,7 +749,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
         if CONF_URL in user_input:
             self.config[CONF_URL] = user_input[CONF_URL]
-        if CONFP_UBLIC_URL in user_input:
+        if CONF_PUBLIC_URL in user_input:
             self.config[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL]
         if CONF_SCAN_INTERVAL in user_input:
             self.config[CONF_SCAN_INTERVAL] = (
@@ -813,7 +814,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 ): str,
                 vol.Optional(
                     CONF_PUBLIC_URL,
-                    default=self.config.get(CONF_PUBLIC_URL, hass_url),
+                    default=self.config.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),
                 ): str,
                 vol.Optional(
                     CONF_INCLUDE_DEVICES,
@@ -873,7 +874,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 (
                     vol.Optional(
                         CONF_PUBLIC_URL,
-                        default=self.config_entry.data.get(CONF_PUBLIC_URL, hass_url),
+                        default=self.config_entry.data.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),
                     ),
                     str,
                 ),

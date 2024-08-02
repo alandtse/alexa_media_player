@@ -27,6 +27,7 @@ from alexapy import (
 )
 import async_timeout
 from homeassistant import util
+from homeassistant.components.persistent_notification import async_creat
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     CONF_EMAIL,
@@ -45,6 +46,7 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt, slugify
+from httpx import TimeoutException
 import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
@@ -176,9 +178,10 @@ async def async_setup(hass, config, discovery_info=None):
                     DOMAIN,
                     context={"source": SOURCE_IMPORT},
                     data={
+                        CONF_URL: account[CONF_URL],
                         CONF_EMAIL: account[CONF_EMAIL],
                         CONF_PASSWORD: account[CONF_PASSWORD],
-                        CONF_URL: account[CONF_URL],
+                        CONF_PUBLIC_URL: account[CONF_PUBLIC_URL],
                         CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                         CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),
@@ -1387,7 +1390,8 @@ async def test_login_status(hass, config_entry, login) -> bool:
         elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
         api_calls: int = login.stats.get("api_calls")
         message += f"Relogin required after {elaspsed_time} and {api_calls} api calls."
-    hass.components.persistent_notification.async_create(
+    # hass.components.persistent_notification.async_create(
+    async_create(
         title="Alexa Media Reauthentication Required",
         message=message,
         notification_id=f"alexa_media_{slugify(login.email)}{slugify(login.url[7:])}",

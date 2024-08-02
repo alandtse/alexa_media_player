@@ -27,7 +27,7 @@ from alexapy import (
 )
 import async_timeout
 from homeassistant import util
-from homeassistant.components.persistent_notification import async_creat
+from homeassistant.components.persistent_notification import async_create
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     CONF_EMAIL,

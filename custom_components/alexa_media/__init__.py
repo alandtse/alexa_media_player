@@ -28,6 +28,7 @@ from alexapy import (
 import async_timeout
 from homeassistant import util
 from homeassistant.components.persistent_notification import (
+    create as create_persistent_notification,
     async_create as async_create_persistent_notification,
     async_dismiss as async_dismiss_persistent_notification,
 )
@@ -1394,6 +1395,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
         api_calls: int = login.stats.get("api_calls")
         message += f"Relogin required after {elaspsed_time} and {api_calls} api calls."
     async_create_persistent_notification(
+        hass,
         title="Alexa Media Reauthentication Required",
         message=message,
         notification_id=f"alexa_media_{slugify(login.email)}{slugify(login.url[7:])}",

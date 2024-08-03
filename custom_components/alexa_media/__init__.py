@@ -28,9 +28,9 @@ from alexapy import (
 import async_timeout
 from homeassistant import util
 from homeassistant.components.persistent_notification import (
-    create as create_persistent_notification,
     async_create as async_create_persistent_notification,
     async_dismiss as async_dismiss_persistent_notification,
+    create as create_persistent_notification,
 )
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (

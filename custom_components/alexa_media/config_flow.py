@@ -29,9 +29,9 @@ from alexapy import (
 from homeassistant import config_entries
 from homeassistant.components.http.view import HomeAssistantView
 from homeassistant.components.persistent_notification import (
-    create as create_persistent_notification,
     async_create as async_create_persistent_notification,
     async_dismiss as async_dismiss_persistent_notification,
+    create as create_persistent_notification,
 )
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_URL
 from homeassistant.core import callback

@@ -49,7 +49,7 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt, slugify
-#from httpx import TimeoutException
+# from httpx import TimeoutException
 import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
@@ -79,9 +79,7 @@ from .const import (
     SCAN_INTERVAL,
     STARTUP,
 )
-
 from .exceptions import TimeoutException
-
 from .helpers import (
     _catch_login_errors,
     _existing_serials,
@@ -910,9 +908,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This allows push notifications from Alexa to update last_called
         and media state.
         """
-        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-            "coordinator"
-        )
+        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
 
         updates = (
             message_obj.get("directive", {})
@@ -1327,8 +1323,7 @@ async def async_unload_entry(hass, entry) -> bool:
     if hass.data[DATA_ALEXAMEDIA].get("config_flows") == {}:
         _LOGGER.debug("Removing config_flows data")
         async_dismiss_persistent_notification(
-            hass,
-            f"alexa_media_{slugify(email)}{slugify((entry.data['url'])[7:])}"
+            hass, f"alexa_media_{slugify(email)}{slugify((entry.data['url'])[7:])}"
         )
         hass.data[DATA_ALEXAMEDIA].pop("config_flows")
     if not hass.data[DATA_ALEXAMEDIA]:

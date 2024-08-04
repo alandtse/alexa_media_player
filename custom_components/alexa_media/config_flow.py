@@ -147,7 +147,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_user(self, user_input=None):
         # pylint: disable=too-many-branches
-        
+
         """Provide a proxy for login."""
         self._save_user_input_to_config(user_input=user_input)
         """ Internal URL for proxy authentication """
@@ -155,13 +155,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             hass_url: str = get_url(self.hass, allow_external=False)
         except NoURLAvailableError:
             hass_url = DEFAULT_HASS_URL
-            
+
         """ External URL for cloud connected services """
         try:
             DEFAULT_PUBLIC_URL: str = get_url(self.hass, allow_internal=False)
         except NoURLAvailableError:
             DEFAULT_PUBLIC_URL = ""
-            
+
         self.proxy_schema = OrderedDict(
             [
                 (
@@ -800,43 +800,44 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 vol.Required(
                     CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
                 ): str,
-                vol.Required(
-                    CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")
-                ): str,
+                vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")): str,
                 vol.Required(
                     CONF_PASSWORD, default=self.config.get(CONF_PASSWORD, "")
                 ): str,
                 vol.Required(
                     CONF_SECURITYCODE,
-                    default=self.securitycode if self.securitycode else ""
+                    default=self.securitycode if self.securitycode else "",
                 ): str,
                 vol.Required(
-                    CONF_OTPSECRET,
-                    default=self.config.get(CONF_OTPSECRET, "")
+                    CONF_OTPSECRET, default=self.config.get(CONF_OTPSECRET, "")
                 ): str,
                 vol.Required(
                     CONF_HASS_URL, default=self.config.get(CONF_HASS_URL, hass_url)
                 ): str,
                 vol.Optional(
-                    CONF_PUBLIC_URL, default=self.config.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
+                    CONF_PUBLIC_URL,
+                    default=self.config.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),
                 ): str,
                 vol.Optional(
                     CONF_INCLUDE_DEVICES,
-                    default=self.config.get(CONF_INCLUDE_DEVICES, "")
+                    default=self.config.get(CONF_INCLUDE_DEVICES, ""),
                 ): str,
                 vol.Optional(
                     CONF_EXCLUDE_DEVICES,
-                    default=self.config.get(CONF_EXCLUDE_DEVICES, "")
+                    default=self.config.get(CONF_EXCLUDE_DEVICES, ""),
                 ): str,
                 vol.Optional(
                     CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
                 ): int,
                 vol.Optional(
-                    CONF_QUEUE_DELAY,
-                    default=self.config.get(CONF_QUEUE_DELAY, 1.5)
+                    CONF_QUEUE_DELAY, default=self.config.get(CONF_QUEUE_DELAY, 1.5)
                 ): float,
                 vol.Optional(
-                    CONF_EXTENDED_ENTITY_DISCOVERY, default=self.config.get(CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY)
+                    CONF_EXTENDED_ENTITY_DISCOVERY,
+                    default=self.config.get(
+                        CONF_EXTENDED_ENTITY_DISCOVERY,
+                        DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+                    ),
                 ): bool,
                 vol.Optional(
                     CONF_DEBUG, default=self.config.get(CONF_DEBUG, False)

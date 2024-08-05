@@ -756,8 +756,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:
             self.config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
-        if CONF_HASS_URL in user_input:
-            self.config[CONF_HASS_URL] = user_input[CONF_HASS_URL]
+        if CONF_URL in user_input:
+            self.config[CONF_URL] = user_input[CONF_URL]
         if CONF_PUBLIC_URL in user_input:
             self.config[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL]
         if CONF_SCAN_INTERVAL in user_input:

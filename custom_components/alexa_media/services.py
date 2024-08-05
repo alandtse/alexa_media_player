@@ -20,7 +20,6 @@ from .const import (
     ATTR_NUM_ENTRIES,
     DATA_ALEXAMEDIA,
     DOMAIN,
-    SERVICE_CLEAR_HISTORY,
     SERVICE_FORCE_LOGOUT,
     SERVICE_UPDATE_LAST_CALLED,
 )
@@ -54,12 +53,6 @@ class AlexaMediaServices:
             schema=LAST_CALL_UPDATE_SCHEMA,
         )
         self.hass.services.async_register(
-            DOMAIN,
-            SERVICE_CLEAR_HISTORY,
-            self.clear_history,
-            schema=CLEAR_HISTORY_SCHEMA,
-        )
-        self.hass.services.async_register(
             DOMAIN, SERVICE_FORCE_LOGOUT, self.force_logout, schema=FORCE_LOGOUT_SCHEMA
         )
 
@@ -68,10 +61,6 @@ class AlexaMediaServices:
         self.hass.services.async_remove(
             DOMAIN,
             SERVICE_UPDATE_LAST_CALLED,
-        )
-        self.hass.services.async_remove(
-            DOMAIN,
-            SERVICE_CLEAR_HISTORY,
         )
         self.hass.services.async_remove(DOMAIN, SERVICE_FORCE_LOGOUT)
 

@@ -59,6 +59,7 @@ from .const import (
     DATA_ALEXAMEDIA,
     DEFAULT_DEBUG,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+    DEFAULT_HASS_URL,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DEFAULT_SCAN_INTERVAL,
@@ -146,13 +147,21 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     async def async_step_user(self, user_input=None):
         # pylint: disable=too-many-branches
+
         """Provide a proxy for login."""
         self._save_user_input_to_config(user_input=user_input)
+        """ Internal URL for proxy authentication """
         try:
-            hass_url: str = get_url(self.hass, prefer_external=True)
+            hass_url: str = get_url(self.hass, allow_external=False)
         except NoURLAvailableError:
-            hass_url = ""
-        DEFAULT_PUBLIC_URL = hass_url
+            hass_url = DEFAULT_HASS_URL
+
+        """ External URL for cloud connected services """
+        try:
+            DEFAULT_PUBLIC_URL: str = get_url(self.hass, allow_internal=False)
+        except NoURLAvailableError:
+            DEFAULT_PUBLIC_URL = ""
+
         self.proxy_schema = OrderedDict(
             [
                 (
@@ -729,8 +738,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """
         if user_input is None:
             return
-        if CONF_URL in user_input:
-            self.config[CONF_URL] = user_input[CONF_URL]
+        if CONF_HASS_URL in user_input:
+            self.config[CONF_HASS_URL] = user_input[CONF_HASS_URL]
         self.securitycode = user_input.get(CONF_SECURITYCODE)
         if self.securitycode is not None:
             self.config[CONF_SECURITYCODE] = self.securitycode
@@ -800,8 +809,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     default=self.securitycode if self.securitycode else "",
                 ): str,
                 vol.Required(
-                    CONF_OTPSECRET,
-                    default=self.config.get(CONF_OTPSECRET, ""),
+                    CONF_OTPSECRET, default=self.config.get(CONF_OTPSECRET, "")
                 ): str,
                 vol.Required(
                     CONF_HASS_URL, default=self.config.get(CONF_HASS_URL, hass_url)
@@ -822,8 +830,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     CONF_SCAN_INTERVAL, default=self.config.get(CONF_SCAN_INTERVAL, 60)
                 ): int,
                 vol.Optional(
-                    CONF_QUEUE_DELAY,
-                    default=self.config.get(CONF_QUEUE_DELAY, 1.5),
+                    CONF_QUEUE_DELAY, default=self.config.get(CONF_QUEUE_DELAY, 1.5)
                 ): float,
                 vol.Optional(
                     CONF_EXTENDED_ENTITY_DISCOVERY,
@@ -833,7 +840,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                 ): bool,
                 vol.Optional(
-                    CONF_DEBUG, default=bool(self.config.get(CONF_DEBUG, False))
+                    CONF_DEBUG, default=self.config.get(CONF_DEBUG, False)
                 ): bool,
             },
         )

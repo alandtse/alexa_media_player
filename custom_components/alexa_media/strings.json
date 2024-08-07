@@ -22,7 +22,8 @@
           "password": "Password",
           "securitycode": "[%key_id:55616596%]",
           "otp_secret": "Built-in 2FA App Key - This is 52 characters, not six!",
-          "hass_url": "Url to access Home Assistant",
+          "hass_url": "Local URL to access Home Assistant",
+          "public_url": "Public Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",
           "scan_interval": "Seconds between scans",
@@ -53,7 +54,7 @@
     "step": {
       "init": {
         "data": {
-          "hass_url": "Public URL to access Home Assistant (including trailing '/')",
+          "public_url": "Public URL to access Home Assistant (including trailing '/')",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",
           "scan_interval": "Seconds between scans",

@@ -7,10 +7,13 @@ authors = [
   "Alan D. Tse <alandtse@gmail.com>",
 ]
 license = "Apache-2.0"
+packages = [
+    { include = "custom_components/alexa_media" }
+]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
-alexapy = "1.27.10"
+alexapy = "1.28.2"
 aiohttp = ">=3.8.1"
 packaging = ">=20.3"
 wrapt = ">=1.12.1"

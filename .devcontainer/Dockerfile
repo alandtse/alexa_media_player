@@ -21,9 +21,7 @@ WORKDIR /workspace
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies
-#RUN poetry cache clear pypi --all
 RUN poetry update -vv
-#RUN poetry lock -vv
 
 # [Optional] If your pip requirements rarely change, uncomment this section to add them to the image.
 # COPY requirements.txt /tmp/pip-tmp/

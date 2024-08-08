@@ -22,7 +22,7 @@ COPY pyproject.toml poetry.lock ./
 
 # Install dependencies
 RUN poetry cache clear pypi --all
-RUN poetry update
+RUN poetry update -vv
 
 # [Optional] If your pip requirements rarely change, uncomment this section to add them to the image.
 # COPY requirements.txt /tmp/pip-tmp/

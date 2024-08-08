@@ -1136,9 +1136,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
                 ):
                     _LOGGER.debug("Discovered new media_player %s", hide_serial(serial))
-                    (
-                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
-                    ) = True
+                    (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]) = (
+                        True
+                    )
                     if coordinator:
                         await coordinator.async_request_refresh()
 
@@ -1190,9 +1190,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "http2_lastattempt"
             ] = time.time()
-            http2_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                "http2"
-            ] = await http2_connect()
+            http2_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = (
+                await http2_connect()
+            )
             errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = (
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] + 1
             )
@@ -1250,24 +1250,24 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         else config.get(CONF_SCAN_INTERVAL)
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
-    http2_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-        "http2"
-    ] = await http2_connect()
+    http2_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = (
+        await http2_connect()
+    )
     coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
     if coordinator is None:
         _LOGGER.debug("%s: Creating coordinator", hide_email(email))
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "coordinator"
-        ] = coordinator = DataUpdateCoordinator(
-            hass,
-            _LOGGER,
-            # Name of the data. For logging purposes.
-            name="alexa_media",
-            update_method=async_update_data,
-            # Polling interval. Will only be polled if there are subscribers.
-            update_interval=timedelta(
-                seconds=scan_interval * 10 if http2_enabled else scan_interval
-            ),
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["coordinator"] = coordinator = (
+            DataUpdateCoordinator(
+                hass,
+                _LOGGER,
+                # Name of the data. For logging purposes.
+                name="alexa_media",
+                update_method=async_update_data,
+                # Polling interval. Will only be polled if there are subscribers.
+                update_interval=timedelta(
+                    seconds=scan_interval * 10 if http2_enabled else scan_interval
+                ),
+            )
         )
     else:
         _LOGGER.debug("%s: Reusing coordinator", hide_email(email))
@@ -1389,7 +1389,9 @@ async def test_login_status(hass, config_entry, login) -> bool:
     account = config_entry.data
     _LOGGER.debug("Logging in: %s %s", obfuscate(account), in_progess_instances(hass))
     _LOGGER.debug("Login stats: %s", login.stats)
-    message: str = f"Reauthenticate {login.email} on the [Integrations](/config/integrations) page. "
+    message: str = (
+        f"Reauthenticate {login.email} on the [Integrations](/config/integrations) page. "
+    )
     if login.stats.get("login_timestamp") != datetime(1, 1, 1):
         elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
         api_calls: int = login.stats.get("api_calls")

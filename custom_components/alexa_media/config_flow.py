@@ -811,9 +811,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 vol.Required(
                     CONF_OTPSECRET, default=self.config.get(CONF_OTPSECRET, "")
                 ): str,
-                vol.Required(
-                    CONF_HASS_URL, default=self.config.get(CONF_HASS_URL, hass_url)
-                ): str,
                 vol.Optional(
                     CONF_PUBLIC_URL,
                     default=self.config.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),

@@ -1336,9 +1336,7 @@ async def async_unload_entry(hass, entry) -> bool:
             os.remove(pickle)
             _LOGGER.debug(f"Deleted file {pickle}")
         except Exception as ex:
-            _LOGGER.error(
-                "Failed to delete file {}: {}".format(pickle, ex)
-            )
+            _LOGGER.error(f"Failed to delete file {pickle}: {ex}")
     else:
         _LOGGER.debug(
             "Unable to remove alexa_media data structure: %s",

@@ -8,15 +8,13 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
-import async_timeout
+from datetime import datetime, timedelta
+from json import JSONDecodeError, loads
 import logging
 import os
 import time
-import voluptuous as vol
-
-from datetime import datetime, timedelta
-from json import JSONDecodeError, loads
 from typing import Optional
+
 from alexapy import (
     AlexaAPI,
     AlexaLogin,
@@ -28,6 +26,7 @@ from alexapy import (
     hide_serial,
     obfuscate,
 )
+import async_timeout
 from homeassistant import util
 from homeassistant.components.persistent_notification import (
     async_create as async_create_persistent_notification,
@@ -51,6 +50,7 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt, slugify
+import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progess_instances
@@ -1334,9 +1334,13 @@ async def async_unload_entry(hass, entry) -> bool:
         pickle = "/config/.storage/alexa_media." + email + ".pickle"
         try:
             os.remove(pickle)
-            _LOGGER.debug("Deleted pickle file {}".format(pickle))
+            _LOGGER.debug(f"Deleted pickle file {pickle}")
         except Exception as ex:
-            _LOGGER.error("Pickle file {} could not be deleted. Verify it does not exist.".format(pickle, ex))
+            _LOGGER.error(
+                "Pickle file {} could not be deleted. Verify it does not exist.".format(
+                    pickle, ex
+                )
+            )
     else:
         _LOGGER.debug(
             "Unable to remove alexa_media data structure: %s",

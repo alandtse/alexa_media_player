@@ -1289,6 +1289,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     email = entry.data["email"]
+    login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
     _LOGGER.debug("Attempting to unload entry for %s", hide_email(email))
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         _LOGGER.debug("Forwarding unload entry to %s", component)
@@ -1330,13 +1331,15 @@ async def async_unload_entry(hass, entry) -> bool:
         _LOGGER.debug("Removing alexa_media data structure")
         if hass.data.get(DATA_ALEXAMEDIA):
             hass.data.pop(DATA_ALEXAMEDIA)
-        # Delete pickle file
-        pickle = "/config/.storage/alexa_media." + email + ".pickle"
+        # Delete cookiefile
         try:
-            os.remove(pickle)
-            _LOGGER.debug(f"Deleted file {pickle}")
+            await login_obj.delete_cookiefile()
+            _LOGGER.debug("Deleted cookiefile")
         except Exception as ex:
-            _LOGGER.error(f"Failed to delete file {pickle}: {ex}")
+            _LOGGER.error(
+                "Failed to delete cookiefile: %s",
+                ex,
+            )
     else:
         _LOGGER.debug(
             "Unable to remove alexa_media data structure: %s",

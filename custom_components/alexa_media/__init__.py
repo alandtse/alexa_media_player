@@ -1332,7 +1332,7 @@ async def async_unload_entry(hass, entry) -> bool:
         if hass.data.get(DATA_ALEXAMEDIA):
             hass.data.pop(DATA_ALEXAMEDIA)
         # Delete cookiefile
-        if callable(getattr(os,'delete_cookiefile', None)):
+        if callable(getattr(AlexaLogin,'delete_cookiefile', None)):
           try:
               await login_obj.delete_cookiefile()
               _LOGGER.debug("Deleted cookiefile")

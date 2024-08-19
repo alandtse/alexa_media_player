@@ -1332,13 +1332,20 @@ async def async_unload_entry(hass, entry) -> bool:
         if hass.data.get(DATA_ALEXAMEDIA):
             hass.data.pop(DATA_ALEXAMEDIA)
         # Delete cookiefile
-        try:
-            await login_obj.delete_cookiefile()
-            _LOGGER.debug("Deleted cookiefile")
-        except Exception as ex:
-            _LOGGER.error(
-                "Failed to delete cookiefile: %s",
-                ex,
+        if callable(getattr(AlexaLogin, "delete_cookiefile", None)):
+            try:
+                await login_obj.delete_cookiefile()
+                _LOGGER.debug("Deleted cookiefile")
+            except Exception as ex:
+                _LOGGER.error(
+                    "Failed to delete cookiefile: %s",
+                    ex,
+                )
+        else:
+            _LOGGER.warn(
+                "Could not remove cookiefile: /config/.storage/alexa_media.%s.pickle."
+                "  Please manually delete the file.",
+                email,
             )
     else:
         _LOGGER.debug(

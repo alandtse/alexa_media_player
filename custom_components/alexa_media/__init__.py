@@ -537,7 +537,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         for device in devices:
             serial = device["serialNumber"]
             dev_name = device["accountName"]
-            if include and dev_name not in include:
+            if include and dev_name not in include.splt(','):
                 include_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:
@@ -550,7 +550,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     serial
                 ] = device
                 continue
-            if exclude and dev_name in exclude:
+            if exclude and dev_name in exclude.splt(','):
                 exclude_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:

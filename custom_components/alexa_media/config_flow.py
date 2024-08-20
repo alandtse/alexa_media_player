@@ -28,6 +28,9 @@ from alexapy import (
 )
 from homeassistant import config_entries
 from homeassistant.components.http.view import HomeAssistantView
+from homeassistant.components.persistent_notification import (
+    async_dismiss as async_dismiss_persistent_notification,
+)
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_URL
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult, UnknownFlow
@@ -642,7 +645,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "alexa_media_relogin_success",
                     event_data={"email": hide_email(email), "url": login.url},
                 )
-                self.hass.components.persistent_notification.async_dismiss(
+                async_dismiss_persistent_notification(
                     f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
                 )
                 if not self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(
@@ -695,7 +698,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if login.status and (login.status.get("login_failed")):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
-            self.hass.components.persistent_notification.async_dismiss(
+            async_dismiss_persistent_notification(
                 f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
             )
             return self.async_abort(reason="login_failed")

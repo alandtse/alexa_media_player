@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "alexa_media_player"
-version = "4.12.9"
+version = "4.12.10"
 description = "This is a custom component to allow control of Amazon Alexa devices in [Homeassistant](https://home-assistant.io) using the unofficial Alexa API."
 authors = [
   "Keaton Taylor <keatonstaylor@gmail.com>",

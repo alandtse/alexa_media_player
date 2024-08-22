@@ -537,7 +537,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         for device in devices:
             serial = device["serialNumber"]
             dev_name = device["accountName"]
-            if include and dev_name not in include.splt(","):
+            if include and dev_name not in include:
                 include_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:
@@ -550,7 +550,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     serial
                 ] = device
                 continue
-            if exclude and dev_name in exclude.splt(","):
+            if exclude and dev_name in exclude:
                 exclude_filter.append(dev_name)
                 if "appDeviceList" in device:
                     for app in device["appDeviceList"]:
@@ -1243,9 +1243,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     _LOGGER.debug("Setting up Alexa devices for %s", hide_email(login_obj.email))
     config = config_entry.data
     email = config.get(CONF_EMAIL)
-    include = config.get(CONF_INCLUDE_DEVICES)
-    exclude = config.get(CONF_EXCLUDE_DEVICES)
-    scan_interval: float = (
+    include = (
+        cv.ensure_list_csv(config[CONF_INCLUDE_DEVICES])
+        if config[CONF_INCLUDE_DEVICES]
+        else ""
+    )
+    _LOGGER.debug("include: %s", include)
+    exclude = (
+        cv.ensure_list_csv(config[CONF_EXCLUDE_DEVICES])
+        if config[CONF_EXCLUDE_DEVICES]
+        else ""
+    )
+    _LOGGER.debug("exclude: %s", exclude)    scan_interval: float = (
         config.get(CONF_SCAN_INTERVAL).total_seconds()
         if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)
         else config.get(CONF_SCAN_INTERVAL)

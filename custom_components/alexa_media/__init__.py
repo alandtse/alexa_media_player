@@ -1254,7 +1254,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if config[CONF_EXCLUDE_DEVICES]
         else ""
     )
-    _LOGGER.debug("exclude: %s", exclude)    scan_interval: float = (
+    _LOGGER.debug("exclude: %s", exclude)
+    scan_interval: float = (
         config.get(CONF_SCAN_INTERVAL).total_seconds()
         if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)
         else config.get(CONF_SCAN_INTERVAL)

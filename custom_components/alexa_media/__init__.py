@@ -1243,8 +1243,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     _LOGGER.debug("Setting up Alexa devices for %s", hide_email(login_obj.email))
     config = config_entry.data
     email = config.get(CONF_EMAIL)
-    include = config.get(CONF_INCLUDE_DEVICES)
-    exclude = config.get(CONF_EXCLUDE_DEVICES)
+    include = (
+        cv.ensure_list_csv(config[CONF_INCLUDE_DEVICES])
+        if config[CONF_INCLUDE_DEVICES]
+        else ""
+    )
+    _LOGGER.debug("include: %s", include)
+    exclude = (
+        cv.ensure_list_csv(config[CONF_EXCLUDE_DEVICES])
+        if config[CONF_EXCLUDE_DEVICES]
+        else ""
+    )
+    _LOGGER.debug("exclude: %s", exclude)
     scan_interval: float = (
         config.get(CONF_SCAN_INTERVAL).total_seconds()
         if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)

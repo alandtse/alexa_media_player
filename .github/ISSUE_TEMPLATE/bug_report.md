@@ -31,12 +31,13 @@ assignees: ""
 
 **System details**
 
-- Home-assistant (version):
-- alexa_media (version from `const.py` or HA startup):
-- alexapy (version from `pip show alexapy` or HA startup):
-- Amazon [2FA is enabled](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account) (y/n). <!---We will not debug login issues if unanswered--->:
+- Home Assistant version:
+- alexa_media version (from `const.py` or HA startup log):
+- alexapy version (from `pip show alexapy` in homeasssistant container or HA startup log):
+- Is Amazon [2FA/2SV enabled](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account) <!---We will not debug login issues if unanswered---> (y/n):
+- Amazon Domain:
 
-**Logs**
+**Debug Logs (alexa_media & alexapy)**
 Please provide [logs](https://github.com/alandtse/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component).
 
 **Additional context**

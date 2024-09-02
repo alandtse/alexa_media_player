@@ -646,7 +646,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     event_data={"email": hide_email(email), "url": login.url},
                 )
                 async_dismiss_persistent_notification(
-                    f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
+                    self.hass, f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
                 )
                 if not self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(
                     self.config[CONF_EMAIL]
@@ -699,7 +699,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
             await login.close()
             async_dismiss_persistent_notification(
-                f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
+                self.hass, f"alexa_media_{slugify(email)}{slugify(login.url[7:])}"
             )
             return self.async_abort(reason="login_failed")
         new_schema = self._update_schema_defaults()

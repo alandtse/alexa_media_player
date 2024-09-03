@@ -1303,14 +1303,14 @@ async def async_unload_entry(hass, entry) -> bool:
     login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
-            try:
-                if component == "notify":
-                    await notify_async_unload_entry(hass, entry)
-                else:
-                    _LOGGER.debug("Forwarding unload entry to %s", component)
-                    await hass.config_entries.async_forward_entry_unload(entry, component)
-            except Exception as ex:
-                _LOGGER.error("Error unloading: %s", component)
+        try:
+            if component == "notify":
+                await notify_async_unload_entry(hass, entry)
+            else:
+                _LOGGER.debug("Forwarding unload entry to %s", component)
+                await hass.config_entries.async_forward_entry_unload(entry, component)
+        except Exception as ex:
+            _LOGGER.error("Error unloading: %s", component)
     await close_connections(hass, email)
     for listener in hass.data[DATA_ALEXAMEDIA]["accounts"][email][DATA_LISTENER]:
         listener()
@@ -1353,7 +1353,7 @@ async def async_unload_entry(hass, entry) -> bool:
         )
     _LOGGER.debug("Unloaded entry for %s", hide_email(email))
     return True
-    
+
 
 async def async_remove_entry(hass, entry) -> bool:
     """Handle removal of an entry."""
@@ -1368,7 +1368,9 @@ async def async_remove_entry(hass, entry) -> bool:
     )
     # Delete cookiefile
     cookiefile = hass.config.path(f".storage/{DOMAIN}.{email}.pickle")
-    obfuscated_cookiefile = hass.config.path(f".storage/{DOMAIN}.{obfuscated_email}.pickle")
+    obfuscated_cookiefile = hass.config.path(
+        f".storage/{DOMAIN}.{obfuscated_email}.pickle"
+    )
     if callable(getattr(AlexaLogin, "delete_cookiefile", None)):
         try:
             await login_obj.delete_cookiefile()
@@ -1377,18 +1379,22 @@ async def async_remove_entry(hass, entry) -> bool:
             _LOGGER.error(
                 "delete_cookiefile() exception: %s;"
                 " Manually delete cookiefile before re-adding the integration: %s",
-                ex, obfuscated_cookiefile
+                ex,
+                obfuscated_cookiefile,
             )
     else:
         if os.path.exists(cookiefile):
             try:
                 await alexapy_delete_cookie(cookiefile)
-                _LOGGER.debug("Successfully deleted cookiefile: %s", obfuscated_cookiefile)
+                _LOGGER.debug(
+                    "Successfully deleted cookiefile: %s", obfuscated_cookiefile
+                )
             except (OSError, EOFError, TypeError, AttributeError) as ex:
                 _LOGGER.error(
                     "alexapy_delete_cookie() exception: %s;"
                     " Manually delete cookiefile before re-adding the integration: %s",
-                    ex, obfuscated_cookiefile
+                    ex,
+                    obfuscated_cookiefile,
                 )
         else:
             _LOGGER.error("Cookiefile not found: %s", obfuscated_cookiefile)

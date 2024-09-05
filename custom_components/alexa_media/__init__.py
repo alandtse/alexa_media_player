@@ -26,6 +26,7 @@ from alexapy import (
     hide_serial,
     obfuscate,
 )
+from alexapy.helpers import delete_cookie as alexapy_delete_cookie
 import async_timeout
 from homeassistant import util
 from homeassistant.components.persistent_notification import (
@@ -1297,15 +1298,19 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
 
 async def async_unload_entry(hass, entry) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry"""
     email = entry.data["email"]
     login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
-    _LOGGER.debug("Attempting to unload entry for %s", hide_email(email))
+    _LOGGER.debug("Unloading entry: %s", hide_email(email))
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
-        _LOGGER.debug("Forwarding unload entry to %s", component)
-        await hass.config_entries.async_forward_entry_unload(entry, component)
-    # notify has to be handled manually as the forward does not work yet
-    await notify_async_unload_entry(hass, entry)
+        try:
+            if component == "notify":
+                await notify_async_unload_entry(hass, entry)
+            else:
+                _LOGGER.debug("Forwarding unload entry to %s", component)
+                await hass.config_entries.async_forward_entry_unload(entry, component)
+        except Exception as ex:
+            _LOGGER.error("Error unloading: %s", component)
     await close_connections(hass, email)
     for listener in hass.data[DATA_ALEXAMEDIA]["accounts"][email][DATA_LISTENER]:
         listener()
@@ -1341,28 +1346,59 @@ async def async_unload_entry(hass, entry) -> bool:
         _LOGGER.debug("Removing alexa_media data structure")
         if hass.data.get(DATA_ALEXAMEDIA):
             hass.data.pop(DATA_ALEXAMEDIA)
-        # Delete cookiefile
-        if callable(getattr(AlexaLogin, "delete_cookiefile", None)):
-            try:
-                await login_obj.delete_cookiefile()
-                _LOGGER.debug("Deleted cookiefile")
-            except Exception as ex:
-                _LOGGER.error(
-                    "Failed to delete cookiefile: %s",
-                    ex,
-                )
-        else:
-            _LOGGER.warn(
-                "Could not remove cookiefile: /config/.storage/alexa_media.%s.pickle."
-                "  Please manually delete the file.",
-                email,
-            )
     else:
         _LOGGER.debug(
             "Unable to remove alexa_media data structure: %s",
             hass.data.get(DATA_ALEXAMEDIA),
         )
     _LOGGER.debug("Unloaded entry for %s", hide_email(email))
+    return True
+
+
+async def async_remove_entry(hass, entry) -> bool:
+    """Handle removal of an entry."""
+    email = entry.data["email"]
+    obfuscated_email = hide_email(email)
+    _LOGGER.debug("Removing config entry: %s", hide_email(email))
+    login_obj = AlexaLogin(
+        url="",
+        email=email,
+        password="",
+        outputpath=hass.config.path,
+    )
+    # Delete cookiefile
+    cookiefile = hass.config.path(f".storage/{DOMAIN}.{email}.pickle")
+    obfuscated_cookiefile = hass.config.path(
+        f".storage/{DOMAIN}.{obfuscated_email}.pickle"
+    )
+    if callable(getattr(AlexaLogin, "delete_cookiefile", None)):
+        try:
+            await login_obj.delete_cookiefile()
+            _LOGGER.debug("Cookiefile %s deleted.", obfuscated_cookiefile)
+        except Exception as ex:
+            _LOGGER.error(
+                "delete_cookiefile() exception: %s;"
+                " Manually delete cookiefile before re-adding the integration: %s",
+                ex,
+                obfuscated_cookiefile,
+            )
+    else:
+        if os.path.exists(cookiefile):
+            try:
+                await alexapy_delete_cookie(cookiefile)
+                _LOGGER.debug(
+                    "Successfully deleted cookiefile: %s", obfuscated_cookiefile
+                )
+            except (OSError, EOFError, TypeError, AttributeError) as ex:
+                _LOGGER.error(
+                    "alexapy_delete_cookie() exception: %s;"
+                    " Manually delete cookiefile before re-adding the integration: %s",
+                    ex,
+                    obfuscated_cookiefile,
+                )
+        else:
+            _LOGGER.error("Cookiefile not found: %s", obfuscated_cookiefile)
+    _LOGGER.debug("Config entry %s removed.", obfuscated_email)
     return True
 
 

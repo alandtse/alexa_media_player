@@ -8,7 +8,7 @@
     "error": {
       "2fa_key_invalid": "Chave integrada 2FA inválida",
       "connection_error": "Erro de conexão; verifique a sua conexão e tente novamente",
-      "identifier_exists": "E-mail para URL Alexa já registrado",
+      "identifier_exists": "Email para URL Alexa já registrado",
       "invalid_credentials": "Credenciais inválidas",
       "invalid_url": "O URL é inválido: {message}",
       "unable_to_connect_hass_url": "Não foi possível conectar ao URL do Home Assistant. Por favor, verifique o URL Externo em Configuração - > Geral",
@@ -32,10 +32,10 @@
       "user": {
         "data": {
           "debug": "Depuração avançada",
-          "email": "Endereço de e-mail",
+          "email": "Endereço de email",
           "exclude_devices": "Dispositivos excluídos (separado por vírgula)",
           "extended_entity_discovery": "Incluir dispositivos conectados via Echo",
-          "hass_url": "Url para acesso ao Home Assistant",
+          "hass_url": "URL para acesso ao Home Assistant",
           "include_devices": "Dispositivos incluídos (separado por vírgula)",
           "otp_secret": "Chave de aplicativo 2FA integrada (gera códigos 2FA automaticamente). Isso não tem seis dígitos.",
           "password": "Senha",
@@ -76,7 +76,7 @@
           "name": "Endereço de email"
         },
         "entries": {
-          "description": "\nNúmero de entradas para limpar de 1 a 50. Se deixar vazio, vai limpar as 50.",
+          "description": "Número de entradas para limpar de 1 a 50. Se deixar vazio, vai limpar as 50.",
           "name": "Número de entradas"
         }
       },

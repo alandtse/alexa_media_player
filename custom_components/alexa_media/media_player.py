@@ -44,6 +44,7 @@ from .const import (
     DEPENDENT_ALEXA_COMPONENTS,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
+    MODEL_IDS,
     PLAY_SCAN_INTERVAL,
     UPLOAD_PATH,
 )
@@ -1607,7 +1608,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "identifiers": {(ALEXA_DOMAIN, self.unique_id)},
             "name": self.name,
             "manufacturer": "Amazon",
-            "model": f"{self._device_family} {self._device_type}",
+            "model": MODEL_IDS.get(self._device_type, f"{self._device_family} {self._device_type}"),
             "sw_version": self._software_version,
         }
 

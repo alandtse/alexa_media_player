@@ -1608,7 +1608,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "identifiers": {(ALEXA_DOMAIN, self.unique_id)},
             "name": self.name,
             "manufacturer": "Amazon",
-            "model": MODEL_IDS.get(self._device_type, f"{self._device_family} {self._device_type}"),
+            "model": MODEL_IDS.get(
+                self._device_type, f"{self._device_family} {self._device_type}"
+            ),
             "sw_version": self._software_version,
         }
 

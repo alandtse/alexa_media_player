@@ -265,9 +265,11 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             parse_temperature_from_coordinator(coordinator, entity_id)
         )
         self._attr_native_value = self._get_temperature_value(value_and_scale)
-        self._attr_native_unit_of_measurement = self._get_temperature_scale(value_and_scale)
+        self._attr_native_unit_of_measurement = self._get_temperature_scale(
+            value_and_scale
+        )
         _LOGGER.debug(
-            "Coordinator init: %s: %s %s", 
+            "Coordinator init: %s: %s %s",
             self._attr_name,
             self._attr_native_value,
             self._attr_native_unit_of_measurement,
@@ -288,9 +290,11 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             self.coordinator, self.alexa_entity_id
         )
         self._attr_native_value = self._get_temperature_value(value_and_scale)
-        self._attr_native_unit_of_measurement = self._get_temperature_scale(value_and_scale)
+        self._attr_native_unit_of_measurement = self._get_temperature_scale(
+            value_and_scale
+        )
         _LOGGER.debug(
-            "Coordinator update: %s: %s %s", 
+            "Coordinator update: %s: %s %s",
             self._attr_name,
             self._attr_native_value,
             self._attr_native_unit_of_measurement,
@@ -302,7 +306,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             _LOGGER.debug("TemperatureSensor value: %s", value.get("value"))
             return value.get("value")
         return None
-    
+
     def _get_temperature_scale(self, value):
         if value and "scale" in value:
             _LOGGER.debug("TemperatureSensor scale: %s", value.get("scale"))

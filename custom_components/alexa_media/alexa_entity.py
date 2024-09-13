@@ -403,8 +403,7 @@ def parse_color_from_coordinator(
     if value is not None:
         hue = value.get("hue", 0)
         saturation = value.get("saturation", 0)
-        brightness = value.get("brightness", 0)
-        return hue, saturation, brightness
+        return hue, saturation, 1
     return None
 
 

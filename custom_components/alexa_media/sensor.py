@@ -251,7 +251,7 @@ def lookup_device_info(account_dict, device_serial):
 class TemperatureSensor(SensorEntity, CoordinatorEntity):
     """A temperature sensor reported by an Echo."""
 
-    def __init__(self, coordinator, entity_id, name, media_player_device_id, ):
+    def __init__(self, coordinator, entity_id, name, media_player_device_id):
         """Initialize temperature sensor."""
         super().__init__(coordinator)
         self.alexa_entity_id = entity_id
@@ -364,7 +364,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             self.coordinator, self.alexa_entity_id, self._instance
         )
         super()._handle_coordinator_update()
-        
+
 
 class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""

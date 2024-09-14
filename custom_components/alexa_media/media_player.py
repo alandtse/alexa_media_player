@@ -420,7 +420,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         "last_called": self.device_serial_number,
                         "timestamp": self._last_called_timestamp,
                         "summary": self._last_called_summary,
-                    }
+                    },
                 )
         elif "bluetooth_change" in event:
             if event_serial == self.device_serial_number:

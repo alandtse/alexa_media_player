@@ -413,6 +413,15 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"]
                 )
                 self.async_schedule_update_ha_state(force_refresh=force_refresh)
+            if self._last_called:
+                self.hass.bus.async_fire(
+                    "alexa_media_last_called_event",
+                    {
+                        "last_called": self.device_serial_number,
+                        "timestamp": self._last_called_timestamp,
+                        "summary": self._last_called_summary,
+                    },
+                )
         elif "bluetooth_change" in event:
             if event_serial == self.device_serial_number:
                 _LOGGER.debug(

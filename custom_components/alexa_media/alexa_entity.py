@@ -350,10 +350,11 @@ def parse_temperature_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str
 ) -> Optional[str]:
     """Get the temperature of an entity from the coordinator data."""
-    value = parse_value_from_coordinator(
+    temperature = parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.TemperatureSensor", "temperature"
     )
-    return value.get("value") if value and "value" in value else None
+    _LOGGER.debug("parse_temperature_from_coordinator: %s", temperature)
+    return temperature
 
 
 def parse_air_quality_from_coordinator(

@@ -181,13 +181,13 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                 _LOGGER.debug(
                     "%s: Loading config entry for %s", hide_email(account), component
                 )
-                try: 
+                try:
                     await hass.config_entries.async_forward_entry_setups(
                         config_entry, [component]
                     )
                 except (asyncio.TimeoutError, TimeoutException) as ex:
                     raise ConfigEntryNotReady(
-                            f"Timeout while loading config entry for {component}"
+                        f"Timeout while loading config entry for {component}"
                     ) from ex
         return True
     raise ConfigEntryNotReady

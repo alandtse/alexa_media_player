@@ -1,51 +1,51 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
+      "forgot_password": "「パスワードを忘れた場合」ページが検出されました。これは通常、ログインに何度も失敗した結果です。Amazonでは、再ログインを試みる前に対応を求める場合があります。",
+      "login_failed": "Alexa Media Playerがログインに失敗しました。",
+      "reauth_successful": "Alexa Media Playerは正常に再認証されました。Home Assistant からの \"Aborted\" メッセージは無視してください。"
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
-      "connection_error": "Error connecting; check network and retry",
-      "identifier_exists": "Email for Alexa URL already registered",
-      "invalid_credentials": "Invalid credentials",
-      "invalid_url": "URL is invalid: {message}",
-      "unable_to_connect_hass_url": "Unable to connect to Home Assistant url. Please check the External Url under Configuration -> General",
-      "unknown_error": "Unknown error: {message}"
+      "2fa_key_invalid": "無効な Built-In 2FA key",
+      "connection_error": "接続エラー：ネットワークを確認して再試行してください",
+      "identifier_exists": "Alexa URLのメールアドレスはすでに登録されています",
+      "invalid_credentials": "無効な資格情報",
+      "invalid_url": "URL が無効です：{message}",
+      "unable_to_connect_hass_url": "Home Assistant URL に接続できません。[設定] -> [全般] の [外部 URL] を確認してください。",
+      "unknown_error": "不明なエラー：{message}"
     },
     "step": {
       "proxy_warning": {
         "data": {
-          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+          "proxy_warning": "無視して続行 - この警告を回避するためのログイン問題のサポートは提供されていないことを理解しています。"
         },
-        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
-        "title": "Alexa Media Player - Unable to Connect to HA URL"
+        "description": "Home Assistant サーバーへ、指定された URL {hass_url}で接続できません。 \n> {error}\n\nこの問題を解決するには、あなたのHome Assistant サーバーに{hass_url}でアクセスできることを確認してください。このフィールドは、[設定] -> [全般] の [外部 URL] からのものですが、内部 URL を試すこともできます。クライアントがこの URL にアクセスできることが 確実であれば、この警告をバイパスできます。",
+        "title": "Alexa Media Player - Home Assistant URLに接続できません"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "Built-in 2FA App KeyからのOTPが正常に確認されました。"
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "description": "** {email} - alexa. {url} **\nAmazon のBuilt-in 2FA App Keyからの OTP を正常に確認しましたか? \n>OTP コード{message}",
+        "title": "Alexa Media Player - OTP 確認"
       },
       "user": {
         "data": {
-          "debug": "Advanced debugging",
-          "email": "Email Address",
-          "exclude_devices": "Excluded device (comma separated)",
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "hass_url": "Url to access Home Assistant",
-          "include_devices": "Included device (comma separated)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
-          "password": "Password",
-          "queue_delay": "Seconds to wait to queue commands together",
-          "scan_interval": "Seconds between scans",
+          "debug": "高度なデバッグ",
+          "email": "メールアドレス",
+          "exclude_devices": "除外するデバイス（カンマ区切り）",
+          "extended_entity_discovery": "Echo経由で接続されたデバイスを含める",
+          "hass_url": "Home AssistantにアクセスするためのURL",
+          "include_devices": "含まれるデバイス（カンマ区切り）",
+          "otp_secret": "Built-in 2FA App Key (自動生成 2FA コード). これは6桁ではありません。",
+          "password": "パスワード",
+          "queue_delay": "コマンドをキューにまとめて待機させる秒数",
+          "scan_interval": "スキャン間隔秒数",
           "securitycode": "[%key_id:55616596%]",
-          "url": "Amazon region domain (e.g., amazon.co.uk)"
+          "url": "Amazon 地域ドメイン (例: amazon.co.jp)"
         },
-        "description": "Please confirm the information below. For legacy configuration, disable `Use Login Proxy method` option.",
-        "title": "Alexa Media Player - Configuration"
+        "description": "以下の情報を確認してください。レガシー構成の場合は、`Use Login Proxy method`オプションを無効にしてください。",
+        "title": "Alexa Media Player - 設定"
       }
     }
   },
@@ -53,54 +53,54 @@
     "step": {
       "init": {
         "data": {
-          "debug": "Advanced debugging",
-          "exclude_devices": "Excluded device (comma separated)",
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "hass_url": "Public URL to access Home Assistant (including trailing '/')",
-          "include_devices": "Included device (comma separated)",
-          "public_url": "Public URL to access Home Assistant (including trailing '/')",
-          "queue_delay": "Seconds to wait to queue commands together",
-          "scan_interval": "Seconds between scans"
+          "debug": "高度なデバッグ",
+          "exclude_devices": "除外するデバイス（カンマ区切り）",
+          "extended_entity_discovery": "Echo経由で接続されたデバイスを含める",
+          "hass_url": "Home Assistant にアクセスするための公開URL (末尾の '/' を含む)",
+          "include_devices": "含まれるデバイス（カンマ区切り）",
+          "public_url": "Home Assistant にアクセスするための公開URL (末尾の '/' を含む)",
+          "queue_delay": "コマンドをキューにまとめて待機させる秒数",
+          "scan_interval": "スキャン間隔秒数"
         },
-        "description": "Required *",
-        "title": "Alexa Media Player - Reconfiguration"
+        "description": "必須 *",
+        "title": "Alexa Media Player - 再設定"
       }
     }
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "各AlexaアカウントのAlexa音声履歴から最後のエントリを消去します。",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "削除するアカウント 空にするとすべて削除されます",
+          "name": "メールアドレス"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "クリアするエントリー数 (1〜50個)。空の場合は50個をクリア。",
+          "name": "エントリー数"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "Amazon音声履歴を消去"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "アカウントを強制的にログアウトさせます (主にデバッグに使用します)",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "削除するアカウント 空にするとすべて削除されます",
+          "name": "メールアドレス"
         }
       },
-      "name": "Force Logout"
+      "name": "強制ログアウト"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "各Alexaアカウントの最後に呼び出されたEchoデバイスを強制的に更新します。",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "更新する Alexa アカウントの一覧。空の場合、既知のすべてのアカウントが更新されます。",
+          "name": "メールアドレス"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "最後に呼び出されたセンサーを更新"
     }
   }
 }

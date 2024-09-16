@@ -182,9 +182,10 @@ async def create_temperature_sensors(account_dict, temperature_entities):
     coordinator = account_dict["coordinator"]
     for temp in temperature_entities:
         _LOGGER.debug(
-            "Creating entity %s for a temperature sensor with name %s",
+            "Creating entity %s for a temperature sensor with name %s (%s)",
             temp["id"],
             temp["name"],
+            temp,
         )
         serial = temp["device_serial"]
         device_info = lookup_device_info(account_dict, serial)
@@ -254,16 +255,25 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         """Initialize temperature sensor."""
         super().__init__(coordinator)
         self.alexa_entity_id = entity_id
+        # Need to append "+temperature" because the Alexa entityId is for a physical device
+        # and a single physical device can have multiple HA entities
+        self._attr_unique_id = entity_id + "_temperature"
         self._attr_name = name + " Temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_value: Optional[datetime.datetime] = (
+        value_and_scale: Optional[datetime.datetime] = (
             parse_temperature_from_coordinator(coordinator, entity_id)
         )
-        self._attr_native_unit_of_measurement: Optional[str] = UnitOfTemperature.CELSIUS
-        # This includes "_temperature" because the Alexa entityId is for a physical device
-        # A single physical device could have multiple HA entities
-        self._attr_unique_id = entity_id + "_temperature"
+        self._attr_native_value = self._get_temperature_value(value_and_scale)
+        self._attr_native_unit_of_measurement = self._get_temperature_scale(
+            value_and_scale
+        )
+        _LOGGER.debug(
+            "Coordinator init: %s: %s %s",
+            self._attr_name,
+            self._attr_native_value,
+            self._attr_native_unit_of_measurement,
+        )
         self._attr_device_info = (
             {
                 "identifiers": {media_player_device_id},
@@ -276,10 +286,37 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_native_value = parse_temperature_from_coordinator(
+        value_and_scale = parse_temperature_from_coordinator(
             self.coordinator, self.alexa_entity_id
         )
+        self._attr_native_value = self._get_temperature_value(value_and_scale)
+        self._attr_native_unit_of_measurement = self._get_temperature_scale(
+            value_and_scale
+        )
+        _LOGGER.debug(
+            "Coordinator update: %s: %s %s",
+            self._attr_name,
+            self._attr_native_value,
+            self._attr_native_unit_of_measurement,
+        )
         super()._handle_coordinator_update()
+
+    def _get_temperature_value(self, value):
+        if value and "value" in value:
+            _LOGGER.debug("TemperatureSensor value: %s", value.get("value"))
+            return value.get("value")
+        return None
+
+    def _get_temperature_scale(self, value):
+        if value and "scale" in value:
+            _LOGGER.debug("TemperatureSensor scale: %s", value.get("scale"))
+            if value.get("scale") == "CELSIUS":
+                return UnitOfTemperature.CELSIUS
+            if value.get("scale") == "FAHRENHEIT":
+                return UnitOfTemperature.FAHRENHEIT
+            if value.get("scale") == "KELVIN":
+                return UnitOfTemperature.KELVIN
+        return None
 
 
 class AirQualitySensor(SensorEntity, CoordinatorEntity):

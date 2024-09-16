@@ -44,6 +44,7 @@ from .const import (
     DEPENDENT_ALEXA_COMPONENTS,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
+    MODEL_IDS,
     PLAY_SCAN_INTERVAL,
     UPLOAD_PATH,
 )
@@ -180,9 +181,14 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                 _LOGGER.debug(
                     "%s: Loading config entry for %s", hide_email(account), component
                 )
-                await hass.config_entries.async_forward_entry_setups(
-                    config_entry, [component]
-                )
+                try:
+                    await hass.config_entries.async_forward_entry_setups(
+                        config_entry, [component]
+                    )
+                except (asyncio.TimeoutError, TimeoutException) as ex:
+                    raise ConfigEntryNotReady(
+                        f"Timeout while loading config entry for {component}"
+                    ) from ex
         return True
     raise ConfigEntryNotReady
 
@@ -412,6 +418,15 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"]
                 )
                 self.async_schedule_update_ha_state(force_refresh=force_refresh)
+            if self._last_called:
+                self.hass.bus.async_fire(
+                    "alexa_media_last_called_event",
+                    {
+                        "last_called": self.device_serial_number,
+                        "timestamp": self._last_called_timestamp,
+                        "summary": self._last_called_summary,
+                    },
+                )
         elif "bluetooth_change" in event:
             if event_serial == self.device_serial_number:
                 _LOGGER.debug(
@@ -1607,7 +1622,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "identifiers": {(ALEXA_DOMAIN, self.unique_id)},
             "name": self.name,
             "manufacturer": "Amazon",
-            "model": f"{self._device_family} {self._device_type}",
+            "model": MODEL_IDS.get(
+                self._device_type, f"{self._device_family} {self._device_type}"
+            ),
             "sw_version": self._software_version,
         }
 

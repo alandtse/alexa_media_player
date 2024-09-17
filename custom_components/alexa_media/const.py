@@ -142,7 +142,7 @@ UPLOAD_PATH = "www/alexa_tts"
 
 # Note: Some of these are likely wrong
 MODEL_IDS = {
-    "A10A33FOX2NUBK": "Echo Spot",
+    "A10A33FOX2NUBK": "Echo Spot (Gen1)",
     "A10L5JEZTKKCZ8": "Vobot Bunny",
     "A11QM4H9HGV71H": "Echo Show 5 (Gen3)",
     "A12GXV8XMS007S": "Fire TV (Gen1)",
@@ -252,6 +252,7 @@ MODEL_IDS = {
     "A3C9PE6TNYLTCH": "Speaker Group",
     "A3CY98NH016S5F": "Facebook Portal Mini",
     "A3D4YURNTARP5K": "Facebook Portal TV",
+    "A3EH2E0YZ30OD6": "Echo Spot (Gen2)",
     "A3EVMLQTU6WL1W": "Fire TV (GenX)",
     "A3F1S88NTZZXS9": "Dash Wand",
     "A3FX4UWTP28V1P": "Echo (Gen3)",

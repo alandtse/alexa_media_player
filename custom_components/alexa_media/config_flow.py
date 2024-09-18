@@ -84,7 +84,7 @@ def configured_instances(hass):
 
 
 @callback
-def in_progess_instances(hass):
+def in_progress_instances(hass):
     """Return a set of in progress Alexa Media flows."""
     return {entry["flow_id"] for entry in hass.config_entries.flow.async_progress()}
 

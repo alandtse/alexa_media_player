@@ -92,6 +92,7 @@ def in_progress_instances(hass):
         if entry["handler"] == DOMAIN  # Ensure only Alexa Media flows are included
     }
 
+
 @config_entries.HANDLERS.register(DOMAIN)
 class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     """Handle a Alexa Media config flow."""

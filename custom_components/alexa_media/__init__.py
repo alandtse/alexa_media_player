@@ -54,7 +54,7 @@ from homeassistant.util import dt, slugify
 import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
-from .config_flow import in_progess_instances
+from .config_flow import in_progress_instances
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,

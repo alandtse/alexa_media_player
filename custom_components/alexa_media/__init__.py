@@ -54,7 +54,7 @@ from homeassistant.util import dt, slugify
 import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
-from .config_flow import in_progess_instances
+from .config_flow import in_progress_instances
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
@@ -1451,7 +1451,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
     if login.status and login.status.get("login_successful"):
         return True
     account = config_entry.data
-    _LOGGER.debug("Logging in: %s %s", obfuscate(account), in_progess_instances(hass))
+    _LOGGER.debug("Logging in: %s %s", obfuscate(account), in_progress_instances(hass))
     _LOGGER.debug("Login stats: %s", login.stats)
     message: str = (
         f"Reauthenticate {login.email} on the [Integrations](/config/integrations) page. "
@@ -1470,7 +1470,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
         f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
     )
     if flow:
-        if flow.get("flow_id") in in_progess_instances(hass):
+        if flow.get("flow_id") in in_progress_instances(hass):
             _LOGGER.debug("Existing config flow detected")
             return False
         _LOGGER.debug("Stopping orphaned config flow %s", flow.get("flow_id"))

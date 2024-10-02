@@ -644,31 +644,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             cleaned_config = config.copy()
             cleaned_config.pop(CONF_PASSWORD, None)
             # CONF_PASSWORD contains sensitive info which is no longer needed
-            for component in ALEXA_COMPONENTS:
-                entry_setup = len(
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][component]
+            # Load multiple platforms in parallel using async_forward_entry_setups
+            _LOGGER.debug("Loading platforms: %s", ', '.join(ALEXA_COMPONENTS))
+            try:
+                await hass.config_entries.async_forward_entry_setups(
+                    config_entry, ALEXA_COMPONENTS
                 )
-                if not entry_setup:
-                    _LOGGER.debug("Loading config entry for %s", component)
-                    try:
-                        await hass.config_entries.async_forward_entry_setups(
-                            config_entry, [component]
-                        )
-                    except (asyncio.TimeoutError, TimeoutException) as ex:
-                        raise ConfigEntryNotReady(
-                            f"Timeout while loading config entry for {component}"
-                        ) from ex
-                else:
-                    _LOGGER.debug("Loading %s", component)
-                    hass.async_create_task(
-                        async_load_platform(
-                            hass,
-                            component,
-                            DOMAIN,
-                            {CONF_NAME: DOMAIN, "config": cleaned_config},
-                            cleaned_config,
-                        )
-                    )
+            except (asyncio.TimeoutError, TimeoutException) as ex:
+                _LOGGER.error(f"Error while loading platforms: {ex}")
+                raise ConfigEntryNotReady(f"Timeout while loading platforms: {ex}") from ex
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         # prune stale devices

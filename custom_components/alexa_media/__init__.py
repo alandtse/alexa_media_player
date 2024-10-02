@@ -877,7 +877,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 f"{DOMAIN}_{hide_email(email)}"[0:32],
                 {"dnd_update": dnd["doNotDisturbDeviceStatusList"]},
             )
-			return
+            return
         else:
             _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
             

@@ -373,6 +373,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     # Initialize throttling state and lock
     last_dnd_update_times: dict[str, datetime] = {}
+    pending_dnd_updates: dict[str, bool] = {}
     dnd_update_lock = asyncio.Lock()
 
     async def async_update_data() -> Optional[AlexaEntityData]:
@@ -847,6 +848,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         )
         return None
 
+    async def schedule_update_dnd_state(email: str):
+        """Schedule an update_dnd_state call after MIN_TIME_BETWEEN_FORCED_SCANS."""
+        await asyncio.sleep(MIN_TIME_BETWEEN_FORCED_SCANS)
+        async with dnd_update_lock:
+            if pending_dnd_updates.get(email, False):
+                pending_dnd_updates[email] = False
+                _LOGGER.debug("Executing scheduled forced DND update for %s", hide_email(email))
+                # Assume login_obj can be retrieved or passed appropriately
+                login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
+                await update_dnd_state(login_obj)
+
     @_catch_login_errors
     async def update_dnd_state(login_obj) -> None:
         """Update the DND state on websocket DND combo event."""
@@ -855,16 +867,30 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         async with dnd_update_lock:
             last_run = last_dnd_update_times.get(email)
-            if last_run and (now - last_run) < MIN_TIME_BETWEEN_SCANS:
-                _LOGGER.debug(
-                    "Skipping DND update for %s, throttle is active.", hide_email(email)
-                )
+            cooldown = timedelta(seconds=MIN_TIME_BETWEEN_SCANS)
+            
+            if last_run and (now - last_run) < cooldown:
+                # If within cooldown, mark a pending update if not already marked
+                if not pending_dnd_updates.get(email, False):
+                    pending_dnd_updates[email] = True
+                    _LOGGER.debug(
+                        "Throttling active for %s, scheduling a forced DND update.", hide_email(email)
+                    )
+                    asyncio.create_task(schedule_update_dnd_state(email))
+                else:
+                    _LOGGER.debug(
+                        "Throttling active for %s, forced DND update already scheduled.",
+                        hide_email(email),
+                    )
                 return
-            last_dnd_update_times[email] = now  # Update the timestamp
+
+            # Update the last run time
+            last_dnd_update_times[email] = now
 
         _LOGGER.debug("Updating DND state for %s", hide_email(email))
 
         try:
+            # Fetch the DND state using the Alexa API
             dnd = await AlexaAPI.get_dnd_state(login_obj)
         except asyncio.TimeoutError:
             _LOGGER.error(
@@ -879,6 +905,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
             return
 
+        # Check if DND data is valid and dispatch an update event
         if dnd is not None and "doNotDisturbDeviceStatusList" in dnd:
             async_dispatcher_send(
                 hass,
@@ -888,10 +915,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
         else:
             _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
-
-    # Register the update_dnd_state function to listen for a specific event
-    hass.bus.async_listen("some_event", update_dnd_state)
-
+    
     async def http2_connect() -> HTTP2EchoClient:
         """Open HTTP2 Push connection.
 

@@ -645,14 +645,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             cleaned_config.pop(CONF_PASSWORD, None)
             # CONF_PASSWORD contains sensitive info which is no longer needed
             # Load multiple platforms in parallel using async_forward_entry_setups
-            _LOGGER.debug("Loading platforms: %s", ', '.join(ALEXA_COMPONENTS))
+            _LOGGER.debug("Loading platforms: %s", ", ".join(ALEXA_COMPONENTS))
             try:
                 await hass.config_entries.async_forward_entry_setups(
                     config_entry, ALEXA_COMPONENTS
                 )
             except (asyncio.TimeoutError, TimeoutException) as ex:
                 _LOGGER.error(f"Error while loading platforms: {ex}")
-                raise ConfigEntryNotReady(f"Timeout while loading platforms: {ex}") from ex
+                raise ConfigEntryNotReady(
+                    f"Timeout while loading platforms: {ex}"
+                ) from ex
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         # prune stale devices

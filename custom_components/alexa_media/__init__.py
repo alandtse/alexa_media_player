@@ -854,7 +854,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         async with dnd_update_lock:
             if pending_dnd_updates.get(email, False):
                 pending_dnd_updates[email] = False
-                _LOGGER.debug("Executing scheduled forced DND update for %s", hide_email(email))
+                _LOGGER.debug(
+                    "Executing scheduled forced DND update for %s", hide_email(email)
+                )
                 # Assume login_obj can be retrieved or passed appropriately
                 login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
                 await update_dnd_state(login_obj)
@@ -868,13 +870,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         async with dnd_update_lock:
             last_run = last_dnd_update_times.get(email)
             cooldown = timedelta(seconds=MIN_TIME_BETWEEN_SCANS)
-            
+
             if last_run and (now - last_run) < cooldown:
                 # If within cooldown, mark a pending update if not already marked
                 if not pending_dnd_updates.get(email, False):
                     pending_dnd_updates[email] = True
                     _LOGGER.debug(
-                        "Throttling active for %s, scheduling a forced DND update.", hide_email(email)
+                        "Throttling active for %s, scheduling a forced DND update.",
+                        hide_email(email),
                     )
                     asyncio.create_task(schedule_update_dnd_state(email))
                 else:
@@ -915,7 +918,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
         else:
             _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
-    
+
     async def http2_connect() -> HTTP2EchoClient:
         """Open HTTP2 Push connection.
 

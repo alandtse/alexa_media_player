@@ -371,6 +371,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # pylint: disable=too-many-statements,too-many-locals
     """Set up a alexa api based on host parameter."""
 
+    # Initialize throttling state and lock
+    last_dnd_update_times: dict[str, datetime] = {}
+    dnd_update_lock = asyncio.Lock()
+
     async def async_update_data() -> Optional[AlexaEntityData]:
         # noqa pylint: disable=too-many-branches
         """Fetch data from API endpoint.
@@ -843,11 +847,29 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         )
         return None
 
-    @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     @_catch_login_errors
     async def update_dnd_state(login_obj) -> None:
-        """Update the dnd state on ws dnd combo event."""
-        dnd = await AlexaAPI.get_dnd_state(login_obj)
+        """Update the DND state on websocket DND combo event."""
+        email = login_obj.email
+        now = datetime.utcnow()
+
+        async with dnd_update_lock:
+            last_run = last_dnd_update_times.get(email)
+            if last_run and (now - last_run) < MIN_TIME_BETWEEN_SCANS:
+                _LOGGER.debug("Skipping DND update for %s, throttle is active.", hide_email(email))
+                return
+            last_dnd_update_times[email] = now  # Update the timestamp
+
+        _LOGGER.debug("Updating DND state for %s", hide_email(email))
+
+        try:
+            dnd = await AlexaAPI.get_dnd_state(login_obj)
+        except asyncio.TimeoutError:
+            _LOGGER.error("Timeout occurred while fetching DND state for %s", hide_email(email))
+            return
+        except Exception as e:
+            _LOGGER.error("Unexpected error while fetching DND state for %s: %s", hide_email(email), e)
+            return
 
         if dnd is not None and "doNotDisturbDeviceStatusList" in dnd:
             async_dispatcher_send(
@@ -855,9 +877,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 f"{DOMAIN}_{hide_email(email)}"[0:32],
                 {"dnd_update": dnd["doNotDisturbDeviceStatusList"]},
             )
-            return
-        _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
-        return
+			return
+        else:
+            _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
+            
+    # Register the update_dnd_state function to listen for a specific event
+    hass.bus.async_listen("some_event", update_dnd_state)
 
     async def http2_connect() -> HTTP2EchoClient:
         """Open HTTP2 Push connection.

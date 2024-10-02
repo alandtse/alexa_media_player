@@ -926,7 +926,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         except AttributeError:
             pass
         email = self._login.email
-        
+
         # Check if DATA_ALEXAMEDIA and 'accounts' exist
         accounts_data = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
         if (
@@ -937,9 +937,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._assumed_state = True
             self.available = False
             return
-        
+
         # Safely access the device
-        device = accounts_data[email]["devices"]["media_player"].get(self.device_serial_number)
+        device = accounts_data[email]["devices"]["media_player"].get(
+            self.device_serial_number
+        )
         if not device:
             _LOGGER.warning(
                 "Device serial number %s not found for account %s. Skipping update.",
@@ -948,19 +950,19 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
             self.available = False
             return
-        
+
         # Safely access websocket_commands
         seen_commands = (
             accounts_data[email]["websocket_commands"].keys()
             if "websocket_commands" in accounts_data[email]
             else None
         )
-        
+
         await self.refresh(device, no_throttle=True)
-        
+
         # Safely access 'http2' setting
         push_enabled = accounts_data[email].get("http2")
-        
+
         if (
             self.state in [MediaPlayerState.PLAYING]
             and

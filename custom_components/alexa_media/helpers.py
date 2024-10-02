@@ -227,20 +227,34 @@ def report_relogin_required(hass, login, email) -> bool:
 def _existing_serials(hass, login_obj) -> list:
     """Retrieve existing serial numbers for a given login object."""
     email: str = login_obj.email
-    if DATA_ALEXAMEDIA in hass.data and "accounts" in hass.data[DATA_ALEXAMEDIA] and email in hass.data[DATA_ALEXAMEDIA]["accounts"]:
+    if (
+        DATA_ALEXAMEDIA in hass.data
+        and "accounts" in hass.data[DATA_ALEXAMEDIA]
+        and email in hass.data[DATA_ALEXAMEDIA]["accounts"]
+    ):
         existing_serials = list(
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["media_player"].keys()
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
+                "media_player"
+            ].keys()
         )
-        device_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("devices", {}).get("media_player", {})
+        device_data = (
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+            .get("devices", {})
+            .get("media_player", {})
+        )
         for serial in existing_serials:
             device = device_data.get(serial, {})
             if "appDeviceList" in device and device["appDeviceList"]:
                 apps = [
-                    x["serialNumber"] for x in device["appDeviceList"] if "serialNumber" in x
+                    x["serialNumber"]
+                    for x in device["appDeviceList"]
+                    if "serialNumber" in x
                 ]
                 existing_serials.extend(apps)
     else:
-        _LOGGER.warning("No accounts data found for %s. Skipping serials retrieval.", email)
+        _LOGGER.warning(
+            "No accounts data found for %s. Skipping serials retrieval.", email
+        )
         existing_serials = []
     return existing_serials
 

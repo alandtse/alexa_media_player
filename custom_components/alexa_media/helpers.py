@@ -225,30 +225,37 @@ def report_relogin_required(hass, login, email) -> bool:
 
 
 def _existing_serials(hass, login_obj) -> list:
+    """Retrieve existing serial numbers for a given login object."""
     email: str = login_obj.email
-    existing_serials = (
-        list(
+    if (
+        DATA_ALEXAMEDIA in hass.data
+        and "accounts" in hass.data[DATA_ALEXAMEDIA]
+        and email in hass.data[DATA_ALEXAMEDIA]["accounts"]
+    ):
+        existing_serials = list(
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
                 "media_player"
             ].keys()
         )
-        if "entities" in (hass.data[DATA_ALEXAMEDIA]["accounts"][email])
-        else []
-    )
-    for serial in existing_serials:
-        device = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
-            "media_player"
-        ][serial]
-        if "appDeviceList" in device and device["appDeviceList"]:
-            apps = list(
-                map(
-                    lambda x: x["serialNumber"] if "serialNumber" in x else None,
-                    device["appDeviceList"],
-                )
-            )
-            # _LOGGER.debug("Combining %s with %s",
-            #               existing_serials, apps)
-            existing_serials = existing_serials + apps
+        device_data = (
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+            .get("devices", {})
+            .get("media_player", {})
+        )
+        for serial in existing_serials:
+            device = device_data.get(serial, {})
+            if "appDeviceList" in device and device["appDeviceList"]:
+                apps = [
+                    x["serialNumber"]
+                    for x in device["appDeviceList"]
+                    if "serialNumber" in x
+                ]
+                existing_serials.extend(apps)
+    else:
+        _LOGGER.warning(
+            "No accounts data found for %s. Skipping serials retrieval.", email
+        )
+        existing_serials = []
     return existing_serials
 
 

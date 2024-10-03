@@ -776,8 +776,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     else:
                         await self.alexa_api.set_bluetooth(devices["address"])
                     self._source = source
+        # Safely access 'http2' setting
         if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
+            self.hass.data.get(DATA_ALEXAMEDIA, {})
+            .get("accounts", {})
+            .get(self._login.email, {})
+            .get("http2")
         ):
             await self.async_update()
 
@@ -922,35 +926,47 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         except AttributeError:
             pass
         email = self._login.email
+
+        # Check if DATA_ALEXAMEDIA and 'accounts' exist
+        accounts_data = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
         if (
             self.entity_id is None  # Device has not initialized yet
-            or email not in self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+            or email not in accounts_data
             or self._login.session.closed
         ):
             self._assumed_state = True
             self.available = False
             return
-        device = self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
-            "media_player"
-        ][self.device_serial_number]
+
+        # Safely access the device
+        device = accounts_data[email]["devices"]["media_player"].get(
+            self.device_serial_number
+        )
+        if not device:
+            _LOGGER.warning(
+                "Device serial number %s not found for account %s. Skipping update.",
+                self.device_serial_number,
+                hide_email(email),
+            )
+            self.available = False
+            return
+
+        # Safely access websocket_commands
         seen_commands = (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                "websocket_commands"
-            ].keys()
-            if "websocket_commands"
-            in (self.hass.data[DATA_ALEXAMEDIA]["accounts"][email])
+            accounts_data[email]["websocket_commands"].keys()
+            if "websocket_commands" in accounts_data[email]
             else None
         )
-        await self.refresh(  # pylint: disable=unexpected-keyword-arg
-            device, no_throttle=True
-        )
-        push_enabled = (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(email, {}).get("http2")
-        )
+
+        await self.refresh(device, no_throttle=True)
+
+        # Safely access 'http2' setting
+        push_enabled = accounts_data[email].get("http2")
+
         if (
             self.state in [MediaPlayerState.PLAYING]
             and
-            #  only enable polling if websocket not connected
+            # Only enable polling if websocket not connected
             (
                 not push_enabled
                 or not seen_commands
@@ -970,7 +986,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             ):
                 _LOGGER.debug(
                     "%s: %s playing; scheduling update in %s seconds",
-                    hide_email(self._login.email),
+                    hide_email(email),
                     self.name,
                     PLAY_SCAN_INTERVAL,
                 )
@@ -983,9 +999,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._should_poll = False
             if not push_enabled:
                 _LOGGER.debug(
-                    "%s: Disabling polling and scheduling last update in"
-                    " 300 seconds for %s",
-                    hide_email(self._login.email),
+                    "%s: Disabling polling and scheduling last update in 300 seconds for %s",
+                    hide_email(email),
                     self.name,
                 )
                 async_call_later(
@@ -996,7 +1011,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             else:
                 _LOGGER.debug(
                     "%s: Disabling polling for %s",
-                    hide_email(self._login.email),
+                    hide_email(email),
                     self.name,
                 )
         self._last_update = util.utcnow()

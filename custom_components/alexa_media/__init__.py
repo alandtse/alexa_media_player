@@ -946,7 +946,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         task = asyncio.create_task(delayed_update())
         dnd_update_timers[email] = task
 
-    @catch_login_errors
+    @_catch_login_errors
     async def update_dnd_state(hass, login_obj) -> None:
         """Update the DND state for the given Alexa account via the API."""
         email = login_obj.email

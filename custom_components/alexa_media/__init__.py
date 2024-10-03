@@ -1538,7 +1538,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     await hass.config_entries.flow.async_abort(flow_id)
                     _LOGGER.debug("Successfully aborted config flow '%s' for %s", flow_id, hide_email(email))
                 except UnknownFlow:
-                    _LOGGER.warning("Config flow '%s' not found for %s", flow_id, hide_email(email)))
+                    _LOGGER.warning("Config flow '%s' not found for %s", flow_id, hide_email(email))
                 except Exception as ex:
                     _LOGGER.error("Error aborting config flow '%s' for %s: %s", flow_id, hide_email(email), ex)
             # Remove the flow from the config_flows dictionary

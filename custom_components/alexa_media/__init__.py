@@ -356,13 +356,16 @@ async def async_setup_entry(hass, config_entry):
     if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
-    listener_relogin_required = hass.bus.async_listen("alexa_media_relogin_required", relogin)
-    listener_relogin_success = hass.bus.async_listen("alexa_media_relogin_success", login_success)
+    listener_relogin_required = hass.bus.async_listen(
+        "alexa_media_relogin_required", relogin
+    )
+    listener_relogin_success = hass.bus.async_listen(
+        "alexa_media_relogin_success", login_success
+    )
 
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email][DATA_LISTENER].extend([
-        listener_relogin_required,
-        listener_relogin_success
-    ])
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email][DATA_LISTENER].extend(
+        [listener_relogin_required, listener_relogin_success]
+    )
     try:
         await login.login(cookies=await login.load_cookie())
         if await test_login_status(hass, config_entry, login):
@@ -379,13 +382,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     # Initialize throttling state to store last update times
     last_dnd_update_times = {}
-    
+
     # Lock to prevent race conditions when updating DND states
     dnd_update_lock = asyncio.Lock()
-    
+
     # WeakValueDictionary to store ongoing DND update tasks to avoid duplication
     dnd_update_timers = weakref.WeakValueDictionary()
-    
+
     # Store these variables in hass.data for access in other functions
     hass.data.setdefault(DATA_ALEXAMEDIA, {})
     hass.data[DATA_ALEXAMEDIA]["last_dnd_update_times"] = last_dnd_update_times
@@ -886,47 +889,59 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     async def schedule_update_dnd_state(email: str, hass, login_obj):
         """Schedule a single update_dnd_state call after MIN_TIME_BETWEEN_FORCED_SCANS."""
-        
+
         # Retrieve task management variables from hass.data
-        dnd_update_timers: weakref.WeakValueDictionary = hass.data[DATA_ALEXAMEDIA]["dnd_update_timers"]
-        
+        dnd_update_timers: weakref.WeakValueDictionary = hass.data[DATA_ALEXAMEDIA][
+            "dnd_update_timers"
+        ]
+
         # Clean up any old completed tasks before scheduling a new one
         for old_email, task in list(dnd_update_timers.items()):
             if task.done():
                 _LOGGER.debug(f"Cleaning up completed task for {old_email}")
                 dnd_update_timers.pop(old_email, None)
-        
+
         if email in dnd_update_timers:
             # If a forced update is already scheduled, don't schedule another
-            _LOGGER.debug("Update for %s already scheduled, skipping.", hide_email(email))
+            _LOGGER.debug(
+                "Update for %s already scheduled, skipping.", hide_email(email)
+            )
             return
-        
+
         async def delayed_update():
             """Delayed update to prevent memory leaks and manage task lifespan."""
             MAX_TIMEOUT_MULTIPLIER = 3
             MAX_TIMEOUT = MIN_TIME_BETWEEN_SCANS * MAX_TIMEOUT_MULTIPLIER
-            
+
             try:
                 # Wait for MIN_TIME_BETWEEN_FORCED_SCANS with a max timeout
                 await asyncio.wait_for(
-                    asyncio.sleep(MIN_TIME_BETWEEN_FORCED_SCANS),
-                    timeout=MAX_TIMEOUT
+                    asyncio.sleep(MIN_TIME_BETWEEN_FORCED_SCANS), timeout=MAX_TIMEOUT
                 )
                 # Retrieve lock and last update times from hass.data
-                dnd_update_lock: asyncio.Lock = hass.data[DATA_ALEXAMEDIA]["dnd_update_lock"]
+                dnd_update_lock: asyncio.Lock = hass.data[DATA_ALEXAMEDIA][
+                    "dnd_update_lock"
+                ]
                 async with dnd_update_lock:
-                    _LOGGER.debug("Executing scheduled forced DND update for %s", hide_email(email))
-                    login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
+                    _LOGGER.debug(
+                        "Executing scheduled forced DND update for %s",
+                        hide_email(email),
+                    )
+                    login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "login_obj"
+                    ]
                     await update_dnd_state(hass, login_obj)
             except asyncio.TimeoutError:
-                _LOGGER.error(f"Task for {email} exceeded allowed time of {MAX_TIMEOUT} seconds.")
+                _LOGGER.error(
+                    f"Task for {email} exceeded allowed time of {MAX_TIMEOUT} seconds."
+                )
             except asyncio.CancelledError:
                 _LOGGER.warning(f"Task for {email} was cancelled.")
             finally:
                 # Ensure the task is removed after completion or timeout
                 dnd_update_timers.pop(email, None)
                 _LOGGER.debug(f"Completed and removed delayed update task for {email}")
-        
+
         # Create and store the task using weak references
         task = asyncio.create_task(delayed_update())
         dnd_update_timers[email] = task
@@ -936,15 +951,19 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         """Update the DND state for the given Alexa account via the API."""
         email = login_obj.email
         now = datetime.utcnow()
-        
+
         # Retrieve state variables from hass.data
-        last_dnd_update_times: dict[str, datetime] = hass.data[DATA_ALEXAMEDIA]["last_dnd_update_times"]
+        last_dnd_update_times: dict[str, datetime] = hass.data[DATA_ALEXAMEDIA][
+            "last_dnd_update_times"
+        ]
         dnd_update_lock: asyncio.Lock = hass.data[DATA_ALEXAMEDIA]["dnd_update_lock"]
-        dnd_update_timers: weakref.WeakValueDictionary = hass.data[DATA_ALEXAMEDIA]["dnd_update_timers"]
-        
+        dnd_update_timers: weakref.WeakValueDictionary = hass.data[DATA_ALEXAMEDIA][
+            "dnd_update_timers"
+        ]
+
         last_run = last_dnd_update_times.get(email)
         cooldown = timedelta(seconds=MIN_TIME_BETWEEN_SCANS)
-        
+
         # Throttle the update if within cooldown period
         if last_run and (now - last_run) < cooldown:
             # Schedule a forced update if one isn't already scheduled
@@ -955,7 +974,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 )
                 await schedule_update_dnd_state(email, hass, login_obj)
             return
-        
+
         # Update the last run time for the DND update
         async with dnd_update_lock:
             last_dnd_update_times[email] = now
@@ -980,7 +999,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         finally:
             # Explicitly close connections to prevent memory leaks
             await AlexaAPI.close_connections()
-        
+
         # Dispatch the update event if the DND data is valid
         if dnd is not None and "doNotDisturbDeviceStatusList" in dnd:
             async_dispatcher_send(
@@ -1460,7 +1479,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Retrieve account data from hass.data
     account_data = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
     if not account_data:
-        _LOGGER.error("No account data found for email: %s. Aborting unload.", hide_email(email))
+        _LOGGER.error(
+            "No account data found for email: %s. Aborting unload.", hide_email(email)
+        )
         return False
 
     # Unload all forwarded components
@@ -1472,18 +1493,35 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.debug("Unloading 'notify' component for %s", hide_email(email))
                 await notify_async_unload_entry(hass, entry)
             else:
-                _LOGGER.debug("Unloading component '%s' for %s", component, hide_email(email))
-                component_unloaded = await hass.config_entries.async_forward_entry_unload(entry, component)
+                _LOGGER.debug(
+                    "Unloading component '%s' for %s", component, hide_email(email)
+                )
+                component_unloaded = (
+                    await hass.config_entries.async_forward_entry_unload(
+                        entry, component
+                    )
+                )
                 if not component_unloaded:
-                    _LOGGER.warning("Failed to unload component '%s' for %s", component, hide_email(email))
+                    _LOGGER.warning(
+                        "Failed to unload component '%s' for %s",
+                        component,
+                        hide_email(email),
+                    )
                     unload_success = False
         except Exception as ex:
-            _LOGGER.error("Error unloading component '%s' for %s: %s", component, hide_email(email), ex)
+            _LOGGER.error(
+                "Error unloading component '%s' for %s: %s",
+                component,
+                hide_email(email),
+                ex,
+            )
             unload_success = False
 
     # Proceed only if all components were unloaded successfully
     if not unload_success:
-        _LOGGER.error("Not all components were unloaded successfully for %s", hide_email(email))
+        _LOGGER.error(
+            "Not all components were unloaded successfully for %s", hide_email(email)
+        )
         return False
 
     # Close all open connections related to the account
@@ -1504,7 +1542,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Clear the listeners list after removal
             account_data[DATA_LISTENER].clear()
     except Exception as ex:
-        _LOGGER.error("Error removing event listeners for %s: %s", hide_email(email), ex)
+        _LOGGER.error(
+            "Error removing event listeners for %s: %s", hide_email(email), ex
+        )
         return False
 
     # Cancel all ongoing asynchronous tasks (e.g., DND update tasks)
@@ -1519,7 +1559,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Clear the DND update timers dictionary
             dnd_update_timers.clear()
     except Exception as ex:
-        _LOGGER.error("Error cancelling DND update tasks for %s: %s", hide_email(email), ex)
+        _LOGGER.error(
+            "Error cancelling DND update tasks for %s: %s", hide_email(email), ex
+        )
         return False
 
     # Clean up configuration flows in progress related to this account
@@ -1533,18 +1575,33 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             flow = config_flows.get(key)
             if flow and "flow_id" in flow:
                 flow_id = flow["flow_id"]
-                _LOGGER.debug("Aborting config flow '%s' for %s", flow_id, hide_email(email))
+                _LOGGER.debug(
+                    "Aborting config flow '%s' for %s", flow_id, hide_email(email)
+                )
                 try:
                     await hass.config_entries.flow.async_abort(flow_id)
-                    _LOGGER.debug("Successfully aborted config flow '%s' for %s", flow_id, hide_email(email))
+                    _LOGGER.debug(
+                        "Successfully aborted config flow '%s' for %s",
+                        flow_id,
+                        hide_email(email),
+                    )
                 except UnknownFlow:
-                    _LOGGER.warning("Config flow '%s' not found for %s", flow_id, hide_email(email))
+                    _LOGGER.warning(
+                        "Config flow '%s' not found for %s", flow_id, hide_email(email)
+                    )
                 except Exception as ex:
-                    _LOGGER.error("Error aborting config flow '%s' for %s: %s", flow_id, hide_email(email), ex)
+                    _LOGGER.error(
+                        "Error aborting config flow '%s' for %s: %s",
+                        flow_id,
+                        hide_email(email),
+                        ex,
+                    )
             # Remove the flow from the config_flows dictionary
             config_flows.pop(key, None)
     except Exception as ex:
-        _LOGGER.error("Error cleaning up config flows for %s: %s", hide_email(email), ex)
+        _LOGGER.error(
+            "Error cleaning up config flows for %s: %s", hide_email(email), ex
+        )
         return False
 
     # Remove the account data from hass.data
@@ -1578,9 +1635,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Finally, remove the DATA_ALEXAMEDIA key if it's empty
             if not hass.data[DATA_ALEXAMEDIA]:
                 hass.data.pop(DATA_ALEXAMEDIA, None)
-                _LOGGER.debug("Removed DATA_ALEXAMEDIA from hass.data as it is now empty.")
+                _LOGGER.debug(
+                    "Removed DATA_ALEXAMEDIA from hass.data as it is now empty."
+                )
     except Exception as ex:
-        _LOGGER.error("Error cleaning up services and data for %s: %s", hide_email(email), ex)
+        _LOGGER.error(
+            "Error cleaning up services and data for %s: %s", hide_email(email), ex
+        )
         return False
 
     # Final check to ensure DATA_ALEXAMEDIA has been cleaned up
@@ -1595,6 +1656,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Successfully unloaded entry for %s", hide_email(email))
     return True
+
 
 async def async_remove_entry(hass, entry) -> bool:
     """Handle removal of an entry."""
@@ -1652,15 +1714,13 @@ async def close_connections(hass, email: str) -> None:
         return
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
     login_obj = account_dict["login_obj"]
-    
+
     http2 = account_dict.get("http2")
     if http2:
         await http2.close()
         account_dict["http2"] = None
-        _LOGGER.debug(
-            "%s: HTTP2 connection closed.", hide_email(email)
-        )
-    
+        _LOGGER.debug("%s: HTTP2 connection closed.", hide_email(email))
+
     await login_obj.save_cookiefile()
     await login_obj.close()
     _LOGGER.debug(

@@ -649,20 +649,52 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             cleaned_config = config.copy()
             cleaned_config.pop(CONF_PASSWORD, None)
             # CONF_PASSWORD contains sensitive info which is no longer needed
-            # Load multiple platforms in parallel using async_forward_entry_setups
+
             _LOGGER.debug("Loading platforms: %s", ", ".join(ALEXA_COMPONENTS))
+
             try:
-                await hass.config_entries.async_forward_entry_setups(
-                    config_entry, ALEXA_COMPONENTS
-                )
+                for component in ALEXA_COMPONENTS:
+                    # Check if any entities for the component are already set up
+                    entry_setup = len(
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][component]
+                    )
+
+                    if not entry_setup:
+                        _LOGGER.debug("Loading config entry for %s", component)
+                        try:
+                            await hass.config_entries.async_forward_entry_setup(
+                                config_entry, component
+                            )
+                        except (asyncio.TimeoutError, TimeoutException) as ex:
+                            _LOGGER.error(
+                                f"Timeout while loading config entry for {component}: {ex}"
+                            )
+                            raise ConfigEntryNotReady(
+                                f"Timeout while loading config entry for {component}: {ex}"
+                            ) from ex
+                    else:
+                        _LOGGER.debug("Loading %s", component)
+                        try:
+                            await hass.config_entries.async_forward_entry_setup(
+                                config_entry, component
+                            )
+                        except (asyncio.TimeoutError, TimeoutException) as ex:
+                            _LOGGER.error(
+                                f"Timeout while loading component {component}: {ex}"
+                            )
+                            raise ConfigEntryNotReady(
+                                f"Timeout while loading component {component}: {ex}"
+                            ) from ex
+
             except (asyncio.TimeoutError, TimeoutException) as ex:
                 _LOGGER.error(f"Error while loading platforms: {ex}")
                 raise ConfigEntryNotReady(
                     f"Timeout while loading platforms: {ex}"
                 ) from ex
 
+        # Reset the new_devices flag after processing new clients
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
-        # prune stale devices
+        # Prune stale devices
         device_registry = dr.async_get(hass)
         for device_entry in dr.async_entries_for_config_entry(
             device_registry, config_entry.entry_id

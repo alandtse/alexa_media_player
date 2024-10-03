@@ -656,7 +656,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 for component in ALEXA_COMPONENTS:
                     # Check if any entities for the component are already set up
                     entry_setup = len(
-                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][component]
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
+                            component
+                        ]
                     )
 
                     if not entry_setup:

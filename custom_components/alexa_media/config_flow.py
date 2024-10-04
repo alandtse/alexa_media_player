@@ -165,9 +165,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
         """ External URL for cloud connected services """
         try:
-            DEFAULT_PUBLIC_URL: str = get_url(self.hass, allow_internal=False)
+            url: str = get_url(self.hass, allow_internal=False)
         except NoURLAvailableError:
             DEFAULT_PUBLIC_URL = ""
+        else:
+            DEFAULT_PUBLIC_URL = url if url.endswith("/") else url + "/"
 
         self.proxy_schema = OrderedDict(
             [
@@ -768,6 +770,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if CONF_URL in user_input:
             self.config[CONF_URL] = user_input[CONF_URL]
         if CONF_PUBLIC_URL in user_input:
+            if not user_input[CONF_PUBLIC_URL].endswith("/"):
+                user_input[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL] + "/"
             self.config[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL]
         if CONF_SCAN_INTERVAL in user_input:
             self.config[CONF_SCAN_INTERVAL] = (
@@ -951,6 +955,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET]
             if CONF_OAUTH in self.config_entry.data:
                 user_input[CONF_OAUTH] = self.config_entry.data[CONF_OAUTH]
+            """Ensure public_url ends with trailing slash"""
+            if CONF_PUBLIC_URL in self.config_entry.data:
+                if not user_input[CONF_PUBLIC_URL].endswith("/"):
+                    user_input[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL] + "/"
 
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data=user_input, options=self.config_entry.options

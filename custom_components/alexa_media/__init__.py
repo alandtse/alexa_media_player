@@ -1449,7 +1449,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass, entry) -> bool:
     """
     Unload a config entry.
 

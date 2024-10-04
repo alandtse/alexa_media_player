@@ -242,7 +242,7 @@ def _existing_serials(hass, login_obj) -> list:
             .get("devices", {})
             .get("media_player", {})
         )
-        for serial in existing_serials:
+        for serial in existing_serials[:]:
             device = device_data.get(serial, {})
             if "appDeviceList" in device and device["appDeviceList"]:
                 apps = [

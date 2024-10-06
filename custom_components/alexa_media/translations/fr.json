@@ -34,7 +34,7 @@
           "debug": "Débogage avancé",
           "email": "Adresse Email",
           "exclude_devices": "Appareil exclu (séparé par des virgules)",
-          "extended_entity_discovery": "Include devices connected via Echo",
+          "extended_entity_discovery": "Inclure les appareils connectés via Echo",
           "hass_url": "URL pour accéder à Home Assistant",
           "include_devices": "Appareil inclus (séparé par des virgules)",
           "otp_secret": "Clé d'application 2FA (2 facteurs) intégrée (génère automatiquement des codes 2FA). Il ne s'agit pas d'un code à six chiffres.",
@@ -62,8 +62,8 @@
           "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble",
           "scan_interval": "Secondes entre les analyses"
         },
-        "description": "Required *",
-        "title": "Alexa Media Player - Reconfiguration"
+        "description": "Requis *",
+        "title": "Alexa Media Player – Reconfiguration"
       }
     }
   },

@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "Die \"Passwort vergessen Funktion\" wurde erkannt. Amazon verlangt möglicherweise Maßnahmen bevor ein erneuter Anmeldeversuch unternommen werden kann.",
+      "forgot_password": "Die \"Passwort vergessen Seite\" wurde erkannt. Amazon verlangt möglicherweise Maßnahmen bevor ein erneuter Anmeldeversuch unternommen werden kann.",
       "login_failed": "Alexa Media Player konnte nicht angemeldet werden.",
       "reauth_successful": "Alexa Media Player erfolgreich authentifiziert"
     },
@@ -9,7 +9,7 @@
       "2fa_key_invalid": "Ungültiger 2-Faktor Schlüssel",
       "connection_error": "Verbindungsfehler; Netzwerk prüfen und erneut versuchen",
       "identifier_exists": "Diese E-Mail-Adresse ist bereits registriert",
-      "invalid_credentials": "Falsche Zugangsdaten",
+      "invalid_credentials": "Ungültige Zugangsdaten",
       "invalid_url": "URL ist ungültig: {message}",
       "unable_to_connect_hass_url": "Es kann keine Verbindung zur Home Assistant-URL hergestellt werden. Bitte überprüfen Sie die externe URL unter Konfiguration -> Allgemein",
       "unknown_error": "Unbekannter Fehler: {message}"
@@ -39,7 +39,7 @@
           "include_devices": "Eingebundene Geräte (Komma getrennt)",
           "otp_secret": "Integrierter 2FA-App-Schlüssel (automatisch generierte 2FA-Code)",
           "password": "Passwort",
-          "queue_delay": "Sekunden zu warten, um Befehle in die Warteschlange zu stellen",
+          "queue_delay": "Zu wartende Sekunden, um Befehle in die Warteschlange zu stellen",
           "scan_interval": "Sekunden zwischen den Scans",
           "securitycode": "2FA-Code (empfohlen, um Anmeldeprobleme zu vermeiden)",
           "url": "Amazon Region (z.B. amazon.de)"
@@ -56,10 +56,10 @@
           "debug": "Erweitertes Debugging",
           "exclude_devices": "Ausgeschlossene Geräte (Komma getrennt)",
           "extended_entity_discovery": "Schließen Sie Geräte ein, die über Echo verbunden sind",
-          "hass_url": "Öffentliche URL zum Zugriff auf Home Assistant (einschließlich '/' am Ende)",
+          "hass_url": "Öffentliche URL für den Zugriff auf Home Assistant (einschließlich '/' am Ende)",
           "include_devices": "Eingebundene Geräte (Komma getrennt)",
-          "public_url": "Öffentliche URL zum Zugriff auf Home Assistant (einschließlich '/' am Ende)",
-          "queue_delay": "Sekunden zu warten, um Befehle in die Warteschlange zu stellen",
+          "public_url": "Öffentliche URL für den Zugriff auf Home Assistant (einschließlich '/' am Ende)",
+          "queue_delay": "Zu wartende Sekunden, um Befehle in die Warteschlange zu stellen",
           "scan_interval": "Sekunden zwischen den Scans"
         },
         "description": "Erforderlich *",
@@ -73,7 +73,7 @@
       "fields": {
         "email": {
           "description": "Zu löschende Accounts. Falls leer, werden alle gelöscht.",
-          "name": "E-Mail Adresse"
+          "name": "E-Mail-Adresse"
         },
         "entries": {
           "description": "Zu löschende Einträge von 1 bis 50. Falls leer, lösche 50.",
@@ -83,21 +83,21 @@
       "name": "Lösche Alexa Stimmbefehl-Historie."
     },
     "force_logout": {
-      "description": "Logout erzwingen. Primär für Debugging notwendig.",
+      "description": "Logout erzwingen. Primär für Debugging genutzt.",
       "fields": {
         "email": {
-          "description": "Zu löschende Accounts.  Falls leer werden alle gelöscht.",
-          "name": "E-Mail Adresse"
+          "description": "Zu löschende Accounts. Falls leer werden alle gelöscht.",
+          "name": "E-Mail-Adresse"
         }
       },
       "name": "Logout erzwingen"
     },
     "update_last_called": {
-      "description": "Erzwinge Updates der zuletzt aufgerufenen Echo Geräte für jeden Alexa Account  ",
+      "description": "Erzwinge Updates der zuletzt aufgerufenen Echo Geräte für jeden Alexa Account.",
       "fields": {
         "email": {
           "description": "Liste der zu aktualisierenden Alexa-Konten. Wenn leer, werden alle bekannten Konten aktualisiert.",
-          "name": "E-Mail Adresse"
+          "name": "E-Mail-Adresse"
         }
       },
       "name": "Aktualisiere den zuletzt aufgerufenen Sensor"

@@ -1,6 +1,12 @@
 # CHANGELOG
 
+## v4.13.5 (2024-10-19)
 
+### Fix
+
+* fix: bump alexapy to 1.29.3
+
+Fix login loop issue (1825583)([`1825583`](https://gitlab.com/keatontaylor/alexapy/-/commit/18255832673fd7e7639c114766e7aa4e74ffe42f))
 
 ## v4.7.7 (2023-10-08)
 

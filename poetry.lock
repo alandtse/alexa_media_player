@@ -135,13 +135,13 @@ frozenlist = ">=1.1.0"
 
 [[package]]
 name = "alexapy"
-version = "1.29.2"
+version = "1.29.3"
 description = "Python API to control Amazon Echo Devices Programmatically."
 optional = false
 python-versions = "<4,>=3.11"
 files = [
-    {file = "alexapy-1.29.2-py3-none-any.whl", hash = "sha256:6dc1fb2979d1385aff1833681365f8c39cebbe3f9ceca2939c4695e65426c115"},
-    {file = "alexapy-1.29.2.tar.gz", hash = "sha256:36dead8b8062d8bd3e8f11f37edd196882951269c68cd6990762b415acb99d95"},
+    {file = "alexapy-1.29.3-py3-none-any.whl", hash = "sha256:14663bd0df41b7447b6de936e6ef0b0b4f44cd5958edc0b660fc93a1aae60bca"},
+    {file = "alexapy-1.29.3.tar.gz", hash = "sha256:8d554ef9afe30750be0269b5b51b6702da83382e7978f45915270090b5f2bdce"},
 ]
 
 [package.dependencies]
@@ -3611,4 +3611,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "9cc60ca99e8a849cfbb96ef8d471e68360a45ca8a9e6e6ca8e6c25a104eb75f3"
+content-hash = "610de9c39bfb9fc6dd12887cb8fd9a0b22dc866440b3e169ab68fd4b93dd6826"

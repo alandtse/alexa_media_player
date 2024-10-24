@@ -13,7 +13,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
-alexapy = "1.29.3"
+alexapy = { git = "https://gitlab.com/srescio/alexapy.git", branch = "fix-login_successful-not-being-set-true-after-session-refresh" }
 aiohttp = ">=3.8.1"
 packaging = ">=20.3"
 wrapt = ">=1.12.1"

@@ -144,6 +144,15 @@ def is_contact_sensor(appliance: dict[str, Any]) -> bool:
     )
 
 
+def is_motion_sensor(appliance: dict[str, Any]) -> bool:
+    """Is the given appliance a motion sensor controlled locally by an Echo."""
+    return (
+        is_local(appliance)
+        and "MOTION_SENSOR" in appliance.get("applianceTypes", [])
+        and has_capability(appliance, "Alexa.MotionSensor", "detectionState")
+    )
+
+
 def is_switch(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a switch controlled locally by an Echo, which is not redeclared as a light."""
     return (
@@ -218,8 +227,8 @@ class AlexaEntities(TypedDict):
     guard: list[AlexaEntity]
     temperature: list[AlexaTemperatureEntity]
     air_quality: list[AlexaAirQualityEntity]
-    binary_sensor: list[AlexaBinaryEntity]
-
+    contact_sensor: list[AlexaBinaryEntity]
+    motion_sensor: list[AlexaBinaryEntity]
 
 def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEntities:
     # pylint: disable=too-many-locals
@@ -229,6 +238,7 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
     temperature_sensors = []
     air_quality_sensors = []
     contact_sensors = []
+    motion_sensors = []
     switches = []
     location_details = network_details["locationDetails"]["locationDetails"]
     # pylint: disable=too-many-nested-blocks
@@ -243,20 +253,16 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                     "name": get_friendliest_name(appliance),
                     "is_hue_v1": is_hue_v1(appliance),
                 }
+                serial = get_device_serial(appliance)
+                processed_appliance["device_serial"] = (
+                    serial if serial else appliance["entityId"]
+                )
                 if is_alexa_guard(appliance):
                     guards.append(processed_appliance)
                 elif is_temperature_sensor(appliance):
-                    serial = get_device_serial(appliance)
-                    processed_appliance["device_serial"] = (
-                        serial if serial else appliance["entityId"]
-                    )
                     temperature_sensors.append(processed_appliance)
                 # Code for Amazon Smart Air Quality Monitor
                 elif is_air_quality_sensor(appliance):
-                    serial = get_device_serial(appliance)
-                    processed_appliance["device_serial"] = (
-                        serial if serial else appliance["entityId"]
-                    )
                     # create array of air quality sensors. We must store the instance id against
                     # the assetId so we know which sensors are which.
                     sensors = []
@@ -308,6 +314,11 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                         appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
                     )
                     contact_sensors.append(processed_appliance)
+                elif is_motion_sensor(appliance):
+                    processed_appliance["battery_level"] = has_capability(
+                        appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
+                    )
+                    motion_sensors.append(processed_appliance)
                 else:
                     _LOGGER.debug("Found unsupported device %s", appliance)
 
@@ -316,7 +327,8 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
         "guard": guards,
         "temperature": temperature_sensors,
         "air_quality": air_quality_sensors,
-        "binary_sensor": contact_sensors,
+        "contact_sensor": contact_sensors,
+        "motion_sensor": motion_sensors,
         "smart_switch": switches,
     }
 
@@ -431,12 +443,21 @@ def parse_guard_state_from_coordinator(
     )
 
 
-def parse_detection_state_from_coordinator(
+def parse_contact_state_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str
 ) -> Optional[bool]:
     """Get the detection state from the coordinator data."""
     return parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.ContactSensor", "detectionState"
+    )
+
+
+def parse_motion_state_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: str
+) -> Optional[bool]:
+    """Get the detection state from the coordinator data."""
+    return parse_value_from_coordinator(
+        coordinator, entity_id, "Alexa.MotionSensor", "detectionState"
     )
 
 

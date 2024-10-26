@@ -66,3 +66,6 @@ ignore-words-list = "hass"
 
 [pytest]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
+
+[tool.bandit]
+skips = ["B101", "B404", "B603"]

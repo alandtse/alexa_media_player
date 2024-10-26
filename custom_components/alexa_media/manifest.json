@@ -8,6 +8,6 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/alandtse/alexa_media_player/issues",
   "loggers": ["alexapy", "authcaptureproxy"],
-  "requirements": ["alexapy@git+https://gitlab.com/srescio/alexapy.git@9aeb1ff47f7fd68c8af1324f2f07b58d84f6cbcf", "packaging>=20.3", "wrapt>=1.14.0"],
+  "requirements": ["alexapy@git+https://gitlab.com/srescio/alexapy.git@eb52b654e45e07a01ebd3ccfadf469547d4cb973", "packaging>=20.3", "wrapt>=1.14.0"],
   "version": "4.13.6"
 }

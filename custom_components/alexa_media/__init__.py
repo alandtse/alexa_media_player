@@ -288,7 +288,8 @@ async def async_setup_entry(hass, config_entry):
                 "switch": {},
                 "guard": [],
                 "light": [],
-                "binary_sensor": [],
+                "contact_sensor": [],
+                "motion_sensor": [],
                 "temperature": [],
                 "smart_switch": [],
             },
@@ -297,7 +298,8 @@ async def async_setup_entry(hass, config_entry):
                 "switch": {},
                 "sensor": {},
                 "light": [],
-                "binary_sensor": [],
+                "contact_sensor": [],
+                "motion_sensor": [],
                 "alarm_control_panel": {},
                 "smart_switch": [],
             },
@@ -455,11 +457,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             if switch.enabled:
                 entities_to_monitor.add(switch.alexa_entity_id)
 
-        for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
-            "binary_sensor"
-        ]:
-            if binary_sensor.enabled:
-                entities_to_monitor.add(binary_sensor.alexa_entity_id)
+        for contact_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["contact_sensor"]:
+            if contact_sensor.enabled:
+                entities_to_monitor.add(contact_sensor.alexa_entity_id)
+
+        for motion_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["motion_sensor"]:
+            if motion_sensor.enabled:
+                entities_to_monitor.add(motion_sensor.alexa_entity_id)
 
         for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "alarm_control_panel"

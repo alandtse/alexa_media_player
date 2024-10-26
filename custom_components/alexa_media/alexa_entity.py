@@ -253,16 +253,20 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                     "name": get_friendliest_name(appliance),
                     "is_hue_v1": is_hue_v1(appliance),
                 }
-                serial = get_device_serial(appliance)
-                processed_appliance["device_serial"] = (
-                    serial if serial else appliance["entityId"]
-                )
                 if is_alexa_guard(appliance):
                     guards.append(processed_appliance)
                 elif is_temperature_sensor(appliance):
+                    serial = get_device_serial(appliance)
+                    processed_appliance["device_serial"] = (
+                        serial if serial else appliance["entityId"]
+                    )
                     temperature_sensors.append(processed_appliance)
                 # Code for Amazon Smart Air Quality Monitor
                 elif is_air_quality_sensor(appliance):
+                    serial = get_device_serial(appliance)
+                    processed_appliance["device_serial"] = (
+                        serial if serial else appliance["entityId"]
+                    )
                     # create array of air quality sensors. We must store the instance id against
                     # the assetId so we know which sensors are which.
                     sensors = []

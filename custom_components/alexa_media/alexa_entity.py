@@ -69,6 +69,12 @@ def is_local(appliance: dict[str, Any]) -> bool:
         # skill derived devices and includes an Echo name for zigbee and local devices.
         return True
 
+    if (appliance.get("manufacturerName") == "Third Reality" and appliance.get("friendlyDescription") == "Third Reality smart device"):
+        return True
+
+    if (appliance.get("manufacturerName") == "Amazon" and appliance.get("friendlyDescription") == "Amazon Smart Plug"):
+        return True
+
     # This catches the Echo/AVS devices. connectedVia isn't reliable in this case.
     # Only the first appears to get that set.
     if "ALEXA_VOICE_ENABLED" in appliance.get("applianceTypes", []):

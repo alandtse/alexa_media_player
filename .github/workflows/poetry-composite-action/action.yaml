@@ -1,0 +1,52 @@
+name: "Install poetry and dependencies"
+description: "Install poetry and dependencies"
+inputs:
+  directory:
+    description: "Directory where you want to run poetry install"
+    required: false
+    default: "./"
+  python_version:
+    description: "Python version to use"
+    required: false
+    default: "3.12"
+  poetry_version:
+    description: "Poetry version to use"
+    required: false
+    default: "1.8.2"
+  cache_dependencies:
+    description: "Whether the dependencies must be cached"
+    required: false
+    default: "true"
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+    - name: Load cached Poetry installation
+      id: cached-poetry
+      uses: actions/cache@v4
+      with:
+        path: ~/.local
+        key: poetry-${{ inputs.poetry_version }}
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: ${{ inputs.poetry_version }}
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+        installer-parallel: true
+    - name: cache dependencies
+      if: inputs.cache_dependencies == 'true'
+      id: cache-deps
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: pydeps-${{ hashFiles(format('{0}/poetry.lock', inputs.directory)) }}
+    - name: Install dependencies
+      shell: bash
+      run: cd $INPUT_DIRECTORY; poetry install --no-interaction --no-root
+      if: steps.cache-deps.outputs.cache-hit != 'true'
+      env:
+        INPUT_DIRECTORY: ${{ inputs.directory }}

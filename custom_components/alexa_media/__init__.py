@@ -451,6 +451,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             if light.enabled:
                 entities_to_monitor.add(light.alexa_entity_id)
 
+        for switch in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["smart_switch"]:
+            if switch.enabled:
+                entities_to_monitor.add(switch.alexa_entity_id)
+
         for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "binary_sensor"
         ]:

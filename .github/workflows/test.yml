@@ -20,6 +20,8 @@ jobs:
       - uses: ./.github/workflows/poetry-composite-action
       - name: Prepare test env
         run: bash tests/setup.sh
+      - name: Install poetry
+        run: poetry install
       - name: Run tests
         run: |
           poetry run pytest \

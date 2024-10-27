@@ -9,7 +9,7 @@
   "issue_tracker": "https://github.com/alandtse/alexa_media_player/issues",
   "loggers": ["alexapy", "authcaptureproxy"],
   "requirements": [
-    "alexapy@git+https://gitlab.com/srescio/alexapy.git@6d14d985e2629fc6169df07a6397657a55036873",
+    "alexapy@git+https://gitlab.com/srescio/alexapy.git@9eb487eeb0495b618e614f044741bf3371569d87",
     "packaging>=20.3",
     "wrapt>=1.14.0"
   ],

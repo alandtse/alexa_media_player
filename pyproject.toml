@@ -12,15 +12,15 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.11,<4.0"
-alexapy = "1.29.3"
+python = ">=3.12,<3.14"
+alexapy = "1.29.4"
 aiohttp = ">=3.8.1"
 packaging = ">=20.3"
 wrapt = ">=1.12.1"
 
 [tool.poetry.group.dev.dependencies]
-homeassistant = ">=2022.11.0"
-pytest-homeassistant-custom-component = ">=0.3.1"
+homeassistant = ">=2024.10.3"
+pytest-homeassistant-custom-component = ">=0.13.174"
 black = { version = ">=21.12b0", allow-prereleases = true }
 pre-commit = ">=2.11.1"
 prospector = { extras = ["with_all"], version = ">=1.8.3" }
@@ -63,3 +63,9 @@ exclude = '''
 skip = './.*,*.csv,*.json,*.lock'
 quiet-level = 2
 ignore-words-list = "hass"
+
+[pytest]
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+
+[tool.bandit]
+skips = ["B101", "B404", "B603"]

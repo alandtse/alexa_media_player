@@ -14,8 +14,6 @@ from typing import List, Optional
 from alexapy import hide_email, hide_serial
 from homeassistant.const import (
     CONF_EMAIL,
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_DISARMED,
     STATE_UNAVAILABLE,
 )
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -36,6 +34,18 @@ from .helpers import _catch_login_errors, add_devices
 from homeassistant.components.alarm_control_panel import (
         AlarmControlPanelEntity,
 )
+
+try:
+    from homeassistant.components.alarm_control_panel import (
+        AlarmControlPanelState,
+    )
+    STATE_ALARM_ARMED_AWAY = AlarmControlPanelState.ARMED_AWAY
+    STATE_ALARM_DISARMED = AlarmControlPanelState.DISARMED
+except ImportError:
+    from homeassistant.const import (
+        STATE_ALARM_ARMED_AWAY,
+        STATE_ALARM_DISARMED,
+    )
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -221,8 +231,6 @@ class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEnt
         )
         if _state == "ARMED_AWAY":
             return STATE_ALARM_ARMED_AWAY
-        if _state == "ARMED_STAY":
-            return STATE_ALARM_DISARMED
         return STATE_ALARM_DISARMED
 
     @property

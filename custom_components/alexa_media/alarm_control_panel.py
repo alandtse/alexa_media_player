@@ -33,12 +33,9 @@ from .const import (
 )
 from .helpers import _catch_login_errors, add_devices
 
-try:
-    from homeassistant.components.alarm_control_panel import (
-        AlarmControlPanelEntity as AlarmControlPanel,
-    )
-except ImportError:
-    from homeassistant.components.alarm_control_panel import AlarmControlPanel
+from homeassistant.components.alarm_control_panel import (
+        AlarmControlPanelEntity,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -135,7 +132,7 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
+class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEntity):
     """Implementation of Alexa Media Player alarm control panel."""
 
     def __init__(self, login, coordinator, guard_entity, media_players=None) -> None:

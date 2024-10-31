@@ -1,0 +1,42 @@
+name: Test
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "**.py"
+  pull_request:
+    paths:
+      - "**.py"
+      - "poetry.lock"
+
+jobs:
+  tests:
+    runs-on: "ubuntu-latest"
+    name: Run tests
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - uses: ./.github/workflows/poetry-composite-action
+      - name: Prepare test env
+        run: bash tests/setup.sh
+      - name: Install poetry
+        run: poetry install
+      - name: Run tests
+        run: |
+          poetry run pytest \
+            -qq \
+            --timeout=9 \
+            --durations=10 \
+            -n auto \
+            --cov custom_components.alexa_media \
+            --cov-report xml \
+            -o console_output_style=count \
+            -p no:sugar \
+            tests
+          poetry run coverage lcov
+      - name: Upload Coverage Results
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.github_token }}
+          path-to-lcov: coverage.lcov

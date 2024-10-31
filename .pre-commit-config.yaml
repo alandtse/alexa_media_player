@@ -50,14 +50,14 @@ repos:
   - hooks:
       - id: black
     repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: 24.10.0
   - repo: https://github.com/pre-commit/mirrors-prettier
     hooks:
       - id: prettier
         exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
     rev: v4.0.0-alpha.8
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.17.0
+    rev: v3.19.0
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
@@ -69,11 +69,7 @@ repos:
     rev: 1.7.9
     hooks:
       - id: bandit
-        args:
-          - --quiet
-          - --format=custom
-          - --configfile=tests/bandit.yaml
-        files: ^(homeassistant|script|tests)/.+\.py$
+        args: ["-c", "pyproject.toml"]
   - repo: https://github.com/PyCQA/isort
     rev: 5.13.2
     hooks:

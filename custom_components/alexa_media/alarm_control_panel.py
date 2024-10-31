@@ -12,10 +12,8 @@ import logging
 from typing import List, Optional
 
 from alexapy import hide_email, hide_serial
-from homeassistant.const import (
-    CONF_EMAIL,
-    STATE_UNAVAILABLE,
-)
+from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
+from homeassistant.const import CONF_EMAIL, STATE_UNAVAILABLE
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -31,22 +29,13 @@ from .const import (
 )
 from .helpers import _catch_login_errors, add_devices
 
-from homeassistant.components.alarm_control_panel import (
-    AlarmControlPanelEntity,
-)
-
 try:
-    from homeassistant.components.alarm_control_panel import (
-        AlarmControlPanelState,
-    )
+    from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 
     STATE_ALARM_ARMED_AWAY = AlarmControlPanelState.ARMED_AWAY
     STATE_ALARM_DISARMED = AlarmControlPanelState.DISARMED
 except ImportError:
-    from homeassistant.const import (
-        STATE_ALARM_ARMED_AWAY,
-        STATE_ALARM_DISARMED,
-    )
+    from homeassistant.const import STATE_ALARM_ARMED_AWAY, STATE_ALARM_DISARMED
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]

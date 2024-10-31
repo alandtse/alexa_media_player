@@ -287,7 +287,7 @@ async def calculate_uuid(hass, email: str, url: str) -> dict:
         + return_index
         # hash email/url in case HA uuid duplicated
         + int(
-            hashlib.md5((email.lower() + url.lower()).encode()).hexdigest(), 16  # nosec
+            hashlib.sha256((email.lower() + url.lower()).encode()).hexdigest(), 16  # nosec
         )
     )[-32:]
     result["index"] = return_index

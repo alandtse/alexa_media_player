@@ -32,13 +32,14 @@ from .const import (
 from .helpers import _catch_login_errors, add_devices
 
 from homeassistant.components.alarm_control_panel import (
-        AlarmControlPanelEntity,
+    AlarmControlPanelEntity,
 )
 
 try:
     from homeassistant.components.alarm_control_panel import (
         AlarmControlPanelState,
     )
+
     STATE_ALARM_ARMED_AWAY = AlarmControlPanelState.ARMED_AWAY
     STATE_ALARM_DISARMED = AlarmControlPanelState.DISARMED
 except ImportError:
@@ -46,8 +47,6 @@ except ImportError:
         STATE_ALARM_ARMED_AWAY,
         STATE_ALARM_DISARMED,
     )
-
-
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]

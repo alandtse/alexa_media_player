@@ -1417,7 +1417,7 @@ async def async_remove_entry(hass, entry) -> bool:
     login_obj = AlexaLogin(
         url="",
         email=email,
-        password="",
+        password="",  # nosec
         outputpath=hass.config.path,
     )
     # Delete cookiefile

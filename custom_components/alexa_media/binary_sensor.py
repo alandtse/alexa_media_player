@@ -24,8 +24,7 @@ from . import (
     DATA_ALEXAMEDIA,
     hide_email,
 )
-from .alexa_entity import parse_contact_state_from_coordinator
-from .alexa_entity import parse_motion_state_from_coordinator
+from .alexa_entity import parse_detection_state_from_coordinator
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .helpers import add_devices
 
@@ -128,10 +127,9 @@ class AlexaContact(CoordinatorEntity, BinarySensorEntity):
     @property
     def is_on(self):
         """Return whether on."""
-        detection = parse_contact_state_from_coordinator(
-            self.coordinator, self.alexa_entity_id
+        detection = parse_detection_state_from_coordinator(
+            self.coordinator, self.alexa_entity_id, "Alexa.ContactSensor"
         )
-
         return detection == "DETECTED" if detection is not None else None
 
     @property
@@ -173,10 +171,9 @@ class AlexaMotion(CoordinatorEntity, BinarySensorEntity):
     @property
     def is_on(self):
         """Return whether on."""
-        detection = parse_motion_state_from_coordinator(
-            self.coordinator, self.alexa_entity_id
+        detection = parse_detection_state_from_coordinator(
+            self.coordinator, self.alexa_entity_id, "Alexa.MotionSensor"
         )
-
         return detection == "DETECTED" if detection is not None else None
 
     @property

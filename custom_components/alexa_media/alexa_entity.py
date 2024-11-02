@@ -139,7 +139,6 @@ def is_contact_sensor(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a contact sensor controlled locally by an Echo."""
     return (
         is_local(appliance)
-        and "CONTACT_SENSOR" in appliance.get("applianceTypes", [])
         and has_capability(appliance, "Alexa.ContactSensor", "detectionState")
     )
 
@@ -148,7 +147,6 @@ def is_motion_sensor(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a motion sensor controlled locally by an Echo."""
     return (
         is_local(appliance)
-        and "MOTION_SENSOR" in appliance.get("applianceTypes", [])
         and has_capability(appliance, "Alexa.MotionSensor", "detectionState")
     )
 
@@ -217,6 +215,7 @@ class AlexaAirQualityEntity(AlexaEntity):
 class AlexaBinaryEntity(AlexaEntity):
     """Class for AlexaBinaryEntity."""
 
+    device_serial: str
     battery_level: bool
 
 
@@ -229,6 +228,7 @@ class AlexaEntities(TypedDict):
     air_quality: list[AlexaAirQualityEntity]
     contact_sensor: list[AlexaBinaryEntity]
     motion_sensor: list[AlexaBinaryEntity]
+
 
 def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEntities:
     # pylint: disable=too-many-locals
@@ -314,11 +314,19 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                     )
                     lights.append(processed_appliance)
                 elif is_contact_sensor(appliance):
+                    serial = get_device_serial(appliance)
+                    processed_appliance["device_serial"] = (
+                        serial if serial else appliance["entityId"]
+                    )
                     processed_appliance["battery_level"] = has_capability(
                         appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
                     )
                     contact_sensors.append(processed_appliance)
                 elif is_motion_sensor(appliance):
+                    serial = get_device_serial(appliance)
+                    processed_appliance["device_serial"] = (
+                        serial if serial else appliance["entityId"]
+                    )
                     processed_appliance["battery_level"] = has_capability(
                         appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
                     )
@@ -447,21 +455,12 @@ def parse_guard_state_from_coordinator(
     )
 
 
-def parse_contact_state_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str
+def parse_detection_state_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: str, namespace: str
 ) -> Optional[bool]:
     """Get the detection state from the coordinator data."""
     return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.ContactSensor", "detectionState"
-    )
-
-
-def parse_motion_state_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str
-) -> Optional[bool]:
-    """Get the detection state from the coordinator data."""
-    return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.MotionSensor", "detectionState"
+        coordinator, entity_id, namespace, "detectionState"
     )
 
 

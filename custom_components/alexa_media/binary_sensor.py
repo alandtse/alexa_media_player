@@ -67,7 +67,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             motion_sensor = AlexaMotion(coordinator, motion_entity)
             account_dict["entities"]["motion_sensor"].append(motion_sensor)
             devices.append(motion_sensor)
-                
+
     return await add_devices(
         hide_email(account),
         devices,

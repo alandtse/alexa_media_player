@@ -69,10 +69,16 @@ def is_local(appliance: dict[str, Any]) -> bool:
         # skill derived devices and includes an Echo name for zigbee and local devices.
         return True
 
-    if (appliance.get("manufacturerName") == "Third Reality" and appliance.get("friendlyDescription") == "Third Reality smart device"):
+    if (
+        appliance.get("manufacturerName") == "Third Reality"
+        and appliance.get("friendlyDescription") == "Third Reality smart device"
+    ):
         return True
 
-    if (appliance.get("manufacturerName") == "Amazon" and appliance.get("friendlyDescription") == "Amazon Smart Plug"):
+    if (
+        appliance.get("manufacturerName") == "Amazon"
+        and appliance.get("friendlyDescription") == "Amazon Smart Plug"
+    ):
         return True
 
     # This catches the Echo/AVS devices. connectedVia isn't reliable in this case.
@@ -137,17 +143,15 @@ def is_light(appliance: dict[str, Any]) -> bool:
 
 def is_contact_sensor(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a contact sensor controlled locally by an Echo."""
-    return (
-        is_local(appliance)
-        and has_capability(appliance, "Alexa.ContactSensor", "detectionState")
+    return is_local(appliance) and has_capability(
+        appliance, "Alexa.ContactSensor", "detectionState"
     )
 
 
 def is_motion_sensor(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a motion sensor controlled locally by an Echo."""
-    return (
-        is_local(appliance)
-        and has_capability(appliance, "Alexa.MotionSensor", "detectionState")
+    return is_local(appliance) and has_capability(
+        appliance, "Alexa.MotionSensor", "detectionState"
     )
 
 

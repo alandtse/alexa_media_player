@@ -12,12 +12,8 @@ import logging
 from typing import List, Optional
 
 from alexapy import hide_email, hide_serial
-from homeassistant.const import (
-    CONF_EMAIL,
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_DISARMED,
-    STATE_UNAVAILABLE,
-)
+from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
+from homeassistant.const import CONF_EMAIL, STATE_UNAVAILABLE
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -34,13 +30,12 @@ from .const import (
 from .helpers import _catch_login_errors, add_devices
 
 try:
-    from homeassistant.components.alarm_control_panel import (
-        AlarmControlPanelEntity as AlarmControlPanel,
-    )
+    from homeassistant.components.alarm_control_panel import AlarmControlPanelState
+
+    STATE_ALARM_ARMED_AWAY = AlarmControlPanelState.ARMED_AWAY
+    STATE_ALARM_DISARMED = AlarmControlPanelState.DISARMED
 except ImportError:
-    from homeassistant.components.alarm_control_panel import AlarmControlPanel
-
-
+    from homeassistant.const import STATE_ALARM_ARMED_AWAY, STATE_ALARM_DISARMED
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
@@ -135,7 +130,7 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
-class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
+class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEntity):
     """Implementation of Alexa Media Player alarm control panel."""
 
     def __init__(self, login, coordinator, guard_entity, media_players=None) -> None:
@@ -224,8 +219,6 @@ class AlexaAlarmControlPanel(AlarmControlPanel, AlexaMedia, CoordinatorEntity):
         )
         if _state == "ARMED_AWAY":
             return STATE_ALARM_ARMED_AWAY
-        if _state == "ARMED_STAY":
-            return STATE_ALARM_DISARMED
         return STATE_ALARM_DISARMED
 
     @property

@@ -172,7 +172,8 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_EXTENDED_ENTITY_DISCOVERY: account[
                                 CONF_EXTENDED_ENTITY_DISCOVERY
                             ],
-                            CONF_DEBUG: account[CONF_DEBUG],                        },
+                            CONF_DEBUG: account[CONF_DEBUG],
+                        },
                     )
                     entry_found = True
                     break

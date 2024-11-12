@@ -113,7 +113,9 @@ ACCOUNT_CONFIG_SCHEMA = vol.Schema(
         ),
         vol.Optional(CONF_SCAN_INTERVAL, default=SCAN_INTERVAL): cv.time_period,
         vol.Optional(CONF_QUEUE_DELAY, default=DEFAULT_QUEUE_DELAY): cv.positive_float,
-        vol.Optional(CONF_EXTENDED_ENTITY_DISCOVERY, default=DEFAULT_EXTENDED_ENTITY_DISCOVERY): cv.boolean,
+        vol.Optional(
+            CONF_EXTENDED_ENTITY_DISCOVERY, default=DEFAULT_EXTENDED_ENTITY_DISCOVERY
+        ): cv.boolean,
         vol.Optional(CONF_DEBUG, default=DEFAULT_DEBUG): cv.boolean,
     }
 )
@@ -162,8 +164,7 @@ async def async_setup(hass, config, discovery_info=None):
                         DEFAULT_PUBLIC_URL: str = get_url(hass, allow_internal=False)
                     except NoURLAvailableError:
                         DEFAULT_PUBLIC_URL = ""
-                    url = account.get(
-                        CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
+                    url = account.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
                     if url is not None:
                         url = url if url.endswith("/") else url + "/"
                     _LOGGER.debug("CONF_PUBLIC_URL: %s", url)

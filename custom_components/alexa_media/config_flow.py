@@ -113,7 +113,9 @@ ACCOUNT_CONFIG_SCHEMA = vol.Schema(
         ),
         vol.Optional(CONF_SCAN_INTERVAL, default=SCAN_INTERVAL): cv.time_period,
         vol.Optional(CONF_QUEUE_DELAY, default=DEFAULT_QUEUE_DELAY): cv.positive_float,
-        vol.Optional(CONF_EXTENDED_ENTITY_DISCOVERY, default=DEFAULT_EXTENDED_ENTITY_DISCOVERY): cv.boolean,
+        vol.Optional(
+            CONF_EXTENDED_ENTITY_DISCOVERY, default=DEFAULT_EXTENDED_ENTITY_DISCOVERY
+        ): cv.boolean,
         vol.Optional(CONF_DEBUG, default=DEFAULT_DEBUG): cv.boolean,
     }
 )
@@ -162,8 +164,7 @@ async def async_setup(hass, config, discovery_info=None):
                         DEFAULT_PUBLIC_URL: str = get_url(hass, allow_internal=False)
                     except NoURLAvailableError:
                         DEFAULT_PUBLIC_URL = ""
-                    url = account.get(
-                        CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
+                    url = account.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
                     if url is not None:
                         url = url if url.endswith("/") else url + "/"
                     _LOGGER.debug("CONF_PUBLIC_URL: %s", url)
@@ -373,7 +374,7 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
     if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
-        #hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
+        # hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
     hass.bus.async_listen("alexa_media_relogin_required", relogin)
     hass.bus.async_listen("alexa_media_relogin_success", login_success)
@@ -1029,28 +1030,28 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 else:
                     serial = None
 
-#                if command == "PUSH_ACTIVITY":
-#                    #  Last_Alexa Updated
-#                    last_called = {
-#                        "serialNumber": serial,
-#                        "timestamp": json_payload["timestamp"],
-#                    }
-#                    try:
-#                        if coordinator:
-#                            await coordinator.async_request_refresh()
-#
-#                        if serial and serial in existing_serials:
-#                            await update_last_called(login_obj, last_called)
-#                        _LOGGER.debug("Updating last_called: %s", last_called)
-#                        async_dispatcher_send(
-#                            hass,
-#                            f"{DOMAIN}_{hide_email(email)}"[0:32],
-#                            {"push_activity": json_payload},
-#                        )
-#                    except AlexapyConnectionError:
-#                        # Catch case where activities doesn't report valid json
-#                        pass
-#                elif command in (
+                #                if command == "PUSH_ACTIVITY":
+                #                    #  Last_Alexa Updated
+                #                    last_called = {
+                #                        "serialNumber": serial,
+                #                        "timestamp": json_payload["timestamp"],
+                #                    }
+                #                    try:
+                #                        if coordinator:
+                #                            await coordinator.async_request_refresh()
+                #
+                #                        if serial and serial in existing_serials:
+                #                            await update_last_called(login_obj, last_called)
+                #                        _LOGGER.debug("Updating last_called: %s", last_called)
+                #                        async_dispatcher_send(
+                #                            hass,
+                #                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                #                            {"push_activity": json_payload},
+                #                        )
+                #                    except AlexapyConnectionError:
+                #                        # Catch case where activities doesn't report valid json
+                #                        pass
+                #                elif command in (
                 if command in (
                     "PUSH_AUDIO_PLAYER_STATE",
                     "PUSH_MEDIA_CHANGE",
@@ -1081,10 +1082,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             {"player_state": json_payload},
                         )
                     #  Try updating last_alexa
-#                    last_called = {
-#                        "serialNumber": serial,
-#                        "timestamp": json_payload["timestamp"],
-#                    }
+                    #                    last_called = {
+                    #                        "serialNumber": serial,
+                    #                        "timestamp": json_payload["timestamp"],
+                    #                    }
                     try:
                         if coordinator:
                             await coordinator.async_request_refresh()
@@ -1092,11 +1093,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if serial and serial in existing_serials:
                             await update_last_called(login_obj)
                         _LOGGER.debug("Updating last_called")
-#                        async_dispatcher_send(
-#                            hass,
-#                            f"{DOMAIN}_{hide_email(email)}"[0:32],
-#                            {"push_activity": json_payload},
-#                        )
+                    #                        async_dispatcher_send(
+                    #                            hass,
+                    #                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                    #                            {"push_activity": json_payload},
+                    #                        )
                     except AlexapyConnectionError:
                         # Catch case where activities doesn't report valid json
                         pass
@@ -1445,37 +1446,35 @@ async def async_unload_entry(hass, entry) -> bool:
 async def async_remove_entry(hass, entry) -> bool:
     """Handle removal of an entry."""
     email = entry.data["email"]
-#    obfuscated_email = hide_email(email)
+    #    obfuscated_email = hide_email(email)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
-#    login_obj = AlexaLogin(
-#        url="",
-#        email=email,
-#        password="",  # nosec
-#        outputpath=hass.config.path,
-#    )
+    #    login_obj = AlexaLogin(
+    #        url="",
+    #        email=email,
+    #        password="",  # nosec
+    #        outputpath=hass.config.path,
+    #    )
     # Delete cookiefile
     cookiefile = hass.config.path(f".storage/{DOMAIN}.{email}.pickle")
     obfuscated_cookiefile = hass.config.path(
         f".storage/{DOMAIN}.{hide_email(email)}.pickle"
     )
-#    if callable(getattr(AlexaLogin, "delete_cookiefile", None)):
-#        try:
-#            await login_obj.delete_cookiefile()
-#            _LOGGER.debug("Cookiefile %s deleted.", obfuscated_cookiefile)
-#        except Exception as ex:
-#            _LOGGER.error(
-#                "delete_cookiefile() exception: %s;"
-#                " Manually delete cookiefile before re-adding the integration: %s",
-#                ex,
-#                obfuscated_cookiefile,
-#            )
-#    else:
+    #    if callable(getattr(AlexaLogin, "delete_cookiefile", None)):
+    #        try:
+    #            await login_obj.delete_cookiefile()
+    #            _LOGGER.debug("Cookiefile %s deleted.", obfuscated_cookiefile)
+    #        except Exception as ex:
+    #            _LOGGER.error(
+    #                "delete_cookiefile() exception: %s;"
+    #                " Manually delete cookiefile before re-adding the integration: %s",
+    #                ex,
+    #                obfuscated_cookiefile,
+    #            )
+    #    else:
     if os.path.exists(cookiefile):
         try:
             await alexapy_delete_cookie(cookiefile)
-            _LOGGER.debug(
-                "Successfully deleted cookiefile: %s", obfuscated_cookiefile
-            )
+            _LOGGER.debug("Successfully deleted cookiefile: %s", obfuscated_cookiefile)
         except (OSError, EOFError, TypeError, AttributeError) as ex:
             _LOGGER.error(
                 "alexapy_delete_cookie() exception: %s;"
@@ -1499,11 +1498,11 @@ async def close_connections(hass, email: str) -> None:
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
     login_obj = account_dict["login_obj"]
 
-    _LOGGER.debug("%s: Saving cookiefile...", hide_email(email)    )
+    _LOGGER.debug("%s: Saving cookiefile...", hide_email(email))
     try:
         await login_obj.save_cookiefile()
     except Exception as ex:
-            _LOGGER.debug("Error occurred: %s", ex)
+        _LOGGER.debug("Error occurred: %s", ex)
     else:
         _LOGGER.debug("Cookiefile was saved.")
 
@@ -1511,10 +1510,10 @@ async def close_connections(hass, email: str) -> None:
     try:
         await login_obj.close()
     except Exception as ex:
-            _LOGGER.debug("Error occurred: %s", ex)
+        _LOGGER.debug("Error occurred: %s", ex)
     else:
         _LOGGER.debug("login_obj was closed.")
-        
+
     _LOGGER.debug(
         "%s: Connection closed: %s", hide_email(email), login_obj.session.closed
     )

@@ -49,6 +49,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt, slugify
 import voluptuous as vol
@@ -61,6 +62,7 @@ from .const import (
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_EXTENDED_ENTITY_DISCOVERY,
+    CONF_HASS_URL,
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
     CONF_OTPSECRET,
@@ -68,7 +70,9 @@ from .const import (
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DATA_LISTENER,
+    DEFAULT_DEBUG,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+    DEFAULT_HASS_URL,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DEFAULT_SCAN_INTERVAL,
@@ -98,6 +102,9 @@ ACCOUNT_CONFIG_SCHEMA = vol.Schema(
         vol.Required(CONF_EMAIL): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
         vol.Required(CONF_URL): cv.string,
+        vol.Optional(CONF_HASS_URL, default=DEFAULT_HASS_URL): cv.string,
+        vol.Optional(CONF_PUBLIC_URL, default=""): cv.string,
+        vol.Optional(CONF_OTPSECRET, default=""): cv.string,
         vol.Optional(CONF_INCLUDE_DEVICES, default=[]): vol.All(
             cv.ensure_list, [cv.string]
         ),
@@ -106,8 +113,8 @@ ACCOUNT_CONFIG_SCHEMA = vol.Schema(
         ),
         vol.Optional(CONF_SCAN_INTERVAL, default=SCAN_INTERVAL): cv.time_period,
         vol.Optional(CONF_QUEUE_DELAY, default=DEFAULT_QUEUE_DELAY): cv.positive_float,
-        vol.Optional(CONF_EXTENDED_ENTITY_DISCOVERY, default=False): cv.boolean,
-        vol.Optional(CONF_DEBUG, default=False): cv.boolean,
+        vol.Optional(CONF_EXTENDED_ENTITY_DISCOVERY, default=DEFAULT_EXTENDED_ENTITY_DISCOVERY): cv.boolean,
+        vol.Optional(CONF_DEBUG, default=DEFAULT_DEBUG): cv.boolean,
     }
 )
 
@@ -150,13 +157,24 @@ async def async_setup(hass, config, discovery_info=None):
                     and entry.data.get(CONF_URL) == account[CONF_URL]
                 ):
                     _LOGGER.debug("Updating existing entry")
+                    """ External URL for cloud connected services """
+                    try:
+                        DEFAULT_PUBLIC_URL: str = get_url(hass, allow_internal=False)
+                    except NoURLAvailableError:
+                        DEFAULT_PUBLIC_URL = ""
+                    url = account.get(
+                        CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
+                    if url is not None:
+                        url = url if url.endswith("/") else url + "/"
+                    _LOGGER.debug("CONF_PUBLIC_URL: %s", url)
                     hass.config_entries.async_update_entry(
                         entry,
                         data={
                             CONF_URL: account[CONF_URL],
+                            CONF_HASS_URL: account[CONF_HASS_URL],
+                            CONF_PUBLIC_URL: url,
                             CONF_EMAIL: account[CONF_EMAIL],
                             CONF_PASSWORD: account[CONF_PASSWORD],
-                            CONF_PUBLIC_URL: account[CONF_PUBLIC_URL],
                             CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                             CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                             CONF_SCAN_INTERVAL: account[
@@ -185,9 +203,10 @@ async def async_setup(hass, config, discovery_info=None):
                     context={"source": SOURCE_IMPORT},
                     data={
                         CONF_URL: account[CONF_URL],
+                        CONF_HASS_URL: account[CONF_HASS_URL],
+                        CONF_PUBLIC_URL: account.get(CONF_PUBLIC_URL, ""),
                         CONF_EMAIL: account[CONF_EMAIL],
                         CONF_PASSWORD: account[CONF_PASSWORD],
-                        CONF_PUBLIC_URL: account.get(CONF_PUBLIC_URL, ""),
                         CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                         CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),

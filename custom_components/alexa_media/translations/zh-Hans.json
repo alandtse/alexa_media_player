@@ -37,7 +37,7 @@
           "extended_entity_discovery": "包括通过 Echo 连接的设备",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",
-          "otp_secret": "内置 2FA App Key（自动生成 2FA 代码）。这不是六位数长。",
+          "otp_secret": "内置 2FA 应用程序密钥（自动生成 2FA 代码）。该密钥长度不为六位数字。",
           "password": "密码",
           "queue_delay": "Seconds to wait to queue commands together",
           "scan_interval": "Seconds between scans",
@@ -62,8 +62,8 @@
           "queue_delay": "Seconds to wait to queue commands together",
           "scan_interval": "Seconds between scans"
         },
-        "description": "Required *",
-        "title": "Alexa Media Player - Reconfiguration"
+        "description": "必需的 *",
+        "title": "Alexa 媒体播放器 - 重新配置"
       }
     }
   },
@@ -72,7 +72,7 @@
       "description": "清除每个 Alexa 帐户的 Alexa Voice 历史记录中的最后条目。",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
+          "description": "要清除的帐户。清空将清除所有帐户。",
           "name": "电子邮件地址"
         },
         "entries": {
@@ -86,7 +86,7 @@
       "description": "强制帐户注销。主要用于调试。",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
+          "description": "要清除的帐户。清空将清除所有帐户。",
           "name": "电子邮件地址"
         }
       },
@@ -100,7 +100,7 @@
           "name": "电子邮件地址"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "更新上次呼叫传感器"
     }
   }
 }

@@ -34,7 +34,7 @@
           "debug": "Расширенные возможности отладки",
           "email": "Адрес электронной почты",
           "exclude_devices": "Исключенные устройства (через запятую)",
-          "extended_entity_discovery": "Include devices connected via Echo",
+          "extended_entity_discovery": "Включить устройства, подключенные через Echo",
           "hass_url": "URL-адрес для доступа к Home Assistant",
           "include_devices": "Включенные устройства (разделенное запятыми)",
           "otp_secret": "Встроенный ключ приложения 2FA (автоматически генерирует коды 2FA). Это не шесть цифр.",
@@ -62,8 +62,8 @@
           "queue_delay": "Секунды ожидания, чтобы выполнить команды вместе",
           "scan_interval": "Секунды между сканированиями"
         },
-        "description": "Required *",
-        "title": "Alexa Media Player - Reconfiguration"
+        "description": "Необходимый *",
+        "title": "Alexa Media Player - Перенастройка"
       }
     }
   },

@@ -73,7 +73,7 @@
       "description": "Force account to logout. Used mainly for debugging.",
       "fields": {
         "email": {
-          "name": "Email address"
+          "name": "Email address",
           "description": "Accounts to clear. Empty will clear all."
         }
       }

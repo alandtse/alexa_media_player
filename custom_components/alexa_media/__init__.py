@@ -156,7 +156,6 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_URL: account[CONF_URL],
                             CONF_EMAIL: account[CONF_EMAIL],
                             CONF_PASSWORD: account[CONF_PASSWORD],
-                            CONF_PUBLIC_URL: account[CONF_PUBLIC_URL],
                             CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                             CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                             CONF_SCAN_INTERVAL: account[
@@ -187,7 +186,7 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_URL: account[CONF_URL],
                         CONF_EMAIL: account[CONF_EMAIL],
                         CONF_PASSWORD: account[CONF_PASSWORD],
-                        CONF_PUBLIC_URL: account.get(CONF_PUBLIC_URL, ""),
+                        CONF_PUBLIC_URL: account[CONF_PUBLIC_URL],
                         CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
                         CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
                         CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),

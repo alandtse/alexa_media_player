@@ -74,7 +74,7 @@
       "fields": {
         "email": {
           "name": "Email address"
-          "description": "Accounts to clear. Empty will clear all.",
+          "description": "Accounts to clear. Empty will clear all."
         }
       }
     },
@@ -83,8 +83,8 @@
       "description": "Forces update of last_called echo device for each Alexa account.",
       "fields": {
         "email": {
-          "name": "Email address"
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
+          "name": "Email address",
+          "description": "List of Alexa accounts to update. If empty, will update all known accounts."
         }
       }
     }

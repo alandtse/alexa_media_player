@@ -45,7 +45,7 @@
           "extended_entity_discovery": "Include devices connected via Echo",
           "debug": "Advanced debugging"
         },
-        "description": "Please confirm the information below:",
+        "description": "Required fields *",
         "title": "Alexa Media Player - Configuration"
       }
     }
@@ -72,8 +72,8 @@
       "description": "Force account to logout. Used mainly for debugging.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
           "name": "Email address"
+          "description": "Accounts to clear. Empty will clear all.",
         }
       },
       "name": "Force Logout"
@@ -82,8 +82,8 @@
       "description": "Forces update of last_called echo device for each Alexa account.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
           "name": "Email address"
+          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
         }
       },
       "name": "Update Last Called Sensor"

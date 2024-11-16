@@ -26,7 +26,7 @@
         "data": {
           "registered": "Yes, OTP code was verified"
         },
-        "description": "**{email} - alexa.{url}**  \nHave you verified the OTP code in Amazon 2SV?  \n >OTP Code {message}",
+        "description": "**{email} - alexa.{url}**  \nHave you verified the OTP code in Amazon 2SV?  \n >OTP Code: {message}",
         "title": "Alexa Media Player - OTP Confirmation"
       },
       "user": {

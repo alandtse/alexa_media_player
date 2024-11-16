@@ -69,24 +69,24 @@
   },
   "services": {
     "force_logout": {
-      "name": "Force Logout"
+      "name": "Force Logout",
       "description": "Force account to logout. Used mainly for debugging.",
       "fields": {
         "email": {
           "name": "Email address"
           "description": "Accounts to clear. Empty will clear all.",
         }
-      },
+      }
     },
     "update_last_called": {
-      "name": "Update Last Called Sensor"
+      "name": "Update Last Called Sensor",
       "description": "Forces update of last_called echo device for each Alexa account.",
       "fields": {
         "email": {
           "name": "Email address"
           "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
         }
-      },
+      }
     }
   },
   "issues": {

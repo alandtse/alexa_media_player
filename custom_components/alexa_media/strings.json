@@ -11,7 +11,7 @@
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL is invalid: {message}",
-      "unable_to_connect_hass_url": "Unable to connect to Home Assistant local URL. Please check the Internal URL under Settings . System > Network",
+      "unable_to_connect_hass_url": "Unable to connect to Home Assistant local URL. Please check the Internal URL under Settings > System > Network",
       "unknown_error": "Unknown error: {message}"
     },
     "step": {

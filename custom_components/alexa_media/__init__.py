@@ -145,10 +145,10 @@ async def async_setup(hass, config, discovery_info=None):
         translation_key="deprecated_yaml_configuration",
         learn_more_url="https://github.com/alandtse/alexa_media_player/wiki/Configuration#configurationyaml",
     )
-    LOGGER.warning(
+    _LOGGER.warning(
         "YAML configuration of Alexa Media Player is deprecated "
-        "and will be removed in version 4.14.0.
-        There will be no automatic import of this. "
+        "and will be removed in version 4.14.0."
+        "There will be no automatic import of this. "
         "Please remove it from your configuration, "
         "restart Home Assistant and use the UI to configure it instead. "
         "Settings > Devices and services > Integrations > ADD INTEGRATION"

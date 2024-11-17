@@ -153,8 +153,6 @@ async def async_setup(hass, config, discovery_info=None):
         "restart Home Assistant and use the UI to configure it instead. "
         "Settings > Devices and services > Integrations > ADD INTEGRATION"
     )
-    """Future exit point"""
-    # return await async_initialize_integration(hass=hass, config=config)
 
     domainconfig = config.get(DOMAIN)
     for account in domainconfig[CONF_ACCOUNTS]:

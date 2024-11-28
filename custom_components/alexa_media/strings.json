@@ -11,7 +11,7 @@
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL is invalid: {message}",
       "2fa_key_invalid": "Invalid Authenticator App key for Amazon 2SV",
-      "unable_to_connect_hass_url": "Unable to connect to Home Assistant URL. Please check the Internal URL under Configuration -> General",
+      "unable_to_connect_hass_url": "Unable to connect to Home Assistant Local URL. Please check the URL under Settings > System > Network > Home Assistant URL > Local network",
       "unknown_error": "Unknown error: {message}"
     },
     "step": {

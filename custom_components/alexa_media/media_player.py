@@ -588,7 +588,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             _LOGGER.debug(
                 "%s: Refreshing %s",
                 self.account,
-                self if device is None else self._device_name)
+                self if device is None else self._device_name,
+            )
             self._assumed_state = False
             if "PAIR_BT_SOURCE" in self._capabilities:
                 self._source = self._get_source()

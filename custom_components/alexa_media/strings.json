@@ -23,7 +23,7 @@
           "securitycode": "[%key_id:55616596%]",
           "otp_secret": "Amazon 2SV Authenticator App Key",
           "hass_url": "Local network URL to access Home Assistant",
-          "public_url": "Public Url to access Home Assistant",
+          "public_url": "Public URL shared with external hosted services",
           "include_devices": "Included device (comma separated)",
           "exclude_devices": "Excluded device (comma separated)",
           "scan_interval": "Seconds between scans",

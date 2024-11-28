@@ -49,6 +49,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt, slugify
 import voluptuous as vol
@@ -133,6 +134,25 @@ async def async_setup(hass, config, discovery_info=None):
             "Nothing to import from configuration.yaml, loading from Integrations",
         )
         return True
+
+    async_create_issue(
+        hass,
+        DOMAIN,
+        "deprecated_yaml_configuration",
+        is_fixable=False,
+        issue_domain=DOMAIN,
+        severity=IssueSeverity.WARNING,
+        translation_key="deprecated_yaml_configuration",
+        learn_more_url="https://github.com/alandtse/alexa_media_player/wiki/Configuration#configurationyaml",
+    )
+    _LOGGER.warning(
+        "YAML configuration of Alexa Media Player is deprecated "
+        "and will be removed in version 4.14.0."
+        "There will be no automatic import of this. "
+        "Please remove it from your configuration, "
+        "restart Home Assistant and use the UI to configure it instead. "
+        "Settings > Devices and services > Integrations > ADD INTEGRATION"
+    )
 
     domainconfig = config.get(DOMAIN)
     for account in domainconfig[CONF_ACCOUNTS]:

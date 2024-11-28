@@ -21,7 +21,7 @@
           "email": "Email Address",
           "password": "Password",
           "securitycode": "[%key_id:55616596%]",
-          "otp_secret": "Built-in 2FA App Key - This is 52 characters, not six!",
+          "otp_secret": "Amazon 2SV Authenticator App Key",
           "hass_url": "Local URL to access Home Assistant",
           "public_url": "Public Url to access Home Assistant",
           "include_devices": "Included device (comma separated)",

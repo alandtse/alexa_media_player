@@ -25,7 +25,7 @@
           "hass_url": "Local network URL to access Home Assistant",
           "public_url": "Public URL shared with external hosted services",
           "include_devices": "Only include these devices (comma separated)",
-          "exclude_devices": "Excluded device (comma separated)",
+          "exclude_devices": "or Exclude these devices from all (comma separated)",
           "scan_interval": "Seconds between scans",
           "queue_delay": "Seconds to wait to queue commands together",
           "extended_entity_discovery": "Include devices connected via Echo",

@@ -54,11 +54,11 @@
     "step": {
       "init": {
         "data": {
-          "public_url": "Public URL to access Home Assistant (including trailing '/')",
-          "include_devices": "Included device (comma separated)",
-          "exclude_devices": "Excluded device (comma separated)",
-          "scan_interval": "Seconds between scans",
-          "queue_delay": "Seconds to wait to queue commands together",
+          "public_url": "Public URL shared with external hosted services",
+          "include_devices": "Only include these devices (comma separated)",
+          "exclude_devices": "or Exclude these devices from all (comma separated)",
+          "scan_interval": "Scheduled polling frequency (seconds)",
+          "queue_delay": "Delay to queue multiple commands together (seconds)",
           "extended_entity_discovery": "Include devices connected via Echo",
           "debug": "Advanced debugging"
         },

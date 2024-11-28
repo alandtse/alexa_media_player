@@ -68,20 +68,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "name": "Clear Amazon Voice History",
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
-      "fields": {
-        "email": {
-          "name": "Email address",
-          "description": "Accounts to clear. Empty will clear all."
-        },
-        "entries": {
-          "name": "Number of Entries",
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50."
-        }
-      }
-    },
     "force_logout": {
       "name": "Force Logout",
       "description": "Force account to logout. Used mainly for debugging.",

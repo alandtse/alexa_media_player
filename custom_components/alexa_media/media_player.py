@@ -585,7 +585,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._set_authentication_details(device["auth_info"])
         session = None
         if self.available:
-            _LOGGER.debug("%s: Refreshing %s", self.account, self)
+            _LOGGER.debug(
+                "%s: Refreshing %s",
+                self.account,
+                self if device is None else self._device_name,
+            )
             self._assumed_state = False
             if "PAIR_BT_SOURCE" in self._capabilities:
                 self._source = self._get_source()

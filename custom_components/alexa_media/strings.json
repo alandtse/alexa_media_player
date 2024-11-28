@@ -10,8 +10,8 @@
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL is invalid: {message}",
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
-      "unable_to_connect_hass_url": "Unable to connect to Home Assistant URL. Please check the Internal URL under Configuration -> General",
+      "2fa_key_invalid": "Invalid Authenticator App key for Amazon 2SV",
+      "unable_to_connect_hass_url": "Unable to connect to Home Assistant Local URL. Please check the URL under Settings > System > Network > Home Assistant URL > Local network",
       "unknown_error": "Unknown error: {message}"
     },
     "step": {
@@ -21,13 +21,13 @@
           "email": "Email Address",
           "password": "Password",
           "securitycode": "[%key_id:55616596%]",
-          "otp_secret": "Built-in 2FA App Key - This is 52 characters, not six!",
-          "hass_url": "Local URL to access Home Assistant",
-          "public_url": "Public Url to access Home Assistant",
-          "include_devices": "Included device (comma separated)",
-          "exclude_devices": "Excluded device (comma separated)",
-          "scan_interval": "Seconds between scans",
-          "queue_delay": "Seconds to wait to queue commands together",
+          "otp_secret": "Amazon 2SV Authenticator App Key",
+          "hass_url": "Local network URL to access Home Assistant",
+          "public_url": "Public URL shared with external hosted services",
+          "include_devices": "Only include these devices (comma separated)",
+          "exclude_devices": "or Exclude these devices from all (comma separated)",
+          "scan_interval": "Scheduled polling interval (seconds)",
+          "queue_delay": "Delay to queue multiple commands together (seconds)",
           "extended_entity_discovery": "Include devices connected via Echo",
           "debug": "Advanced debugging"
         },
@@ -38,14 +38,14 @@
         "data": {
           "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
         },
-        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External URL under Configuration -> General but you can try your internal URL.\n\nIf you are **certain** your client can reach this URL, you can bypass this warning.",
+        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your browser can reach {hass_url}. This field is from Settings > System > Network > Home Assistant URL.\n\nIf you are **certain** your browser can reach this URL, you can bypass this warning.",
         "title": "Alexa Media Player - Unable to Connect to HA URL"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "Yes, OTP code was verified"
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
+        "description": "**{email} - alexa.{url}**  \nHave you verified the OTP code in Amazon 2SV?  \n >OTP Code: {message}",
         "title": "Alexa Media Player - OTP Confirmation"
       }
     }
@@ -54,11 +54,11 @@
     "step": {
       "init": {
         "data": {
-          "public_url": "Public URL to access Home Assistant (including trailing '/')",
-          "include_devices": "Included device (comma separated)",
-          "exclude_devices": "Excluded device (comma separated)",
-          "scan_interval": "Seconds between scans",
-          "queue_delay": "Seconds to wait to queue commands together",
+          "public_url": "Public URL shared with external hosted services",
+          "include_devices": "Only include these devices (comma separated)",
+          "exclude_devices": "or Exclude these devices from all (comma separated)",
+          "scan_interval": "Scheduled polling frequency (seconds)",
+          "queue_delay": "Delay to queue multiple commands together (seconds)",
           "extended_entity_discovery": "Include devices connected via Echo",
           "debug": "Advanced debugging"
         },
@@ -68,20 +68,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "name": "Clear Amazon Voice History",
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
-      "fields": {
-        "email": {
-          "name": "Email address",
-          "description": "Accounts to clear. Empty will clear all."
-        },
-        "entries": {
-          "name": "Number of Entries",
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50."
-        }
-      }
-    },
     "force_logout": {
       "name": "Force Logout",
       "description": "Force account to logout. Used mainly for debugging.",
@@ -101,6 +87,12 @@
           "description": "List of Alexa accounts to update. If empty, will update all known accounts."
         }
       }
+    }
+  },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "title": "YAML configuration is deprecated",
+      "description": "YAML configuration of Alexa Media Player is deprecated\nand will be removed in version 4.14.0.\nThere will be no automatic import of this.\nPlease remove it from your configuration, restart Home Assistant and use the UI to configure it instead.\nSettings > Devices & services > Integrations > ADD INTEGRATION"
     }
   }
 }

@@ -1,51 +1,51 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated."
+      "forgot_password": "De pagina wachtwoord vergeten is gedetecteerd. Dit is normaal gesproken het gevolg van te veel mislukte aanmeldingen. Amazon kan actie vereisen voordat opnieuw kan worden ingelogd.",
+      "login_failed": "Het inloggen van Alexa Mediaspeler is mislukt.",
+      "reauth_successful": "Alexa Mediaspeler is met succes opnieuw geverifieerd. Negeer a.u.b. het bericht \"Afgebroken\" van HA."
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
-      "connection_error": "Fout bij verbinden; controleer netwerk en probeer opnieuw",
-      "identifier_exists": "Dit e-mailadres is reeds geregistreerd",
+      "2fa_key_invalid": "Ongeldige ingebouwde 2FA sleutel",
+      "connection_error": "Fout bij verbinding; controleer netwerk en probeer opnieuw",
+      "identifier_exists": "Dit e-mailadres voor Alexa URL is al geregistreerd",
       "invalid_credentials": "Ongeldige inloggegevens",
-      "invalid_url": "URL is ongeldig: {message}",
-      "unable_to_connect_hass_url": "Kan geen verbinding maken met de Home Assistant-url. Controleer de externe URL onder Configuratie - > Algemeen",
-      "unknown_error": "Onbekende fout, meld de loggegevens"
+      "invalid_url": "De URL is ongeldig: {message}",
+      "unable_to_connect_hass_url": "Kan geen verbinding maken met de Home Assistant url. Controleer de externe url onder Configuratie - > Algemeen",
+      "unknown_error": "Onbekende fout: {message}"
     },
     "step": {
       "proxy_warning": {
         "data": {
-          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+          "proxy_warning": "Negeren en doorgaan - Ik begrijp dat er geen ondersteuning wordt geboden bij inlogproblemen wanneer ik deze waarschuwing  omzeil."
         },
-        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
-        "title": "Alexa Media Player - Unable to Connect to HA URL"
+        "description": "De HA server kan geen verbinding maken met de opgegeven URL: {hass_url}.\n> {error}\n\nOm dit op te lossen, moet u bevestigen dat uw **HA server** {hass_url} kan bereiken. Dit veld is  afkomstig van de externe url onder Configuratie -> Algemeen, maar je kunt ook de interne url proberen.\n\nAls je er **zeker** van bent dat jouw client deze url kan bereiken, dan kun je deze waarschuwing negeren.",
+        "title": "Alexa Mediaspeler - Kan geen verbinding maken met HA URL"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "OTP van de ingebouwde 2FA App Key is succesvol bevestigd."
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "description": "**{email} -Alexa.{url}**\nHeb je met succes een OTP van de ingebouwde 2FA App Key met Amazon bevestigd?  \n >OTP-code {message}",
+        "title": "Alexa Mediaspeler - OTP Bevestiging"
       },
       "user": {
         "data": {
-          "debug": "Geavanceerd debuggen",
+          "debug": "Geavanceerde foutopsporing",
           "email": "E-mailadres",
-          "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "hass_url": "Url to access Home Assistant",
-          "include_devices": "Apparaten toevoegen (Scheiding: komma)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
-          "password": "Paswoord",
-          "queue_delay": "Seconden om te wachten om opdrachten in de wachtrij te plaatsen",
+          "exclude_devices": "Uitgesloten apparaten (Scheiding: komma)",
+          "extended_entity_discovery": "Inclusief apparaten verbonden via Echo",
+          "hass_url": "URL voor toegang tot Home Assistant",
+          "include_devices": "Inbegrepen apparaten (Scheiding: komma)",
+          "otp_secret": "Ingebouwde 2FA App Key (genereert automatisch 2FA-codes). Deze is niet zes cijfers lang.",
+          "password": "Wachtwoord",
+          "queue_delay": "Aantal seconden wachten om opdrachten in de wachtrij te groeperen",
           "scan_interval": "Aantal seconden tussen scans",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
-          "url": "Domeinnaam van Amazon regio (bv.amazon.co.uk)"
+          "securitycode": "2FA sleutel (aanbevolen om inlogproblemen te voorkomen)",
+          "url": "Domeinnaam van Amazon regio (bijv: amazon.co.uk)"
         },
-        "description": "Vul je gegevens in a.u.b.",
-        "title": "Alexa Media Player - Configuratie"
+        "description": "Bevestig de onderstaande informatie. Schakel voor oudere configuraties de optie 'Inlogproxymethode gebruiken' uit.",
+        "title": "Alexa Mediaspeler - Configuratie"
       }
     }
   },
@@ -53,54 +53,54 @@
     "step": {
       "init": {
         "data": {
-          "debug": "Geavanceerd debuggen",
-          "exclude_devices": "Apparaten uitsluiten (Scheiding: komma)",
-          "extended_entity_discovery": "Inclusief apparaten die zijn verbonden via Echo",
-          "hass_url": "Openbare URL om toegang te krijgen tot Home Assistant (inclusief afsluitende '/')",
-          "include_devices": "Apparaten toevoegen (Scheiding: komma)",
-          "public_url": "Openbare URL om toegang te krijgen tot Home Assistant (inclusief afsluitende '/')",
-          "queue_delay": "Seconden om te wachten om opdrachten in de wachtrij te plaatsen",
+          "debug": "Geavanceerde foutopsporing",
+          "exclude_devices": "Uitgesloten apparaten (Scheiding: komma)",
+          "extended_entity_discovery": "Inclusief apparaten verbonden via Echo",
+          "hass_url": "Openbare URL voor toegang tot Home Assistant (inclusief afsluitende '/')",
+          "include_devices": "Inbegrepen apparaten (Scheiding: komma)",
+          "public_url": "Openbare URL voor toegang tot Home Assistant (inclusief afsluitende '/')",
+          "queue_delay": "Aantal seconden wachten om opdrachten in de wachtrij te groeperen",
           "scan_interval": "Aantal seconden tussen scans"
         },
-        "description": "Required *",
-        "title": "Alexa Media Player - Reconfiguration"
+        "description": "Vereist *",
+        "title": "Alexa Mediaspeler - Herconfiguratie"
       }
     }
   },
   "services": {
     "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
+      "description": "Wis de laatste items uit de Alexa stemgeschiedenis voor elk Alexa account.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Accounts om te wissen. Als het veld leeg is, wordt alles gewist.",
+          "name": "E-mailadres"
         },
         "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
+          "description": "Aantal items om te wissen van 1 tot 50. Als het veld leeg is, verwijder er dan 50.",
+          "name": "Aantal items"
         }
       },
-      "name": "Clear Amazon Voice History"
+      "name": "Wis Amazon stemgeschiedenis"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "Forceer account om uit te loggen. Voornamelijk gebruikt voor foutopsporing.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Accounts om te wissen. Als het veld leeg is, wordt alles gewist.",
+          "name": "E-mailadres"
         }
       },
-      "name": "Force Logout"
+      "name": "Uitloggen forceren"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "Forceert update van last_called echo apparaat voor elk Alexa-account.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "Lijst met Alexa accounts om bij te werken. Als het veld leeg is, worden alle bekende accounts bijgewerkt.",
+          "name": "E-mailadres"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "Laatst opgeroepen sensor bijwerken"
     }
   }
 }

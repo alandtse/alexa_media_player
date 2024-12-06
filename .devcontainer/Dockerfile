@@ -15,8 +15,8 @@ RUN if [ "${NODE_VERSION}" != "none" ]; then su vscode -c "umask 0002 && . /usr/
 
 RUN pipx install poetry
 WORKDIR /workspace
-COPY pyproject.toml poetry.lock ./
-# RUN poetry update
+COPY pyproject.toml poetry.lock .pre-commit-config.yaml ./
+RUN poetry update
 
 # [Optional] If your pip requirements rarely change, uncomment this section to add them to the image.
 # COPY requirements.txt /tmp/pip-tmp/

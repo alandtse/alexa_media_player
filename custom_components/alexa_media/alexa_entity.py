@@ -64,6 +64,13 @@ def is_local(appliance: dict[str, Any]) -> bool:
     There is probably a better way to prevent that, but this works.
     """
 
+    if appliance.get("manufacturerName") == "TestVendor":
+        # Home-Assistant-Matter-Hub is a new add-on (2024-10-27) which exposes selected
+        # HA entities to Alexa as Matter devices conected locally via Amazon Echo.
+        # "connectedVia" is not None so they need to be ignored to prevent duplicating them back into HA.
+        _LOGGER.debug("alexa_entity: Return is_local False for manufacturer \"%s\"", appliance.get("manufacturerName"))
+        return False
+        
     if appliance.get("connectedVia"):
         # connectedVia is a flag that determines which Echo devices holds the connection. Its blank for
         # skill derived devices and includes an Echo name for zigbee and local devices.

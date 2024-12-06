@@ -64,12 +64,12 @@ def is_local(appliance: dict[str, Any]) -> bool:
     There is probably a better way to prevent that, but this works.
     """
 
-    if appliance.get("manufacturerName") == "TestVendor":
+    if appliance.get("manufacturerName") == "t0bst4r":
         # Home-Assistant-Matter-Hub is a new add-on (2024-10-27) which exposes selected
         # HA entities to Alexa as Matter devices connected locally via Amazon Echo.
         # "connectedVia" is not None so they need to be ignored to prevent duplicating them back into HA.
         _LOGGER.debug(
-            'alexa_entity: Return is_local False for manufacturer "%s"',
+            'alexa_entity is_local: Return False for Home-Assistant-Matter-Hub manufacturer: "%s"',
             appliance.get("manufacturerName"),
         )
         return False

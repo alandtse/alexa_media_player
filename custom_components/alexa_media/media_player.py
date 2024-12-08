@@ -1452,12 +1452,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 await self.async_play_tts_cloud_say(public_url, media_id, **kwargs)
             else:
                 await self.async_send_tts(
-                    "To send TTS, set public url in integration configuration"
+                    "Sorry folks! Amazon doesn't allow streaming music like this."
                 )
                 _LOGGER.warning(
-                    "To send TTS, set public url in integration configuration"
-                    " Please see the alexa_media wiki for details."
-                    "https://github.com/alandtse/alexa_media_player/wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
+                    "Sorry folks! Amazon doesn't allow streaming music like this. Please take it up with them!."
                 )
         elif media_type == "sequence":
             _LOGGER.debug(

@@ -78,6 +78,10 @@ _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
 
+STREAMING_ERROR_MESSAGE = (
+    "Sorry folks! Amazon doesn't allow streaming music like this. "
+    "Please take it up with them!"
+)
 
 async def create_www_directory(hass: HomeAssistant):
     """Create www directory."""
@@ -1388,14 +1392,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
         if media_type == "music":
             # Log and notify for Amazon restriction on streaming music
-            _LOGGER.warning(
-                "Sorry folks! Amazon doesn't allow streaming music like this. "
-                "Please take it up with them!"
-            )
-            await self.async_send_tts(
-                "Sorry folks! Amazon doesn't allow streaming music like this. "
-                "Please take it up with them!"
-            )
+            _LOGGER.warning(STREAMING_ERROR_MESSAGE)
+            await self.async_send_tts(STREAMING_ERROR_MESSAGE)
             return
 
         if kwargs.get(ATTR_MEDIA_ANNOUNCE):
@@ -1468,14 +1466,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 )
             else:
                 # Log and notify for Amazon restriction on streaming music
-                _LOGGER.warning(
-                    "Sorry folks! Amazon doesn't allow streaming music like this. "
-                    "Please take it up with them!"
-                )
-                await self.async_send_tts(
-                    "Sorry folks! Amazon doesn't allow streaming music like this. "
-                    "Please take it up with them!"
-                )
+                _LOGGER.warning(STREAMING_ERROR_MESSAGE)
+                await self.async_send_tts(STREAMING_ERROR_MESSAGE)
         elif media_type == "sequence":
             _LOGGER.debug(
                 "%s: %s:Running sequence %s with queue_delay %s",

@@ -1375,7 +1375,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
 
     @_catch_login_errors
-    async def async_play_tts_cloud_say(self, media_type, public_url, media_id, **kwargs):
+    async def async_play_tts_cloud_say(
+        self, media_type, public_url, media_id, **kwargs
+    ):
         file_name = media_id
         if media_source.is_media_source_id(media_id):
             media = await media_source.async_resolve_media(
@@ -1395,7 +1397,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 "Please take it up with them!"
             )
             return
-        
+
         if kwargs.get(ATTR_MEDIA_ANNOUNCE):
             input_file_path = self.hass.config.path(
                 f"{UPLOAD_PATH}{file_name}_input.mp3"
@@ -1442,12 +1444,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 f"<audio src='{public_url}local/alexa_tts{output_file_name}' />"
             )
         else:
-            await self.async_send_tts(
-                "To send TTS, please set Announce=true."
-            )
-            _LOGGER.warning(
-                "To send TTS, please set Announce=true."
-            )
+            await self.async_send_tts("To send TTS, please set Announce=true.")
+            _LOGGER.warning("To send TTS, please set Announce=true.")
 
     @_catch_login_errors
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):

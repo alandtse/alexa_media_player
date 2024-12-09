@@ -110,6 +110,10 @@ RECURRING_PATTERN_ISO_SET = {
 ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
 ATTR_NUM_ENTRIES = "entries"
+STREAMING_ERROR_MESSAGE = (
+    "Sorry folks! Amazon doesn't allow streaming music like this. "
+    "Please take it up with them!"
+)
 STARTUP = f"""
 -------------------------------------------------------------------
 {DOMAIN}

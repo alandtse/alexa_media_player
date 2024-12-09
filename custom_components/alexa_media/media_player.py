@@ -1375,7 +1375,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
 
     @_catch_login_errors
-    async def async_play_tts_cloud_say(self, public_url, media_id, **kwargs):
+    async def async_play_tts_cloud_say(self, media_type, public_url, media_id, **kwargs):
         file_name = media_id
         if media_source.is_media_source_id(media_id):
             media = await media_source.async_resolve_media(
@@ -1384,6 +1384,18 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             file_name = media.url[media.url.rindex("/") : media.url.rindex(".")]
             media_id = async_process_play_media_url(self.hass, media.url)
 
+        if media_type == "music":
+            # Log and notify for Amazon restriction on streaming music
+            _LOGGER.warning(
+                "Sorry folks! Amazon doesn't allow streaming music like this. "
+                "Please take it up with them!"
+            )
+            await self.async_send_tts(
+                "Sorry folks! Amazon doesn't allow streaming music like this. "
+                "Please take it up with them!"
+            )
+            return
+        
         if kwargs.get(ATTR_MEDIA_ANNOUNCE):
             input_file_path = self.hass.config.path(
                 f"{UPLOAD_PATH}{file_name}_input.mp3"
@@ -1431,10 +1443,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
         else:
             await self.async_send_tts(
-                "To send TTS, please set Announce=true. Music can't be played this way."
+                "To send TTS, please set Announce=true."
             )
             _LOGGER.warning(
-                "To send TTS, please set Announce=true. Music can't be played this way."
+                "To send TTS, please set Announce=true."
             )
 
     @_catch_login_errors

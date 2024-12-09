@@ -117,9 +117,7 @@ STREAMING_ERROR_MESSAGE = (
 PUBLIC_URL_ERROR_MESSAGE = (
     "To send TTS, please set the public URL in integration configuration."
 )
-ANNOUNCE_ERROR_MESSAGE = (
-    "To send TTS, please set Announce=true."
-)
+ANNOUNCE_ERROR_MESSAGE = "To send TTS, please set Announce=true."
 STARTUP = f"""
 -------------------------------------------------------------------
 {DOMAIN}

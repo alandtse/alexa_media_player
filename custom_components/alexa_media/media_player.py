@@ -46,8 +46,8 @@ from .const import (
     MIN_TIME_BETWEEN_SCANS,
     MODEL_IDS,
     PLAY_SCAN_INTERVAL,
-    UPLOAD_PATH,
     STREAMING_ERROR_MESSAGE,
+    UPLOAD_PATH,
 )
 from .helpers import _catch_login_errors, add_devices
 

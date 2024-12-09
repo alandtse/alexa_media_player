@@ -47,6 +47,8 @@ from .const import (
     MODEL_IDS,
     PLAY_SCAN_INTERVAL,
     STREAMING_ERROR_MESSAGE,
+    PUBLIC_URL_ERROR_MESSAGE,
+    ANNOUNCE_ERROR_MESSAGE,
     UPLOAD_PATH,
 )
 from .helpers import _catch_login_errors, add_devices
@@ -1439,8 +1441,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 f"<audio src='{public_url}local/alexa_tts{output_file_name}' />"
             )
         else:
-            await self.async_send_tts("To send TTS, please set Announce=true.")
-            _LOGGER.warning("To send TTS, please set Announce=true.")
+            await self.async_send_tts(ANNOUNCE_ERROR_MESSAGE)
+            _LOGGER.warning(ANNOUNCE_ERROR_MESSAGE)
 
     @_catch_login_errors
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):
@@ -1455,12 +1457,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if media_type == "music":
             if not public_url:
                 # Log and notify for missing public URL
-                _LOGGER.warning(
-                    "To send TTS, please set the public URL in integration configuration."
-                )
-                await self.async_send_tts(
-                    "To send TTS, please set the public URL in integration configuration."
-                )
+                _LOGGER.warning(PUBLIC_URL_ERROR_MESSAGE)
+                await self.async_send_tts(PUBLIC_URL_ERROR_MESSAGE)
             else:
                 # Log and notify for Amazon restriction on streaming music
                 _LOGGER.warning(STREAMING_ERROR_MESSAGE)

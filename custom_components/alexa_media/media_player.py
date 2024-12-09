@@ -83,6 +83,7 @@ STREAMING_ERROR_MESSAGE = (
     "Please take it up with them!"
 )
 
+
 async def create_www_directory(hass: HomeAssistant):
     """Create www directory."""
     paths = [

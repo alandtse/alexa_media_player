@@ -47,6 +47,7 @@ from .const import (
     MODEL_IDS,
     PLAY_SCAN_INTERVAL,
     UPLOAD_PATH,
+    STREAMING_ERROR_MESSAGE,
 )
 from .helpers import _catch_login_errors, add_devices
 
@@ -77,11 +78,6 @@ SUPPORT_ALEXA = (
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
-
-STREAMING_ERROR_MESSAGE = (
-    "Sorry folks! Amazon doesn't allow streaming music like this. "
-    "Please take it up with them!"
-)
 
 
 async def create_www_directory(hass: HomeAssistant):

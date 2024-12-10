@@ -41,11 +41,14 @@ from . import (
 )
 from .alexa_media import AlexaMedia
 from .const import (
+    ANNOUNCE_ERROR_MESSAGE,
     DEPENDENT_ALEXA_COMPONENTS,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
     MODEL_IDS,
     PLAY_SCAN_INTERVAL,
+    PUBLIC_URL_ERROR_MESSAGE,
+    STREAMING_ERROR_MESSAGE,
     UPLOAD_PATH,
 )
 from .helpers import _catch_login_errors, add_devices
@@ -1375,7 +1378,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
 
     @_catch_login_errors
-    async def async_play_tts_cloud_say(self, public_url, media_id, **kwargs):
+    async def async_play_tts_cloud_say(
+        self, media_type, public_url, media_id, **kwargs
+    ):
         file_name = media_id
         if media_source.is_media_source_id(media_id):
             media = await media_source.async_resolve_media(
@@ -1383,6 +1388,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
             file_name = media.url[media.url.rindex("/") : media.url.rindex(".")]
             media_id = async_process_play_media_url(self.hass, media.url)
+
+        if media_type == "music":
+            # Log and notify for Amazon restriction on streaming music
+            _LOGGER.warning(STREAMING_ERROR_MESSAGE)
+            await self.async_send_tts(STREAMING_ERROR_MESSAGE)
+            return
 
         if kwargs.get(ATTR_MEDIA_ANNOUNCE):
             input_file_path = self.hass.config.path(
@@ -1430,12 +1441,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 f"<audio src='{public_url}local/alexa_tts{output_file_name}' />"
             )
         else:
-            await self.async_send_tts(
-                "To send TTS, please set Announce=true. Music can't be played this way."
-            )
-            _LOGGER.warning(
-                "To send TTS, please set Announce=true. Music can't be played this way."
-            )
+            await self.async_send_tts(ANNOUNCE_ERROR_MESSAGE)
+            _LOGGER.warning(ANNOUNCE_ERROR_MESSAGE)
 
     @_catch_login_errors
     async def async_play_media(self, media_type, media_id, enqueue=None, **kwargs):
@@ -1448,17 +1455,14 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "options"
         ].get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
         if media_type == "music":
-            if public_url:
-                await self.async_play_tts_cloud_say(public_url, media_id, **kwargs)
+            if not public_url:
+                # Log and notify for missing public URL
+                _LOGGER.warning(PUBLIC_URL_ERROR_MESSAGE)
+                await self.async_send_tts(PUBLIC_URL_ERROR_MESSAGE)
             else:
-                await self.async_send_tts(
-                    "To send TTS, set public url in integration configuration"
-                )
-                _LOGGER.warning(
-                    "To send TTS, set public url in integration configuration"
-                    " Please see the alexa_media wiki for details."
-                    "https://github.com/alandtse/alexa_media_player/wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
-                )
+                # Log and notify for Amazon restriction on streaming music
+                _LOGGER.warning(STREAMING_ERROR_MESSAGE)
+                await self.async_send_tts(STREAMING_ERROR_MESSAGE)
         elif media_type == "sequence":
             _LOGGER.debug(
                 "%s: %s:Running sequence %s with queue_delay %s",

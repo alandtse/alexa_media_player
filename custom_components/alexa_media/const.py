@@ -111,13 +111,12 @@ ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
 ATTR_NUM_ENTRIES = "entries"
 STREAMING_ERROR_MESSAGE = (
-    "Sorry folks! Amazon doesn't allow streaming music like this. "
-    "Please take it up with them!"
+    "Sorry, direct music streaming isn't supported. "
+    "This limitation is set by Amazon, and not by Alexa-Media-Player, Music-Assistant, nor Home-Assistant."
 )
 PUBLIC_URL_ERROR_MESSAGE = (
     "To send TTS, please set the public URL in integration configuration."
 )
-ANNOUNCE_ERROR_MESSAGE = "To send TTS, please set Announce=true."
 STARTUP = f"""
 -------------------------------------------------------------------
 {DOMAIN}

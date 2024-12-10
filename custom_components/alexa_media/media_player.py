@@ -1378,9 +1378,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
 
     @_catch_login_errors
-    async def async_play_tts_cloud_say(
-        self, media_type, public_url, media_id, **kwargs
-    ):
+    async def async_play_tts_cloud_say(self, public_url, media_id, **kwargs):
         file_name = media_id
         if media_source.is_media_source_id(media_id):
             media = await media_source.async_resolve_media(
@@ -1388,12 +1386,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
             file_name = media.url[media.url.rindex("/") : media.url.rindex(".")]
             media_id = async_process_play_media_url(self.hass, media.url)
-
-        if media_type == "music":
-            # Log and notify for Amazon restriction on streaming music
-            _LOGGER.warning(STREAMING_ERROR_MESSAGE)
-            await self.async_send_tts(STREAMING_ERROR_MESSAGE)
-            return
 
         if kwargs.get(ATTR_MEDIA_ANNOUNCE):
             input_file_path = self.hass.config.path(
@@ -1455,14 +1447,18 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "options"
         ].get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL)
         if media_type == "music":
-            if not public_url:
+            if public_url:
+                if kwargs.get(ATTR_MEDIA_ANNOUNCE):
+                    # Handle TTS playback
+                    await self.async_play_tts_cloud_say(public_url, media_id, **kwargs)
+                else:
+                    # Log and play streaming error message
+                    _LOGGER.warning(STREAMING_ERROR_MESSAGE)
+                    await self.async_send_tts(STREAMING_ERROR_MESSAGE)
+            else:
                 # Log and notify for missing public URL
                 _LOGGER.warning(PUBLIC_URL_ERROR_MESSAGE)
                 await self.async_send_tts(PUBLIC_URL_ERROR_MESSAGE)
-            else:
-                # Log and notify for Amazon restriction on streaming music
-                _LOGGER.warning(STREAMING_ERROR_MESSAGE)
-                await self.async_send_tts(STREAMING_ERROR_MESSAGE)
         elif media_type == "sequence":
             _LOGGER.debug(
                 "%s: %s:Running sequence %s with queue_delay %s",

@@ -89,6 +89,7 @@ def is_local(appliance: dict[str, Any]) -> bool:
     if (
         appliance.get("manufacturerName") == "Ledvance"
         or appliance.get("manufacturerName") == "Sengled"
+        or appliance.get("manufacturerName") == "Amazon"
     ):
         return not is_skill(appliance)
 

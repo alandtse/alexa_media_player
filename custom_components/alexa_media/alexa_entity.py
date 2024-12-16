@@ -85,11 +85,11 @@ def is_local(appliance: dict[str, Any]) -> bool:
         return not is_skill(appliance)
 
     # Ledvance/Sengled bulbs connected via bluetooth are hard to detect as locally connected
+    # Amazon devices are not local but bypassing the local check allows for control by the integration
     # There is probably a better way, but this works for now.
     if (
-        appliance.get("manufacturerName") == "Ledvance"
-        or appliance.get("manufacturerName") == "Sengled"
-        or appliance.get("manufacturerName") == "Amazon"
+        manufacturerNames = ["Ledvance", "Sengled", "Amazon"]
+        appliance.get("manufacturerName") in manufacturerNames
     ):
         return not is_skill(appliance)
 

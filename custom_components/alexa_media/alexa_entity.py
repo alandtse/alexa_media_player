@@ -107,8 +107,10 @@ def is_alexa_guard(appliance: dict[str, Any]) -> bool:
 
 def is_temperature_sensor(appliance: dict[str, Any]) -> bool:
     """Is the given appliance the temperature sensor of an Echo."""
-    return is_local(appliance) and has_capability(
-        appliance, "Alexa.TemperatureSensor", "temperature"
+    return (
+        is_local(appliance)
+        and has_capability(appliance, "Alexa.TemperatureSensor", "temperature")
+        and appliance["friendlyDescription"] != "Amazon Indoor Air Quality Monitor"
     )
 
 

@@ -959,6 +959,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if CONF_PUBLIC_URL in self._config_entry.data:
                 if not user_input[CONF_PUBLIC_URL].endswith("/"):
                     user_input[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL] + "/"
+            """Remove leading/trailing spaces in device strings"""
+            if CONF_INCLUDE_DEVICES in self._config_entry.data:
+                user_input[CONF_INCLUDE_DEVICES] = user_input[
+                    CONF_INCLUDE_DEVICES
+                ].strip()
+            if CONF_EXCLUDE_DEVICES in self._config_entry.data:
+                user_input[CONF_EXCLUDE_DEVICES] = user_input[
+                    CONF_EXCLUDE_DEVICES
+                ].strip()
 
             self.hass.config_entries.async_update_entry(
                 self._config_entry, data=user_input, options=self._config_entry.options

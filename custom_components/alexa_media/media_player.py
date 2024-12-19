@@ -1131,7 +1131,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if not self.available:
             return
 
-        # Save the curent volume level before we change it
+        # Save the current volume level before we change it
         _LOGGER.debug("Saving previous volume level: %s", self.volume_level)
         self._previous_volume = self.volume_level
 

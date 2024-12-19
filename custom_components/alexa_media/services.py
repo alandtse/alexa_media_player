@@ -38,7 +38,7 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema(
     {vol.Optional(ATTR_EMAIL, default=[]): vol.All(cv.ensure_list, [cv.string])}
 )
 RESTORE_VOLUME_SCHEMA = vol.Schema(
-    {vol.Required(ATTR_ENTITY_ID): cv.entity_id_or_uuid}
+    {vol.Required(ATTR_ENTITY_ID): cv.entity_id}
 )
 
 

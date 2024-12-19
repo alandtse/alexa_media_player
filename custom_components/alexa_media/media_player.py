@@ -474,7 +474,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     already_refreshed = True
                 elif "volumeSetting" in player_state:
                     _LOGGER.debug(
-                        '%s: %s volume updated: %s',
+                        "%s: %s volume updated: %s",
                         hide_email(self._login.email),
                         self.name,
                         player_state["volumeSetting"],

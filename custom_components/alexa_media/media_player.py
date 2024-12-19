@@ -474,7 +474,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     already_refreshed = True
                 elif "volumeSetting" in player_state:
                     _LOGGER.debug(
-                        "%s: %s volume updated: player_state[\"volumeSetting\"]: %s",
+                        '%s: %s volume updated: player_state["volumeSetting"]: %s',
                         hide_email(self._login.email),
                         self.name,
                         player_state["volumeSetting"],
@@ -1130,11 +1130,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         """Set volume level, range 0..1."""
         if not self.available:
             return
-        
+
         # Save the curent volume level before we change it
         _LOGGER.debug("Saving previous volume level: %s", self.volume_level)
         self._previous_volume = self.volume_level
-        
+
         # Change the volume level on the device
         if self.hass:
             self.hass.async_create_task(self.alexa_api.set_volume(volume))

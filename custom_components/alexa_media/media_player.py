@@ -245,6 +245,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._media_is_muted = None
         self._media_vol_level = None
         self._previous_volume = None
+        self._saved_volume = None
         self._source = None
         self._source_list = []
         self._connected_bluetooth = None
@@ -1129,14 +1130,23 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         """Set volume level, range 0..1."""
         if not self.available:
             return
+
+        # Save the current volume level before we change it
+        _LOGGER.debug("Saving previous volume level: %s", self.volume_level)
+        self._previous_volume = self.volume_level
+
+        # Change the volume level on the device
         if self.hass:
             self.hass.async_create_task(self.alexa_api.set_volume(volume))
         else:
             await self.alexa_api.set_volume(volume)
         self._media_vol_level = volume
+
+        # Let http2push update the new volume level
         if not (
             self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
         ):
+            # Otherwise we do it ourselves
             await self.async_update()
 
     @property
@@ -1164,19 +1174,19 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
         self._media_is_muted = mute
         if mute:
-            self._previous_volume = self.volume_level
+            self._saved_volume = self.volume_level
             if self.hass:
                 self.hass.async_create_task(self.alexa_api.set_volume(0))
             else:
                 await self.alexa_api.set_volume(0)
         else:
-            if self._previous_volume is not None:
+            if self._saved_volume is not None:
                 if self.hass:
                     self.hass.async_create_task(
-                        self.alexa_api.set_volume(self._previous_volume)
+                        self.alexa_api.set_volume(self._saved_volume)
                     )
                 else:
-                    await self.alexa_api.set_volume(self._previous_volume)
+                    await self.alexa_api.set_volume(self._saved_volume)
             else:
                 if self.hass:
                     self.hass.async_create_task(self.alexa_api.set_volume(50))
@@ -1620,6 +1630,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "last_called_summary": self._last_called_summary,
             "connected_bluetooth": self._connected_bluetooth,
             "bluetooth_list": self._bluetooth_list,
+            "previous_volume": self._previous_volume,
         }
         return attr
 

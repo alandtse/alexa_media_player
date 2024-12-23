@@ -41,7 +41,7 @@ repos:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: v3.28.0
+    rev: v4.1.0
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -66,7 +66,7 @@ repos:
     hooks:
       - id: yamllint
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.9
+    rev: 1.8.0
     hooks:
       - id: bandit
         args: ["-c", "pyproject.toml"]
@@ -83,7 +83,7 @@ repos:
   #        pass_filenames: false
   #        always_run: true
   - repo: https://github.com/floatingpurr/sync_with_poetry
-    rev: "1.1.0"
+    rev: "1.2.0"
     hooks:
       - id: sync_with_poetry
         args: []

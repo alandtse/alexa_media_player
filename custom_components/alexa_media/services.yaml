@@ -22,7 +22,7 @@ restore_volume:
         entity:
           domain: media_player
           integration: alexa_media
-          
+
 update_last_called:
   # Description of the service
   description: Forces update of last_called echo device for each Alexa account.

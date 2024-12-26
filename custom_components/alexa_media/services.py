@@ -13,8 +13,7 @@ from typing import Callable
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
 from homeassistant.const import ATTR_DEVICE_ID, ATTR_ENTITY_ID
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import config_validation as cv, entity_registry as er
 import voluptuous as vol
 
 from .const import (
@@ -37,9 +36,7 @@ FORCE_LOGOUT_SCHEMA = vol.Schema(
 LAST_CALL_UPDATE_SCHEMA = vol.Schema(
     {vol.Optional(ATTR_EMAIL, default=[]): vol.All(cv.ensure_list, [cv.string])}
 )
-RESTORE_VOLUME_SCHEMA = vol.Schema(
-    {vol.Required(ATTR_ENTITY_ID): cv.entity_id}
-)
+RESTORE_VOLUME_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
 
 
 class AlexaMediaServices:
@@ -53,10 +50,7 @@ class AlexaMediaServices:
     async def register(self):
         """Register services to hass."""
         self.hass.services.async_register(
-            DOMAIN,
-            SERVICE_FORCE_LOGOUT,
-            self.force_logout,
-            schema=FORCE_LOGOUT_SCHEMA
+            DOMAIN, SERVICE_FORCE_LOGOUT, self.force_logout, schema=FORCE_LOGOUT_SCHEMA
         )
         self.hass.services.async_register(
             DOMAIN,
@@ -73,10 +67,7 @@ class AlexaMediaServices:
 
     async def unregister(self):
         """Deregister services from hass."""
-        self.hass.services.async_remove(
-            DOMAIN, 
-            SERVICE_FORCE_LOGOUT
-        )
+        self.hass.services.async_remove(DOMAIN, SERVICE_FORCE_LOGOUT)
         self.hass.services.async_remove(
             DOMAIN,
             SERVICE_UPDATE_LAST_CALLED,
@@ -165,11 +156,13 @@ class AlexaMediaServices:
 
         # Retrieve the previous volume from the entity's state attributes
         state = self.hass.states.get(entity_id)
-        if not state or 'previous_volume' not in state.attributes:
-            _LOGGER.error("Previous volume attribute not found for entity %s", entity_id)
+        if not state or "previous_volume" not in state.attributes:
+            _LOGGER.error(
+                "Previous volume attribute not found for entity %s", entity_id
+            )
             return False
 
-        previous_volume = state.attributes['previous_volume']
+        previous_volume = state.attributes["previous_volume"]
 
         # Call the volume_set service with the retrieved volume
         await self.hass.services.async_call(

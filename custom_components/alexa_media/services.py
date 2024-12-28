@@ -12,7 +12,8 @@ from typing import Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
-from homeassistant.helpers import config_validation as cv
+from homeassistant.const import ATTR_DEVICE_ID, ATTR_ENTITY_ID
+from homeassistant.helpers import config_validation as cv, entity_registry as er
 import voluptuous as vol
 
 from .const import (
@@ -21,6 +22,7 @@ from .const import (
     DATA_ALEXAMEDIA,
     DOMAIN,
     SERVICE_FORCE_LOGOUT,
+    SERVICE_RESTORE_VOLUME,
     SERVICE_UPDATE_LAST_CALLED,
 )
 from .helpers import _catch_login_errors, report_relogin_required
@@ -34,6 +36,7 @@ FORCE_LOGOUT_SCHEMA = vol.Schema(
 LAST_CALL_UPDATE_SCHEMA = vol.Schema(
     {vol.Optional(ATTR_EMAIL, default=[]): vol.All(cv.ensure_list, [cv.string])}
 )
+RESTORE_VOLUME_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
 
 
 class AlexaMediaServices:
@@ -47,30 +50,40 @@ class AlexaMediaServices:
     async def register(self):
         """Register services to hass."""
         self.hass.services.async_register(
+            DOMAIN, SERVICE_FORCE_LOGOUT, self.force_logout, schema=FORCE_LOGOUT_SCHEMA
+        )
+        self.hass.services.async_register(
             DOMAIN,
             SERVICE_UPDATE_LAST_CALLED,
             self.last_call_handler,
             schema=LAST_CALL_UPDATE_SCHEMA,
         )
         self.hass.services.async_register(
-            DOMAIN, SERVICE_FORCE_LOGOUT, self.force_logout, schema=FORCE_LOGOUT_SCHEMA
+            DOMAIN,
+            SERVICE_RESTORE_VOLUME,
+            self.restore_volume,
+            schema=RESTORE_VOLUME_SCHEMA,
         )
 
     async def unregister(self):
-        """Register services to hass."""
+        """Deregister services from hass."""
+        self.hass.services.async_remove(DOMAIN, SERVICE_FORCE_LOGOUT)
         self.hass.services.async_remove(
             DOMAIN,
             SERVICE_UPDATE_LAST_CALLED,
         )
-        self.hass.services.async_remove(DOMAIN, SERVICE_FORCE_LOGOUT)
+        self.hass.services.async_remove(
+            DOMAIN,
+            SERVICE_RESTORE_VOLUME,
+        )
 
     @_catch_login_errors
     async def force_logout(self, call) -> bool:
         """Handle force logout service request.
 
         Arguments
-            call.ATTR_EMAIL {List[str: None]} -- Case-sensitive Alexa emails.
-                                                    Default is all known emails.
+            call.ATTR_EMAIL {List[str: None]}: List of case-sensitive Alexa emails.
+                                               If None, all accounts are logged out.
 
         Returns
             bool -- True if force logout successful
@@ -97,12 +110,13 @@ class AlexaMediaServices:
                 )
         return success
 
+    @_catch_login_errors
     async def last_call_handler(self, call):
         """Handle last call service request.
 
-        Args
-        call: List of case-sensitive Alexa email addresses. If None
-                            all accounts are updated.
+        Arguments
+        call.ATTR_EMAIL: {List[str: None]}: List of case-sensitive Alexa emails.
+                                            If None, all accounts are updated.
 
         """
         requested_emails = call.data.get(ATTR_EMAIL)
@@ -121,3 +135,44 @@ class AlexaMediaServices:
                     " check your network connection and try again",
                     hide_email(email),
                 )
+
+    async def restore_volume(self, call) -> bool:
+        """Handle restore volume service request.
+
+        Arguments
+            call.ATTR_ENTITY_ID {str: None} -- Alexa media player entity.
+
+        """
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        _LOGGER.debug("Service restore_volume called for: %s", entity_id)
+
+        # Retrieve the entity registry and entity entry
+        entity_registry = er.async_get(self.hass)
+        entity_entry = entity_registry.async_get(entity_id)
+
+        if not entity_entry:
+            _LOGGER.error("Entity %s not found in registry", entity_id)
+            return False
+
+        # Retrieve the previous volume from the entity's state attributes
+        state = self.hass.states.get(entity_id)
+        if not state or "previous_volume" not in state.attributes:
+            _LOGGER.error(
+                "Previous volume attribute not found for entity %s", entity_id
+            )
+            return False
+
+        previous_volume = state.attributes["previous_volume"]
+
+        # Call the volume_set service with the retrieved volume
+        await self.hass.services.async_call(
+            domain="media_player",
+            service="volume_set",
+            service_data={
+                "volume_level": previous_volume,
+            },
+            target={"entity_id": entity_id},
+        )
+
+        _LOGGER.debug("Volume restored to %s for entity %s", previous_volume, entity_id)
+        return True

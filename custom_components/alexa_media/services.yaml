@@ -1,16 +1,4 @@
 #  SPDX-License-Identifier: Apache-2.0
-update_last_called:
-  # Description of the service
-  description: Forces update of last_called echo device for each Alexa account.
-  # Different fields that your service accepts
-  fields:
-    # Key of the field
-    email:
-      # Description of the field
-      description: List of Alexa accounts to update. If empty, will update all known accounts.
-      # Example value that can be passed for this field
-      example: "my_email@alexa.com"
-
 force_logout:
   # Description of the service
   description: Force logout of Alexa Login account and deletion of .pickle. Intended for debugging use.
@@ -20,5 +8,29 @@ force_logout:
     email:
       # Description of the field
       description: List of Alexa accounts to log out. If empty, will log out from all known accounts.
+      # Example value that can be passed for this field
+      example: "my_email@alexa.com"
+
+restore_volume:
+  description: Restores an Alexa Media Player volume level to the previous volume level.
+  fields:
+    entity_id:
+      name: Entity
+      description: Alexa Media Player device to restore volume on.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
+
+update_last_called:
+  # Description of the service
+  description: Forces update of last_called echo device for each Alexa account.
+  # Different fields that your service accepts
+  fields:
+    # Key of the field
+    email:
+      # Description of the field
+      description: List of Alexa accounts to update. If empty, will update all known accounts.
       # Example value that can be passed for this field
       example: "my_email@alexa.com"

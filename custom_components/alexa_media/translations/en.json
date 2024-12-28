@@ -68,20 +68,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
-      "fields": {
-        "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
-        },
-        "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
-        }
-      },
-      "name": "Clear Amazon Voice History"
-    },
     "force_logout": {
       "description": "Force account to logout. Used mainly for debugging.",
       "fields": {
@@ -91,6 +77,16 @@
         }
       },
       "name": "Force Logout"
+    },
+    "restore_volume":{
+        "description":"Restore previous volume setting on Alexa media player device",
+        "fields": {
+            "entity_id": {
+                "description": "Entity to restore the previous volume level on",
+                "name": "Select media player:"
+            }
+        },
+        "name":"Restore Previous Volume"
     },
     "update_last_called": {
       "description": "Forces update of last_called echo device for each Alexa account.",

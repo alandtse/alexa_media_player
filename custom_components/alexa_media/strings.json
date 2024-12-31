@@ -79,14 +79,14 @@
       }
     },
     "restore_volume": {
+      "name": "Restore Previous Volume",
       "description": "Restore previous volume level on Alexa media player device",
       "fields": {
         "entity_id": {
-          "description": "Entity to restore the previous volume level on",
-          "name": "Select media player:"
+          "name": "Select media player:",
+          "description": "Entity to restore the previous volume level on"
         }
-      },
-      "name": "Restore Previous Volume"
+      }
     },
     "update_last_called": {
       "name": "Update Last Called Sensor",

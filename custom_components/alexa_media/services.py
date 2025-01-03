@@ -139,8 +139,8 @@ class AlexaMediaServices:
     async def restore_volume(self, call) -> bool:
         """Handle restore volume service request.
 
-        Arguments
-            call.ATTR_ENTITY_ID {str: None} -- Alexa media player entity.
+        Arguments:
+            call.ATTR_ENTITY_ID {str: None} -- Alexa Media Player entity.
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
@@ -154,15 +154,29 @@ class AlexaMediaServices:
             _LOGGER.error("Entity %s not found in registry", entity_id)
             return False
 
-        # Retrieve the previous volume from the entity's state attributes
+        # Retrieve the state and attributes
         state = self.hass.states.get(entity_id)
-        if not state or "previous_volume" not in state.attributes:
-            _LOGGER.error(
-                "Previous volume attribute not found for entity %s", entity_id
-            )
+        if not state:
+            _LOGGER.warning("Entity %s has no state; cannot restore volume", entity_id)
             return False
 
-        previous_volume = state.attributes["previous_volume"]
+        previous_volume = state.attributes.get("previous_volume")
+        current_volume = state.attributes.get("volume_level")
+
+        if previous_volume is None:
+            _LOGGER.warning(
+                "Previous volume not found for %s; attempting to use current volume level: %s",
+                entity_id,
+                current_volume,
+            )
+            previous_volume = current_volume
+
+        if previous_volume is None:
+            _LOGGER.warning(
+                "No valid volume levels found for entity %s; cannot restore volume",
+                entity_id,
+            )
+            return False
 
         # Call the volume_set service with the retrieved volume
         await self.hass.services.async_call(

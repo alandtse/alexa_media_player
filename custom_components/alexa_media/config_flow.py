@@ -26,19 +26,25 @@ from alexapy import (
     hide_email,
     obfuscate,
 )
+from awesomeversion import AwesomeVersion
 from homeassistant import config_entries
 from homeassistant.components.http.view import HomeAssistantView
 from homeassistant.components.persistent_notification import (
     async_dismiss as async_dismiss_persistent_notification,
 )
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_URL, __version__ as HAVERSION
+from homeassistant.const import (
+    CONF_EMAIL,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    CONF_URL,
+    __version__ as HAVERSION,
+)
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult, UnknownFlow
 from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
-from awesomeversion import AwesomeVersion
 import httpx
 import voluptuous as vol
 from yarl import URL

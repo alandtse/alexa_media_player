@@ -236,85 +236,86 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
     contact_sensors = []
     switches = []
     location_details = network_details["locationDetails"]["locationDetails"]
-    # pylint: disable=too-many-nested-blocks
+
+    appliances = {}
     for location in location_details.values():
         amazon_bridge_details = location["amazonBridgeDetails"]["amazonBridgeDetails"]
         for bridge in amazon_bridge_details.values():
             appliance_details = bridge["applianceDetails"]["applianceDetails"]
             for appliance in appliance_details.values():
-                processed_appliance = {
-                    "id": appliance["entityId"],
-                    "appliance_id": appliance["applianceId"],
-                    "name": get_friendliest_name(appliance),
-                    "is_hue_v1": is_hue_v1(appliance),
-                }
-                if is_alexa_guard(appliance):
-                    guards.append(processed_appliance)
-                elif is_temperature_sensor(appliance):
-                    serial = get_device_serial(appliance)
-                    processed_appliance["device_serial"] = (
-                        serial if serial else appliance["entityId"]
-                    )
-                    temperature_sensors.append(processed_appliance)
-                # Code for Amazon Smart Air Quality Monitor
-                elif is_air_quality_sensor(appliance):
-                    serial = get_device_serial(appliance)
-                    processed_appliance["device_serial"] = (
-                        serial if serial else appliance["entityId"]
-                    )
-                    # create array of air quality sensors. We must store the instance id against
-                    # the assetId so we know which sensors are which.
-                    sensors = []
-                    if (
-                        appliance["friendlyDescription"]
-                        == "Amazon Indoor Air Quality Monitor"
-                    ):
-                        for cap in appliance["capabilities"]:
-                            instance = cap.get("instance")
-                            if instance:
-                                friendlyName = cap["resources"].get("friendlyNames")
-                                for entry in friendlyName:
-                                    assetId = entry["value"].get("assetId")
-                                    if assetId and assetId.startswith(
-                                        "Alexa.AirQuality"
-                                    ):
-                                        unit = cap["configuration"]["unitOfMeasure"]
-                                        sensor = {
-                                            "sensorType": assetId,
-                                            "instance": instance,
-                                            "unit": unit,
-                                        }
-                                        sensors.append(sensor)
-                                        _LOGGER.debug(
-                                            "AIAQM sensor detected %s", sensor
-                                        )
-                    processed_appliance["sensors"] = sensors
+                appliances[appliance["applianceId"]] = appliance
 
-                    # Add as both temperature and air quality sensor
-                    temperature_sensors.append(processed_appliance)
-                    air_quality_sensors.append(processed_appliance)
-                elif is_switch(appliance):
-                    switches.append(processed_appliance)
-                elif is_light(appliance):
-                    processed_appliance["brightness"] = has_capability(
-                        appliance, "Alexa.BrightnessController", "brightness"
-                    )
-                    processed_appliance["color"] = has_capability(
-                        appliance, "Alexa.ColorController", "color"
-                    )
-                    processed_appliance["color_temperature"] = has_capability(
-                        appliance,
-                        "Alexa.ColorTemperatureController",
-                        "colorTemperatureInKelvin",
-                    )
-                    lights.append(processed_appliance)
-                elif is_contact_sensor(appliance):
-                    processed_appliance["battery_level"] = has_capability(
-                        appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
-                    )
-                    contact_sensors.append(processed_appliance)
-                else:
-                    _LOGGER.debug("Found unsupported device %s", appliance)
+    for appliance in appliances.values():
+        processed_appliance = {
+            "id": appliance["entityId"],
+            "appliance_id": appliance["applianceId"],
+            "name": get_friendliest_name(appliance),
+            "is_hue_v1": is_hue_v1(appliance),
+        }
+        if is_alexa_guard(appliance):
+            guards.append(processed_appliance)
+        elif is_temperature_sensor(appliance):
+            serial = get_device_serial(appliance)
+            processed_appliance["device_serial"] = (
+                serial if serial else appliance["entityId"]
+            )
+            temperature_sensors.append(processed_appliance)
+        # Code for Amazon Smart Air Quality Monitor
+        elif is_air_quality_sensor(appliance):
+            serial = get_device_serial(appliance)
+            processed_appliance["device_serial"] = (
+                serial if serial else appliance["entityId"]
+            )
+            # create array of air quality sensors. We must store the instance id against
+            # the assetId so we know which sensors are which.
+            sensors = []
+            if appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor":
+                for cap in appliance["capabilities"]:
+                    instance = cap.get("instance")
+                    if not instance:
+                        continue
+
+                    friendlyName = cap["resources"].get("friendlyNames")
+                    for entry in friendlyName:
+                        assetId = entry["value"].get("assetId")
+                        if not assetId or not assetId.startswith("Alexa.AirQuality"):
+                            continue
+
+                        unit = cap["configuration"]["unitOfMeasure"]
+                        sensor = {
+                            "sensorType": assetId,
+                            "instance": instance,
+                            "unit": unit,
+                        }
+                        sensors.append(sensor)
+                        _LOGGER.debug("AIAQM sensor detected %s", sensor)
+            processed_appliance["sensors"] = sensors
+
+            # Add as both temperature and air quality sensor
+            temperature_sensors.append(processed_appliance)
+            air_quality_sensors.append(processed_appliance)
+        elif is_switch(appliance):
+            switches.append(processed_appliance)
+        elif is_light(appliance):
+            processed_appliance["brightness"] = has_capability(
+                appliance, "Alexa.BrightnessController", "brightness"
+            )
+            processed_appliance["color"] = has_capability(
+                appliance, "Alexa.ColorController", "color"
+            )
+            processed_appliance["color_temperature"] = has_capability(
+                appliance,
+                "Alexa.ColorTemperatureController",
+                "colorTemperatureInKelvin",
+            )
+            lights.append(processed_appliance)
+        elif is_contact_sensor(appliance):
+            processed_appliance["battery_level"] = has_capability(
+                appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
+            )
+            contact_sensors.append(processed_appliance)
+        else:
+            _LOGGER.debug("Found unsupported device %s", appliance)
 
     return {
         "light": lights,

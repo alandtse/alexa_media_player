@@ -57,22 +57,29 @@ def is_skill(appliance: dict[str, Any]) -> bool:
     return namespace and namespace == "SKILL"
 
 
+def is_known_ha_bridge(appliance: Optional[dict[str, Any]]) -> bool:
+    """Test whether a bridge appliance is a known HA bridge to avoid creating loops."""
+
+    if appliance is None:
+        return False
+
+    if appliance.get("manufacturerName") in ("t0bst4r", "Matterbridge"):
+        return True
+
+    # If we want to exclude all Matter devices (these can always be added
+    # directly to HA instead of going through AMP), we could test for a
+    # networkInterfaceIdentifier of type "MATTER" or capabilities on the
+    # "Alexa.Matter.NodeOperationalCredentials.FabricManagement" interface.
+
+    return False
+
+
 def is_local(appliance: dict[str, Any]) -> bool:
     """Test whether locally connected.
 
     This is mainly present to prevent loops with the official Alexa integration.
     There is probably a better way to prevent that, but this works.
     """
-
-    if appliance.get("manufacturerName") == "t0bst4r":
-        # Home-Assistant-Matter-Hub is a new add-on (2024-10-27) which exposes selected
-        # HA entities to Alexa as Matter devices connected locally via Amazon Echo.
-        # "connectedVia" is not None so they need to be ignored to prevent duplicating them back into HA.
-        _LOGGER.debug(
-            'alexa_entity is_local: Return False for Home-Assistant-Matter-Hub manufacturer: "%s"',
-            appliance.get("manufacturerName"),
-        )
-        return False
 
     if appliance.get("connectedVia"):
         # connectedVia is a flag that determines which Echo devices holds the connection. Its blank for
@@ -181,6 +188,27 @@ def get_device_serial(appliance: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def get_device_bridge(
+    appliance: dict[str, Any], appliances: dict[str, dict[str, Any]]
+) -> Optional[dict[str, Any]]:
+    """Find the bridge device for an appliance connected through e.g. a Matter bridge"""
+    if not appliance.get("connectedVia"):
+        # The appliance cannot be Matter if it does not connect to an Echo device
+        return None
+
+    # We expect the bridged devices to look like "AAA_SonarCloudService_UUID#DEVICENUM"
+    bridged_device_pattern = re.compile(
+        "(AAA_SonarCloudService_[a-f0-9\\-]+)#[0-9]+", flags=re.I
+    )
+
+    match = bridged_device_pattern.fullmatch(appliance.get("applianceId", ""))
+    if match is None:
+        return None
+
+    # We expect the bridge to share the prefix without the device num
+    return appliances[match.group(1)]
+
+
 class AlexaEntity(TypedDict):
     """Class for Alexaentity."""
 
@@ -246,6 +274,11 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                 appliances[appliance["applianceId"]] = appliance
 
     for appliance in appliances.values():
+        device_bridge = get_device_bridge(appliance, appliances)
+        if is_known_ha_bridge(device_bridge):
+            _LOGGER.debug("Found Home Assistant bridge, skipping %s", appliance)
+            continue
+
         processed_appliance = {
             "id": appliance["entityId"],
             "appliance_id": appliance["applianceId"],

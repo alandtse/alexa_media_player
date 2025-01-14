@@ -35,7 +35,7 @@ jobs:
         run: |
           cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/translations/
       - name: Set up Python 3.8
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
       # #----------------------------------------------

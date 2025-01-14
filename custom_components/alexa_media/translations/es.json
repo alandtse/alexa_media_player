@@ -39,6 +39,7 @@
           "include_devices": "Dispositivo incluido (separado por comas)",
           "otp_secret": "Clave de aplicación 2FA incorporada (genera automáticamente códigos 2FA). Esto no tiene seis dígitos.",
           "password": "Contraseña",
+          "public_url": "URL pública compartida con servicios alojados externos",
           "queue_delay": "Segundos a esperar para agrupar comandos",
           "scan_interval": "Segundos entre escaneos",
           "securitycode": "Código 2FA (recomendado para evitar problemas de inicio de sesión)",
@@ -49,6 +50,12 @@
       }
     }
   },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "La configuración YAML de Alexa Media Player está obsoleta \n y se eliminará en la versión 4.14.0. \n No habrá una importación automática de esto. \n Elimínelo de su configuración, reinicie Home Assistant y use la interfaz de usuario para configurarlo. \n Configuración > Dispositivos y servicios > Integraciones > AGREGAR INTEGRACIÓN",
+      "title": "La configuración de YAML está obsoleta"
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -56,7 +63,6 @@
           "debug": "Depuración avanzada",
           "exclude_devices": "Dispositivo excluido (separado por comas)",
           "extended_entity_discovery": "Incluir dispositivos conectados a través de Echo",
-          "hass_url": "URL pública para acceder a Home Assistant (incluyendo la '/' final)",
           "include_devices": "Dispositivo incluido (separado por comas)",
           "public_url": "URL pública para acceder a Home Assistant (incluyendo la '/' final)",
           "queue_delay": "Segundos a esperar para agrupar comandos",
@@ -68,20 +74,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "description": "Borrar las últimas entradas del historial de voz de Alexa para cada cuenta.",
-      "fields": {
-        "email": {
-          "description": "Cuentas a borrar. Si se deja vacío se borraran todas.",
-          "name": "Dirección de correo electrónico"
-        },
-        "entries": {
-          "description": "Número de entradas a borrar del 1 al 50. Si se deja vacío, se borraran 50.",
-          "name": "Número de entradas"
-        }
-      },
-      "name": "Borrar el historial de voz de Amazon"
-    },
     "force_logout": {
       "description": "Obligar el cierre de sesión de la cuenta. Usar principalmente para depuración.",
       "fields": {
@@ -91,6 +83,16 @@
         }
       },
       "name": "Obligar cierre de sesión"
+    },
+    "restore_volume": {
+      "description": "Restaurar el nivel de volumen anterior en el reproductor multimedia Alexa",
+      "fields": {
+        "entity_id": {
+          "description": "Entidad para restaurar el nivel de volumen anterior",
+          "name": "Seleccionar reproductor multimedia:"
+        }
+      },
+      "name": "Restaurar volumen anterior"
     },
     "update_last_called": {
       "description": "Obligar la actualización del último dispositivo Echo llamado para cada cuenta Alexa.",

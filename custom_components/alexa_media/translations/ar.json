@@ -1,106 +1,108 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
+      "forgot_password": "تم اكتشاف صفحة \"نسيت كلمة المرور\". عادةً ما يكون ذلك نتيجة لعدد كبير جدًا من محاولات تسجيل الدخول الفاشلة. قد يتطلب الأمر اتخاذ إجراء على Amazon قبل محاولة تسجيل الدخول مرة أخرى.",
+      "login_failed": "فشل تسجيل الدخول إلى Alexa Media Player.",
+      "reauth_successful": "تمت إعادة التحقق من Alexa Media Player بنجاح. يرجى تجاهل رسالة \"تم الإلغاء\" من Home Assistant."
     },
     "error": {
-      "2fa_key_invalid": "مفتاح 2FA مضمّن غير صالح",
-      "connection_error": "Error connecting; check network and retry",
-      "identifier_exists": "Email for Alexa URL already registered",
-      "invalid_credentials": "Invalid credentials",
-      "invalid_url": "URL غير صالح: {message}",
-      "unable_to_connect_hass_url": "Unable to connect to Home Assistant url. Please check the External Url under Configuration -> General",
-      "unknown_error": "Unknown error: {message}"
+      "2fa_key_invalid": "مفتاح تطبيق المصادقة غير صالح لـ Amazon 2SV",
+      "connection_error": "خطأ في الاتصال؛ تحقق من الشبكة وأعد المحاولة",
+      "identifier_exists": "البريد الإلكتروني لرابط Alexa مسجل مسبقًا",
+      "invalid_credentials": "بيانات اعتماد غير صالحة",
+      "invalid_url": "رابط غير صالح: {message}",
+      "unable_to_connect_hass_url": "غير قادر على الاتصال بالرابط المحلي لـ Home Assistant. يرجى التحقق من العنوان ضمن:\nالإعدادات > النظام > الشبكة > رابط Home Assistant > الشبكة المحلية.",
+      "unknown_error": "خطأ غير معروف: {message}"
     },
     "step": {
       "proxy_warning": {
         "data": {
-          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+          "proxy_warning": "تجاهل ومتابعة - أتفهم أنه لا يوجد دعم لمشاكل تسجيل الدخول لتجاوز هذا التحذير."
         },
-        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
-        "title": "Alexa Media Player - Unable to Connect to HA URL"
+        "description": "لا يمكن لخادم Home Assistant الاتصال بالرابط المقدم: {hass_url}. \n > {error} \n \n لإصلاح هذه المشكلة، يرجى التأكد من أن متصفحك يمكنه الوصول إلى {hass_url}. هذا الحقل موجود في الإعدادات > النظام > الشبكة > رابط Home Assistant. \n \n إذا كنت **متأكدًا** من أن متصفحك يمكنه الوصول إلى هذا الرابط، فيمكنك تجاوز هذا التحذير.",
+        "title": "Alexa Media Player - غير قادر على الاتصال برابط Home Assistant"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "نعم، تم التحقق من رمز OTP"
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "description": "** {email} - alexa. {url} ** \n هل قمت بالتحقق من رمز OTP في Amazon 2SV؟ \n >رمز OTP: {message}",
+        "title": "Alexa Media Player - تأكيد OTP"
       },
       "user": {
         "data": {
-          "debug": "Advanced debugging",
-          "email": "Email Address",
-          "exclude_devices": "Excluded device (comma separated)",
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "hass_url": "Url to access Home Assistant",
-          "include_devices": "Included device (comma separated)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes). This is not six digits long.",
-          "password": "Password",
-          "queue_delay": "Seconds to wait to queue commands together",
-          "scan_interval": "Seconds between scans",
+          "debug": "تصحيح  الأخطاء المتقدم",
+          "email": "البريد الإلكتروني",
+          "exclude_devices": "أو استبعاد هذه الأجهزة من الكل (مفصولة بفواصل)",
+          "extended_entity_discovery": "تضمين الأجهزة المتصلة عبر Echo",
+          "hass_url": "رابط الشبكة المحلية للوصول إلى Home Assistant",
+          "include_devices": "تضمين هذه الأجهزة فقط (مفصولة بفواصل)",
+          "otp_secret": "مفتاح تطبيق Amazon 2SV للمصادقة الثنائية",
+          "password": "كلمة المرور",
+          "public_url": "رابط عام مشترك مع خدمات مستضافة خارجية",
+          "queue_delay": "تأخير وضع أوامر متعددة في قائمة الانتظار معًا (بالثواني)",
+          "scan_interval": "الفاصل الزمني للإستطلاع المجدول (بالثواني)",
           "securitycode": "[%key_id:55616596%]",
-          "url": "Amazon region domain (e.g., amazon.co.uk)"
+          "url": "نطاق منطقة Amazon (على سبيل المثال، amazon.co.uk)"
         },
-        "description": "Please confirm the information below. For legacy configuration, disable `Use Login Proxy method` option.",
-        "title": "Alexa Media Player - Configuration"
+        "description": "إجباري *",
+        "title": "Alexa Media Player - الإعدادات"
       }
+    }
+  },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "تم إيقاف اعتماد إعدادات YAML لـ Alexa Media Player \n وسيتم إزالتها في الإصدار 4.14.0. \n لن يكون هناك استيراد تلقائي لها. \nيُرجى إزالتها من إعداداتك، ثم إعادة تشغيل Home Assistant واستخدام واجهة المستخدم للإعدادات بدلاً من ذلك. \n الإعدادات > الأجهزة والخدمات > التكاملات > إضافة التكامل",
+      "title": "إعدادات YAML غير معتمد"
     }
   },
   "options": {
     "step": {
       "init": {
         "data": {
-          "debug": "Advanced debugging",
-          "exclude_devices": "Excluded device (comma separated)",
-          "extended_entity_discovery": "Include devices connected via Echo",
-          "hass_url": "عنوان URL العام للوصول إلى Home Assistant (بما في ذلك '/' المتبوعة)",
-          "include_devices": "Included device (comma separated)",
-          "public_url": "عنوان URL العام للوصول إلى Home Assistant (بما في ذلك '/' المتبوعة)",
-          "queue_delay": "Seconds to wait to queue commands together",
-          "scan_interval": "Seconds between scans"
+          "debug": "تصحيح  الأخطاء المتقدم",
+          "exclude_devices": "أو استبعاد هذه الأجهزة من الكل (مفصولة بفواصل)",
+          "extended_entity_discovery": "تضمين الأجهزة المتصلة عبر Echo",
+          "include_devices": "تضمين هذه الأجهزة فقط (مفصولة بفواصل)",
+          "public_url": "رابط عام مشترك مع خدمات مستضافة خارجية",
+          "queue_delay": "تأخير وضع أوامر متعددة في قائمة الانتظار معًا (بالثواني)",
+          "scan_interval": "تكرار الاستطلاع المجدول (بالثواني)"
         },
-        "description": "Required *",
-        "title": "Alexa Media Player - Reconfiguration"
+        "description": "إجباري *",
+        "title": "Alexa Media Player - إعادة التكوين"
       }
     }
   },
   "services": {
-    "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
-      "fields": {
-        "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
-        },
-        "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
-        }
-      },
-      "name": "Clear Amazon Voice History"
-    },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "إجبار الحساب على تسجيل الخروج. يُستخدم بشكل أساسي لأغراض التصحيح.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "الحسابات المراد مسحها. إذا كانت فارغة سيتم مسح الكل.",
+          "name": "البريد الإلكتروني"
         }
       },
-      "name": "Force Logout"
+      "name": "فرض تسجيل الخروج"
+    },
+    "restore_volume": {
+      "description": "استعادة مستوى الصوت السابق على جهاز Alexa media player",
+      "fields": {
+        "entity_id": {
+          "description": "العنصر لاستعادة مستوى الصوت السابق عليه",
+          "name": "اختر مشغل الوسائط:"
+        }
+      },
+      "name": "استعادة مستوى الصوت السابق"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "فرض التحديث لـ \"آخر إتصال\" من جهاز echo لجميع حسابات Alexa.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "قائمة حسابات Alexa للتحديث. إذا كانت فارغة، سيتم تحديث جميع الحسابات المعروفة.",
+          "name": "البريد الإلكتروني"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "تحديث مستشعر \"آخر إتصال\""
     }
   }
 }

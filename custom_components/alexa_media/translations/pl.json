@@ -39,6 +39,7 @@
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
           "otp_secret": "Wbudowana aplikacja kluczy uwierzytelniania dwuskładnikowego (automatycznie generuje kody uwierzytelniania dwuskładnikowego)",
           "password": "Hasło",
+          "public_url": "Publiczny adres URL udostępniany zewnętrznym usługom hostowanym",
           "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń",
           "scan_interval": "Interwał skanowania (sekundy)",
           "securitycode": "Kod uwierzytelniania dwuskładnikowego (zalecany w celu uniknięcia problemów z logowaniem)",
@@ -49,6 +50,12 @@
       }
     }
   },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "Konfiguracja YAML Alexa Media Player jest przestarzała \n i zostanie usunięta w wersji 4.14.0. \n Nie będzie automatycznego importowania tej konfiguracji. \n Usuń ją ze swojej konfiguracji, uruchom ponownie Home Assistant i skonfiguruj ją za pomocą interfejsu użytkownika. \n Ustawienia > Urządzenia i usługi > Integracje > DODAJ INTEGRACJĘ",
+      "title": "Konfiguracja YAML jest przestarzała"
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -56,7 +63,6 @@
           "debug": "Zaawansowane debugowanie",
           "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
           "extended_entity_discovery": "Uwzględnij urządzenia podłączone przez Echo",
-          "hass_url": "Publiczny URL do dostępu do Home Assistant (z końcowym '/')",
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
           "public_url": "Publiczny URL do dostępu do Home Assistant (z końcowym '/')",
           "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń",
@@ -68,20 +74,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "description": "Clear last entries from Alexa Voice history for each Alexa account.",
-      "fields": {
-        "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
-        },
-        "entries": {
-          "description": "Number of entries to clear from 1 to 50. If empty, clear 50.",
-          "name": "Number of Entries"
-        }
-      },
-      "name": "Clear Amazon Voice History"
-    },
     "force_logout": {
       "description": "Force account to logout. Used mainly for debugging.",
       "fields": {
@@ -91,6 +83,16 @@
         }
       },
       "name": "Force Logout"
+    },
+    "restore_volume": {
+      "description": "Przywróć poprzedni poziom głośności na urządzeniu z odtwarzaczem multimedialnym Alexa",
+      "fields": {
+        "entity_id": {
+          "description": "Podmiot przywracający poprzedni poziom głośności",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        }
+      },
+      "name": "Przywróć poprzednią głośność"
     },
     "update_last_called": {
       "description": "Forces update of last_called echo device for each Alexa account.",

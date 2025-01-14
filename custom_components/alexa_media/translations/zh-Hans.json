@@ -39,6 +39,7 @@
           "include_devices": "Included device (comma separated)",
           "otp_secret": "内置 2FA 应用程序密钥（自动生成 2FA 代码）。该密钥长度不为六位数字。",
           "password": "密码",
+          "public_url": "Public URL shared with external hosted services",
           "queue_delay": "Seconds to wait to queue commands together",
           "scan_interval": "Seconds between scans",
           "securitycode": "2FA Code (recommended to avoid login issues)",
@@ -49,6 +50,12 @@
       }
     }
   },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "YAML configuration of Alexa Media Player is deprecated\nand will be removed in version 4.14.0.\nThere will be no automatic import of this.\nPlease remove it from your configuration, restart Home Assistant and use the UI to configure it instead.\nSettings > Devices & services > Integrations > ADD INTEGRATION",
+      "title": "YAML configuration is deprecated"
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -56,7 +63,6 @@
           "debug": "高级调试",
           "exclude_devices": "Excluded device (comma separated)",
           "extended_entity_discovery": "包括通过 Echo 连接的设备",
-          "hass_url": "访问Home Assistant的公共URL（包括尾随的'/'）",
           "include_devices": "Included device (comma separated)",
           "public_url": "访问Home Assistant的公共URL（包括尾随的'/'）",
           "queue_delay": "Seconds to wait to queue commands together",
@@ -68,20 +74,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "description": "清除每个 Alexa 帐户的 Alexa Voice 历史记录中的最后条目。",
-      "fields": {
-        "email": {
-          "description": "要清除的帐户。清空将清除所有帐户。",
-          "name": "电子邮件地址"
-        },
-        "entries": {
-          "description": "要清除的条目数从 1 到 50。如果为空，则清除 50。",
-          "name": "参赛作品数量"
-        }
-      },
-      "name": "清除 Amazon 语音历史记录"
-    },
     "force_logout": {
       "description": "强制帐户注销。主要用于调试。",
       "fields": {
@@ -91,6 +83,16 @@
         }
       },
       "name": "强制注销"
+    },
+    "restore_volume": {
+      "description": "Restore previous volume level on Alexa media player device",
+      "fields": {
+        "entity_id": {
+          "description": "Entity to restore the previous volume level on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Restore Previous Volume"
     },
     "update_last_called": {
       "description": "强制更新每个 Alexa 帐户的 last_called 回声设备。",

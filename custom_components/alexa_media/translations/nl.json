@@ -39,6 +39,7 @@
           "include_devices": "Inbegrepen apparaten (Scheiding: komma)",
           "otp_secret": "Ingebouwde 2FA App Key (genereert automatisch 2FA-codes). Deze is niet zes cijfers lang.",
           "password": "Wachtwoord",
+          "public_url": "Openbare URL gedeeld met externe gehoste services",
           "queue_delay": "Aantal seconden wachten om opdrachten in de wachtrij te groeperen",
           "scan_interval": "Aantal seconden tussen scans",
           "securitycode": "2FA sleutel (aanbevolen om inlogproblemen te voorkomen)",
@@ -49,6 +50,12 @@
       }
     }
   },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "De YAML-configuratie van Alexa Media Player is verouderd \n en wordt verwijderd in versie 4.14.0. \n Er wordt geen automatische import van uitgevoerd. \n Verwijder het uit uw configuratie, start Home Assistant opnieuw op en gebruik de gebruikersinterface om het te configureren. \n Instellingen > Apparaten en services > Integraties > INTEGRATIE TOEVOEGEN",
+      "title": "YAML-configuratie is verouderd"
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -56,7 +63,6 @@
           "debug": "Geavanceerde foutopsporing",
           "exclude_devices": "Uitgesloten apparaten (Scheiding: komma)",
           "extended_entity_discovery": "Inclusief apparaten verbonden via Echo",
-          "hass_url": "Openbare URL voor toegang tot Home Assistant (inclusief afsluitende '/')",
           "include_devices": "Inbegrepen apparaten (Scheiding: komma)",
           "public_url": "Openbare URL voor toegang tot Home Assistant (inclusief afsluitende '/')",
           "queue_delay": "Aantal seconden wachten om opdrachten in de wachtrij te groeperen",
@@ -68,20 +74,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "description": "Wis de laatste items uit de Alexa stemgeschiedenis voor elk Alexa account.",
-      "fields": {
-        "email": {
-          "description": "Accounts om te wissen. Als het veld leeg is, wordt alles gewist.",
-          "name": "E-mailadres"
-        },
-        "entries": {
-          "description": "Aantal items om te wissen van 1 tot 50. Als het veld leeg is, verwijder er dan 50.",
-          "name": "Aantal items"
-        }
-      },
-      "name": "Wis Amazon stemgeschiedenis"
-    },
     "force_logout": {
       "description": "Forceer account om uit te loggen. Voornamelijk gebruikt voor foutopsporing.",
       "fields": {
@@ -91,6 +83,16 @@
         }
       },
       "name": "Uitloggen forceren"
+    },
+    "restore_volume": {
+      "description": "Herstel het vorige volumeniveau op het Alexa-mediaspelerapparaat",
+      "fields": {
+        "entity_id": {
+          "description": "Entiteit om het vorige volumeniveau te herstellen",
+          "name": "Selecteer mediaspeler:"
+        }
+      },
+      "name": "Vorig volume herstellen"
     },
     "update_last_called": {
       "description": "Forceert update van last_called echo apparaat voor elk Alexa-account.",

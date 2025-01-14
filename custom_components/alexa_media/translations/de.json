@@ -39,6 +39,7 @@
           "include_devices": "Eingebundene Geräte (Komma getrennt)",
           "otp_secret": "Integrierter 2FA-App-Schlüssel (automatisch generierte 2FA-Code)",
           "password": "Passwort",
+          "public_url": "Öffentliche URL, die mit extern gehosteten Diensten geteilt wird",
           "queue_delay": "Zu wartende Sekunden, um Befehle in die Warteschlange zu stellen",
           "scan_interval": "Sekunden zwischen den Scans",
           "securitycode": "2FA-Code (empfohlen, um Anmeldeprobleme zu vermeiden)",
@@ -49,6 +50,12 @@
       }
     }
   },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "Die YAML-Konfiguration des Alexa Media Players ist veraltet \n und wird in Version 4.14.0 entfernt. \n Dies wird nicht automatisch importiert. \n Bitte entfernen Sie es aus Ihrer Konfiguration, starten Sie Home Assistant neu und verwenden Sie stattdessen die Benutzeroberfläche zur Konfiguration. \n Einstellungen > Geräte und Dienste > Integrationen > INTEGRATION HINZUFÜGEN",
+      "title": "Die YAML-Konfiguration ist veraltet"
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -56,7 +63,6 @@
           "debug": "Erweitertes Debugging",
           "exclude_devices": "Ausgeschlossene Geräte (Komma getrennt)",
           "extended_entity_discovery": "Schließen Sie Geräte ein, die über Echo verbunden sind",
-          "hass_url": "Öffentliche URL für den Zugriff auf Home Assistant (einschließlich '/' am Ende)",
           "include_devices": "Eingebundene Geräte (Komma getrennt)",
           "public_url": "Öffentliche URL für den Zugriff auf Home Assistant (einschließlich '/' am Ende)",
           "queue_delay": "Zu wartende Sekunden, um Befehle in die Warteschlange zu stellen",
@@ -68,20 +74,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "description": "Lösche letzte Einträge der Alexa Stimmbefehl-Historie für jeden Alexa Account.",
-      "fields": {
-        "email": {
-          "description": "Zu löschende Accounts. Falls leer, werden alle gelöscht.",
-          "name": "E-Mail-Adresse"
-        },
-        "entries": {
-          "description": "Zu löschende Einträge von 1 bis 50. Falls leer, lösche 50.",
-          "name": "Anzahl der Einträge"
-        }
-      },
-      "name": "Lösche Alexa Stimmbefehl-Historie."
-    },
     "force_logout": {
       "description": "Logout erzwingen. Primär für Debugging genutzt.",
       "fields": {
@@ -91,6 +83,16 @@
         }
       },
       "name": "Logout erzwingen"
+    },
+    "restore_volume": {
+      "description": "Vorherige Lautstärke auf dem Alexa-Mediaplayer-Gerät wiederherstellen",
+      "fields": {
+        "entity_id": {
+          "description": "Entität zum Wiederherstellen der vorherigen Lautstärke auf",
+          "name": "Mediaplayer auswählen:"
+        }
+      },
+      "name": "Vorheriges Volume wiederherstellen"
     },
     "update_last_called": {
       "description": "Erzwinge Updates der zuletzt aufgerufenen Echo Geräte für jeden Alexa Account.",

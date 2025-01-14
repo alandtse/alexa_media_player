@@ -39,6 +39,7 @@
           "include_devices": "Dispositivos incluídos (separado por vírgula)",
           "otp_secret": "Chave de aplicativo 2FA integrada (gera códigos 2FA automaticamente). Isso não tem seis dígitos.",
           "password": "Senha",
+          "public_url": "URL pública compartilhada com serviços hospedados externos",
           "queue_delay": "Segundos para aguardar os comandos de fila juntos",
           "scan_interval": "Segundos entre varreduras",
           "securitycode": "[%key_id:55616596%]",
@@ -49,6 +50,12 @@
       }
     }
   },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "A configuração YAML do Alexa Media Player está obsoleta \n e será removida na versão 4.14.0. \n Não haverá importação automática disso. \n Remova-o da sua configuração, reinicie o Home Assistant e use a IU para configurá-lo. \n Configurações > Dispositivos e serviços > Integrações > ADICIONAR INTEGRAÇÃO",
+      "title": "A configuração YAML está obsoleta"
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -56,7 +63,6 @@
           "debug": "Depuração avançada",
           "exclude_devices": "Dispositivos excluídos (separado por vírgula)",
           "extended_entity_discovery": "Incluir dispositivos conectados via Echo",
-          "hass_url": "URL pública para acessar o Home Assistant (incluindo a barra final ''/')",
           "include_devices": "Dispositivos incluídos (separado por vírgula)",
           "public_url": "URL pública para acessar o Home Assistant (incluindo a barra final ''/')",
           "queue_delay": "Segundos para aguardar os comandos de fila juntos",
@@ -68,20 +74,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "description": "Limpe as últimas entradas do histórico de voz da Alexa para cada conta Alexa.",
-      "fields": {
-        "email": {
-          "description": "Contas para limpar. Deixar vazio limpará tudo.",
-          "name": "Endereço de email"
-        },
-        "entries": {
-          "description": "Número de entradas para limpar de 1 a 50. Se deixar vazio, vai limpar as 50.",
-          "name": "Número de entradas"
-        }
-      },
-      "name": "Limpar histórico de voz da Amazon"
-    },
     "force_logout": {
       "description": "Forçar o logout da conta. Usado principalmente para depuração.",
       "fields": {
@@ -91,6 +83,16 @@
         }
       },
       "name": "Forçar o logout"
+    },
+    "restore_volume": {
+      "description": "Restaurar o nível de volume anterior no dispositivo reprodutor de mídia Alexa",
+      "fields": {
+        "entity_id": {
+          "description": "Entidade para restaurar o nível de volume anterior em",
+          "name": "Selecione o media player:"
+        }
+      },
+      "name": "Restaurar volume anterior"
     },
     "update_last_called": {
       "description": "Força a atualização do último dispositivo eco chamado para cada conta Alexa.",

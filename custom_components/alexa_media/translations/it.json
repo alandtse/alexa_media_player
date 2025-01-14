@@ -39,6 +39,7 @@
           "include_devices": "Dispositivi da includere (separati da virgola)",
           "otp_secret": "Chiave app 2FA integrata (genera automaticamente codici 2FA). Questo non è lungo sei cifre.",
           "password": "Password",
+          "public_url": "URL pubblico condiviso con servizi ospitati esterni",
           "queue_delay": "Secondi di attesa per accodare i comandi insieme",
           "scan_interval": "Tempo in secondi fra le scansioni",
           "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)",
@@ -49,6 +50,12 @@
       }
     }
   },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "La configurazione YAML di Alexa Media Player è obsoleta \n e verrà rimossa nella versione 4.14.0. \n Non verrà eseguita alcuna importazione automatica. \n Rimuovila dalla configurazione, riavvia Home Assistant e utilizza l'interfaccia utente per configurarla. \n Impostazioni > Dispositivi e servizi > Integrazioni > AGGIUNGI INTEGRAZIONE",
+      "title": "La configurazione YAML è deprecata"
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -56,7 +63,6 @@
           "debug": "Debug avanzato",
           "exclude_devices": "Dispositivi da escludere (separati da virgola)",
           "extended_entity_discovery": "Includi i dispositivi collegati tramite Echo",
-          "hass_url": "URL pubblico per accedere a Home Assistant (incluso il '/' finale)",
           "include_devices": "Dispositivi da includere (separati da virgola)",
           "public_url": "URL pubblico per accedere a Home Assistant (incluso il '/' finale)",
           "queue_delay": "Secondi di attesa per accodare i comandi insieme",
@@ -68,20 +74,6 @@
     }
   },
   "services": {
-    "clear_history": {
-      "description": "Elimina gli ultimi elementi dalla cronologia voce Alexa per ogni account.",
-      "fields": {
-        "email": {
-          "description": "Account da eliminare. Se vuoto, verranno cancellati tutti.",
-          "name": "Indirizzo email"
-        },
-        "entries": {
-          "description": "Numero di elementi da eliminare da 1 a 50. Se vuoto, ne verranno eliminati 50.",
-          "name": "Numero di Elementi"
-        }
-      },
-      "name": "Cancella cronologia voce Amazon"
-    },
     "force_logout": {
       "description": "Forza logout dell'account. Usato principalmente per il debugging.",
       "fields": {
@@ -91,6 +83,16 @@
         }
       },
       "name": "Forza Logout"
+    },
+    "restore_volume": {
+      "description": "Ripristina il livello del volume precedente sul dispositivo lettore multimediale Alexa",
+      "fields": {
+        "entity_id": {
+          "description": "Entità per ripristinare il livello del volume precedente",
+          "name": "Seleziona lettore multimediale:"
+        }
+      },
+      "name": "Ripristina il volume precedente"
     },
     "update_last_called": {
       "description": "Forza l'aggiornamento del dispositivo echo last_called per ogni account Alexa.",

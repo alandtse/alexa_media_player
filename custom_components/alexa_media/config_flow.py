@@ -955,7 +955,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_SECURITYCODE
                 ]
             if CONF_OTPSECRET in self.config_entry.data:
-                user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET].replace(" ","")
+                user_input[CONF_OTPSECRET] = self.config_entry.data[
+                    CONF_OTPSECRET
+                ].replace(" ", "")
             if CONF_OAUTH in self.config_entry.data:
                 user_input[CONF_OAUTH] = self.config_entry.data[CONF_OAUTH]
             """Ensure public_url ends with trailing slash"""

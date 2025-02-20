@@ -479,7 +479,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     password=self.config[CONF_PASSWORD],
                     outputpath=self.hass.config.path,
                     debug=self.config[CONF_DEBUG],
-                    otp_secret=self.config[CONF_OTPSECRET]
+                    otp_secret=self.config[CONF_OTPSECRET],
                     uuid=uuid,
                     oauth_login=True,
                 )

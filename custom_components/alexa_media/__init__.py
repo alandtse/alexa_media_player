@@ -1068,9 +1068,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             {"player_state": json_payload},
                         )
                     elif command == "NotifyNowPlayingUpdated":
-                        _LOGGER.debug(
-                            "Send NowPlaying: %s", hide_serial(json_payload)
-                        )
+                        _LOGGER.debug("Send NowPlaying: %s", hide_serial(json_payload))
                         async_dispatcher_send(
                             hass,
                             f"{DOMAIN}_{hide_email(email)}"[0:32],

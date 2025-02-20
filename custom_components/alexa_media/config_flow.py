@@ -137,7 +137,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (vol.Required(CONF_HASS_URL), str),
                 (vol.Required(CONF_EMAIL), str),
                 (vol.Required(CONF_PASSWORD), str),
-                (vol.Optional(CONF_OTPSECRET), str),
+                (vol.Required(CONF_OTPSECRET), str),
                 (vol.Optional(CONF_SECURITYCODE), str),
                 (vol.Optional(CONF_PUBLIC_URL), str),
                 (vol.Optional(CONF_INCLUDE_DEVICES, default=""), str),
@@ -197,7 +197,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     str,
                 ),
                 (
-                    vol.Optional(
+                    vol.Required(
                         CONF_OTPSECRET, default=self.config.get(CONF_OTPSECRET, "")
                     ),
                     str,
@@ -355,7 +355,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         ):
             otp: str = self.login.get_totp_token()
             if otp:
-                _LOGGER.debug("Generating OTP from %s", otp)
+                _LOGGER.debug("Generated OTP token: %s", otp)
                 return self.async_show_form(
                     step_id="totp_register",
                     data_schema=vol.Schema(self.totp_register),
@@ -479,7 +479,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     password=self.config[CONF_PASSWORD],
                     outputpath=self.hass.config.path,
                     debug=self.config[CONF_DEBUG],
-                    otp_secret=self.config.get(CONF_OTPSECRET, ""),
+                    otp_secret=self.config[CONF_OTPSECRET]
                     uuid=uuid,
                     oauth_login=True,
                 )
@@ -493,7 +493,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             ):
                 otp: str = self.login.get_totp_token()
                 if otp:
-                    _LOGGER.debug("Generating OTP from %s", otp)
+                    _LOGGER.debug("Generated OTP token", otp)
                     return self.async_show_form(
                         step_id="totp_register",
                         data_schema=vol.Schema(self.totp_register),
@@ -763,13 +763,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_SECURITYCODE] = self.securitycode
         elif CONF_SECURITYCODE in self.config:
             self.config.pop(CONF_SECURITYCODE)
-        if user_input.get(CONF_OTPSECRET) and user_input.get(CONF_OTPSECRET).replace(
-            " ", ""
-        ):
+        if CONF_OTPSECRET in user_input:
             self.config[CONF_OTPSECRET] = user_input[CONF_OTPSECRET].replace(" ", "")
-        elif user_input.get(CONF_OTPSECRET):
-            # a blank line
-            self.config.pop(CONF_OTPSECRET)
         if CONF_EMAIL in user_input:
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:
@@ -960,7 +955,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_SECURITYCODE
                 ]
             if CONF_OTPSECRET in self.config_entry.data:
-                user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET]
+                user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET].replace(" ","")
             if CONF_OAUTH in self.config_entry.data:
                 user_input[CONF_OAUTH] = self.config_entry.data[CONF_OAUTH]
             """Ensure public_url ends with trailing slash"""

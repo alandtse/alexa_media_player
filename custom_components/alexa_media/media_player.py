@@ -308,9 +308,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     async def _wait_player_info(self, timeout=3):
         start = util.dt.as_timestamp(util.utcnow())
-        while not self._player_info and (start + timeout >= util.dt.as_timestamp(util.utcnow())):
+        while not self._player_info and (
+            start + timeout >= util.dt.as_timestamp(util.utcnow())
+        ):
             await asyncio.sleep(0.1)
-
 
     async def _handle_event(self, event):
         # pylint: disable=too-many-branches,too-many-statements
@@ -395,10 +396,17 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 event.get("push_activity", {}).get("key", {}).get("serialNumber")
             )
         elif "now_playing" in event:
-            player_info = media_id = event.get("now_playing", {}).get("update", {}).get("update", {}).get("nowPlayingData", {})
+            player_info = media_id = (
+                event.get("now_playing", {})
+                .get("update", {})
+                .get("update", {})
+                .get("nowPlayingData", {})
+            )
             media_id = player_info.get("mediaId")
             if media_id == self._waiting_media_id:
-                _LOGGER.debug(f"Match waiting_media_id: {media_id}, player_info: {player_info}")
+                _LOGGER.debug(
+                    f"Match waiting_media_id: {media_id}, player_info: {player_info}"
+                )
                 self._waiting_media_id = None
                 self._player_info = player_info
 
@@ -477,7 +485,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     )
                     self._player_info = None
                     media_id = player_state.get("mediaReferenceId")
-                    if (media_id):
+                    if media_id:
                         self._waiting_media_id = media_id
                         await self._wait_player_info()
                     if self._player_info is None:
@@ -683,7 +691,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     self._playing_parent = None
                     if self._player_info:
                         if self._player_info.get("playerState"):
-                            self._player_info["state"] = self._player_info["playerState"]
+                            self._player_info["state"] = self._player_info[
+                                "playerState"
+                            ]
                         session = {"playerInfo": self._player_info}
                     else:
                         session = await self.alexa_api.get_state()

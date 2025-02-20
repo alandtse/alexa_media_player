@@ -748,7 +748,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 )
                 if self._media_image_url is None:
                     self._media_image_url = (
-                        self._session.get("mainArt", {}).get("mediumUrl")
+                        self._session.get("mainArt", {}).get("largeUrl")
                         if self._session.get("mainArt")
                         else None
                     )

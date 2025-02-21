@@ -306,13 +306,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             except AttributeError:
                 pass  # ignore missing listener
 
-    async def _wait_player_info(self, timeout=3):
-        start = util.dt.as_timestamp(util.utcnow())
-        while not self._player_info and (
-            start + timeout >= util.dt.as_timestamp(util.utcnow())
-        ):
-            await asyncio.sleep(0.1)
-
     async def _handle_event(self, event):
         # pylint: disable=too-many-branches,too-many-statements
         """Handle events.
@@ -359,6 +352,13 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     seen_commands,
                 )
                 await self.async_update()
+
+        async def _wait_player_info(media_id, timeout=3):
+            start = util.dt.as_timestamp(util.utcnow())
+            while not self._player_info and media_id == self._waiting_media_id and (
+                start + timeout >= util.dt.as_timestamp(util.utcnow())
+            ):
+                await asyncio.sleep(0.1)
 
         try:
             if not self.enabled:
@@ -487,7 +487,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     media_id = player_state.get("mediaReferenceId")
                     if media_id:
                         self._waiting_media_id = media_id
-                        await self._wait_player_info()
+                        await _wait_player_info(media_id)
                     if self._player_info is None:
                         # allow delay before trying to refresh to avoid http 400 errors
                         await asyncio.sleep(2)

@@ -708,7 +708,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         session = await self.alexa_api.get_state()
                         if session is None:
                             _LOGGER.warning(
-                                "%s: Can't get session state by alexa_api.get_state() of %s, so ignore it this time.",
+                                "%s: Can't get session state by alexa_api.get_state() of %s. Probably a re-login occurred, so ignore it this time.",
                                 self.account,
                                 self if device is None else self._device_name,
                             )

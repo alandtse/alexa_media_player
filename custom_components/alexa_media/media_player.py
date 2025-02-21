@@ -522,7 +522,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 MediaPlayerState.IDLE,
                 MediaPlayerState.PAUSED,
                 MediaPlayerState.PLAYING,
-                MediaPlayerState.STANDBY,
             }:
                 _LOGGER.debug(
                     "%s: %s checking for potential state update due to push activity on %s",

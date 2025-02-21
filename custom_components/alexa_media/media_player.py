@@ -702,7 +702,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                             self._player_info["progress"]["mediaLength"] = int(
                                 self._player_info["progress"]["mediaLength"] / 1000
                             )
-                        session = {"playerInfo": self._player_info}
+                        session = {"playerInfo": self._player_info.copy()}
+                        self._player_info = None
                     else:
                         session = await self.alexa_api.get_state()
                         if session is None:

@@ -186,6 +186,7 @@ async def _catch_login_errors(func, instance, args, kwargs) -> Any:
 
         if login:
             # Try to re-login
+            email = login.email
             if await login.test_loggedin():
                 _LOGGER.warning(
                     "%s.%s: Successfully re-login after a login error for %s",
@@ -194,7 +195,6 @@ async def _catch_login_errors(func, instance, args, kwargs) -> Any:
                     hide_email(email),
                 )
                 return None
-            email = login.email
             _LOGGER.debug(
                 "%s.%s: detected bad login for %s: %s",
                 func.__module__[func.__module__.find(".") + 1 :],

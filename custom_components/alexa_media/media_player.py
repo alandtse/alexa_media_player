@@ -355,8 +355,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
         async def _wait_player_info(media_id, timeout=3):
             start = util.dt.as_timestamp(util.utcnow())
-            while not self._player_info and media_id == self._waiting_media_id and (
-                start + timeout >= util.dt.as_timestamp(util.utcnow())
+            while (
+                not self._player_info
+                and media_id == self._waiting_media_id
+                and (start + timeout >= util.dt.as_timestamp(util.utcnow()))
             ):
                 await asyncio.sleep(0.1)
 

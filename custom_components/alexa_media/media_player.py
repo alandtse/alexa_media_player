@@ -354,6 +354,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 await self.async_update()
 
         async def _wait_player_info(media_id, timeout=3):
+            self._player_info = None
             start = util.dt.as_timestamp(util.utcnow())
             while (
                 not self._player_info
@@ -485,7 +486,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         self.name,
                         player_state["audioPlayerState"],
                     )
-                    self._player_info = None
                     media_id = player_state.get("mediaReferenceId")
                     if media_id:
                         self._waiting_media_id = media_id
@@ -708,11 +708,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     else:
                         session = await self.alexa_api.get_state()
                         if session is None:
-                            _LOGGER.warning(
-                                "%s: Can't get session state by alexa_api.get_state() of %s. Probably a re-login occurred, so ignore it this time.",
-                                self.account,
-                                self if device is None else self._device_name,
-                            )
+                            # _LOGGER.warning(
+                            #     "%s: Can't get session state by alexa_api.get_state() of %s. Probably a re-login occurred, so ignore it this time.",
+                            #     self.account,
+                            #     self if device is None else self._device_name,
+                            # )
                             return
         self._clear_media_details()
         # update the session if it exists

@@ -406,9 +406,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 .get("nowPlayingData", {})
             )
             media_id = player_info.get("mediaId")
-            if media_id == self._waiting_media_id:
+            if self._waiting_media_id and media_id in self._waiting_media_id:
                 _LOGGER.debug(
-                    f"Match waiting_media_id: {media_id}, player_info: {player_info}"
+                    f"Match media_id: {media_id} in waiting_media_id:{self._waiting_media_id} , player_info: {player_info}"
                 )
                 self._waiting_media_id = None
                 self._player_info = player_info

@@ -1067,6 +1067,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             f"{DOMAIN}_{hide_email(email)}"[0:32],
                             {"player_state": json_payload},
                         )
+                    elif command == "NotifyNowPlayingUpdated":
+                        _LOGGER.debug("Send NowPlaying: %s", hide_serial(json_payload))
+                        async_dispatcher_send(
+                            hass,
+                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                            {"now_playing": json_payload},
+                        )
                 elif command == "PUSH_VOLUME_CHANGE":
                     # Player volume update
                     if serial and serial in existing_serials:

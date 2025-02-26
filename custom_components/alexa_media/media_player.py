@@ -420,7 +420,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 if player_info.get("mainArt", {}).get("url") is None:
                     if not player_info.get("mainArt"):
                         player_info["mainArt"] = {}
-                    player_info["mainArt"]["url"] = player_info["mainArt"].get("fullUrl")
+                    player_info["mainArt"]["url"] = player_info["mainArt"].get(
+                        "fullUrl"
+                    )
                 player_info["last_update"] = util.utcnow()
                 _LOGGER.debug(
                     f"Match media_id: {media_id} in waiting_media_id:{self._waiting_media_id} , player_info: {player_info}"
@@ -711,7 +713,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     if self._player_info:
                         session = {"playerInfo": self._player_info.copy()}
                     else:
-                        session = await self._api_get_state(no_throttle = no_throttle)
+                        session = await self._api_get_state(no_throttle=no_throttle)
                         if session is None:
                             # _LOGGER.warning(
                             #     "%s: Can't get session state by alexa_api.get_state() of %s. Probably a re-login occurred, so ignore it this time.",
@@ -1116,7 +1118,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def media_position_updated_at(self):
         """When was the position of the current playing media valid."""
-        return self._player_info["last_update"] if self._player_info and self._player_info.get("last_update") else self._last_update
+        return (
+            self._player_info["last_update"]
+            if self._player_info and self._player_info.get("last_update")
+            else self._last_update
+        )
 
     @property
     def media_image_url(self) -> Optional[str]:

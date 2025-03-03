@@ -20,7 +20,14 @@ from homeassistant import util
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
     ATTR_MEDIA_ANNOUNCE,
+    MediaPlayerEntity as MediaPlayerDevice,
     async_process_play_media_url,
+)
+from homeassistant.components.media_player.const import (
+    MediaPlayerEntityFeature,
+    MediaPlayerState,
+    MediaType,
+    RepeatMode,
 )
 from homeassistant.const import CONF_EMAIL, CONF_NAME, CONF_PASSWORD, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
@@ -65,15 +72,6 @@ from .helpers import _catch_login_errors, add_devices
 # except ImportError:
 #     from homeassistant.components.media_player import MediaPlayerDevice
 
-from homeassistant.components.media_player import (
-    MediaPlayerEntity as MediaPlayerDevice,
-)
-from homeassistant.components.media_player.const import (
-    MediaPlayerEntityFeature,
-    MediaPlayerState,
-    MediaType,
-    RepeatMode,
-)
 
 
 SUPPORT_ALEXA = (
@@ -93,13 +91,13 @@ SUPPORT_ALEXA = (
     | MediaPlayerEntityFeature.REPEAT_SET
 )
 
-TRANSPORT_FEATURES: Dict[str, MediaPlayerEntityFeature] = {
-   "next": MediaPlayerEntityFeature.NEXT_TRACK,
-   "previous": MediaPlayerEntityFeature.PREVIOUS_TRACK,
-   "shuffle": MediaPlayerEntityFeature.SHUFFLE_SET,
-   "repeat": MediaPlayerEntityFeature.REPEAT_SET,
-   "seekForward": MediaPlayerEntityFeature.SEEK,
-   "seekBackward": MediaPlayerEntityFeature.SEEK,
+TRANSPORT_FEATURES: dict[str, MediaPlayerEntityFeature] = {
+    "next": MediaPlayerEntityFeature.NEXT_TRACK,
+    "previous": MediaPlayerEntityFeature.PREVIOUS_TRACK,
+    "shuffle": MediaPlayerEntityFeature.SHUFFLE_SET,
+    "repeat": MediaPlayerEntityFeature.REPEAT_SET,
+    "seekForward": MediaPlayerEntityFeature.SEEK,
+    "seekBackward": MediaPlayerEntityFeature.SEEK,
 }
 
 _LOGGER = logging.getLogger(__name__)
@@ -592,7 +590,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     and "loopMode" in queue_state
                 ):
                     self._repeat = queue_state["loopMode"] == "LOOP_QUEUE"
-                    self._attr_repeat = RepeatMode.ALL if self._repeat else RepeatMode.OFF
+                    self._attr_repeat = (
+                        RepeatMode.ALL if self._repeat else RepeatMode.OFF
+                    )
                     _LOGGER.debug(
                         "%s: %s repeat updated to: %s %s",
                         hide_email(self._login.email),
@@ -777,7 +777,13 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._attr_repeat = RepeatMode.ALL if self._repeat else RepeatMode.OFF
                 self._attr_supported_features = SUPPORT_ALEXA
                 for transport_key, feature in TRANSPORT_FEATURES.items():
-                    if _transport.get(transport_key) in ("DISABLED", "HIDDEN", None) and self._attr_supported_features == (self._attr_supported_features|feature):
+                    if _transport.get(transport_key) in (
+                        "DISABLED",
+                        "HIDDEN",
+                        None,
+                    ) and self._attr_supported_features == (
+                        self._attr_supported_features | feature
+                    ):
                         self._attr_supported_features ^= feature
 
             if self._session.get("state"):

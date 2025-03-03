@@ -60,20 +60,6 @@ from .const import (
 )
 from .helpers import _catch_login_errors, add_devices
 
-# try:
-#     from homeassistant.components.media_player import (
-#         MediaPlayerEntity as MediaPlayerDevice,
-#     )
-#     from homeassistant.components.media_player.const import (
-#         MediaPlayerEntityFeature,
-#         MediaPlayerState,
-#         MediaType,
-#     )
-# except ImportError:
-#     from homeassistant.components.media_player import MediaPlayerDevice
-
-
-
 SUPPORT_ALEXA = (
     MediaPlayerEntityFeature.PAUSE
     | MediaPlayerEntityFeature.SEEK

@@ -1237,11 +1237,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._repeat = state
         self.schedule_update_ha_state()
 
-    # @property
-    # def supported_features(self):
-    #     """Flag media player features that are supported."""
-    #     return SUPPORT_ALEXA
-
     @_catch_login_errors
     async def async_set_volume_level(self, volume):
         """Set volume level, range 0..1."""

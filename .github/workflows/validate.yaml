@@ -16,7 +16,7 @@ jobs:
         name: Setup Python
         with:
           python-version: "3.12.x"
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         name: Cache
         with:
           path: |

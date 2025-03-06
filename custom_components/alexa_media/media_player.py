@@ -8,18 +8,26 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
+from functools import cached_property
 import logging
 import os
 import re
 import subprocess
-from typing import List, Optional
+from typing import Dict, List, Optional
 import urllib.request
 
 from homeassistant import util
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
     ATTR_MEDIA_ANNOUNCE,
+    MediaPlayerEntity as MediaPlayerDevice,
     async_process_play_media_url,
+)
+from homeassistant.components.media_player.const import (
+    MediaPlayerEntityFeature,
+    MediaPlayerState,
+    MediaType,
+    RepeatMode,
 )
 from homeassistant.const import CONF_EMAIL, CONF_NAME, CONF_PASSWORD, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
@@ -52,18 +60,9 @@ from .const import (
 )
 from .helpers import _catch_login_errors, add_devices
 
-try:
-    from homeassistant.components.media_player import (
-        MediaPlayerEntity as MediaPlayerDevice,
-        MediaPlayerEntityFeature,
-        MediaPlayerState,
-        MediaType,
-    )
-except ImportError:
-    from homeassistant.components.media_player import MediaPlayerDevice
-
 SUPPORT_ALEXA = (
     MediaPlayerEntityFeature.PAUSE
+    | MediaPlayerEntityFeature.SEEK
     | MediaPlayerEntityFeature.PREVIOUS_TRACK
     | MediaPlayerEntityFeature.NEXT_TRACK
     | MediaPlayerEntityFeature.STOP
@@ -75,7 +74,18 @@ SUPPORT_ALEXA = (
     | MediaPlayerEntityFeature.VOLUME_MUTE
     | MediaPlayerEntityFeature.SELECT_SOURCE
     | MediaPlayerEntityFeature.SHUFFLE_SET
+    | MediaPlayerEntityFeature.REPEAT_SET
 )
+
+TRANSPORT_FEATURES: dict[str, MediaPlayerEntityFeature] = {
+    "next": MediaPlayerEntityFeature.NEXT_TRACK,
+    "previous": MediaPlayerEntityFeature.PREVIOUS_TRACK,
+    "shuffle": MediaPlayerEntityFeature.SHUFFLE_SET,
+    "repeat": MediaPlayerEntityFeature.REPEAT_SET,
+    "seekForward": MediaPlayerEntityFeature.SEEK,
+    "seekBackward": MediaPlayerEntityFeature.SEEK,
+}
+
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = [ALEXA_DOMAIN]
@@ -270,6 +280,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._parent_clusters = None
         self._timezone = None
         self._second_account_index = second_account_index
+
+        self._prev_state = None
+        self._state_call_later_cancel = None
+
+        self._attr_supported_features = SUPPORT_ALEXA
 
     async def init(self, device):
         """Initialize."""
@@ -561,6 +576,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     and "loopMode" in queue_state
                 ):
                     self._repeat = queue_state["loopMode"] == "LOOP_QUEUE"
+                    self._attr_repeat = (
+                        RepeatMode.ALL if self._repeat else RepeatMode.OFF
+                    )
                     _LOGGER.debug(
                         "%s: %s repeat updated to: %s %s",
                         hide_email(self._login.email),
@@ -725,23 +743,35 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         # update the session if it exists
         self._session = session.get("playerInfo") if session else None
         if self._session:
-            if self._session.get("transport"):
+            if _transport := self._session.get("transport"):
                 self._shuffle = (
-                    self._session["transport"]["shuffle"] == "SELECTED"
+                    _transport["shuffle"] in "SELECTED"
                     if (
-                        "shuffle" in self._session["transport"]
-                        and self._session["transport"]["shuffle"] != "DISABLED"
+                        "shuffle" in _transport
+                        and not _transport["shuffle"] in ("DISABLED", "HIDDEN")
                     )
                     else None
                 )
                 self._repeat = (
-                    self._session["transport"]["repeat"] == "SELECTED"
+                    _transport["repeat"] == "SELECTED"
                     if (
-                        "repeat" in self._session["transport"]
-                        and self._session["transport"]["repeat"] != "DISABLED"
+                        "repeat" in _transport
+                        and not _transport["repeat"] in ("DISABLED", "HIDDEN")
                     )
                     else None
                 )
+                self._attr_repeat = RepeatMode.ALL if self._repeat else RepeatMode.OFF
+                self._attr_supported_features = SUPPORT_ALEXA
+                for transport_key, feature in TRANSPORT_FEATURES.items():
+                    if _transport.get(transport_key) in (
+                        "DISABLED",
+                        "HIDDEN",
+                        None,
+                    ) and self._attr_supported_features == (
+                        self._attr_supported_features | feature
+                    ):
+                        self._attr_supported_features ^= feature
+
             if self._session.get("state"):
                 self._media_player_state = self._session["state"]
                 self._media_title = self._session.get("infoText", {}).get("title")
@@ -1177,6 +1207,17 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._shuffle = state
         self.schedule_update_ha_state()
 
+    @_catch_login_errors
+    async def async_set_repeat(self, repeat: RepeatMode) -> None:
+        """Set repeat mode."""
+        repeat_state = repeat == RepeatMode.ALL
+        if self.hass:
+            self.hass.async_create_task(self.alexa_api.repeat(repeat_state))
+        else:
+            await self.alexa_api.repeat(repeat_state)
+        self._repeat = repeat_state
+        self._attr_repeat = RepeatMode.ALL if self._repeat else RepeatMode.OFF
+
     @property
     def repeat_state(self):
         """Return the Repeat state."""
@@ -1187,11 +1228,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         """Set the Repeat state."""
         self._repeat = state
         self.schedule_update_ha_state()
-
-    @property
-    def supported_features(self):
-        """Flag media player features that are supported."""
-        return SUPPORT_ALEXA
 
     @_catch_login_errors
     async def async_set_volume_level(self, volume):

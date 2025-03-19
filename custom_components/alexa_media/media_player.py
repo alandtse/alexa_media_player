@@ -17,9 +17,7 @@ import urllib.request
 
 from homeassistant import util
 from homeassistant.components import media_source
-from homeassistant.components.media_player import (
-    MediaPlayerEntity as MediaPlayerDevice,
-)
+from homeassistant.components.media_player import MediaPlayerEntity as MediaPlayerDevice
 from homeassistant.components.media_player.browse_media import (
     async_process_play_media_url,
 )
@@ -30,7 +28,6 @@ from homeassistant.components.media_player.const import (
     MediaType,
     RepeatMode,
 )
-
 from homeassistant.const import CONF_EMAIL, CONF_NAME, CONF_PASSWORD, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -60,8 +57,8 @@ from .const import (
     STREAMING_ERROR_MESSAGE,
     UPLOAD_PATH,
 )
-from .helpers import _catch_login_errors, add_devices
 from .exceptions import TimeoutException
+from .helpers import _catch_login_errors, add_devices
 
 SUPPORT_ALEXA = (
     MediaPlayerEntityFeature.PAUSE

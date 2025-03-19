@@ -8,27 +8,29 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
-from functools import cached_property
 import logging
 import os
 import re
 import subprocess
-from typing import Dict, List, Optional
+from typing import List, Optional
 import urllib.request
 
 from homeassistant import util
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
-    ATTR_MEDIA_ANNOUNCE,
     MediaPlayerEntity as MediaPlayerDevice,
+)
+from homeassistant.components.media_player.browse_media import (
     async_process_play_media_url,
 )
 from homeassistant.components.media_player.const import (
+    ATTR_MEDIA_ANNOUNCE,
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
     RepeatMode,
 )
+
 from homeassistant.const import CONF_EMAIL, CONF_NAME, CONF_PASSWORD, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -59,6 +61,7 @@ from .const import (
     UPLOAD_PATH,
 )
 from .helpers import _catch_login_errors, add_devices
+from .exceptions import TimeoutException
 
 SUPPORT_ALEXA = (
     MediaPlayerEntityFeature.PAUSE

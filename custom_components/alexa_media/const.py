@@ -68,6 +68,7 @@ DEFAULT_SCAN_INTERVAL = 60
 
 SERVICE_UPDATE_LAST_CALLED = "update_last_called"
 SERVICE_RESTORE_VOLUME = "restore_volume"
+SERVICE_GET_HISTORY_RECORDS = "get_history_records"
 SERVICE_FORCE_LOGOUT = "force_logout"
 
 RECURRING_PATTERN = {

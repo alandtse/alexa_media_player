@@ -23,6 +23,23 @@ restore_volume:
           domain: media_player
           integration: alexa_media
 
+get_history_records:
+  description: Returns the last entries of all the customer histry.
+  fields:
+    email:
+      description: List of Alexa accounts to update. If empty, will update all known accounts.
+      example: "my_email@alexa.com"
+    nr_of_records:
+      name: Entries
+      description: Number of records to return.
+      required: false
+      default: 5
+      example: 5
+ response:
+    history_records:
+      description: List of customer history records
+      example: [{"timestamp": "2021-01-01T00:00:00.000Z", "summary": "Some description", "response": "Some response"}]
+
 update_last_called:
   # Description of the service
   description: Forces update of last_called echo device for each Alexa account.

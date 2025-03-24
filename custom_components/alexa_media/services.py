@@ -23,6 +23,7 @@ from .const import (
     DOMAIN,
     SERVICE_FORCE_LOGOUT,
     SERVICE_RESTORE_VOLUME,
+    SERVICE_GET_HISTORY_RECORDS,
     SERVICE_UPDATE_LAST_CALLED,
 )
 from .helpers import _catch_login_errors, report_relogin_required
@@ -37,6 +38,8 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema(
     {vol.Optional(ATTR_EMAIL, default=[]): vol.All(cv.ensure_list, [cv.string])}
 )
 RESTORE_VOLUME_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
+
+GET_HISTORY_RECORDS_SCHEMA = vol.Schema({vol.Optional(ATTR_EMAIL, default=[]): vol.All(cv.ensure_list, [cv.string]), vol.Optional(ATTR_NUM_ENTRIES, default=5): cv.positive_int})
 
 
 class AlexaMediaServices:
@@ -64,6 +67,12 @@ class AlexaMediaServices:
             self.restore_volume,
             schema=RESTORE_VOLUME_SCHEMA,
         )
+        self.hass.services.async_register(
+            DOMAIN,
+            SERVICE_GET_HISTORY_RECORDS,
+            self.get_history_records,
+            schema=GET_HISTORY_RECORDS_SCHEMA,
+        )
 
     async def unregister(self):
         """Deregister services from hass."""
@@ -75,6 +84,10 @@ class AlexaMediaServices:
         self.hass.services.async_remove(
             DOMAIN,
             SERVICE_RESTORE_VOLUME,
+        )
+        self.hass.services.async_remove(
+            DOMAIN,
+            SERVICE_GET_HISTORY_RECORDS,
         )
 
     @_catch_login_errors
@@ -190,3 +203,46 @@ class AlexaMediaServices:
 
         _LOGGER.debug("Volume restored to %s for entity %s", previous_volume, entity_id)
         return True
+    
+    async def get_history_records(self, call) -> bool:
+        """Handle request of record-history.
+
+        Arguments:
+            call.ATTR_EMAIL: {List[str: None]}: List of case-sensitive Alexa emails.
+                                            If None, all accounts are updated.
+            call.ATTR_NUM_HISTORY_ENTRIES {int: None} -- Number of history entries to retrieve.
+
+        """
+        requested_emails = call.data.get(ATTR_EMAIL)
+        number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
+        _LOGGER.debug("Service get_history_records for: %s with %d entries", requested_emails, number_of_entries)
+ 
+        history_data_total = []
+        
+        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+            if requested_emails and email not in requested_emails:
+                continue
+            login_obj = account_dict["login_obj"]
+            
+            history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None, number_of_entries)
+            if  history_data is None or history_data == []:
+                _LOGGER.error(
+                    "Unable to connect to Alexa for %s;"
+                    " check your network connection and try again",
+                    hide_email(email),
+                )
+            else:
+                history_data_total.append(history_data)
+        
+        output = []
+        for dict in history_data_total:
+            
+            for item in dict:
+                entry = {}
+                entry['timestamp'] = item['creationTimestamp']
+                entry['summary'] = item['description']['summary']
+                entry['response'] = item['alexaResponse']
+                _LOGGER.debug("History record: %s", entry)
+                output.append(entry)                 
+        
+        return {"history_records": output}

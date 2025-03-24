@@ -204,7 +204,7 @@ class AlexaMediaServices:
         _LOGGER.debug("Volume restored to %s for entity %s", previous_volume, entity_id)
         return True
     
-    async def get_history_records(self, call) -> bool:
+    async def get_history_records(self, call) -> dict:
         """Handle request of record-history.
 
         Arguments:
@@ -212,11 +212,13 @@ class AlexaMediaServices:
                                             If None, all accounts are updated.
             call.ATTR_NUM_HISTORY_ENTRIES {int: None} -- Number of history entries to retrieve.
 
+        Returns:
+            dict: A dictionary containing history records
         """
         requested_emails = call.data.get(ATTR_EMAIL)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
         _LOGGER.debug("Service get_history_records for: %s with %d entries", requested_emails, number_of_entries)
- 
+    
         history_data_total = []
         
         for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
@@ -224,25 +226,39 @@ class AlexaMediaServices:
                 continue
             login_obj = account_dict["login_obj"]
             
-            history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None, number_of_entries)
-            if  history_data is None or history_data == []:
-                _LOGGER.error(
-                    "Unable to connect to Alexa for %s;"
-                    " check your network connection and try again",
-                    hide_email(email),
-                )
-            else:
-                history_data_total.append(history_data)
-        
-        output = []
-        for dict in history_data_total:
+            try:
+                history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None, number_of_entries)
+                if history_data is None or history_data == []:
+                    _LOGGER.warning(
+                        "No history records found for %s",
+                        hide_email(email),
+                    )
+                    continue
+                
+                # Normalize history data
+                for item in history_data:
+                    entry = {
+                        'timestamp': item.get('creationTimestamp'),
+                        'summary': item.get('description', {}).get('summary', ''),
+                        'response': item.get('alexaResponse', ''),
+                        'email': email  # Add email to help identify the source
+                    }
+                    history_data_total.append(entry)
             
-            for item in dict:
-                entry = {}
-                entry['timestamp'] = item['creationTimestamp']
-                entry['summary'] = item['description']['summary']
-                entry['response'] = item['alexaResponse']
-                _LOGGER.debug("History record: %s", entry)
-                output.append(entry)                 
+            except Exception as e:
+                _LOGGER.error(
+                    "Error retrieving history for %s: %s",
+                    hide_email(email),
+                    str(e)
+                )
+            
+        _LOGGER.debug("data recieved: %s", history_data_total)
         
-        return {"history_records": output}
+        # Sort entries by timestamp in descending order
+        history_data_total.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+        
+        # Slice to ensure we don't exceed requested number of entries
+        history_data_total = history_data_total[:number_of_entries]
+        
+        # Return in a format that can be used in automations
+        return {"history_records": history_data_total}

@@ -35,10 +35,6 @@ get_history_records:
       required: false
       default: 5
       example: 5
- response:
-    history_records:
-      description: List of customer history records
-      example: [{"timestamp": "2021-01-01T00:00:00.000Z", "summary": "Some description", "response": "Some response"}]
 
 update_last_called:
   # Description of the service

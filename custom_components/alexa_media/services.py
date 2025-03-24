@@ -204,7 +204,7 @@ class AlexaMediaServices:
         _LOGGER.debug("Volume restored to %s for entity %s", previous_volume, entity_id)
         return True
     
-    async def get_history_records(self, call) -> dict:
+    async def get_history_records(self, call):
         """Handle request of record-history.
 
         Arguments:
@@ -212,8 +212,6 @@ class AlexaMediaServices:
                                             If None, all accounts are updated.
             call.ATTR_NUM_HISTORY_ENTRIES {int: None} -- Number of history entries to retrieve.
 
-        Returns:
-            dict: A dictionary containing history records
         """
         requested_emails = call.data.get(ATTR_EMAIL)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
@@ -235,13 +233,11 @@ class AlexaMediaServices:
                     )
                     continue
                 
-                # Normalize history data
                 for item in history_data:
                     entry = {
                         'timestamp': item.get('creationTimestamp'),
                         'summary': item.get('description', {}).get('summary', ''),
                         'response': item.get('alexaResponse', ''),
-                        'email': email  # Add email to help identify the source
                     }
                     history_data_total.append(entry)
             
@@ -251,8 +247,6 @@ class AlexaMediaServices:
                     hide_email(email),
                     str(e)
                 )
-            
-        _LOGGER.debug("data recieved: %s", history_data_total)
         
         # Sort entries by timestamp in descending order
         history_data_total.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
@@ -260,5 +254,19 @@ class AlexaMediaServices:
         # Slice to ensure we don't exceed requested number of entries
         history_data_total = history_data_total[:number_of_entries]
         
-        # Return in a format that can be used in automations
-        return {"history_records": history_data_total}
+        # Convert to JSON string to preserve full structure
+        import json
+        notification_message = json.dumps(history_data_total, indent=2, ensure_ascii=False)
+        
+        # Create a persistent notification
+        await self.hass.services.async_call(
+            'persistent_notification', 
+            'create', 
+            {
+                "title": "Alexa History Records",
+                "message": notification_message,
+                "notification_id": "alexa_history_records"
+            }
+        )
+        
+        return True

@@ -28,15 +28,12 @@ get_history_records:
   fields:
     entity_id:
       name: Entity
-      description: Alexa Media Player device to restore volume on.
+      description: Alexa Media Player device to get history from.
       required: true
       selector:
         entity:
           domain: media_player
           integration: alexa_media
-    email:
-      description: List of Alexa accounts to update. If empty, will update all known accounts.
-      example: "my_email@alexa.com"
     entries:
       name: Entries
       description: Number of records to return.

@@ -41,7 +41,6 @@ RESTORE_VOLUME_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
 
 GET_HISTORY_RECORDS_SCHEMA = vol.Schema({
     vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-    vol.Optional(ATTR_EMAIL, default=[]): vol.All(cv.ensure_list, [cv.string]),
     vol.Optional(ATTR_NUM_ENTRIES, default=5): cv.positive_int
 })
 
@@ -210,28 +209,27 @@ class AlexaMediaServices:
     async def get_history_records(self, call):
         """Handle request to get history records and store them on the entity."""
         entity_id = call.data.get(ATTR_ENTITY_ID)
-        requested_emails = call.data.get(ATTR_EMAIL)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
-        _LOGGER.debug("Service get_history_records for: %s with %d entries", requested_emails, number_of_entries)
+        _LOGGER.debug("Service get_history_records for: %s with %d entries", entity_id, number_of_entries)
 
         # Validate the target entity
         entity_registry = er.async_get(self.hass)
         entity_entry = entity_registry.async_get(entity_id)
         if not entity_entry or entity_entry.platform != DOMAIN:
             _LOGGER.error("Entity %s not found or not part of %s", entity_id, DOMAIN)
-            return None
-
+            return False
+        target_serial_number = entity_entry.unique_id
+       
         history_data_total = []
-        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
-            if requested_emails and email not in requested_emails:
-                continue
+        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():           
             login_obj = account_dict["login_obj"]
             try:
                 history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None)
                 if history_data:
                     for item in history_data:
                         summary = item.get('description', {}).get('summary', '')
-                        if not summary or summary == ',': 
+                        device_serial_number = item.get('deviceSerialNumber')
+                        if not summary or summary == ',' or device_serial_number != target_serial_number: 
                             continue
                         entry = {
                             'timestamp': item.get('creationTimestamp'),
@@ -251,10 +249,10 @@ class AlexaMediaServices:
         if state:
             new_attributes = dict(state.attributes)
             new_attributes['history_records'] = history_data_total
+            # TODO: also set the last summary again?
             self.hass.states.async_set(entity_id, state.state, new_attributes)
-            _LOGGER.debug("Updated history_records for %s", entity_id)
         else:
             _LOGGER.error("Entity %s state not found", entity_id)
-            return None
+            return False
 
-        return history_data_total
+        return True

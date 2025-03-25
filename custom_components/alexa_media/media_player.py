@@ -260,7 +260,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._source_list = []
         self._connected_bluetooth = None
         self._bluetooth_list = []
-        self._history = []
+        self._history_records = []
         self._shuffle = None
         self._repeat = None
         self._playing_parent = None
@@ -1735,7 +1735,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "last_called_summary": self._last_called_summary,
             "connected_bluetooth": self._connected_bluetooth,
             "bluetooth_list": self._bluetooth_list,
-            "history_records" : self._history,
+            "history_records" : self._history_records,
             "previous_volume": self._previous_volume,
         }
         return attr

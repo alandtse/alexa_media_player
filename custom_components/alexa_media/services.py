@@ -208,92 +208,45 @@ class AlexaMediaServices:
         return True
     
     async def get_history_records(self, call):
-        """Handle request of record-history.
-
-        Arguments:
-            call.ATTR_EMAIL: {List[str: None]}: List of case-sensitive Alexa emails.
-                                            If None, all accounts are updated.
-            call.ATTR_NUM_HISTORY_ENTRIES {int: None} -- Number of history entries to retrieve.
-
-            call.ATTR_ENTITY_ID {str: None} -- Alexa Media Player entity.
-
-        """
+        """Handle request to get history records and store them on the entity."""
         entity_id = call.data.get(ATTR_ENTITY_ID)
-        _LOGGER.debug("this is the entity: %s", entity_id)
         requested_emails = call.data.get(ATTR_EMAIL)
-        number_of_entries = call.data.get(ATTR_NUM_ENTRIES) # TODO: remove this value? Actually not needed to limit entries?
+        number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
         _LOGGER.debug("Service get_history_records for: %s with %d entries", requested_emails, number_of_entries)
-    
-    
-        # Retrieve the entity registry and entity entry
+
+        # Validate the target entity
         entity_registry = er.async_get(self.hass)
         entity_entry = entity_registry.async_get(entity_id)
+        if not entity_entry or entity_entry.platform != DOMAIN:
+            _LOGGER.error("Entity %s not found or not part of %s", entity_id, DOMAIN)
+            return None
 
-        if not entity_entry:
-            _LOGGER.error("Entity %s not found in registry", entity_id)
-            return False
-
-        # Retrieve the state and attributes
-    
-    
-    
         history_data_total = []
-        
         for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
             if requested_emails and email not in requested_emails:
                 continue
             login_obj = account_dict["login_obj"]
-            
-            _LOGGER.debug("Got this: %s", account_dict)
-            
-            # TODO: pass different timestamps?
             try:
                 history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None)
-                if history_data is None or history_data == []:
-                    _LOGGER.warning(
-                        "No history records found for %s",
-                        hide_email(email),
-                    )
-                    continue
-                
-                for item in history_data:
-                    summary = item.get('description', {}).get('summary', '')
-                    if summary == '' or summary == ',': 
-                        continue
-                    entry = {
-                        'timestamp': item.get('creationTimestamp'),
-                        'summary': item.get('description', {}).get('summary', ''),
-                        'response': item.get('alexaResponse', ''),
-                    }
-                    history_data_total.append(entry)
-            
+                if history_data:
+                    for item in history_data:
+                        summary = item.get('description', {}).get('summary', '')
+                        if not summary or summary == ',': 
+                            continue
+                        entry = {
+                            'timestamp': item.get('creationTimestamp'),
+                            'summary': summary,
+                            'response': item.get('alexaResponse', ''),
+                        }
+                        history_data_total.append(entry)
             except Exception as e:
-                _LOGGER.error(
-                    "Error retrieving history for %s: %s",
-                    hide_email(email),
-                    str(e)
-                )
-        
+                _LOGGER.error("Error retrieving history for %s: %s", hide_email(email), str(e))
+
         # Sort and limit entries
         history_data_total.sort(key=lambda x: x['timestamp'], reverse=True)
         history_data_total = history_data_total[:number_of_entries]
-        
-        # Convert to JSON string to preserve full structure
-        import json
-        notification_message = json.dumps(history_data_total, indent=2, ensure_ascii=False)
-        
-        # Create a persistent notification
-        await self.hass.services.async_call(
-            'persistent_notification', 
-            'create', 
-            {
-                "title": "Alexa History Records",
-                "message": notification_message,
-                "notification_id": "alexa_history_records"
-            }
-        )
-        
-           # Update the entity's attributes
+
+        # Update the entity's attributes
         state = self.hass.states.get(entity_id)
         if state:
             new_attributes = dict(state.attributes)
@@ -305,5 +258,3 @@ class AlexaMediaServices:
             return None
 
         return history_data_total
-        
-        # return True

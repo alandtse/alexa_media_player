@@ -224,6 +224,7 @@ class AlexaMediaServices:
         for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():           
             login_obj = account_dict["login_obj"]
             try:
+                # Get the history records. Input: Time from, Time to, 
                 history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None)
                 if history_data:
                     for item in history_data:

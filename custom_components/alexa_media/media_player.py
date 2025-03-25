@@ -1735,7 +1735,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "last_called_summary": self._last_called_summary,
             "connected_bluetooth": self._connected_bluetooth,
             "bluetooth_list": self._bluetooth_list,
-            "history_records" : self._history_records,
+            "history_records": self._history_records,
             "previous_volume": self._previous_volume,
         }
         return attr

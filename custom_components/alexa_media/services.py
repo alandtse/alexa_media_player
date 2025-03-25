@@ -22,8 +22,8 @@ from .const import (
     DATA_ALEXAMEDIA,
     DOMAIN,
     SERVICE_FORCE_LOGOUT,
-    SERVICE_RESTORE_VOLUME,
     SERVICE_GET_HISTORY_RECORDS,
+    SERVICE_RESTORE_VOLUME,
     SERVICE_UPDATE_LAST_CALLED,
 )
 from .helpers import _catch_login_errors, report_relogin_required
@@ -39,10 +39,13 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema(
 )
 RESTORE_VOLUME_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
 
-GET_HISTORY_RECORDS_SCHEMA = vol.Schema({
-    vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-    vol.Optional(ATTR_NUM_ENTRIES, default=5): cv.positive_int
-})
+GET_HISTORY_RECORDS_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Optional(ATTR_NUM_ENTRIES, default=5): cv.positive_int,
+    }
+)
+
 
 class AlexaMediaServices:
     """Class that holds our services that should be published to hass."""
@@ -205,12 +208,16 @@ class AlexaMediaServices:
 
         _LOGGER.debug("Volume restored to %s for entity %s", previous_volume, entity_id)
         return True
-    
+
     async def get_history_records(self, call):
         """Handle request to get history records and store them on the entity."""
         entity_id = call.data.get(ATTR_ENTITY_ID)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
-        _LOGGER.debug("Service get_history_records for: %s with %d entries", entity_id, number_of_entries)
+        _LOGGER.debug(
+            "Service get_history_records for: %s with %d entries",
+            entity_id,
+            number_of_entries,
+        )
 
         # Validate the target entity
         entity_registry = er.async_get(self.hass)
@@ -219,37 +226,45 @@ class AlexaMediaServices:
             _LOGGER.error("Entity %s not found or not part of %s", entity_id, DOMAIN)
             return False
         target_serial_number = entity_entry.unique_id
-       
+
         history_data_total = []
-        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():           
+        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
             login_obj = account_dict["login_obj"]
             try:
                 # Get the history records. Input: Time from, Time to, 
-                history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None)
+                history_data = await AlexaAPI.get_customer_history_records(
+                    login_obj, None, None
+                )
                 if history_data:
                     for item in history_data:
-                        summary = item.get('description', {}).get('summary', '')
-                        device_serial_number = item.get('deviceSerialNumber')
-                        if not summary or summary == ',' or device_serial_number != target_serial_number: 
+                        summary = item.get("description", {}).get("summary", "")
+                        device_serial_number = item.get("deviceSerialNumber")
+                        if (
+                            not summary
+                            or summary == ","
+                            or device_serial_number != target_serial_number
+                        ):
                             continue
                         entry = {
-                            'timestamp': item.get('creationTimestamp'),
-                            'summary': summary,
-                            'response': item.get('alexaResponse', ''),
+                            "timestamp": item.get("creationTimestamp"),
+                            "summary": summary,
+                            "response": item.get("alexaResponse", ""),
                         }
                         history_data_total.append(entry)
             except Exception as e:
-                _LOGGER.error("Error retrieving history for %s: %s", hide_email(email), str(e))
+                _LOGGER.error(
+                    "Error retrieving history for %s: %s", hide_email(email), str(e)
+                )
 
         # Sort and limit entries
-        history_data_total.sort(key=lambda x: x['timestamp'], reverse=True)
+        history_data_total.sort(key=lambda x: x["timestamp"], reverse=True)
         history_data_total = history_data_total[:number_of_entries]
 
         # Update the entity's attributes
         state = self.hass.states.get(entity_id)
         if state:
             new_attributes = dict(state.attributes)
-            new_attributes['history_records'] = history_data_total
+            new_attributes["history_records"] = history_data_total
             # TODO: also set the last summary again?
             self.hass.states.async_set(entity_id, state.state, new_attributes)
         else:

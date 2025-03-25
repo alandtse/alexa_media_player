@@ -265,8 +265,7 @@ class AlexaMediaServices:
         if state:
             new_attributes = dict(state.attributes)
             new_attributes["history_records"] = history_data_total
-            # TODO: also set the last summary again?
-            self.hass.states.async_set(entity_id, state.state, new_attributes)
+            await self.hass.states.async_set(entity_id, state.state, new_attributes)
         else:
             _LOGGER.error("Entity %s state not found", entity_id)
             return False

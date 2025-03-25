@@ -39,8 +39,11 @@ LAST_CALL_UPDATE_SCHEMA = vol.Schema(
 )
 RESTORE_VOLUME_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
 
-GET_HISTORY_RECORDS_SCHEMA = vol.Schema({vol.Optional(ATTR_EMAIL, default=[]): vol.All(cv.ensure_list, [cv.string]), vol.Optional(ATTR_NUM_ENTRIES, default=5): cv.positive_int})
-
+GET_HISTORY_RECORDS_SCHEMA = vol.Schema({
+    vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+    vol.Optional(ATTR_EMAIL, default=[]): vol.All(cv.ensure_list, [cv.string]),
+    vol.Optional(ATTR_NUM_ENTRIES, default=5): cv.positive_int
+})
 
 class AlexaMediaServices:
     """Class that holds our services that should be published to hass."""
@@ -212,10 +215,27 @@ class AlexaMediaServices:
                                             If None, all accounts are updated.
             call.ATTR_NUM_HISTORY_ENTRIES {int: None} -- Number of history entries to retrieve.
 
+            call.ATTR_ENTITY_ID {str: None} -- Alexa Media Player entity.
+
         """
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        _LOGGER.debug("this is the entity: %s", entity_id)
         requested_emails = call.data.get(ATTR_EMAIL)
-        number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
+        number_of_entries = call.data.get(ATTR_NUM_ENTRIES) # TODO: remove this value? Actually not needed to limit entries?
         _LOGGER.debug("Service get_history_records for: %s with %d entries", requested_emails, number_of_entries)
+    
+    
+        # Retrieve the entity registry and entity entry
+        entity_registry = er.async_get(self.hass)
+        entity_entry = entity_registry.async_get(entity_id)
+
+        if not entity_entry:
+            _LOGGER.error("Entity %s not found in registry", entity_id)
+            return False
+
+        # Retrieve the state and attributes
+    
+    
     
         history_data_total = []
         
@@ -224,8 +244,11 @@ class AlexaMediaServices:
                 continue
             login_obj = account_dict["login_obj"]
             
+            _LOGGER.debug("Got this: %s", account_dict)
+            
+            # TODO: pass different timestamps?
             try:
-                history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None, number_of_entries)
+                history_data = await AlexaAPI.get_customer_history_records(login_obj, None, None)
                 if history_data is None or history_data == []:
                     _LOGGER.warning(
                         "No history records found for %s",
@@ -234,6 +257,9 @@ class AlexaMediaServices:
                     continue
                 
                 for item in history_data:
+                    summary = item.get('description', {}).get('summary', '')
+                    if summary == '' or summary == ',': 
+                        continue
                     entry = {
                         'timestamp': item.get('creationTimestamp'),
                         'summary': item.get('description', {}).get('summary', ''),
@@ -248,10 +274,8 @@ class AlexaMediaServices:
                     str(e)
                 )
         
-        # Sort entries by timestamp in descending order
-        history_data_total.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
-        
-        # Slice to ensure we don't exceed requested number of entries
+        # Sort and limit entries
+        history_data_total.sort(key=lambda x: x['timestamp'], reverse=True)
         history_data_total = history_data_total[:number_of_entries]
         
         # Convert to JSON string to preserve full structure
@@ -269,4 +293,17 @@ class AlexaMediaServices:
             }
         )
         
-        return True
+           # Update the entity's attributes
+        state = self.hass.states.get(entity_id)
+        if state:
+            new_attributes = dict(state.attributes)
+            new_attributes['history_records'] = history_data_total
+            self.hass.states.async_set(entity_id, state.state, new_attributes)
+            _LOGGER.debug("Updated history_records for %s", entity_id)
+        else:
+            _LOGGER.error("Entity %s state not found", entity_id)
+            return None
+
+        return history_data_total
+        
+        # return True

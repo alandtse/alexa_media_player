@@ -89,7 +89,7 @@
       }
     },
     "get_history_records": {
-      "name": "Get history records",
+      "name": "Get History Records",
       "description": "Parses the history records for the specified device",
       "fields": {
         "entity_id": {

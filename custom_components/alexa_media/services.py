@@ -262,10 +262,10 @@ class AlexaMediaServices:
 
         # Update the entity's attributes
         state = self.hass.states.get(entity_id)
-        if state:
+        if state and self.hass.states.async_set:
             new_attributes = dict(state.attributes)
             new_attributes["history_records"] = history_data_total
-            await self.hass.states.async_set(entity_id, state.state, new_attributes)
+            self.hass.states.async_set(entity_id, state.state, new_attributes)
         else:
             _LOGGER.error("Entity %s state not found", entity_id)
             return False

@@ -24,7 +24,7 @@ restore_volume:
           integration: alexa_media
 
 get_history_records:
-  description: Returns the last entries of all the customer histry.
+  description: Returns the last entries of all the customer history.
   fields:
     entity_id:
       name: Entity

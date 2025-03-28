@@ -34,7 +34,7 @@ assignees: ""
 - Home Assistant version:
 - alexa_media version (from `const.py` or HA startup log):
 - alexapy version (from `pip show alexapy` in homeasssistant container or HA startup log):
-- Is Amazon [2FA/2SV enabled](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account) <!---We will not debug login issues if unanswered---> (y/n):
+- Is Amazon [2SV via Authenticator App](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account) (not 2SV via SMS OTP) enabled ? <!---We will not debug login issues if unanswered---> (y/n):
 - Amazon Domain:
 
 **Debug Logs (alexa_media & alexapy)**

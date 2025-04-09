@@ -28,7 +28,6 @@ from homeassistant.components.media_player.const import (
     MediaType,
     RepeatMode,
 )
-
 from homeassistant.const import CONF_EMAIL, CONF_NAME, CONF_PASSWORD, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady

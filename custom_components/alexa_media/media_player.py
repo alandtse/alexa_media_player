@@ -8,22 +8,21 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
-from functools import cached_property
 import logging
 import os
 import re
 import subprocess
-from typing import Dict, List, Optional
+from typing import List, Optional
 import urllib.request
 
 from homeassistant import util
 from homeassistant.components import media_source
-from homeassistant.components.media_player import (
-    ATTR_MEDIA_ANNOUNCE,
-    MediaPlayerEntity as MediaPlayerDevice,
+from homeassistant.components.media_player import MediaPlayerEntity as MediaPlayerDevice
+from homeassistant.components.media_player.browse_media import (
     async_process_play_media_url,
 )
 from homeassistant.components.media_player.const import (
+    ATTR_MEDIA_ANNOUNCE,
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
@@ -58,6 +57,7 @@ from .const import (
     STREAMING_ERROR_MESSAGE,
     UPLOAD_PATH,
 )
+from .exceptions import TimeoutException
 from .helpers import _catch_login_errors, add_devices
 
 SUPPORT_ALEXA = (
@@ -260,6 +260,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._source_list = []
         self._connected_bluetooth = None
         self._bluetooth_list = []
+        self._history_records = []
         self._shuffle = None
         self._repeat = None
         self._playing_parent = None
@@ -1734,6 +1735,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "last_called_summary": self._last_called_summary,
             "connected_bluetooth": self._connected_bluetooth,
             "bluetooth_list": self._bluetooth_list,
+            "history_records": self._history_records,
             "previous_volume": self._previous_volume,
         }
         return attr

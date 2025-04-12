@@ -23,6 +23,24 @@ restore_volume:
           domain: media_player
           integration: alexa_media
 
+get_history_records:
+  description: Returns the last entries of all the customer history.
+  fields:
+    entity_id:
+      name: Entity
+      description: Alexa Media Player device to get history from.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
+    entries:
+      name: Entries
+      description: Number of records to return.
+      required: false
+      default: 5
+      example: 5
+
 update_last_called:
   # Description of the service
   description: Forces update of last_called echo device for each Alexa account.

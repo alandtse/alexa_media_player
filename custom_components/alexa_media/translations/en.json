@@ -94,6 +94,20 @@
       },
       "name": "Restore Previous Volume"
     },
+    "get_history_records": {
+      "description": "Parses the history records for the specified device",
+      "fields": {
+        "entity_id": {
+          "description": "Entity to get the history for",
+          "name": "Select media player:"
+        },
+        "entries": {
+          "description": "Number of entries to get",
+          "name": "Number of entries"
+        }
+      },
+      "name": "Get History Records"
+    },
     "update_last_called": {
       "description": "Forces update of last_called echo device for each Alexa account.",
       "fields": {

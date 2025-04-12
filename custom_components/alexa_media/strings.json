@@ -88,6 +88,20 @@
         }
       }
     },
+    "get_history_records": {
+      "name": "Get History Records",
+      "description": "Parses the history records for the specified device",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Entity to get the history for"
+        },
+        "entries": {
+          "name": "Number of entries",
+          "description": "Number of entries to get"
+        }
+      }
+    },
     "update_last_called": {
       "name": "Update Last Called Sensor",
       "description": "Forces update of last_called echo device for each Alexa account.",

@@ -263,7 +263,9 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
     air_quality_sensors = []
     contact_sensors = []
     switches = []
-    location_details = network_details["locationDetails"]["locationDetails"]
+    location_details = (
+        (network_details or {}).get("locationDetails", {}).get("locationDetails", {})
+    )
 
     appliances = {}
     for location in location_details.values():

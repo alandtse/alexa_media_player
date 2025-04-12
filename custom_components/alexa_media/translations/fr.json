@@ -84,6 +84,20 @@
       },
       "name": "Forcer la déconnexion"
     },
+    "get_history_records": {
+      "description": "Analyse les enregistrements d'historique pour le périphérique spécifié",
+      "fields": {
+        "entity_id": {
+          "description": "Entité pour obtenir l'historique",
+          "name": "Sélectionnez le lecteur multimédia :"
+        },
+        "entries": {
+          "description": "Nombre d'entrées à obtenir",
+          "name": "Nombre d'entrées"
+        }
+      },
+      "name": "Obtenir des enregistrements historiques"
+    },
     "restore_volume": {
       "description": "Restaurer le niveau de volume précédent sur le lecteur multimédia Alexa",
       "fields": {

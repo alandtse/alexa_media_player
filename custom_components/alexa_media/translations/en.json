@@ -84,16 +84,6 @@
       },
       "name": "Force Logout"
     },
-    "restore_volume": {
-      "description": "Restore previous volume level on Alexa media player device",
-      "fields": {
-        "entity_id": {
-          "description": "Entity to restore the previous volume level on",
-          "name": "Select media player:"
-        }
-      },
-      "name": "Restore Previous Volume"
-    },
     "get_history_records": {
       "description": "Parses the history records for the specified device",
       "fields": {
@@ -107,6 +97,16 @@
         }
       },
       "name": "Get History Records"
+    },
+    "restore_volume": {
+      "description": "Restore previous volume level on Alexa media player device",
+      "fields": {
+        "entity_id": {
+          "description": "Entity to restore the previous volume level on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Restore Previous Volume"
     },
     "update_last_called": {
       "description": "Forces update of last_called echo device for each Alexa account.",

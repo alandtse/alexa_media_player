@@ -84,6 +84,20 @@
       },
       "name": "Forçar logout"
     },
+    "get_history_records": {
+      "description": "Analisa os registros de histórico do dispositivo especificado",
+      "fields": {
+        "entity_id": {
+          "description": "Entidade para obter o histórico de",
+          "name": "Selecione o media player:"
+        },
+        "entries": {
+          "description": "Número de entradas para obter",
+          "name": "Número de entradas"
+        }
+      },
+      "name": "Obter registros históricos"
+    },
     "restore_volume": {
       "description": "Restaurar o nível de volume anterior no dispositivo reprodutor de mídia Alexa",
       "fields": {

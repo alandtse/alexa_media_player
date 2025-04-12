@@ -84,6 +84,20 @@
       },
       "name": "Uitloggen forceren"
     },
+    "get_history_records": {
+      "description": "Analyseert de geschiedenisrecords voor het opgegeven apparaat",
+      "fields": {
+        "entity_id": {
+          "description": "Entiteit om de geschiedenis op te halen",
+          "name": "Selecteer mediaspeler:"
+        },
+        "entries": {
+          "description": "Aantal inzendingen om te krijgen",
+          "name": "Aantal inzendingen"
+        }
+      },
+      "name": "Geschiedenisrecords ophalen"
+    },
     "restore_volume": {
       "description": "Herstel het vorige volumeniveau op het Alexa-mediaspelerapparaat",
       "fields": {

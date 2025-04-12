@@ -84,6 +84,20 @@
       },
       "name": "Force Logout"
     },
+    "get_history_records": {
+      "description": "Analyserer historikkpostene for den angitte enheten",
+      "fields": {
+        "entity_id": {
+          "description": "Entitet å hente historien for",
+          "name": "Velg mediespiller:"
+        },
+        "entries": {
+          "description": "Antall oppføringer å få",
+          "name": "Antall oppføringer"
+        }
+      },
+      "name": "Få historikk"
+    },
     "restore_volume": {
       "description": "Gjenopprett forrige volumnivå på Alexa mediespillerenhet",
       "fields": {

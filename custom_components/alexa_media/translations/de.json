@@ -84,6 +84,20 @@
       },
       "name": "Logout erzwingen"
     },
+    "get_history_records": {
+      "description": "Analysiert die Verlaufsdatensätze für das angegebene Gerät",
+      "fields": {
+        "entity_id": {
+          "description": "Entität, für die der Verlauf abgerufen werden soll",
+          "name": "Mediaplayer auswählen:"
+        },
+        "entries": {
+          "description": "Anzahl der abzurufenden Einträge",
+          "name": "Anzahl der Einträge"
+        }
+      },
+      "name": "Verlaufsdatensätze abrufen"
+    },
     "restore_volume": {
       "description": "Vorherige Lautstärke auf dem Alexa-Mediaplayer-Gerät wiederherstellen",
       "fields": {

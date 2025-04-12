@@ -84,6 +84,20 @@
       },
       "name": "Force Logout"
     },
+    "get_history_records": {
+      "description": "Parses the history records for the specified device",
+      "fields": {
+        "entity_id": {
+          "description": "Entity to get the history for",
+          "name": "Select media player:"
+        },
+        "entries": {
+          "description": "Number of entries to get",
+          "name": "Number of entries"
+        }
+      },
+      "name": "Get History Records"
+    },
     "restore_volume": {
       "description": "Restore previous volume level on Alexa media player device",
       "fields": {

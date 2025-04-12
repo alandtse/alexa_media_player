@@ -84,6 +84,20 @@
       },
       "name": "Obligar cierre de sesión"
     },
+    "get_history_records": {
+      "description": "Analiza los registros del historial del dispositivo especificado",
+      "fields": {
+        "entity_id": {
+          "description": "Entidad para obtener el historial",
+          "name": "Seleccionar reproductor multimedia:"
+        },
+        "entries": {
+          "description": "Número de entradas a obtener",
+          "name": "Número de entradas"
+        }
+      },
+      "name": "Obtener registros históricos"
+    },
     "restore_volume": {
       "description": "Restaurar el nivel de volumen anterior en el reproductor multimedia Alexa",
       "fields": {

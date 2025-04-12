@@ -84,6 +84,20 @@
       },
       "name": "Force Logout"
     },
+    "get_history_records": {
+      "description": "Analizuje zapisy historii dla określonego urządzenia",
+      "fields": {
+        "entity_id": {
+          "description": "Podmiot, dla którego ma zostać pobrana historia",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        },
+        "entries": {
+          "description": "Liczba wpisów do uzyskania",
+          "name": "Liczba wpisów"
+        }
+      },
+      "name": "Pobierz zapisy historyczne"
+    },
     "restore_volume": {
       "description": "Przywróć poprzedni poziom głośności na urządzeniu z odtwarzaczem multimedialnym Alexa",
       "fields": {

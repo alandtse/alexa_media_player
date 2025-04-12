@@ -84,6 +84,20 @@
       },
       "name": "Forza Logout"
     },
+    "get_history_records": {
+      "description": "Analizza i record cronologici per il dispositivo specificato",
+      "fields": {
+        "entity_id": {
+          "description": "Entità per cui ottenere la cronologia",
+          "name": "Seleziona lettore multimediale:"
+        },
+        "entries": {
+          "description": "Numero di voci da ottenere",
+          "name": "Numero di voci"
+        }
+      },
+      "name": "Ottieni i record della cronologia"
+    },
     "restore_volume": {
       "description": "Ripristina il livello del volume precedente sul dispositivo lettore multimediale Alexa",
       "fields": {

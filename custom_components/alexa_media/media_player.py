@@ -1542,6 +1542,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     "48k",
                     "-ar",
                     "24000",
+                    "-write_xing",
+                    "0",
                     output_file_path,
                 ]
                 if subprocess.run(command, check=True).returncode != 0:

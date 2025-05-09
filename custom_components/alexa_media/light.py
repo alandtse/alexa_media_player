@@ -490,7 +490,7 @@ def alexa_color_name_to_rgb(color_name: str) -> tuple[int, int, int]:
 
 
 def rgb_to_alexa_color(
-    rgb: tuple[int, int, int]
+    rgb: tuple[int, int, int],
 ) -> tuple[Optional[tuple[float, float]], Optional[str]]:
     """Convert a given RGB value into the closest Alexa color."""
     (name, alexa_rgb) = min(
@@ -502,7 +502,7 @@ def rgb_to_alexa_color(
 
 
 def hs_to_alexa_color(
-    hs_color: Optional[tuple[float, float]]
+    hs_color: Optional[tuple[float, float]],
 ) -> tuple[Optional[tuple[float, float]], Optional[str]]:
     """Convert a given hue/saturation value into the closest Alexa color."""
     if hs_color is None:
@@ -512,7 +512,7 @@ def hs_to_alexa_color(
 
 
 def hsb_to_alexa_color(
-    hsb: Optional[tuple[float, float, float]]
+    hsb: Optional[tuple[float, float, float]],
 ) -> tuple[Optional[tuple[float, float]], Optional[str]]:
     """Convert a given hue/saturation/brightness value into the closest Alexa color."""
     if hsb is None:

@@ -12,6 +12,7 @@ import logging
 from typing import List, Optional
 
 from alexapy import hide_email, hide_serial
+from alexapy.errors import AlexapyLoginError, AlexapyPyotpError
 from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
 from homeassistant.const import CONF_EMAIL, STATE_UNAVAILABLE
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -171,23 +172,38 @@ class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEnt
         available_media_players = list(
             filter(lambda x: x.state != STATE_UNAVAILABLE, self._media_players.values())
         )
-        if available_media_players:
-            _LOGGER.debug("Sending guard command to: %s", available_media_players[0])
-            available_media_players[0].check_login_changes()
-            await available_media_players[0].alexa_api.set_guard_state(
-                self._appliance_id.split("_")[2],
-                command_map[command],
-                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
-                    "options"
-                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+        try:
+            if available_media_players:
+                _LOGGER.debug("Sending guard command to: %s", available_media_players[0])
+                available_media_players[0].check_login_changes()
+                await available_media_players[0].alexa_api.set_guard_state(
+                    self._appliance_id.split("_")[2],
+                    command_map[command],
+                    queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
+                        "options"
+                    ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                )
+                await sleep(2)  # delay
+            else:
+                _LOGGER.debug("Performing static guard command")
+                await self.alexa_api.static_set_guard_state(
+                    self._login, self._guard_entity_id, command
+                )
+            await self.coordinator.async_request_refresh()
+        except (AlexapyLoginError, AlexapyPyotpError) as ex:
+            _LOGGER.error(
+                "%s: Alexa Guard API call failed: %s. Please check your Alexa Guard subscription. Guard functionality will be limited.",
+                self.account,
+                ex,
             )
-            await sleep(2)  # delay
-        else:
-            _LOGGER.debug("Performing static guard command")
-            await self.alexa_api.static_set_guard_state(
-                self._login, self._guard_entity_id, command
+            # Optionally, set a specific error state or attribute here if needed later
+        except Exception as ex:  # pylint: disable=broad-except
+            _LOGGER.error(
+                "%s: An unexpected error occurred during Alexa Guard API call: %s. Guard functionality will be limited.",
+                self.account,
+                ex,
             )
-        await self.coordinator.async_request_refresh()
+            # Optionally, set a specific error state or attribute here
 
     async def async_alarm_disarm(
         self, code=None  # pylint:disable=unused-argument
@@ -214,12 +230,32 @@ class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEnt
     @property
     def state(self):
         """Return the state of the device."""
+        if not self.coordinator.data or self._guard_entity_id not in self.coordinator.data:
+            # Data not available from coordinator, likely due to an update failure
+            _LOGGER.warning(
+                "%s: Guard data is unavailable for %s. Alexa Guard may require a paid subscription or be misconfigured.",
+                self.account,
+                self.name,
+            )
+            return STATE_UNAVAILABLE
         _state = parse_guard_state_from_coordinator(
             self.coordinator, self._guard_entity_id
         )
         if _state == "ARMED_AWAY":
             return STATE_ALARM_ARMED_AWAY
-        return STATE_ALARM_DISARMED
+        if _state == "ARMED_STAY": # Although not explicitly in const, alexapy might return this
+            return STATE_ALARM_ARMED_AWAY # Mapping to ARMED_AWAY as HA doesn't have ARMED_STAY for alarm_control_panel directly
+        if _state == "DISARMED" or _state == "ARMED_NIGHT": # ARMED_NIGHT can be treated as DISARMED if not specifically handled
+             return STATE_ALARM_DISARMED
+        # If state is None or unrecognized, default to unavailable or a previous known state if desired.
+        # For now, defaulting to unavailable if not explicitly disarmed or armed_away.
+        _LOGGER.warning(
+            "%s: Unknown or unhandled Guard state '%s' for %s. Defaulting to Unavailable.",
+            self.account,
+            _state,
+            self.name,
+        )
+        return STATE_UNAVAILABLE
 
     @property
     def supported_features(self) -> int:

@@ -496,11 +496,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     *optional_task_results,
                 ) = await asyncio.gather(*tasks)
 
-                if should_get_network:
-                    _LOGGER.debug(
-                        "AlexaAPI.get_network_details is deprecated and no longer called. Network details will not be updated."
-                    )
-                elif entities_to_monitor:
+                if entities_to_monitor:
                     entity_state = optional_task_results.pop()
 
                 if new_devices:

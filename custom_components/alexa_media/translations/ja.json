@@ -39,7 +39,7 @@
           "include_devices": "含まれるデバイス（カンマ区切り）",
           "otp_secret": "Built-in 2FA App Key (自動生成 2FA コード). これは6桁ではありません。",
           "password": "パスワード",
-          "public_url": "Public URL shared with external hosted services",
+          "public_url": "外部ホスティング・サービスと共有される公開URL",
           "queue_delay": "コマンドをキューにまとめて待機させる秒数",
           "scan_interval": "スキャン間隔秒数",
           "securitycode": "[%key_id:55616596%]",
@@ -52,8 +52,8 @@
   },
   "issues": {
     "deprecated_yaml_configuration": {
-      "description": "YAML configuration of Alexa Media Player is deprecated\nand will be removed in version 4.14.0.\nThere will be no automatic import of this.\nPlease remove it from your configuration, restart Home Assistant and use the UI to configure it instead.\nSettings > Devices & services > Integrations > ADD INTEGRATION",
-      "title": "YAML configuration is deprecated"
+      "description": "Alexa Media PlayerのYAML設定は非推奨であり、バージョン4.14.0で削除される予定です。 この設定の自動インポートは行われません。 設定から削除し、Home Assistantを再起動して、代わりにUIを使用して設定してください。 [設定] -> [デバイスとサービス] -> [統合] -> [統合を追加]",
+      "title": "YAML設定は非推奨です"
     }
   },
   "options": {
@@ -85,28 +85,28 @@
       "name": "強制ログアウト"
     },
     "get_history_records": {
-      "description": "Parses the history records for the specified device",
+      "description": "指定したデバイスの履歴レコードを解析します",
       "fields": {
         "entity_id": {
-          "description": "Entity to get the history for",
-          "name": "Select media player:"
+          "description": "履歴を取得するエンティティ",
+          "name": "メディアプレーヤーを選択:"
         },
         "entries": {
-          "description": "Number of entries to get",
-          "name": "Number of entries"
+          "description": "取得するエントリー数",
+          "name": "エントリー数"
         }
       },
-      "name": "Get History Records"
+      "name": "履歴レコードを取得する"
     },
     "restore_volume": {
-      "description": "Restore previous volume level on Alexa media player device",
+      "description": "Alexaメディアプレーヤーデバイスで以前の音量レベルを復元する",
       "fields": {
         "entity_id": {
-          "description": "Entity to restore the previous volume level on",
-          "name": "Select media player:"
+          "description": "以前の音量レベルを復元するエンティティ",
+          "name": "メディアプレーヤーを選択:"
         }
       },
-      "name": "Restore Previous Volume"
+      "name": "以前のボリュームを復元"
     },
     "update_last_called": {
       "description": "各Alexaアカウントの最後に呼び出されたEchoデバイスを強制的に更新します。",

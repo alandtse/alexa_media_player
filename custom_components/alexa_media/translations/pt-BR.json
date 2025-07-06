@@ -102,7 +102,7 @@
       "description": "Restaurar o nível de volume anterior no dispositivo reprodutor de mídia Alexa",
       "fields": {
         "entity_id": {
-          "description": "Entidade para restaurar o nível de volume anterior em",
+          "description": "Entidade para restaurar o nível de volume anterior",
           "name": "Selecione o media player:"
         }
       },

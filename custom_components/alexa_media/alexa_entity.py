@@ -263,7 +263,7 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
     air_quality_sensors = []
     contact_sensors = []
     switches = []
-    
+
     for appliance in network_details:
         device_bridge = get_device_bridge(appliance, network_details)
         if is_known_ha_bridge(device_bridge):

@@ -1,7 +1,4 @@
 {
-  "name": "Alexa Media Player",
-  "content_in_root": false,
-  "zip_release": true,
-  "filename": "alexa_media.zip",
-  "homeassistant": "2024.2.0b0"
+  "name": "heyFordy's Alexa Integration",
+  "homeassistant": "2025.7.1"
 }

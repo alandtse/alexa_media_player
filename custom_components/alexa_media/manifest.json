@@ -1,7 +1,7 @@
 {
   "domain": "alexa_media",
-  "name": "Alexa Media Player",
-  "codeowners": ["@alandtse", "@keatontaylor"],
+  "name": "🗿•heyFordy's Alexa Integration",
+  "codeowners": ["@heyfordy" "@alandtse", "@keatontaylor"],
   "config_flow": true,
   "dependencies": ["persistent_notification", "http"],
   "documentation": "https://github.com/alandtse/alexa_media_player/wiki",
@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/alandtse/alexa_media_player/issues",
   "loggers": ["alexapy", "authcaptureproxy"],
   "requirements": ["alexapy==1.29.7", "packaging>=20.3", "wrapt>=1.14.0"],
-  "version": "5.7.3"
+  "version": "5.7.4-pre"
 }

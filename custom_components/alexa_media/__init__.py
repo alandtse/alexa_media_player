@@ -505,7 +505,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     _LOGGER.debug(
                         "Alexa entities have been loaded. Prepared for discovery."
                     )
-                    alexa_entities = parse_alexa_entities(optional_task_results.pop())
+                    api_devices = optional_task_results.pop()
+                    if not api_devices:
+                        _LOGGER.warning(
+                            "%s: Alexa API returned an unexpected response while getting connected devices.",
+                            hide_email(email),
+                        )
+                    alexa_entities = parse_alexa_entities(api_devices)
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
                         alexa_entities
                     )

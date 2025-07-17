@@ -264,6 +264,16 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
     contact_sensors = []
     switches = []
 
+    if not network_details:
+        return {
+            "light": lights,
+            "guard": guards,
+            "temperature": temperature_sensors,
+            "air_quality": air_quality_sensors,
+            "binary_sensor": contact_sensors,
+            "smart_switch": switches,
+        }
+
     for appliance in network_details:
         device_bridge = get_device_bridge(appliance, network_details)
         if is_known_ha_bridge(device_bridge):

@@ -1,7 +1,7 @@
 {
   "domain": "alexa_media",
   "name": "🗿•heyFordy's Alexa Integration",
-  "codeowners": ["@heyfordy", "@alandtse", "@keatontaylor"],
+  "codeowners": ["@Bitte-ein-Git", "@alandtse", "@keatontaylor", "@elias1731"],
   "config_flow": true,
   "dependencies": ["persistent_notification", "http"],
   "documentation": "https://github.com/alandtse/alexa_media_player/wiki",

@@ -433,7 +433,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         ].values()
         auth_info = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("auth_info")
         new_devices = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
-        should_get_network = False  # get_network_details is deprecated
+        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "should_get_network"
+        ]
         extended_entity_discovery = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "options"
         ].get(CONF_EXTENDED_ENTITY_DISCOVERY)
@@ -484,6 +486,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if entities_to_monitor:
             tasks.append(get_entity_data(login_obj, list(entities_to_monitor)))
 
+        if should_get_network:
+            tasks.append(AlexaAPI.get_network_details(login_obj))
+
         try:
             # Note: asyncio.TimeoutError and aiohttp.ClientError are already
             # handled by the data update coordinator.
@@ -496,7 +501,34 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     *optional_task_results,
                 ) = await asyncio.gather(*tasks)
 
-                if entities_to_monitor:
+                if should_get_network:
+                    _LOGGER.debug(
+                        "Alexa entities have been loaded. Prepared for discovery."
+                    )
+                    api_devices = optional_task_results.pop()
+                    if not api_devices:
+                        _LOGGER.warning(
+                            "%s: Alexa API returned an unexpected response while getting connected devices.",
+                            hide_email(email),
+                        )
+                    alexa_entities = parse_alexa_entities(api_devices)
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
+                        alexa_entities
+                    )
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "should_get_network"
+                    ] = False
+
+                    # First run is a special case. Get the state of all entities(including disabled)
+                    # This ensures all entities have state during startup without needing to request coordinator refresh
+                    for type_of_entity, entities in alexa_entities.items():
+                        if type_of_entity == "guard" or extended_entity_discovery:
+                            for entity in entities:
+                                entities_to_monitor.add(entity.get("id"))
+                    entity_state = await get_entity_data(
+                        login_obj, list(entities_to_monitor)
+                    )
+                elif entities_to_monitor:
                     entity_state = optional_task_results.pop()
 
                 if new_devices:

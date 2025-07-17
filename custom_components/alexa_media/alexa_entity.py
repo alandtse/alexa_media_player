@@ -263,20 +263,19 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
     air_quality_sensors = []
     contact_sensors = []
     switches = []
-    location_details = (
-        (network_details or {}).get("locationDetails", {}).get("locationDetails", {})
-    )
 
-    appliances = {}
-    for location in location_details.values():
-        amazon_bridge_details = location["amazonBridgeDetails"]["amazonBridgeDetails"]
-        for bridge in amazon_bridge_details.values():
-            appliance_details = bridge["applianceDetails"]["applianceDetails"]
-            for appliance in appliance_details.values():
-                appliances[appliance["applianceId"]] = appliance
+    if not network_details:
+        return {
+            "light": lights,
+            "guard": guards,
+            "temperature": temperature_sensors,
+            "air_quality": air_quality_sensors,
+            "binary_sensor": contact_sensors,
+            "smart_switch": switches,
+        }
 
-    for appliance in appliances.values():
-        device_bridge = get_device_bridge(appliance, appliances)
+    for appliance in network_details:
+        device_bridge = get_device_bridge(appliance, network_details)
         if is_known_ha_bridge(device_bridge):
             _LOGGER.debug("Found Home Assistant bridge, skipping %s", appliance)
             continue
@@ -518,7 +517,7 @@ def is_cap_state_still_acceptable(
         if formatted_time_of_sample:
             try:
                 time_of_sample = datetime.strptime(
-                    formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S.%f%z"
+                    formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S%z"
                 )
                 return time_of_sample >= since
             except ValueError:

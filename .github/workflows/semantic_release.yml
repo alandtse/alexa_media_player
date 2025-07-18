@@ -17,6 +17,7 @@ jobs:
           ref: master
           token: ${{ secrets.GH_TOKEN }}
       - name: Download lokalise translations
+        continue-on-error: true
         run: |
           docker run -v /tmp/lokalise:/opt/dest lokalise/lokalise-cli-2 lokalise2 \
           --token "${{ secrets.lokalise_token }}" \
@@ -31,9 +32,22 @@ jobs:
           --export-empty-as base \
           --add-newline-eof \
           --replace-breaks=false
-      - name: Move new translations
+      - name: Fix permissions on Lokalise files
+        continue-on-error: true
         run: |
-          cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/translations/
+          if [ -d "/tmp/lokalise/locale" ] && [ "$(ls -A /tmp/lokalise/locale 2>/dev/null)" ]; then
+            sudo chmod -R a+r /tmp/lokalise/locale
+            sudo chown -R $USER:$USER /tmp/lokalise/locale
+          fi
+      - name: Move new translations
+        continue-on-error: true
+        run: |
+          if [ -d "/tmp/lokalise/locale" ] && [ "$(ls -A /tmp/lokalise/locale 2>/dev/null)" ]; then
+            echo "Lokalise translations downloaded successfully, updating translation files..."
+            cp /tmp/lokalise/locale/* /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media/translations/
+          else
+            echo "Lokalise download failed or no translations found, proceeding with existing translations..."
+          fi
       - name: Set up Python 3.8
         uses: actions/setup-python@v5
         with:

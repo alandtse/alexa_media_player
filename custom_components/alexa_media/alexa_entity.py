@@ -206,7 +206,17 @@ def get_device_bridge(
         return None
 
     # We expect the bridge to share the prefix without the device num
-    return appliances[match.group(1)]
+    bridge_appliance_id = match.group(1)
+
+    if not hasattr(get_device_bridge, '_appliance_lookup'):
+        get_device_bridge._appliance_lookup = {}
+
+    if not get_device_bridge._appliance_lookup or len(get_device_bridge._appliance_lookup) != len(appliances):
+        get_device_bridge._appliance_lookup = {
+            app.get("applianceId"): app for app in appliances
+        }
+
+    return get_device_bridge._appliance_lookup.get(bridge_appliance_id)
 
 
 class AlexaEntity(TypedDict):

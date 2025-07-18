@@ -32,6 +32,13 @@ jobs:
           --export-empty-as base \
           --add-newline-eof \
           --replace-breaks=false
+      - name: Fix permissions on Lokalise files
+        continue-on-error: true
+        run: |
+          if [ -d "/tmp/lokalise/locale" ] && [ "$(ls -A /tmp/lokalise/locale 2>/dev/null)" ]; then
+            sudo chmod -R a+r /tmp/lokalise/locale
+            sudo chown -R $USER:$USER /tmp/lokalise/locale
+          fi
       - name: Move new translations
         continue-on-error: true
         run: |

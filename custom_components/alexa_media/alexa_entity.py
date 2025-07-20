@@ -273,9 +273,12 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             "binary_sensor": contact_sensors,
             "smart_switch": switches,
         }
+    network_dict = {}
+    for appliance in network_details:
+        network_dict[appliance["applianceId"]] = appliance
 
     for appliance in network_details:
-        device_bridge = get_device_bridge(appliance, network_details)
+        device_bridge = get_device_bridge(appliance, network_dict)
         if is_known_ha_bridge(device_bridge):
             _LOGGER.debug("Found Home Assistant bridge, skipping %s", appliance)
             continue

@@ -208,10 +208,12 @@ def get_device_bridge(
     # We expect the bridge to share the prefix without the device num
     bridge_appliance_id = match.group(1)
 
-    if not hasattr(get_device_bridge, '_appliance_lookup'):
+    if not hasattr(get_device_bridge, "_appliance_lookup"):
         get_device_bridge._appliance_lookup = {}
 
-    if not get_device_bridge._appliance_lookup or len(get_device_bridge._appliance_lookup) != len(appliances):
+    if not get_device_bridge._appliance_lookup or len(
+        get_device_bridge._appliance_lookup
+    ) != len(appliances):
         get_device_bridge._appliance_lookup = {
             app.get("applianceId"): app for app in appliances
         }

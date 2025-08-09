@@ -57,7 +57,7 @@ def test_timeout_exception_with_message():
     exception = TimeoutException(message)
 
     assert isinstance(exception, Exception)
-    assert str(exception) == f"Timeour exception: {message}"
+    assert str(exception) == f"Timeout exception: {message}"
 
 
 def test_timeout_exception_without_message():
@@ -65,7 +65,7 @@ def test_timeout_exception_without_message():
     exception = TimeoutException()
 
     assert isinstance(exception, Exception)
-    assert str(exception) == "Timeour exception: "
+    assert str(exception) == "Timeout exception: "
 
 
 def test_unexpected_api_exception():

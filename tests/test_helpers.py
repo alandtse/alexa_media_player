@@ -1,8 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from homeassistant.exceptions import ConditionErrorMessage
+import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.helpers import _existing_serials, add_devices
@@ -123,11 +122,11 @@ class TestAddDevices:
         device2 = MagicMock()
         device2.name = "Device 2"
         devices = [device1, device2]
-        
+
         add_devices_callback = MagicMock()
-        
+
         result = await add_devices("test_account", devices, add_devices_callback)
-        
+
         assert result is True
         add_devices_callback.assert_called_once_with(devices, False)
 
@@ -136,9 +135,9 @@ class TestAddDevices:
         """Test adding empty device list."""
         devices = []
         add_devices_callback = MagicMock()
-        
+
         result = await add_devices("test_account", devices, add_devices_callback)
-        
+
         assert result is True
         add_devices_callback.assert_not_called()
 
@@ -150,14 +149,14 @@ class TestAddDevices:
         device2 = MagicMock()
         device2.name = "Device 2"
         devices = [device1, device2]
-        
+
         add_devices_callback = MagicMock()
         include_filter = ["Device 1"]
-        
+
         result = await add_devices(
             "test_account", devices, add_devices_callback, include_filter=include_filter
         )
-        
+
         assert result is True
         # Only device1 should be added
         add_devices_callback.assert_called_once_with([device1], False)
@@ -170,14 +169,14 @@ class TestAddDevices:
         device2 = MagicMock()
         device2.name = "Device 2"
         devices = [device1, device2]
-        
+
         add_devices_callback = MagicMock()
         exclude_filter = ["Device 2"]
-        
+
         result = await add_devices(
             "test_account", devices, add_devices_callback, exclude_filter=exclude_filter
         )
-        
+
         assert result is True
         # Only device1 should be added
         add_devices_callback.assert_called_once_with([device1], False)
@@ -188,14 +187,14 @@ class TestAddDevices:
         device1 = MagicMock()
         device1.name = "Device 1"
         devices = [device1]
-        
+
         add_devices_callback = MagicMock()
         exclude_filter = ["Device 1"]
-        
+
         result = await add_devices(
             "test_account", devices, add_devices_callback, exclude_filter=exclude_filter
         )
-        
+
         assert result is True
         add_devices_callback.assert_not_called()
 
@@ -205,12 +204,14 @@ class TestAddDevices:
         device1 = MagicMock()
         device1.name = "Device 1"
         devices = [device1]
-        
+
         add_devices_callback = MagicMock()
-        add_devices_callback.side_effect = ConditionErrorMessage("entity_exists", "Entity id already exists: device1")
-        
+        add_devices_callback.side_effect = ConditionErrorMessage(
+            "entity_exists", "Entity id already exists: device1"
+        )
+
         result = await add_devices("test_account", devices, add_devices_callback)
-        
+
         assert result is False
         add_devices_callback.assert_called_once_with([device1], False)
 
@@ -220,12 +221,14 @@ class TestAddDevices:
         device1 = MagicMock()
         device1.name = "Device 1"
         devices = [device1]
-        
+
         add_devices_callback = MagicMock()
-        add_devices_callback.side_effect = ConditionErrorMessage("other_error", "Some other error")
-        
+        add_devices_callback.side_effect = ConditionErrorMessage(
+            "other_error", "Some other error"
+        )
+
         result = await add_devices("test_account", devices, add_devices_callback)
-        
+
         assert result is False
         add_devices_callback.assert_called_once_with([device1], False)
 
@@ -235,12 +238,12 @@ class TestAddDevices:
         device1 = MagicMock()
         device1.name = "Device 1"
         devices = [device1]
-        
+
         add_devices_callback = MagicMock()
         add_devices_callback.side_effect = ValueError("Some error")
-        
+
         result = await add_devices("test_account", devices, add_devices_callback)
-        
+
         assert result is False
         add_devices_callback.assert_called_once_with([device1], False)
 
@@ -254,19 +257,19 @@ class TestAddDevices:
         device3 = MagicMock()
         device3.name = "Device 3"
         devices = [device1, device2, device3]
-        
+
         add_devices_callback = MagicMock()
         include_filter = ["Device 1", "Device 2"]
         exclude_filter = ["Device 2"]
-        
+
         result = await add_devices(
-            "test_account", 
-            devices, 
-            add_devices_callback, 
+            "test_account",
+            devices,
+            add_devices_callback,
             include_filter=include_filter,
-            exclude_filter=exclude_filter
+            exclude_filter=exclude_filter,
         )
-        
+
         assert result is True
         # Only device1 should be added (included but not excluded)
         add_devices_callback.assert_called_once_with([device1], False)

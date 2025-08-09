@@ -5,9 +5,9 @@ import pytest
 from custom_components.alexa_media.alexa_entity import (
     has_capability,
     is_hue_v1,
-    is_skill,
     is_known_ha_bridge,
     is_local,
+    is_skill,
 )
 
 
@@ -23,12 +23,12 @@ class TestHasCapability:
                     "properties": {
                         "retrievable": True,
                         "proactivelyReported": False,
-                        "supported": [{"name": "powerState"}]
-                    }
+                        "supported": [{"name": "powerState"}],
+                    },
                 }
             ]
         }
-        
+
         assert has_capability(appliance, "Alexa.PowerController", "powerState")
 
     def test_has_capability_with_proactively_reported(self):
@@ -40,12 +40,12 @@ class TestHasCapability:
                     "properties": {
                         "retrievable": False,
                         "proactivelyReported": True,
-                        "supported": [{"name": "brightness"}]
-                    }
+                        "supported": [{"name": "brightness"}],
+                    },
                 }
             ]
         }
-        
+
         assert has_capability(appliance, "Alexa.BrightnessController", "brightness")
 
     def test_has_capability_no_matching_interface(self):
@@ -57,12 +57,12 @@ class TestHasCapability:
                     "properties": {
                         "retrievable": True,
                         "proactivelyReported": False,
-                        "supported": [{"name": "powerState"}]
-                    }
+                        "supported": [{"name": "powerState"}],
+                    },
                 }
             ]
         }
-        
+
         assert not has_capability(appliance, "Alexa.BrightnessController", "brightness")
 
     def test_has_capability_no_matching_property(self):
@@ -74,24 +74,18 @@ class TestHasCapability:
                     "properties": {
                         "retrievable": True,
                         "proactivelyReported": False,
-                        "supported": [{"name": "powerState"}]
-                    }
+                        "supported": [{"name": "powerState"}],
+                    },
                 }
             ]
         }
-        
+
         assert not has_capability(appliance, "Alexa.PowerController", "brightness")
 
     def test_has_capability_no_properties(self):
         """Test has_capability returns False when properties are missing."""
-        appliance = {
-            "capabilities": [
-                {
-                    "interfaceName": "Alexa.PowerController"
-                }
-            ]
-        }
-        
+        appliance = {"capabilities": [{"interfaceName": "Alexa.PowerController"}]}
+
         assert not has_capability(appliance, "Alexa.PowerController", "powerState")
 
     def test_has_capability_not_retrievable_or_reported(self):
@@ -103,18 +97,18 @@ class TestHasCapability:
                     "properties": {
                         "retrievable": False,
                         "proactivelyReported": False,
-                        "supported": [{"name": "powerState"}]
-                    }
+                        "supported": [{"name": "powerState"}],
+                    },
                 }
             ]
         }
-        
+
         assert not has_capability(appliance, "Alexa.PowerController", "powerState")
 
     def test_has_capability_empty_capabilities(self):
         """Test has_capability returns False when capabilities list is empty."""
         appliance = {"capabilities": []}
-        
+
         assert not has_capability(appliance, "Alexa.PowerController", "powerState")
 
     def test_has_capability_multiple_properties(self):
@@ -128,15 +122,17 @@ class TestHasCapability:
                         "proactivelyReported": False,
                         "supported": [
                             {"name": "color"},
-                            {"name": "colorTemperatureInKelvin"}
-                        ]
-                    }
+                            {"name": "colorTemperatureInKelvin"},
+                        ],
+                    },
                 }
             ]
         }
-        
+
         assert has_capability(appliance, "Alexa.ColorController", "color")
-        assert has_capability(appliance, "Alexa.ColorController", "colorTemperatureInKelvin")
+        assert has_capability(
+            appliance, "Alexa.ColorController", "colorTemperatureInKelvin"
+        )
         assert not has_capability(appliance, "Alexa.ColorController", "brightness")
 
 
@@ -169,20 +165,12 @@ class TestIsSkill:
 
     def test_is_skill_true(self):
         """Test is_skill returns True when namespace is SKILL."""
-        appliance = {
-            "driverIdentity": {
-                "namespace": "SKILL"
-            }
-        }
+        appliance = {"driverIdentity": {"namespace": "SKILL"}}
         assert is_skill(appliance)
 
     def test_is_skill_false_different_namespace(self):
         """Test is_skill returns False for different namespace."""
-        appliance = {
-            "driverIdentity": {
-                "namespace": "OTHER"
-            }
-        }
+        appliance = {"driverIdentity": {"namespace": "OTHER"}}
         assert not is_skill(appliance)
 
     def test_is_skill_false_no_driver_identity(self):
@@ -197,11 +185,7 @@ class TestIsSkill:
 
     def test_is_skill_false_empty_namespace(self):
         """Test is_skill returns False when namespace is empty."""
-        appliance = {
-            "driverIdentity": {
-                "namespace": ""
-            }
-        }
+        appliance = {"driverIdentity": {"namespace": ""}}
         assert not is_skill(appliance)
 
 
@@ -245,7 +229,7 @@ class TestIsLocal:
         """Test is_local returns True for voice enabled device that's not a skill."""
         appliance = {
             "applianceTypes": ["ALEXA_VOICE_ENABLED"],
-            "driverIdentity": {"namespace": "OTHER"}
+            "driverIdentity": {"namespace": "OTHER"},
         }
         assert is_local(appliance)
 
@@ -253,7 +237,7 @@ class TestIsLocal:
         """Test is_local returns False for voice enabled device that's a skill."""
         appliance = {
             "applianceTypes": ["ALEXA_VOICE_ENABLED"],
-            "driverIdentity": {"namespace": "SKILL"}
+            "driverIdentity": {"namespace": "SKILL"},
         }
         assert not is_local(appliance)
 
@@ -261,7 +245,7 @@ class TestIsLocal:
         """Test is_local returns True for Ledvance device that's not a skill."""
         appliance = {
             "manufacturerName": "Ledvance",
-            "driverIdentity": {"namespace": "OTHER"}
+            "driverIdentity": {"namespace": "OTHER"},
         }
         assert is_local(appliance)
 
@@ -269,7 +253,7 @@ class TestIsLocal:
         """Test is_local returns True for Sengled device that's not a skill."""
         appliance = {
             "manufacturerName": "Sengled",
-            "driverIdentity": {"namespace": "OTHER"}
+            "driverIdentity": {"namespace": "OTHER"},
         }
         assert is_local(appliance)
 
@@ -277,7 +261,7 @@ class TestIsLocal:
         """Test is_local returns True for Amazon device that's not a skill."""
         appliance = {
             "manufacturerName": "Amazon",
-            "driverIdentity": {"namespace": "OTHER"}
+            "driverIdentity": {"namespace": "OTHER"},
         }
         assert is_local(appliance)
 
@@ -285,7 +269,7 @@ class TestIsLocal:
         """Test is_local returns False for Ledvance device that's a skill."""
         appliance = {
             "manufacturerName": "Ledvance",
-            "driverIdentity": {"namespace": "SKILL"}
+            "driverIdentity": {"namespace": "SKILL"},
         }
         assert not is_local(appliance)
 
@@ -304,16 +288,12 @@ class TestIsLocal:
 
     def test_is_local_zigbee_pattern_match(self):
         """Test is_local returns True for valid zigbee pattern."""
-        appliance = {
-            "applianceId": "AAA_SonarCloudService_AB:CD:EF:12:34:56:78:90"
-        }
+        appliance = {"applianceId": "AAA_SonarCloudService_AB:CD:EF:12:34:56:78:90"}
         result = is_local(appliance)
         assert result is True
 
     def test_is_local_zigbee_pattern_no_match(self):
         """Test is_local returns False for invalid zigbee pattern."""
-        appliance = {
-            "applianceId": "invalid_pattern"
-        }
+        appliance = {"applianceId": "invalid_pattern"}
         result = is_local(appliance)
         assert result is False

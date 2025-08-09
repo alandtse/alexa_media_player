@@ -37,7 +37,7 @@ def test_login_invalid_exception():
     """Test LoginInvalidException with attempts remaining."""
     attempts = 3
     exception = LoginInvalidException(attempts)
-    
+
     assert isinstance(exception, Exception)
     assert exception.attempts_remaining == attempts
     assert str(exception) == "Invalid login credentials. 3 attempts remaining."
@@ -46,7 +46,7 @@ def test_login_invalid_exception():
 def test_login_invalid_exception_zero_attempts():
     """Test LoginInvalidException with zero attempts remaining."""
     exception = LoginInvalidException(0)
-    
+
     assert exception.attempts_remaining == 0
     assert str(exception) == "Invalid login credentials. 0 attempts remaining."
 
@@ -55,7 +55,7 @@ def test_timeout_exception_with_message():
     """Test TimeoutException with custom message."""
     message = "API call took too long"
     exception = TimeoutException(message)
-    
+
     assert isinstance(exception, Exception)
     assert str(exception) == f"Timeour exception: {message}"
 
@@ -63,7 +63,7 @@ def test_timeout_exception_with_message():
 def test_timeout_exception_without_message():
     """Test TimeoutException with default empty message."""
     exception = TimeoutException()
-    
+
     assert isinstance(exception, Exception)
     assert str(exception) == "Timeour exception: "
 
@@ -85,7 +85,7 @@ def test_all_exceptions_are_raisable():
         (TimeoutException, "timeout"),
         (UnexpectedApiException, "unexpected"),
     ]
-    
+
     for exception_class, arg in exceptions_to_test:
         with pytest.raises(exception_class):
             raise exception_class(arg)

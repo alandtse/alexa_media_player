@@ -5,26 +5,26 @@ from datetime import timedelta
 import pytest
 
 from custom_components.alexa_media.const import (
-    __version__,
-    PROJECT_URL,
-    ISSUE_URL,
-    NOTIFY_URL,
-    DOMAIN,
-    DATA_ALEXAMEDIA,
-    PLAY_SCAN_INTERVAL,
-    SCAN_INTERVAL,
-    MIN_TIME_BETWEEN_SCANS,
-    MIN_TIME_BETWEEN_FORCED_SCANS,
     ALEXA_COMPONENTS,
-    DEPENDENT_ALEXA_COMPONENTS,
-    HTTP_COOKIE_HEADER,
     CONF_ACCOUNTS,
     CONF_DEBUG,
+    CONF_EXCLUDE_DEVICES,
     CONF_HASS_URL,
     CONF_INCLUDE_DEVICES,
-    CONF_EXCLUDE_DEVICES,
-    CONF_QUEUE_DELAY,
     CONF_PUBLIC_URL,
+    CONF_QUEUE_DELAY,
+    DATA_ALEXAMEDIA,
+    DEPENDENT_ALEXA_COMPONENTS,
+    DOMAIN,
+    HTTP_COOKIE_HEADER,
+    ISSUE_URL,
+    MIN_TIME_BETWEEN_FORCED_SCANS,
+    MIN_TIME_BETWEEN_SCANS,
+    NOTIFY_URL,
+    PLAY_SCAN_INTERVAL,
+    PROJECT_URL,
+    SCAN_INTERVAL,
+    __version__,
 )
 
 
@@ -34,7 +34,7 @@ class TestConstants:
     def test_version_format(self):
         """Test that version follows semantic versioning format."""
         # Version should be in format X.Y.Z
-        version_parts = __version__.split('.')
+        version_parts = __version__.split(".")
         assert len(version_parts) == 3
         for part in version_parts:
             assert part.isdigit()
@@ -97,7 +97,7 @@ class TestConstants:
         assert isinstance(DEPENDENT_ALEXA_COMPONENTS, list)
         expected_components = [
             "notify",
-            "switch", 
+            "switch",
             "sensor",
             "alarm_control_panel",
             "light",
@@ -129,7 +129,7 @@ class TestConstants:
             CONF_QUEUE_DELAY,
             CONF_PUBLIC_URL,
         ]
-        
+
         for const in config_constants:
             assert isinstance(const, str)
             assert len(const) > 0
@@ -168,6 +168,6 @@ class TestConstants:
             CONF_QUEUE_DELAY,
             CONF_PUBLIC_URL,
         ]
-        
+
         for const in constants_to_check:
             assert const is not None

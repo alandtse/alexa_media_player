@@ -1358,6 +1358,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 update_interval=timedelta(
                     seconds=scan_interval * 10 if http2_enabled else scan_interval
                 ),
+                config_entry=config_entry,
             )
         )
     else:

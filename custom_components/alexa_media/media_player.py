@@ -1021,7 +1021,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             return MediaPlayerState.PAUSED
         if self._media_player_state == "IDLE":
             return MediaPlayerState.IDLE
-        return MediaPlayerState.STANDBY
+        return MediaPlayerState.IDLE
 
     def update(self):
         """Get the latest details on a media player synchronously."""
@@ -1143,7 +1143,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         """Return the content type of current playing media."""
         if self.state in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED]:
             return MediaType.MUSIC
-        return MediaPlayerState.STANDBY
+        return MediaPlayerState.IDLE
 
     @property
     def media_artist(self):

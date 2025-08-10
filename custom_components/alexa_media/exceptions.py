@@ -27,7 +27,7 @@ class TimeoutException(Exception):
     """Timeout exception"""
 
     def __init__(self, message=""):
-        super().__init__(f"Timeour exception: {message}")
+        super().__init__(f"Timeout exception: {message}")
 
 
 class UnexpectedApiException(Exception):

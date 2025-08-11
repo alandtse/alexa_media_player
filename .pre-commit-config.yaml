@@ -34,7 +34,7 @@ repos:
       - id: check-yaml
         exclude: ^recipes/.*
     repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
 
   # --- Commit msg checks ---
   - hooks:
@@ -83,7 +83,7 @@ repos:
   #        pass_filenames: false
   #        always_run: true
   - repo: https://github.com/floatingpurr/sync_with_poetry
-    rev: "1.2.0"
+    rev: "1.2.1"
     hooks:
       - id: sync_with_poetry
         args: []

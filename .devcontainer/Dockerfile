@@ -1,6 +1,6 @@
 # See here for image contents: https://github.com/devcontainers/images/tree/main/src/python
 
-FROM ghcr.io/devcontainers/images/python:3.13-bullseye
+FROM mcr.microsoft.com/devcontainers/python:3.13-bullseye
 
 # [Choice] Node.js version: none, lts/*, 16, 14, 12, 10
 ARG NODE_VERSION="none"

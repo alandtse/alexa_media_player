@@ -230,7 +230,7 @@ MODEL_IDS = {
     "A2RU4B77X9R9NZ": "Echo Link Amp",
     "A2TF17PFR55MTB": "Alexa Mobile Voice Android",
     "A2TTLILJHVNI9X": "LG TV",
-    "A2U21SRK4QGSE1": "Echo Dot Clock (Gen4)",
+    "A2U21SRK4QGSE1": "Echo Dot (Gen4)",
     "A2UONLFQW0PADH": "Echo Show 8 (Gen3)",
     "A2V9UEGZ82H4KZ": "Fire Tablet HD 10",
     "A2VAXZ7UNGY4ZH": "Wyze Headphones",

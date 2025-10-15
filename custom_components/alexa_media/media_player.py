@@ -674,6 +674,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._dnd = device["dnd"] if "dnd" in device else None
             self._set_authentication_details(device["auth_info"])
         session = None
+        api_call = False
         if self.available:
             _LOGGER.debug(
                 "%s: Refreshing %s",
@@ -752,6 +753,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         session = {"playerInfo": _player_info}
                     else:
                         session = await self._api_get_state(no_throttle=no_throttle)
+                        api_call = True
                         if session is None:
                             # _LOGGER.warning(
                             #     "%s: Can't get session state by alexa_api.get_state() of %s. Probably a re-login occurred, so ignore it this time.",
@@ -764,25 +766,32 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._session = session.get("playerInfo") if session else None
         if self._session:
             if _transport := self._session.get("transport"):
-                self._shuffle = (
-                    _transport["shuffle"] in "SELECTED"
-                    if (
-                        "shuffle" in _transport
-                        and not _transport["shuffle"] in ("DISABLED", "HIDDEN")
+                if not api_call:
+                    # API calls do not return the correct values ​​for "shuffle" and "repeat"
+                    self._shuffle = (
+                        _transport["shuffle"] in "SELECTED"
+                        if (
+                            "shuffle" in _transport
+                            and not _transport["shuffle"] in ("DISABLED", "HIDDEN")
+                        )
+                        else None
                     )
-                    else None
-                )
-                self._repeat = (
-                    _transport["repeat"] == "SELECTED"
-                    if (
-                        "repeat" in _transport
-                        and not _transport["repeat"] in ("DISABLED", "HIDDEN")
+                    self._repeat = (
+                        _transport["repeat"] == "SELECTED"
+                        if (
+                            "repeat" in _transport
+                            and not _transport["repeat"] in ("DISABLED", "HIDDEN")
+                        )
+                        else None
                     )
-                    else None
-                )
-                self._attr_repeat = RepeatMode.ALL if self._repeat else RepeatMode.OFF
+                    self._attr_repeat = (
+                        RepeatMode.ALL if self._repeat else RepeatMode.OFF
+                    )
                 self._attr_supported_features = SUPPORT_ALEXA
                 for transport_key, feature in TRANSPORT_FEATURES.items():
+                    if api_call and transport_key in ("shuffle", "repeat"):
+                        # API calls do not return the correct values ​​for "shuffle" and "repeat"
+                        continue
                     if _transport.get(transport_key) in (
                         "DISABLED",
                         "HIDDEN",

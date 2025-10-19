@@ -767,12 +767,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if self._session:
             if _transport := self._session.get("transport"):
                 if not api_call:
-                    # API calls do not return the correct values ​​for "shuffle" and "repeat"
+                    # API calls do not return correct values for "shuffle" and "repeat"
                     self._shuffle = (
-                        _transport["shuffle"] in "SELECTED"
+                        _transport["shuffle"] == "SELECTED"
                         if (
                             "shuffle" in _transport
-                            and not _transport["shuffle"] in ("DISABLED", "HIDDEN")
+                            and _transport["shuffle"] not in ("DISABLED", "HIDDEN")
                         )
                         else None
                     )
@@ -780,7 +780,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         _transport["repeat"] == "SELECTED"
                         if (
                             "repeat" in _transport
-                            and not _transport["repeat"] in ("DISABLED", "HIDDEN")
+                            and _transport["repeat"] not in ("DISABLED", "HIDDEN")
                         )
                         else None
                     )
@@ -790,7 +790,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._attr_supported_features = SUPPORT_ALEXA
                 for transport_key, feature in TRANSPORT_FEATURES.items():
                     if api_call and transport_key in ("shuffle", "repeat"):
-                        # API calls do not return the correct values ​​for "shuffle" and "repeat"
+                        # API calls do not return correct values for "shuffle" and "repeat"
                         continue
                     if _transport.get(transport_key) in (
                         "DISABLED",

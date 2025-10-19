@@ -425,14 +425,17 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             if self._waiting_media_id and media_id in self._waiting_media_id:
                 if player_info.get("playerState"):
                     player_info["state"] = player_info["playerState"]
-                if player_info.get("progress", {}).get("mediaProgress"):
-                    player_info["progress"]["mediaProgress"] = int(
-                        player_info["progress"]["mediaProgress"] / 1000
-                    )
                 if player_info.get("progress", {}).get("mediaLength"):
                     player_info["progress"]["mediaLength"] = int(
                         player_info["progress"]["mediaLength"] / 1000
                     )
+                    # Get and set mediaProgress only when mediaLength is obtained.
+                    # Fixed an issue where mediaLength was sometimes acquired as 0 on Spotify etc.,
+                    # causing the progress bar to disappear.
+                    if player_info.get("progress", {}).get("mediaProgress") is not None:
+                        player_info["progress"]["mediaProgress"] = int(
+                            player_info["progress"]["mediaProgress"] / 1000
+                        )
                 if player_info.get("mainArt", {}).get("url") is None:
                     if not player_info.get("mainArt"):
                         player_info["mainArt"] = {}
@@ -674,6 +677,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._dnd = device["dnd"] if "dnd" in device else None
             self._set_authentication_details(device["auth_info"])
         session = None
+        api_call = False
         if self.available:
             _LOGGER.debug(
                 "%s: Refreshing %s",
@@ -752,6 +756,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         session = {"playerInfo": _player_info}
                     else:
                         session = await self._api_get_state(no_throttle=no_throttle)
+                        api_call = True
                         if session is None:
                             # _LOGGER.warning(
                             #     "%s: Can't get session state by alexa_api.get_state() of %s. Probably a re-login occurred, so ignore it this time.",
@@ -764,25 +769,32 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._session = session.get("playerInfo") if session else None
         if self._session:
             if _transport := self._session.get("transport"):
-                self._shuffle = (
-                    _transport["shuffle"] in "SELECTED"
-                    if (
-                        "shuffle" in _transport
-                        and not _transport["shuffle"] in ("DISABLED", "HIDDEN")
+                if not api_call:
+                    # API calls do not return correct values for "shuffle" and "repeat"
+                    self._shuffle = (
+                        _transport["shuffle"] == "SELECTED"
+                        if (
+                            "shuffle" in _transport
+                            and _transport["shuffle"] not in ("DISABLED", "HIDDEN")
+                        )
+                        else None
                     )
-                    else None
-                )
-                self._repeat = (
-                    _transport["repeat"] == "SELECTED"
-                    if (
-                        "repeat" in _transport
-                        and not _transport["repeat"] in ("DISABLED", "HIDDEN")
+                    self._repeat = (
+                        _transport["repeat"] == "SELECTED"
+                        if (
+                            "repeat" in _transport
+                            and _transport["repeat"] not in ("DISABLED", "HIDDEN")
+                        )
+                        else None
                     )
-                    else None
-                )
-                self._attr_repeat = RepeatMode.ALL if self._repeat else RepeatMode.OFF
+                    self._attr_repeat = (
+                        RepeatMode.ALL if self._repeat else RepeatMode.OFF
+                    )
                 self._attr_supported_features = SUPPORT_ALEXA
                 for transport_key, feature in TRANSPORT_FEATURES.items():
+                    if api_call and transport_key in ("shuffle", "repeat"):
+                        # API calls do not return correct values for "shuffle" and "repeat"
+                        continue
                     if _transport.get(transport_key) in (
                         "DISABLED",
                         "HIDDEN",

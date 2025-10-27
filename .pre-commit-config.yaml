@@ -34,14 +34,14 @@ repos:
       - id: check-yaml
         exclude: ^recipes/.*
     repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
 
   # --- Commit msg checks ---
   - hooks:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.8.3
+    rev: v4.9.1
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -71,7 +71,7 @@ repos:
       - id: bandit
         args: ["-c", "pyproject.toml"]
   - repo: https://github.com/PyCQA/isort
-    rev: 6.0.1
+    rev: 7.0.0
     hooks:
       - id: isort
   #  - repo: local
@@ -83,7 +83,7 @@ repos:
   #        pass_filenames: false
   #        always_run: true
   - repo: https://github.com/floatingpurr/sync_with_poetry
-    rev: "1.2.0"
+    rev: "1.2.1"
     hooks:
       - id: sync_with_poetry
         args: []

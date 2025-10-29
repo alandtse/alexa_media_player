@@ -62,12 +62,12 @@ from .const import (
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_EXTENDED_ENTITY_DISCOVERY,
-    CONF_SHOULD_GET_NETWORK,
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
     CONF_OTPSECRET,
     CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
+    CONF_SHOULD_GET_NETWORK,
     DATA_ALEXAMEDIA,
     DATA_LISTENER,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
@@ -193,9 +193,7 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_EXTENDED_ENTITY_DISCOVERY: account[
                                 CONF_EXTENDED_ENTITY_DISCOVERY
                             ],
-                            CONF_SHOULD_GET_NETWORK: account[
-                                CONF_SHOULD_GET_NETWORK
-                            ],
+                            CONF_SHOULD_GET_NETWORK: account[CONF_SHOULD_GET_NETWORK],
                             CONF_DEBUG: account[CONF_DEBUG],
                         },
                     )
@@ -221,9 +219,7 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_EXTENDED_ENTITY_DISCOVERY: account[
                             CONF_EXTENDED_ENTITY_DISCOVERY
                         ],
-                        CONF_SHOULD_GET_NETWORK: account[
-                            CONF_SHOULD_GET_NETWORK
-                        ],
+                        CONF_SHOULD_GET_NETWORK: account[CONF_SHOULD_GET_NETWORK],
                         CONF_DEBUG: account[CONF_DEBUG],
                     },
                 )
@@ -338,7 +334,7 @@ async def async_setup_entry(hass, config_entry):
             "http2": None,
             "auth_info": None,
             "second_account_index": 0,
-#            "should_get_network": True,
+            #            "should_get_network": True,
             "options": {
                 CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
                 CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),

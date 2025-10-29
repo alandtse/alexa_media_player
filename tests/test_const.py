@@ -5,7 +5,9 @@ from datetime import timedelta
 import pytest
 
 from custom_components.alexa_media.const import (
+    ALEXA_AIR_QUALITY_DEVICE_CLASS,
     ALEXA_COMPONENTS,
+    ALEXA_ICON_CONVERSION,
     CONF_ACCOUNTS,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
@@ -171,3 +173,53 @@ class TestConstants:
 
         for const in constants_to_check:
             assert const is not None
+
+
+class TestAirQualityConstants:
+    """Test air quality sensor constants."""
+
+    def test_air_quality_device_class_mapping_exists(self):
+        """Test that ALEXA_AIR_QUALITY_DEVICE_CLASS is defined and is a dict."""
+        assert ALEXA_AIR_QUALITY_DEVICE_CLASS is not None
+        assert isinstance(ALEXA_AIR_QUALITY_DEVICE_CLASS, dict)
+
+    def test_air_quality_device_class_has_required_mappings(self):
+        """Test that all required air quality sensor types have device class mappings."""
+        required_sensors = [
+            "Alexa.AirQuality.ParticulateMatter",
+            "Alexa.AirQuality.CarbonMonoxide",
+            "Alexa.AirQuality.IndoorAirQuality",
+            "Alexa.AirQuality.VolatileOrganicCompounds",
+            "Alexa.AirQuality.Humidity",
+        ]
+        for sensor_type in required_sensors:
+            assert sensor_type in ALEXA_AIR_QUALITY_DEVICE_CLASS
+            assert ALEXA_AIR_QUALITY_DEVICE_CLASS[sensor_type] is not None
+            assert isinstance(ALEXA_AIR_QUALITY_DEVICE_CLASS[sensor_type], str)
+
+    def test_air_quality_device_class_values(self):
+        """Test that device class values match Home Assistant conventions."""
+        expected_mappings = {
+            "Alexa.AirQuality.ParticulateMatter": "pm25",
+            "Alexa.AirQuality.CarbonMonoxide": "carbon_monoxide",
+            "Alexa.AirQuality.IndoorAirQuality": "aqi",
+            "Alexa.AirQuality.VolatileOrganicCompounds": "volatile_organic_compounds",
+            "Alexa.AirQuality.Humidity": "humidity",
+        }
+        for sensor_type, expected_device_class in expected_mappings.items():
+            assert ALEXA_AIR_QUALITY_DEVICE_CLASS[sensor_type] == expected_device_class
+
+    def test_air_quality_icon_mappings_exist(self):
+        """Test that all air quality sensor types have icon mappings."""
+        required_sensors = [
+            "Alexa.AirQuality.ParticulateMatter",
+            "Alexa.AirQuality.CarbonMonoxide",
+            "Alexa.AirQuality.IndoorAirQuality",
+            "Alexa.AirQuality.VolatileOrganicCompounds",
+            "Alexa.AirQuality.Humidity",
+        ]
+        for sensor_type in required_sensors:
+            assert sensor_type in ALEXA_ICON_CONVERSION
+            assert ALEXA_ICON_CONVERSION[sensor_type] is not None
+            assert isinstance(ALEXA_ICON_CONVERSION[sensor_type], str)
+            assert ALEXA_ICON_CONVERSION[sensor_type].startswith("mdi:")

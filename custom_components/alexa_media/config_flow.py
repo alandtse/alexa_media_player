@@ -57,7 +57,6 @@ from .const import (
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_EXTENDED_ENTITY_DISCOVERY,
-    CONF_SHOULD_GET_NETWORK,
     CONF_HASS_URL,
     CONF_INCLUDE_DEVICES,
     CONF_OAUTH,
@@ -66,15 +65,16 @@ from .const import (
     CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
+    CONF_SHOULD_GET_NETWORK,
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
     DEFAULT_DEBUG,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
-    DEFAULT_SHOULD_GET_NETWORK,
     DEFAULT_HASS_URL,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SHOULD_GET_NETWORK,
     DOMAIN,
     ISSUE_URL,
     STARTUP,
@@ -824,9 +824,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 CONF_EXTENDED_ENTITY_DISCOVERY
             ]
         if CONF_SHOULD_GET_NETWORK in user_input:
-            self.config[CONF_SHOULD_GET_NETWORK] = user_input[
-                CONF_SHOULD_GET_NETWORK
-            ]
+            self.config[CONF_SHOULD_GET_NETWORK] = user_input[CONF_SHOULD_GET_NETWORK]
         if CONF_DEBUG in user_input:
             self.config[CONF_DEBUG] = user_input[CONF_DEBUG]
 

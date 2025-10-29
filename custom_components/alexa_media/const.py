@@ -49,6 +49,7 @@ CONF_EXCLUDE_DEVICES = "exclude_devices"
 CONF_QUEUE_DELAY = "queue_delay"
 CONF_PUBLIC_URL = "public_url"
 CONF_EXTENDED_ENTITY_DISCOVERY = "extended_entity_discovery"
+CONF_SHOULD_GET_NETWORK = "should_get_network"
 CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
 CONF_PROXY = "proxy"
@@ -61,6 +62,7 @@ EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"
 
 DEFAULT_DEBUG = False
 DEFAULT_EXTENDED_ENTITY_DISCOVERY = False
+DEFAULT_SHOULD_GET_NETWORK = False
 DEFAULT_HASS_URL = "http://homeassistant.local:8123"
 DEFAULT_PUBLIC_URL = ""
 DEFAULT_QUEUE_DELAY = 1.5

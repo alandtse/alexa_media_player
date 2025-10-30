@@ -65,6 +65,7 @@ from .const import (
     CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
+    CONF_SHOULD_GET_NETWORK,
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
     DEFAULT_DEBUG,
@@ -73,6 +74,7 @@ from .const import (
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SHOULD_GET_NETWORK,
     DOMAIN,
     ISSUE_URL,
     STARTUP,
@@ -145,6 +147,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 (vol.Optional(CONF_SCAN_INTERVAL, default=60), int),
                 (vol.Optional(CONF_QUEUE_DELAY, default=1.5), float),
                 (vol.Optional(CONF_EXTENDED_ENTITY_DISCOVERY, default=False), bool),
+                (vol.Optional(CONF_SHOULD_GET_NETWORK, default=False), bool),
                 (vol.Optional(CONF_DEBUG, default=False), bool),
             ]
         )
@@ -252,6 +255,16 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         default=self.config.get(
                             CONF_EXTENDED_ENTITY_DISCOVERY,
                             DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+                        ),
+                    ),
+                    bool,
+                ),
+                (
+                    vol.Optional(
+                        CONF_SHOULD_GET_NETWORK,
+                        default=self.config.get(
+                            CONF_SHOULD_GET_NETWORK,
+                            DEFAULT_SHOULD_GET_NETWORK,
                         ),
                     ),
                     bool,
@@ -810,6 +823,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_EXTENDED_ENTITY_DISCOVERY] = user_input[
                 CONF_EXTENDED_ENTITY_DISCOVERY
             ]
+        if CONF_SHOULD_GET_NETWORK in user_input:
+            self.config[CONF_SHOULD_GET_NETWORK] = user_input[CONF_SHOULD_GET_NETWORK]
         if CONF_DEBUG in user_input:
             self.config[CONF_DEBUG] = user_input[CONF_DEBUG]
 
@@ -854,6 +869,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     default=self.config.get(
                         CONF_EXTENDED_ENTITY_DISCOVERY,
                         DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+                    ),
+                ): bool,
+                vol.Optional(
+                    CONF_SHOULD_GET_NETWORK,
+                    default=self.config.get(
+                        CONF_SHOULD_GET_NETWORK,
+                        DEFAULT_SHOULD_GET_NETWORK,
                     ),
                 ): bool,
                 vol.Optional(
@@ -933,6 +955,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         default=self.config_entry.data.get(
                             CONF_EXTENDED_ENTITY_DISCOVERY,
                             DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+                        ),
+                    ),
+                    bool,
+                ),
+                (
+                    vol.Optional(
+                        CONF_SHOULD_GET_NETWORK,
+                        default=self.config_entry.data.get(
+                            CONF_SHOULD_GET_NETWORK,
+                            DEFAULT_SHOULD_GET_NETWORK,
                         ),
                     ),
                     bool,

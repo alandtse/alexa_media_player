@@ -67,6 +67,7 @@ from .const import (
     CONF_OTPSECRET,
     CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
+    CONF_SHOULD_GET_NETWORK,
     DATA_ALEXAMEDIA,
     DATA_LISTENER,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
@@ -108,6 +109,7 @@ ACCOUNT_CONFIG_SCHEMA = vol.Schema(
         vol.Optional(CONF_SCAN_INTERVAL, default=SCAN_INTERVAL): cv.time_period,
         vol.Optional(CONF_QUEUE_DELAY, default=DEFAULT_QUEUE_DELAY): cv.positive_float,
         vol.Optional(CONF_EXTENDED_ENTITY_DISCOVERY, default=False): cv.boolean,
+        vol.Optional(CONF_SHOULD_GET_NETWORK, default=False): cv.boolean,
         vol.Optional(CONF_DEBUG, default=False): cv.boolean,
     }
 )
@@ -191,6 +193,7 @@ async def async_setup(hass, config, discovery_info=None):
                             CONF_EXTENDED_ENTITY_DISCOVERY: account[
                                 CONF_EXTENDED_ENTITY_DISCOVERY
                             ],
+                            CONF_SHOULD_GET_NETWORK: account[CONF_SHOULD_GET_NETWORK],
                             CONF_DEBUG: account[CONF_DEBUG],
                         },
                     )
@@ -216,6 +219,7 @@ async def async_setup(hass, config, discovery_info=None):
                         CONF_EXTENDED_ENTITY_DISCOVERY: account[
                             CONF_EXTENDED_ENTITY_DISCOVERY
                         ],
+                        CONF_SHOULD_GET_NETWORK: account[CONF_SHOULD_GET_NETWORK],
                         CONF_DEBUG: account[CONF_DEBUG],
                     },
                 )
@@ -330,7 +334,7 @@ async def async_setup_entry(hass, config_entry):
             "http2": None,
             "auth_info": None,
             "second_account_index": 0,
-            "should_get_network": True,
+            #            "should_get_network": True,
             "options": {
                 CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
                 CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
@@ -345,6 +349,9 @@ async def async_setup_entry(hass, config_entry):
                 ),
                 CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.data.get(
                     CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
+                ),
+                CONF_SHOULD_GET_NETWORK: config_entry.data.get(
+                    CONF_SHOULD_GET_NETWORK, DEFAULT_EXTENDED_ENTITY_DISCOVERY
                 ),
                 CONF_DEBUG: config_entry.data.get(CONF_DEBUG, False),
             },
@@ -433,12 +440,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         ].values()
         auth_info = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("auth_info")
         new_devices = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]
-        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "should_get_network"
-        ]
         extended_entity_discovery = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "options"
         ].get(CONF_EXTENDED_ENTITY_DISCOVERY)
+        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "options"
+        ].get(CONF_SHOULD_GET_NETWORK)
 
         devices = {}
         bluetooth = {}

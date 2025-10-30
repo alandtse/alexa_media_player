@@ -40,6 +40,7 @@ from .alexa_entity import (
     parse_temperature_from_coordinator,
 )
 from .const import (
+    ALEXA_AIR_QUALITY_DEVICE_CLASS,
     ALEXA_ICON_CONVERSION,
     ALEXA_ICON_DEFAULT,
     ALEXA_UNIT_CONVERSION,
@@ -341,7 +342,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             " " + char if char.isupper() else char.strip() for char in self._sensor_name
         ).strip()
         self._attr_name = name + " " + self._sensor_name
-        self._attr_device_class = self._sensor_name
+        self._attr_device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS.get(sensor_name)
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_value: Optional[datetime.datetime] = (
             parse_air_quality_from_coordinator(coordinator, entity_id, instance)

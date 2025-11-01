@@ -524,7 +524,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     if player_state["audioPlayerState"] == "PLAYING":
                         self._media_player_state = "PLAYING"
                     elif player_state["audioPlayerState"] == "INTERRUPTED":
-                        # self._media_player_state = "PAUSED"
                         self._clear_media_details()
                     media_id = player_state.get("mediaReferenceId")
                     if media_id:
@@ -630,7 +629,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._media_pos = None
         self._media_album_name = None
         self._media_artist = None
-        self._media_player_state = None
+        self._media_player_state = "IDLE"
         self._media_is_muted = False
         # volume is also used for announce/tts so state should remain
         # self._media_vol_level = None
@@ -761,7 +760,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                             _player_info["volume"] = self._session.get("volume", {})
                         session = {"playerInfo": _player_info}
                     else:
-                        session = await self._api_get_state()
+                        session = await self._api_get_state(no_throttle=no_throttle)
                         _LOGGER.debug("Returned data of _api_get_state(): %s", session)
                         api_call = True
                         if (

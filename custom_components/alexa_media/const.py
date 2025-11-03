@@ -144,8 +144,20 @@ ALEXA_ICON_CONVERSION = {
     "Alexa.AirQuality.CarbonMonoxide": "mdi:molecule-co",
     "Alexa.AirQuality.Humidity": "mdi:water-percent",
     "Alexa.AirQuality.IndoorAirQuality": "mdi:numeric",
+    "Alexa.AirQuality.ParticulateMatter": "mdi:blur",
+    "Alexa.AirQuality.VolatileOrganicCompounds": "mdi:air-filter",
 }
 ALEXA_ICON_DEFAULT = "mdi:molecule"
+
+# Device class mapping for air quality sensors
+# Maps Alexa sensor types to Home Assistant SensorDeviceClass
+ALEXA_AIR_QUALITY_DEVICE_CLASS = {
+    "Alexa.AirQuality.ParticulateMatter": "pm25",
+    "Alexa.AirQuality.CarbonMonoxide": "carbon_monoxide",
+    "Alexa.AirQuality.IndoorAirQuality": "aqi",
+    "Alexa.AirQuality.VolatileOrganicCompounds": "volatile_organic_compounds",
+    "Alexa.AirQuality.Humidity": "humidity",
+}
 
 UPLOAD_PATH = "www/alexa_tts"
 

@@ -443,6 +443,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         "fullUrl"
                     )
                 player_info["last_update"] = util.utcnow()
+                event_serial = self.device_serial_number
                 _LOGGER.debug(
                     f"Match media_id: {media_id} in waiting_media_id:{self._waiting_media_id} , player_info: {player_info}"
                 )
@@ -520,6 +521,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         self.name,
                         player_state["audioPlayerState"],
                     )
+                    if player_state["audioPlayerState"] == "PLAYING":
+                        self._media_player_state = "PLAYING"
+                    elif player_state["audioPlayerState"] == "INTERRUPTED":
+                        self._clear_media_details()
                     media_id = player_state.get("mediaReferenceId")
                     if media_id:
                         self._waiting_media_id = media_id
@@ -624,7 +629,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._media_pos = None
         self._media_album_name = None
         self._media_artist = None
-        self._media_player_state = None
+        self._media_player_state = "IDLE"
         self._media_is_muted = False
         # volume is also used for announce/tts so state should remain
         # self._media_vol_level = None
@@ -756,8 +761,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         session = {"playerInfo": _player_info}
                     else:
                         session = await self._api_get_state(no_throttle=no_throttle)
+                        _LOGGER.debug("Returned data of _api_get_state(): %s", session)
                         api_call = True
-                        if session is None:
+                        if (
+                            session is None
+                            or session.get("playerInfo", {}).get("state") is None
+                        ):
                             # _LOGGER.warning(
                             #     "%s: Can't get session state by alexa_api.get_state() of %s. Probably a re-login occurred, so ignore it this time.",
                             #     self.account,

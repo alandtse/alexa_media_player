@@ -224,11 +224,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         super().__init__(self, login)
 
         # Logged in info
-        self._authenticated = None
-        self._can_access_prime_music = None
-        self._customer_email = None
         self._customer_id = None
-        self._customer_name = None
 
         # Device info
         self._device = device
@@ -638,11 +634,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     def _set_authentication_details(self, auth):
         """Set Authentication based off auth."""
-        self._authenticated = auth["authenticated"]
-        self._can_access_prime_music = auth["canAccessPrimeMusicContent"]
-        self._customer_email = auth["customerEmail"]
         self._customer_id = auth["customerId"]
-        self._customer_name = auth["customerName"]
 
     @util.Throttle(MIN_TIME_BETWEEN_SCANS, MIN_TIME_BETWEEN_FORCED_SCANS)
     async def _api_get_state(self):

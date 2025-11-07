@@ -533,6 +533,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                 if new_devices:
                     users_me = optional_task_results.pop()
+                    if not users_me or not users_me.get("id"):
+                        _LOGGER.warning(
+                            "%s: Alexa API returned unexpected response while getting user info: %s",
+                            hide_email(email),
+                            users_me,
+                        )
                     auth_info = {"customerId": users_me.get("id")}
                     _LOGGER.debug(
                         "%s: Found %s devices, %s bluetooth",

@@ -1561,11 +1561,9 @@ async def test_login_status(hass, config_entry, login) -> bool:
             f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
         ] = None
     _LOGGER.debug("Creating new config flow to login")
-    hass.data[DATA_ALEXAMEDIA]["config_flows"][
-        f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
-    ] = await hass.config_entries.flow.async_init(
-        DOMAIN,
-        context={"source": "reauth"},
+    config_entry.async_start_reauth(
+        hass,
+        context={"source": SOURCE_REAUTH},
         data={
             CONF_EMAIL: account[CONF_EMAIL],
             CONF_PASSWORD: account[CONF_PASSWORD],
@@ -1581,4 +1579,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
         },
     )
+    hass.data[DATA_ALEXAMEDIA]["config_flows"][
+        f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
+    ] = config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}).__next__()
     return False

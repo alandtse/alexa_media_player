@@ -1,0 +1,7 @@
+default_config:
+
+logger:
+  default: info
+  logs:
+    custom_components.alexa_media: debug
+    alexa_media: debug

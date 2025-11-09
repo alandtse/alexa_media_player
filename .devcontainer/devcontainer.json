@@ -30,7 +30,7 @@
 
   // Use 'postCreateCommand' to run commands after the container is created.
   // "postCreateCommand": "pip3 install --user -r requirements.txt",
-  "postCreateCommand": "poetry update && poetry run pre-commit install",
+  "postCreateCommand": "poetry install && poetry run pre-commit install",
   "containerUser": "vscode",
   "updateRemoteUserUID": true,
   "containerEnv": {

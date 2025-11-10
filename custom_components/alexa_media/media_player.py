@@ -461,7 +461,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
             if event_serial == self.device_serial_number:
                 _LOGGER.debug(
-                    "DeviceID(%s) recive event form parent: %s",
+                    "DeviceID(%s) receive event form parent: %s",
                     hide_serial(event_serial),
                     hide_serial(event),
                 )

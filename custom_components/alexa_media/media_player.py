@@ -848,7 +848,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                             async_dispatcher_send(
                                 self.hass,
                                 f"{ALEXA_DOMAIN}_{hide_email(self._login.email)}"[0:32],
-                                {"parent_state": hide_serial(json_payload)},
+                                {"parent_state": json_payload},
                             )
 
             if _transport := self._session.get("transport"):

@@ -1041,7 +1041,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 volume = volume_info.get("volume")
         else:
             if player_info.get("lemurVolume") is not None:
-                composite = player_info.get("lemurVolume", {}).get("compositeVolume", {})
+                composite = player_info.get("lemurVolume", {}).get(
+                    "compositeVolume", {}
+                )
                 muted = composite.get("muted")
                 volume = composite.get("volume")
         if muted is not None:

@@ -1035,25 +1035,20 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._media_duration = player_info.get("progress", {}).get("mediaLength")
         muted = volume = None
         if not player_info.get("lemurVolume"):
-            if player_info.get("volume") != None:
-                muted = player_info.get("volume", {}).get("muted")
-                volume = player_info.get("volume", {}).get("volume")
+            if player_info.get("volume") is not None:
+                volume_info = player_info.get("volume", {})
+                muted = volume_info.get("muted")
+                volume = volume_info.get("volume")
         else:
-            if player_info.get("lemurVolume") != None:
-                muted = (
-                    player_info.get("lemurVolume", {})
-                    .get("compositeVolume", {})
-                    .get("muted")
-                )
-                volume = (
-                    player_info.get("lemurVolume", {})
-                    .get("compositeVolume", {})
-                    .get("muted")
-                )
-        if muted != None:
+            if player_info.get("lemurVolume") is not None:
+                composite = player_info.get("lemurVolume", {}).get("compositeVolume", {})
+                muted = composite.get("muted")
+                volume = composite.get("volume")
+        if muted is not None:
             self._media_is_muted = muted
-        if volume != None:
-            self._media_vol_level = self._media_vol_level
+        if volume is not None:
+            if isinstance(volume, (int, float)):
+                self._media_vol_level = volume / 100 if volume > 1 else float(volume)
 
     @property
     def available(self):

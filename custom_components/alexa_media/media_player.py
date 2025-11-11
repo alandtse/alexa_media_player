@@ -302,7 +302,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     async def init(self, device):
         """Initialize."""
-        _LOGGER.debug("Initialize AlexaClient with device: %s", hide_serial(hide_email(device)))
+        # _LOGGER.debug("Initialize AlexaClient with device: %s", device)
         await self.refresh(device, skip_api=True)
 
     async def async_added_to_hass(self):

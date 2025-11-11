@@ -132,7 +132,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     alexa_client = None
     # Make clusterMembers list from parentClusters
     for key, device in media_players.items():
-        if (parent_clusters := device.get("parentClusters")):
+        if parent_clusters := device.get("parentClusters"):
             for parent_id in parent_clusters:
                 if media_players.get(parent_id):
                     if media_players.get(parent_id).get("clusterMembers") is None:
@@ -302,7 +302,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     async def init(self, device):
         """Initialize."""
-        _LOGGER.debug("Initialize AlexaClient with device: %s", hide_serial(hide_email(device)))
+        _LOGGER.debug(
+            "Initialize AlexaClient with device: %s", hide_serial(hide_email(device))
+        )
         await self.refresh(device, skip_api=True)
 
     async def async_added_to_hass(self):

@@ -132,7 +132,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     alexa_client = None
     # Make clusterMembers list from parentClusters
     for key, device in media_players.items():
-        if (parent_clusters := device.get("parentClusters")):
+        if parent_clusters := device.get("parentClusters"):
             for parent_id in parent_clusters:
                 if media_players.get(parent_id):
                     if media_players.get(parent_id).get("clusterMembers") is None:

@@ -127,9 +127,19 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
-    entry_setup = len(account_dict["entities"]["media_player"])
+    media_players = account_dict["devices"]["media_player"]
+    entry_setup = len(media_players)
     alexa_client = None
-    for key, device in account_dict["devices"]["media_player"].items():
+    # Make clusterMembers list from parentClusters
+    for key, device in media_players.items():
+        if (parent_clusters := device.get("parentClusters")):
+            for parent_id in parent_clusters:
+                if media_players.get(parent_id):
+                    if media_players.get(parent_id).get("clusterMembers") is None:
+                        media_players.get(parent_id)["clusterMembers"] = []
+                    if key not in media_players.get(parent_id)["clusterMembers"]:
+                        media_players.get(parent_id)["clusterMembers"].append(key)
+    for key, device in media_players.items():
         if key not in account_dict["entities"]["media_player"]:
             alexa_client = AlexaClient(
                 device,
@@ -292,6 +302,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     async def init(self, device):
         """Initialize."""
+        _LOGGER.debug("Initialize AlexaClient with device: %s", hide_serial(hide_email(device)))
         await self.refresh(device, skip_api=True)
 
     async def async_added_to_hass(self):
@@ -716,10 +727,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._software_version = device["softwareVersion"]
             self._available = device["online"]
             self._capabilities = device["capabilities"]
-            # As of November 2025, "clusterMembers" no data is available from the API.
-            # Create from data in "lemurVolume.memberVolume"
-            # self._cluster_members = device["clusterMembers"]
-            # As of November 2025, "parentClusters" no data is available from the API.
+            self._cluster_members = device["clusterMembers"]
             self._parent_clusters = device["parentClusters"]
             self._bluetooth_state = device.get("bluetooth_state", {})
             self._locale = device["locale"] if "locale" in device else "en-US"
@@ -826,12 +834,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 if menbers_volume := self._session.get("lemurVolume", {}).get(
                     "memberVolume"
                 ):
-                    self._cluster_members = list(menbers_volume.keys())
-                    _LOGGER.debug(
-                        "Set _cluster_members to %s: %s",
-                        self._device_name,
-                        self._cluster_members,
-                    )
                     if self.hass:
                         for device_id in menbers_volume:
                             json_payload = self._session.copy()

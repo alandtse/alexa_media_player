@@ -12,7 +12,7 @@ import logging
 import os
 import re
 import subprocess
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 import urllib.request
 
 from homeassistant import util
@@ -476,7 +476,27 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     hide_serial(event_serial),
                     hide_serial(event),
                 )
-                self._set_attrs(event.get("parent_state", {}))
+                parent_state = event.get("parent_state", {})
+                if parent_state.get("volume") is None:
+                    parent_state["volume"] = {
+                        "muted": self._media_is_muted,
+                        "volume": self._media_vol_level,
+                    }
+                self._set_attrs(parent_state)
+                self._player_info = parent_state
+                if parent_state.get("state") == "PLAYING" and (
+                    parentSerial := (
+                        event.get("parent_state", {})
+                        .get("dopplerId", {})
+                        .get("parentSerialNumber")
+                    )
+                ):
+                    self._playing_parent = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                        self._login.email
+                    ]["entities"]["media_player"].get(parentSerial)
+                else:
+                    self._playing_parent = None
+                info_changed = True
         if not event_serial:
             return
         if event_serial == self.device_serial_number:
@@ -616,19 +636,13 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 await self.async_update()
                 already_refreshed = True
 
-        if (
-            info_changed
-            and self._player_info
-            and (self._device_type in ["A3C9PE6TNYLTCH", "AP1F6KUH00XPV"])
-        ):
+        if info_changed and self._player_info and self._cluster_members:
             # This is Speaker Group or Speaker pair so throw event data
-            if self.hass and self._cluster_members:
+            if self.hass:
                 for device_id in self._cluster_members:
-                    json_payload = self._player_info.copy()
-                    json_payload["dopplerId"] = {"deviceSerialNumber": device_id}
-                    json_payload["isPlayingInLemur"] = False
-                    json_payload["lemurVolume"] = None
-                    json_payload["volume"] = None
+                    json_payload = self._make_dispatcher_data(
+                        self._player_info, device_id
+                    )
                     _LOGGER.debug(
                         "Updating player info by parent (http2): %s",
                         hide_serial(json_payload),
@@ -672,6 +686,20 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         queue_state["playBackOrder"],
                     )
                 await _refresh_if_no_audiopush(already_refreshed)
+
+    def _make_dispatcher_data(
+        self, player_info: Dict[str, Any], device_id: str
+    ) -> Dict[str, Any]:
+        """Rewrite data that propagates downstream"""
+        json_payload = player_info.copy()
+        json_payload["dopplerId"] = {
+            "deviceSerialNumber": device_id,
+            "parentSerialNumber": self._device_serial_number,
+        }
+        json_payload["isPlayingInLemur"] = False
+        json_payload["lemurVolume"] = None
+        json_payload["volume"] = None
+        return json_payload
 
     def _clear_media_details(self):
         """Set all Media Items to None."""
@@ -835,13 +863,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     "memberVolume"
                 ):
                     if self.hass:
-                        for device_id in menbers_volume:
-                            json_payload = self._session.copy()
-                            json_payload["dopplerId"] = {
-                                "deviceSerialNumber": device_id
-                            }
-                            json_payload["isPlayingInLemur"] = False
-                            json_payload["lemurVolume"] = None
+                        for device_id in self._cluster_members:
+                            json_payload = self._make_dispatcher_data(
+                                self._session, device_id
+                            )
                             json_payload["volume"] = menbers_volume.get(device_id)
                             _LOGGER.debug(
                                 "Updating player info by parent (API Call): %s",
@@ -1050,9 +1075,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 volume = composite.get("volume")
         if muted is not None:
             self._media_is_muted = muted
-        if volume is not None:
-            if isinstance(volume, (int, float)):
-                self._media_vol_level = volume / 100 if volume > 1 else float(volume)
+        if volume is not None and isinstance(volume, (int, float)):
+            if isinstance(volume, int) or volume > 1:
+                self._media_vol_level = volume / 100
+            else:
+                self._media_vol_level = float(volume)
 
     @property
     def available(self):

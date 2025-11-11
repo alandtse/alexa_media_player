@@ -688,8 +688,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 await _refresh_if_no_audiopush(already_refreshed)
 
     def _make_dispatcher_data(
-        self, player_info: Dict[str, Any], device_id: str
-    ) -> Dict[str, Any]:
+        self, player_info: dict[str, Any], device_id: str
+    ) -> dict[str, Any]:
         """Rewrite data that propagates downstream"""
         json_payload = player_info.copy()
         json_payload["dopplerId"] = {

@@ -108,3 +108,11 @@ venv.bak/
 .DS_Store
 coverage.lcov
 custom_components/test
+
+# Home Assistant development config directory
+/home-assistant.log*
+/home-assistant_v2.*
+/.ha_run.lock
+/.HA_VERSION
+/.storage/
+/.cloud/

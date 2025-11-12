@@ -33,7 +33,7 @@ from homeassistant.components.persistent_notification import (
     async_create as async_create_persistent_notification,
     async_dismiss as async_dismiss_persistent_notification,
 )
-from homeassistant.config_entries import SOURCE_IMPORT
+from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_REAUTH
 from homeassistant.const import (
     CONF_EMAIL,
     CONF_NAME,
@@ -1561,11 +1561,9 @@ async def test_login_status(hass, config_entry, login) -> bool:
             f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
         ] = None
     _LOGGER.debug("Creating new config flow to login")
-    hass.data[DATA_ALEXAMEDIA]["config_flows"][
-        f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
-    ] = await hass.config_entries.flow.async_init(
-        DOMAIN,
-        context={"source": "reauth"},
+    config_entry.async_start_reauth(
+        hass,
+        context={"source": SOURCE_REAUTH},
         data={
             CONF_EMAIL: account[CONF_EMAIL],
             CONF_PASSWORD: account[CONF_PASSWORD],
@@ -1581,4 +1579,11 @@ async def test_login_status(hass, config_entry, login) -> bool:
             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
         },
     )
+    try:
+        flow_obj = config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}).__next__()
+        hass.data[DATA_ALEXAMEDIA]["config_flows"][
+            f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
+        ] = flow_obj
+    except StopIteration:
+        _LOGGER.debug("A new config flow could not be created.")
     return False

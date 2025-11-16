@@ -127,18 +127,18 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    entry_setup = len(account_dict["entities"]["media_player"])
     media_players = account_dict["devices"]["media_player"]
-    entry_setup = len(media_players)
     alexa_client = None
     # Make clusterMembers list from parentClusters
     for key, device in media_players.items():
         if parent_clusters := device.get("parentClusters"):
             for parent_id in parent_clusters:
                 if media_players.get(parent_id):
-                    if media_players.get(parent_id).get("clusterMembers") is None:
-                        media_players.get(parent_id)["clusterMembers"] = []
-                    if key not in media_players.get(parent_id)["clusterMembers"]:
-                        media_players.get(parent_id)["clusterMembers"].append(key)
+                    if media_players[parent_id].get("clusterMembers") is None:
+                        media_players[parent_id]["clusterMembers"] = []
+                    if key not in media_players[parent_id]["clusterMembers"]:
+                        media_players[parent_id]["clusterMembers"].append(key)
     for key, device in media_players.items():
         if key not in account_dict["entities"]["media_player"]:
             alexa_client = AlexaClient(

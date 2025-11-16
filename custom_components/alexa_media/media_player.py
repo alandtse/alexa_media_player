@@ -137,7 +137,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 if media_players.get(parent_id):
                     if media_players[parent_id].get("clusterMembers") is None:
                         media_players[parent_id]["clusterMembers"] = []
-                    if key not in media_players.get(parent_id)["clusterMembers"]:
+                    if key not in media_players[parent_id]["clusterMembers"]:
                         media_players[parent_id]["clusterMembers"].append(key)
     for key, device in media_players.items():
         if key not in account_dict["entities"]["media_player"]:

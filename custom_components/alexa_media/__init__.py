@@ -503,9 +503,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ) = await asyncio.gather(*tasks)
 
                 if should_get_network:
-                    _LOGGER.debug(
-                        "Checking network discovery results."
-                    )
+                    _LOGGER.debug("Checking network discovery results.")
                     api_devices = optional_task_results.pop()
                     if not api_devices:
                         _LOGGER.warning(
@@ -522,7 +520,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         ] = False
                         # Disregard entities_to_monitor results since we now have full network details
                         optional_task_results.pop()
-                        entities_to_monitor =  {}
+                        entities_to_monitor = {}
 
                         alexa_entities = parse_alexa_entities(api_devices)
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(

@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 import logging
 from dataclasses import dataclass
-from typing import Callable, Awaitable, Any
+from typing import Callable, Any
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
@@ -113,7 +113,7 @@ class AlexaMediaServices:
             self.hass.services.async_remove(DOMAIN, service_def.name)
 
     @_catch_login_errors
-    async def force_logout(self, call) -> bool:
+    async def force_logout(self, call: ServiceCall) -> bool:
         """Handle force logout service request.
 
         Arguments
@@ -146,7 +146,7 @@ class AlexaMediaServices:
         return success
 
     @_catch_login_errors
-    async def last_call_handler(self, call):
+    async def last_call_handler(self, call: ServiceCall) -> None:
         """Handle last call service request.
 
         Arguments
@@ -171,7 +171,7 @@ class AlexaMediaServices:
                     hide_email(email),
                 )
 
-    async def restore_volume(self, call) -> bool:
+    async def restore_volume(self, call: ServiceCall) -> bool:
         """Handle restore volume service request.
 
         Arguments:
@@ -226,7 +226,7 @@ class AlexaMediaServices:
         _LOGGER.debug("Volume restored to %s for entity %s", previous_volume, entity_id)
         return True
 
-    async def get_history_records(self, call):
+    async def get_history_records(self, call: ServiceCall) -> bool:
         """Handle request to get history records and store them on the entity."""
         entity_id = call.data.get(ATTR_ENTITY_ID)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)

@@ -21,10 +21,6 @@ from .const import (
     ATTR_NUM_ENTRIES,
     DATA_ALEXAMEDIA,
     DOMAIN,
-    SERVICE_FORCE_LOGOUT,
-    SERVICE_GET_HISTORY_RECORDS,
-    SERVICE_RESTORE_VOLUME,
-    SERVICE_UPDATE_LAST_CALLED,
 )
 from .helpers import _catch_login_errors, report_relogin_required
 
@@ -46,6 +42,54 @@ GET_HISTORY_RECORDS_SCHEMA = vol.Schema(
     }
 )
 
+ENABLE_NETWORK_DISCOVERY_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_EMAIL, default=[]): vol.All(
+            cv.ensure_list,
+            [cv.string],
+        ),
+    }
+)
+from dataclasses import dataclass
+from typing import Callable, Awaitable, Any
+
+
+@dataclass(frozen=True)
+class AlexaServiceDef:
+    """Definition for an Alexa Media custom service."""
+
+    name: str           # service name as exposed in HA: alexa_media.<name>
+    schema: vol.Schema  # voluptuous schema
+    handler: str        # method name on AlexaMediaServices
+
+
+SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
+    AlexaServiceDef(
+        name="force_logout",
+        schema=FORCE_LOGOUT_SCHEMA,
+        handler="force_logout",
+    ),
+    AlexaServiceDef(
+        name="update_last_called",
+        schema=LAST_CALL_UPDATE_SCHEMA,
+        handler="last_call_handler",
+    ),
+    AlexaServiceDef(
+        name="restore_volume",
+        schema=RESTORE_VOLUME_SCHEMA,
+        handler="restore_volume",
+    ),
+    AlexaServiceDef(
+        name="get_history_records",
+        schema=GET_HISTORY_RECORDS_SCHEMA,
+        handler="get_history_records",
+    ),
+    AlexaServiceDef(
+        name="enable_network_discovery",
+        schema=ENABLE_NETWORK_DISCOVERY_SCHEMA,
+        handler="enable_network_discovery",
+    ),
+)
 
 class AlexaMediaServices:
     """Class that holds our services that should be published to hass."""

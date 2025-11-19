@@ -92,52 +92,25 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
 )
 
 class AlexaMediaServices:
-    """Class that holds our services that should be published to hass."""
-
-    def __init__(self, hass, functions: dict[str, Callable]):
-        """Initialize with self.hass."""
+    def __init__(self, hass: HomeAssistant, functions: dict[str, Callable[..., Any]]):
         self.hass = hass
-        self.functions: dict[str, Callable] = functions
+        self._functions = functions
 
-    async def register(self):
-        """Register services to hass."""
-        self.hass.services.async_register(
-            DOMAIN, SERVICE_FORCE_LOGOUT, self.force_logout, schema=FORCE_LOGOUT_SCHEMA
-        )
-        self.hass.services.async_register(
-            DOMAIN,
-            SERVICE_UPDATE_LAST_CALLED,
-            self.last_call_handler,
-            schema=LAST_CALL_UPDATE_SCHEMA,
-        )
-        self.hass.services.async_register(
-            DOMAIN,
-            SERVICE_RESTORE_VOLUME,
-            self.restore_volume,
-            schema=RESTORE_VOLUME_SCHEMA,
-        )
-        self.hass.services.async_register(
-            DOMAIN,
-            SERVICE_GET_HISTORY_RECORDS,
-            self.get_history_records,
-            schema=GET_HISTORY_RECORDS_SCHEMA,
-        )
+    def register(self) -> None:
+        """Register Alexa Media custom services."""
+        for service_def in SERVICE_DEFS:
+            handler = getattr(self, service_def.handler)
+            self.hass.services.async_register(
+                DOMAIN,
+                service_def.name,
+                handler,
+                schema=service_def.schema,
+            )
 
-    async def unregister(self):
-        """Deregister services from hass."""
-        self.hass.services.async_remove(DOMAIN, SERVICE_FORCE_LOGOUT)
-        self.hass.services.async_remove(
-            DOMAIN,
-            SERVICE_UPDATE_LAST_CALLED,
-        )
-        self.hass.services.async_remove(
-            DOMAIN,
-            SERVICE_RESTORE_VOLUME,
-        )
-        self.hass.services.async_remove(
-            DOMAIN,
-            SERVICE_GET_HISTORY_RECORDS,
-        )
+    def unregister(self) -> None:
+        """Unregister Alexa Media custom services."""
+        for service_def in SERVICE_DEFS:
+            self.hass.services.async_remove(DOMAIN, service_def.name)
 
     @_catch_login_errors
     async def force_logout(self, call) -> bool:
@@ -315,3 +288,28 @@ class AlexaMediaServices:
             return False
 
         return True
+
+    @_catch_login_errors
+    async def enable_network_discovery(self, call: ServiceCall) -> None:
+        """Re-enable network discovery for one or more Alexa accounts."""
+        data = call.data or {}
+        target_emails: list[str] = data.get(ATTR_EMAIL, [])
+
+        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+
+        for email, account_dict in accounts.items():
+            if target_emails and email not in target_emails:
+                continue
+
+            if "should_get_network" not in account_dict:
+                _LOGGER.debug(
+                    "Account %s has no 'should_get_network' flag; skipping",
+                    email,
+                )
+                continue
+
+            account_dict["should_get_network"] = True
+            _LOGGER.debug(
+                "Re-enabled network discovery for Alexa Media account %s",
+                email,
+            )

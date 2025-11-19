@@ -5,17 +5,18 @@
       "login_failed": "Alexa Media Player failed to login.",
       "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
     },
-     "error": {
-       "connection_error": "Error connecting; check network and retry",
-       "identifier_exists": "Email for Alexa URL already registered",
-       "invalid_credentials": "Invalid credentials",
+    "error": {
+      "connection_error": "Error connecting; check network and retry",
+      "identifier_exists": "Email for Alexa URL already registered",
+      "invalid_credentials": "Invalid credentials",
       "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
       "oauth_error": "Could not complete OAuth login. Please try again.",
-       "invalid_url": "URL is invalid: {message}",
-       "2fa_key_invalid": "{otp_secret} is invalid.\n{message}",
-       "unable_to_connect_hass_url": "Unable to connect to Home Assistant Local URL. Please check the URL under Settings > System > Network > Home Assistant URL > Local network",
-       "unknown_error": "Unknown error: {message}"
-     },    "step": {
+      "invalid_url": "URL is invalid: {message}",
+      "2fa_key_invalid": "{otp_secret} is invalid.\n{message}",
+      "unable_to_connect_hass_url": "Unable to connect to Home Assistant Local URL. Please check the URL under Settings > System > Network > Home Assistant URL > Local network",
+      "unknown_error": "Unknown error: {message}"
+    },
+    "step": {
       "user": {
         "title": "Alexa Media Player - Configuration",
         "description": "* Required entries\nNote: **Extended entity discovery** requires **Discover Alexa network** to be enabled.",

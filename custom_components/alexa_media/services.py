@@ -7,9 +7,9 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
-import logging
 from dataclasses import dataclass
-from typing import Callable, Any
+import logging
+from typing import Any, Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
@@ -18,12 +18,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 import voluptuous as vol
 
-from .const import (
-    ATTR_EMAIL,
-    ATTR_NUM_ENTRIES,
-    DATA_ALEXAMEDIA,
-    DOMAIN,
-)
+from .const import ATTR_EMAIL, ATTR_NUM_ENTRIES, DATA_ALEXAMEDIA, DOMAIN
 from .helpers import _catch_login_errors, report_relogin_required
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,9 +53,9 @@ ENABLE_NETWORK_DISCOVERY_SCHEMA = vol.Schema(
 class AlexaServiceDef:
     """Definition for an Alexa Media custom service."""
 
-    name: str           # service name as exposed in HA: alexa_media.<name>
+    name: str  # service name as exposed in HA: alexa_media.<name>
     schema: vol.Schema  # voluptuous schema
-    handler: str        # method name on AlexaMediaServices
+    handler: str  # method name on AlexaMediaServices
 
 
 SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
@@ -90,6 +85,7 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         handler="enable_network_discovery",
     ),
 )
+
 
 class AlexaMediaServices:
     def __init__(self, hass: HomeAssistant, functions: dict[str, Callable[..., Any]]):

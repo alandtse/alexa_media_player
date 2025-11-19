@@ -70,7 +70,6 @@ SERVICE_UPDATE_LAST_CALLED = "update_last_called"
 SERVICE_RESTORE_VOLUME = "restore_volume"
 SERVICE_GET_HISTORY_RECORDS = "get_history_records"
 SERVICE_FORCE_LOGOUT = "force_logout"
-SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 
 RECURRING_PATTERN = {
     None: "Never Repeat",

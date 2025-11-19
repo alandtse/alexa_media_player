@@ -155,23 +155,23 @@ class AlexaMediaServices:
         requested_emails = call.data.get(ATTR_EMAIL)
         _LOGGER.debug("Service update_last_called for: %s", requested_emails)
 
-         for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
-             if requested_emails and email not in requested_emails:
-                 continue
-             login_obj = account_dict["login_obj"]
-             update_last_called = self._functions.get("update_last_called")
-             if not callable(update_last_called):
-                 _LOGGER.error(
-                     "update_last_called function not registered; "
-                     "skipping update for %s",
-                     hide_email(email),
-                 )
-                 continue
-             try:
-                 await update_last_called(login_obj)
-             except AlexapyLoginError:
-                 report_relogin_required(self.hass, login_obj, email)
-             except AlexapyConnectionError:
+        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+            if requested_emails and email not in requested_emails:
+                continue
+            login_obj = account_dict["login_obj"]
+            update_last_called = self._functions.get("update_last_called")
+            if not callable(update_last_called):
+                _LOGGER.error(
+                    "update_last_called function not registered; "
+                    "skipping update for %s",
+                    hide_email(email),
+                )
+                continue
+            try:
+                await update_last_called(login_obj)
+            except AlexapyLoginError:
+                report_relogin_required(self.hass, login_obj, email)
+            except AlexapyConnectionError:
         
     async def restore_volume(self, call: ServiceCall) -> bool:
         """Handle restore volume service request.

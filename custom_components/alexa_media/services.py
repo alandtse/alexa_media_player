@@ -130,6 +130,8 @@ class AlexaMediaServices:
             login_obj = account_dict["login_obj"]
             try:
                 await AlexaAPI.force_logout()
+                # We successfully called force_logout for this account
+                success = True
             except AlexapyLoginError:
                 report_relogin_required(self.hass, login_obj, email)
                 success = True

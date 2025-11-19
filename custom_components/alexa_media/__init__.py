@@ -523,7 +523,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         # Disregard entities_to_monitor results since we now have full network details
                         if entities_to_monitor:
                             optional_task_results.pop()
-                            entities_to_monitor.clear
+                            entities_to_monitor.clear()
                         alexa_entities = parse_alexa_entities(api_devices)
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
                             alexa_entities

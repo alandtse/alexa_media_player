@@ -729,20 +729,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         return entity_state
 
     async def _fetch_notifications_if_falsy(
-        raw_notifications: dict | None,
+        raw_notifications: dict | None, login_obj
     ) -> dict | None:
         """Fetch notifications if none provided."""
         if raw_notifications:
             return raw_notifications
 
         await asyncio.sleep(4)
-        return AlexaAPI.get_notifications(login_obj)
+        return await AlexaAPI.get_notifications(login_obj)
 
     @_catch_login_errors
     async def process_notifications(login_obj, raw_notifications: dict | None = None):
         """Process raw notifications json."""
         try:
-            raw_notifications = await _fetch_notifications_if_falsy(raw_notifications)
+            raw_notifications = await _fetch_notifications_if_falsy(
+                raw_notifications, login_obj
+            )
             email: str = login_obj.email
             previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
                 "notifications", {}

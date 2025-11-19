@@ -531,14 +531,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                         # First run is a special case. Get the state of all entities(including disabled)
                         # This ensures all entities have state during startup without needing to request coordinator refresh
+                        _entities_to_monitor = set()
                         for type_of_entity, entities in alexa_entities.items():
                             if type_of_entity == "guard" or extended_entity_discovery:
-                                _entities_to_monitor = set()
                                 for entity in entities:
                                     _entities_to_monitor.add(entity.get("id"))
                         entity_state = await get_entity_data(
                             login_obj, list(_entities_to_monitor)
                         )
+
                 if entities_to_monitor:
                     entity_state = optional_task_results.pop()
 

@@ -539,7 +539,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         entity_state = await get_entity_data(
                             login_obj, list(entities_to_monitor)
                         )
-                if entities_to_monitor:
+                elif entities_to_monitor:
                     entity_state = optional_task_results.pop()
 
                 if new_devices:

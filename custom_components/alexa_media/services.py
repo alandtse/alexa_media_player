@@ -8,11 +8,13 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import logging
-from typing import Callable
+from dataclasses import dataclass
+from typing import Callable, Awaitable, Any
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
 from homeassistant.const import ATTR_DEVICE_ID, ATTR_ENTITY_ID
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 import voluptuous as vol
 
@@ -50,8 +52,6 @@ ENABLE_NETWORK_DISCOVERY_SCHEMA = vol.Schema(
         ),
     }
 )
-from dataclasses import dataclass
-from typing import Callable, Awaitable, Any
 
 
 @dataclass(frozen=True)

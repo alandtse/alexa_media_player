@@ -728,12 +728,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
         return entity_state
 
+    async def _fetch_notifications_if_falsy(
+        raw_notifications: dict | None,
+    ) -> dict | None:
+        """Fetch notifications if none provided."""
+        if raw_notifications:
+            return raw_notifications
+
+        await asyncio.sleep(4)
+        return AlexaAPI.get_notifications(login_obj)
+
     @_catch_login_errors
-    async def process_notifications(login_obj, raw_notifications=None):
+    async def process_notifications(login_obj, raw_notifications: dict | None = None):
         """Process raw notifications json."""
-        if not raw_notifications:
-            await asyncio.sleep(4)
-            raw_notifications = await AlexaAPI.get_notifications(login_obj)
+        raw_notifications = await _fetch_notifications_if_falsy(raw_notifications)
         email: str = login_obj.email
         previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
             "notifications", {}
@@ -779,18 +787,19 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if n_type not in notifications[n_dev_id]:
                     notifications[n_dev_id][n_type] = {}
                 notifications[n_dev_id][n_type][n_id] = notification
+
+            _LOGGER.debug(
+                "%s: Updated %s notifications for %s devices at %s",
+                hide_email(email),
+                len(raw_notifications),
+                len(notifications),
+                dt.as_local(notifications["process_timestamp"]),
+            )
+        else:
+            _LOGGER.debug("%s: No new notifications retrieved", hide_email(email))
+
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"] = notifications
-        _LOGGER.debug(
-            "%s: Updated %s notifications for %s devices at %s",
-            hide_email(email),
-            len(raw_notifications),
-            len(notifications),
-            dt.as_local(
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"][
-                    "process_timestamp"
-                ]
-            ),
-        )
+        _LOGGER.debug("Finished processing notifications for %s", hide_email(email))
 
     @_catch_login_errors
     async def update_last_called(login_obj, last_called=None, force=False):

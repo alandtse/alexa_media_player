@@ -300,12 +300,12 @@ class AlexaMediaServices:
             if "should_get_network" not in account_dict:
                 _LOGGER.debug(
                     "Account %s has no 'should_get_network' flag; skipping",
-                    email,
+                    hide_email(email),
                 )
                 continue
 
             account_dict["should_get_network"] = True
             _LOGGER.debug(
                 "Re-enabled network discovery for Alexa Media account %s",
-                email,
+                hide_email(email),
             )

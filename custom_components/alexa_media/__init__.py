@@ -493,6 +493,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         try:
             # Note: asyncio.TimeoutError and aiohttp.ClientError are already
             # handled by the data update coordinator.
+            # timeout() increased from 30 to 60 to permit AlexaAPI.get_network()
+            # revision with retries to complete (which could take up to 30s).
             async with async_timeout.timeout(60):
                 (
                     devices,

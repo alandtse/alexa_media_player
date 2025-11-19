@@ -177,7 +177,7 @@ class AlexaMediaServices:
                     " check your network connection and try again",
                     hide_email(email),
                 )
-    
+
     async def restore_volume(self, call: ServiceCall) -> bool:
         """Handle restore volume service request.
 

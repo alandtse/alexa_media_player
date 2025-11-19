@@ -523,8 +523,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         # Disregard entities_to_monitor results since we now have full network details
                         if entities_to_monitor:
                             optional_task_results.pop()
-                            entities_to_monitor = {}
-
+                            entities_to_monitor.clear
                         alexa_entities = parse_alexa_entities(api_devices)
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
                             alexa_entities
@@ -534,12 +533,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         # This ensures all entities have state during startup without needing to request coordinator refresh
                         for type_of_entity, entities in alexa_entities.items():
                             if type_of_entity == "guard" or extended_entity_discovery:
+                                _entities_to_monitor = set()
                                 for entity in entities:
-                                    entities_to_monitor.add(entity.get("id"))
+                                    _entities_to_monitor.add(entity.get("id"))
                         entity_state = await get_entity_data(
-                            login_obj, list(entities_to_monitor)
+                            login_obj, list(_entities_to_monitor)
                         )
-                elif entities_to_monitor:
+                if entities_to_monitor:
                     entity_state = optional_task_results.pop()
 
                 if new_devices:

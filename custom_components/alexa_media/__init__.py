@@ -739,36 +739,51 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     @_catch_login_errors
     async def process_notifications(login_obj, raw_notifications=None):
         """Process raw notifications json."""
+        email: str = login_obj.email
+
         if not raw_notifications:
             await asyncio.sleep(4)
+            _LOGGER.debug("Calling AlexaAPI.get_notifications")
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
-        email: str = login_obj.email
+            _LOGGER.debug("Response: %s", raw_notifications)
+
         previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
             "notifications", {}
         )
-        notifications = {"process_timestamp": dt.utcnow()}
-        if raw_notifications is not None:
+
+        notifications: dict[str, Any] = {
+            "process_timestamp": dt.utcnow(),
+        }
+
+        process_ts = notifications["process_timestamp"]
+
+        if raw_notifications:
             for notification in raw_notifications:
                 n_dev_id = notification.get("deviceSerialNumber")
                 if n_dev_id is None:
                     # skip notifications untied to a device for now
-                    # https://github.com/alandtse/alexa_media_player/issues/633#issuecomment-610705651
                     continue
+
                 n_type = notification.get("type")
                 if n_type is None:
                     continue
+
                 if n_type == "MusicAlarm":
                     n_type = "Alarm"
+
                 n_id = notification["notificationIndex"]
+
                 if n_type == "Alarm":
                     n_date = notification.get("originalDate")
                     n_time = notification.get("originalTime")
                     notification["date_time"] = (
                         f"{n_date} {n_time}" if n_date and n_time else None
                     )
+
                     previous_alarm = (
                         previous.get(n_dev_id, {}).get("Alarm", {}).get(n_id)
                     )
+
                     if previous_alarm and alarm_just_dismissed(
                         notification,
                         previous_alarm.get("status"),
@@ -786,19 +801,25 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     notifications[n_dev_id] = {}
                 if n_type not in notifications[n_dev_id]:
                     notifications[n_dev_id][n_type] = {}
+
                 notifications[n_dev_id][n_type][n_id] = notification
+
+            _LOGGER.debug(
+                "%s: Updated %s notifications for %s devices at %s",
+                hide_email(email),
+                len(raw_notifications),
+                # subtract 1 to ignore "process_timestamp" entry
+                max(len(notifications) - 1, 0),
+                dt.as_local(process_ts),
+            )
+        else:
+            _LOGGER.debug(
+                "%s: No notifications were retrieved at %s",
+                hide_email(email),
+                dt.as_local(process_ts),
+            )
+
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"] = notifications
-        _LOGGER.debug(
-            "%s: Updated %s notifications for %s devices at %s",
-            hide_email(email),
-            len(raw_notifications),
-            len(notifications),
-            dt.as_local(
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"][
-                    "process_timestamp"
-                ]
-            ),
-        )
 
     @_catch_login_errors
     async def update_last_called(login_obj, last_called=None, force=False):

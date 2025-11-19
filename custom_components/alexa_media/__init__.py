@@ -741,65 +741,74 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     @_catch_login_errors
     async def process_notifications(login_obj, raw_notifications: dict | None = None):
         """Process raw notifications json."""
-        raw_notifications = await _fetch_notifications_if_falsy(raw_notifications)
-        email: str = login_obj.email
-        previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-            "notifications", {}
-        )
-        notifications = {"process_timestamp": dt.utcnow()}
-        if raw_notifications is not None:
-            for notification in raw_notifications:
-                n_dev_id = notification.get("deviceSerialNumber")
-                if n_dev_id is None:
-                    # skip notifications untied to a device for now
-                    # https://github.com/alandtse/alexa_media_player/issues/633#issuecomment-610705651
-                    continue
-                n_type = notification.get("type")
-                if n_type is None:
-                    continue
-                if n_type == "MusicAlarm":
-                    n_type = "Alarm"
-                n_id = notification["notificationIndex"]
-                if n_type == "Alarm":
-                    n_date = notification.get("originalDate")
-                    n_time = notification.get("originalTime")
-                    notification["date_time"] = (
-                        f"{n_date} {n_time}" if n_date and n_time else None
-                    )
-                    previous_alarm = (
-                        previous.get(n_dev_id, {}).get("Alarm", {}).get(n_id)
-                    )
-                    if previous_alarm and alarm_just_dismissed(
-                        notification,
-                        previous_alarm.get("status"),
-                        previous_alarm.get("version"),
-                    ):
-                        hass.bus.async_fire(
-                            "alexa_media_alarm_dismissal_event",
-                            event_data={
-                                "device": {"id": n_dev_id},
-                                "event": notification,
-                            },
-                        )
-
-                if n_dev_id not in notifications:
-                    notifications[n_dev_id] = {}
-                if n_type not in notifications[n_dev_id]:
-                    notifications[n_dev_id][n_type] = {}
-                notifications[n_dev_id][n_type][n_id] = notification
-
-            _LOGGER.debug(
-                "%s: Updated %s notifications for %s devices at %s",
-                hide_email(email),
-                len(raw_notifications),
-                len(notifications),
-                dt.as_local(notifications["process_timestamp"]),
+        try:
+            raw_notifications = await _fetch_notifications_if_falsy(raw_notifications)
+            email: str = login_obj.email
+            previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+                "notifications", {}
             )
-        else:
-            _LOGGER.debug("%s: No new notifications retrieved", hide_email(email))
+            notifications = {"process_timestamp": dt.utcnow()}
+            if raw_notifications is not None:
+                for notification in raw_notifications:
+                    n_dev_id = notification.get("deviceSerialNumber")
+                    if n_dev_id is None:
+                        # skip notifications untied to a device for now
+                        # https://github.com/alandtse/alexa_media_player/issues/633#issuecomment-610705651
+                        continue
+                    n_type = notification.get("type")
+                    if n_type is None:
+                        continue
+                    if n_type == "MusicAlarm":
+                        n_type = "Alarm"
+                    n_id = notification["notificationIndex"]
+                    if n_type == "Alarm":
+                        n_date = notification.get("originalDate")
+                        n_time = notification.get("originalTime")
+                        notification["date_time"] = (
+                            f"{n_date} {n_time}" if n_date and n_time else None
+                        )
+                        previous_alarm = (
+                            previous.get(n_dev_id, {}).get("Alarm", {}).get(n_id)
+                        )
+                        if previous_alarm and alarm_just_dismissed(
+                            notification,
+                            previous_alarm.get("status"),
+                            previous_alarm.get("version"),
+                        ):
+                            hass.bus.async_fire(
+                                "alexa_media_alarm_dismissal_event",
+                                event_data={
+                                    "device": {"id": n_dev_id},
+                                    "event": notification,
+                                },
+                            )
 
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"] = notifications
-        _LOGGER.debug("Finished processing notifications for %s", hide_email(email))
+                    if n_dev_id not in notifications:
+                        notifications[n_dev_id] = {}
+                    if n_type not in notifications[n_dev_id]:
+                        notifications[n_dev_id][n_type] = {}
+                    notifications[n_dev_id][n_type][n_id] = notification
+
+                _LOGGER.debug(
+                    "%s: Updated %s notifications for %s devices at %s",
+                    hide_email(email),
+                    len(raw_notifications),
+                    len(notifications),
+                    dt.as_local(notifications["process_timestamp"]),
+                )
+            else:
+                _LOGGER.debug("%s: No new notifications retrieved", hide_email(email))
+
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                "notifications"
+            ] = notifications
+            _LOGGER.debug("Finished processing notifications for %s", hide_email(email))
+        except Exception as e:
+            _LOGGER.debug(
+                "An error occurred while processing notifications for %s: %s",
+                hide_email(login_obj.email),
+                e,
+            )
 
     @_catch_login_errors
     async def update_last_called(login_obj, last_called=None, force=False):

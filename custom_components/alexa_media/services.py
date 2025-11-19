@@ -96,7 +96,7 @@ class AlexaMediaServices:
         self.hass = hass
         self._functions = functions
 
-    def register(self) -> None:
+    async def register(self) -> None:
         """Register Alexa Media custom services."""
         for service_def in SERVICE_DEFS:
             handler = getattr(self, service_def.handler)
@@ -107,7 +107,7 @@ class AlexaMediaServices:
                 schema=service_def.schema,
             )
 
-    def unregister(self) -> None:
+    async def unregister(self) -> None:
         """Unregister Alexa Media custom services."""
         for service_def in SERVICE_DEFS:
             self.hass.services.async_remove(DOMAIN, service_def.name)

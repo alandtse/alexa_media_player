@@ -161,7 +161,7 @@ class AlexaMediaServices:
                 continue
             login_obj = account_dict["login_obj"]
             try:
-                await self.functions.get("update_last_called")(login_obj)
+                await self._functions.get("update_last_called")(login_obj)
             except AlexapyLoginError:
                 report_relogin_required(self.hass, login_obj, email)
             except AlexapyConnectionError:

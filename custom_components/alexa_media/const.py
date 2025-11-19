@@ -60,7 +60,7 @@ DATA_LISTENER = "listener"
 EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"
 
 DEFAULT_DEBUG = False
-DEFAULT_EXTENDED_ENTITY_DISCOVERY = False
+DEFAULT_EXTENDED_ENTITY_DISCOVERY = True
 DEFAULT_HASS_URL = "http://homeassistant.local:8123"
 DEFAULT_PUBLIC_URL = ""
 DEFAULT_QUEUE_DELAY = 1.5

@@ -172,7 +172,7 @@ class AlexaMediaServices:
             except AlexapyLoginError:
                 report_relogin_required(self.hass, login_obj, email)
             except AlexapyConnectionError:
-        
+    
     async def restore_volume(self, call: ServiceCall) -> bool:
         """Handle restore volume service request.
 

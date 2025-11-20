@@ -228,6 +228,7 @@ class AlexaMediaServices:
                 "volume_level": previous_volume,
             },
             target={"entity_id": entity_id},
+            blocking=True,
         )
 
         _LOGGER.debug("Volume restored to %s for entity %s", previous_volume, entity_id)
@@ -313,11 +314,12 @@ class AlexaMediaServices:
                     hide_email(email),
                 )
             except AlexapyLoginError:
-                # Optional: if history endpoints can throw this
                 _LOGGER.exception(
                     "Login error retrieving history for %s",
                     hide_email(email),
                 )
+                report_relogin_required(self.hass, login_obj, email)
+
             except asyncio.CancelledError:
                 # Let HA cancellation propagate
                 raise
@@ -343,7 +345,6 @@ class AlexaMediaServices:
         _LOGGER.error("Entity %s state not found", entity_id)
         return False
 
-    @_catch_login_errors
     async def enable_network_discovery(self, call: ServiceCall) -> None:
         """Re-enable network discovery for one or more Alexa accounts."""
         data = call.data or {}

@@ -113,6 +113,7 @@ RECURRING_PATTERN_ISO_SET = {
 
 ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
+ATTR_ENTITY_ID = "entity_id"
 ATTR_NUM_ENTRIES = "entries"
 STREAMING_ERROR_MESSAGE = (
     "Sorry, direct music streaming isn't supported. "

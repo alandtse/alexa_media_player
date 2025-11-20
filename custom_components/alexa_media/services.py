@@ -14,7 +14,6 @@ from typing import Any, Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
-from homeassistant.const import ATTR_DEVICE_ID, ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 import voluptuous as vol
@@ -149,25 +148,25 @@ class AlexaMediaServices:
         """Handle last call service request.
 
         Arguments
-        call.ATTR_EMAIL: {List[str: None]}: List of case-sensitive Alexa emails.
-                                            If None, all accounts are updated.
-
+            call.ATTR_EMAIL: {List[str: None]}: List of case-sensitive Alexa emails.
+                                                If None, all accounts are updated.
         """
         requested_emails = call.data.get(ATTR_EMAIL)
-        _LOGGER.debug("Service update_last_called for: %s", requested_emails)
+        update_last_called = self._functions.get("update_last_called")
+
+        if not callable(update_last_called):
+            _LOGGER.error(
+                "update_last_called function not registered; cannot update last_called"
+            )
+            return
+
+        _LOGGER.debug("Service update_last_called called for: %s", requested_emails)
 
         for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
             if requested_emails and email not in requested_emails:
                 continue
+
             login_obj = account_dict["login_obj"]
-            update_last_called = self._functions.get("update_last_called")
-            if not callable(update_last_called):
-                _LOGGER.error(
-                    "update_last_called function not registered; "
-                    "skipping update for %s",
-                    hide_email(email),
-                )
-                continue
             try:
                 await update_last_called(login_obj)
             except AlexapyLoginError:
@@ -243,7 +242,7 @@ class AlexaMediaServices:
         try:
             number_of_entries_int = int(number_of_entries)
         except (TypeError, ValueError):
-            _LOGGER.error(
+            _LOGGER.exception(
                 "Service get_history_records for %s has invalid entries value: %s",
                 entity_id,
                 number_of_entries,
@@ -286,16 +285,18 @@ class AlexaMediaServices:
             for item in history_data:
                 summary = item.get("description", {}).get("summary", "")
                 device_serial_number = item.get("deviceSerialNumber")
+                timestamp = item.get("creationTimestamp")
 
                 if (
                     not summary
                     or summary == ","
                     or device_serial_number != target_serial_number
+                    or timestamp is None
                 ):
                     continue
 
                 entry = {
-                    "timestamp": item.get("creationTimestamp"),
+                    "timestamp": timestamp,
                     "summary": summary,
                     "response": item.get("alexaResponse", ""),
                 }
@@ -306,28 +307,25 @@ class AlexaMediaServices:
             login_obj = account_dict["login_obj"]
             try:
                 await _collect_history_for_account(login_obj)
-            except AlexapyConnectionError as err:
-                _LOGGER.error(
-                    "Error retrieving history for %s: %s",
+            except AlexapyConnectionError:
+                _LOGGER.exception(
+                    "Error retrieving history for %s",
                     hide_email(email),
-                    err,
                 )
-            except AlexapyLoginError as err:
+            except AlexapyLoginError:
                 # Optional: if history endpoints can throw this
-                _LOGGER.error(
-                    "Login error retrieving history for %s: %s",
+                _LOGGER.exception(
+                    "Login error retrieving history for %s",
                     hide_email(email),
-                    err,
                 )
             except asyncio.CancelledError:
                 # Let HA cancellation propagate
                 raise
-            except Exception as err:
+            except Exception:
                 # Fallback for truly unexpected errors
                 _LOGGER.exception(
-                    "Unexpected error retrieving history for %s: %s",
+                    "Unexpected error retrieving history for %s",
                     hide_email(email),
-                    err,
                 )
 
         # Sort and limit entries
@@ -352,10 +350,13 @@ class AlexaMediaServices:
         target_emails: list[str] = data.get(ATTR_EMAIL, [])
 
         accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+        any_matched = False
 
         for email, account_dict in accounts.items():
             if target_emails and email not in target_emails:
                 continue
+
+            any_matched = True
 
             if "should_get_network" not in account_dict:
                 _LOGGER.debug(
@@ -368,4 +369,10 @@ class AlexaMediaServices:
             _LOGGER.debug(
                 "Re-enabled network discovery for Alexa Media account %s",
                 hide_email(email),
+            )
+
+        if target_emails and not any_matched:
+            _LOGGER.warning(
+                "enable_network_discovery called for %s but no matching Alexa Media accounts were found",
+                target_emails,
             )

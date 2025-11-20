@@ -13,7 +13,7 @@ from json import JSONDecodeError, loads
 import logging
 import os
 import time
-from typing import Optional
+from typing import Any, Optional
 
 from alexapy import (
     AlexaAPI,

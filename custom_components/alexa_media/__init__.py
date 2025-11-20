@@ -550,7 +550,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
 
                 if entities_to_monitor:
-                    entity_state = optional_task_results.pop() 
+                    entity_state = optional_task_results.pop()
                     _LOGGER.debug(
                         "%s: Processing %s entities to monitor",
                         hide_email(email),

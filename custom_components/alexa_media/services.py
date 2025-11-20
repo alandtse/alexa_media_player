@@ -140,7 +140,7 @@ class AlexaMediaServices:
                 continue
             login_obj = account_dict["login_obj"]
             try:
-                await AlexaAPI.force_logout()
+                await AlexaAPI.force_logout(login_obj)
                 # We successfully called force_logout for this account
                 success = True
             except AlexapyLoginError:

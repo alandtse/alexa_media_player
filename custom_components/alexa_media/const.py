@@ -66,12 +66,12 @@ DEFAULT_PUBLIC_URL = ""
 DEFAULT_QUEUE_DELAY = 1.5
 DEFAULT_SCAN_INTERVAL = 60
 
-# NOTE: Service name constants are kept only for backwards compatibility.
-# The canonical service registry now lives in services.py (SERVICE_DEFS).
+# Service name constants used by services.py SERVICE_DEFS
 SERVICE_UPDATE_LAST_CALLED = "update_last_called"
 SERVICE_RESTORE_VOLUME = "restore_volume"
 SERVICE_GET_HISTORY_RECORDS = "get_history_records"
 SERVICE_FORCE_LOGOUT = "force_logout"
+SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 
 RECURRING_PATTERN = {
     None: "Never Repeat",

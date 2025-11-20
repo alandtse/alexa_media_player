@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 import voluptuous as vol
 
-from .const import ATTR_EMAIL, ATTR_NUM_ENTRIES, DATA_ALEXAMEDIA, DOMAIN
+from .const import ATTR_EMAIL, ATTR_ENTITY_ID, ATTR_NUM_ENTRIES, DATA_ALEXAMEDIA, DOMAIN
 from .helpers import _catch_login_errors, report_relogin_required
 
 _LOGGER = logging.getLogger(__name__)

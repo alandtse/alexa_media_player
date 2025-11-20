@@ -238,7 +238,7 @@ class AlexaMediaServices:
         """Handle request to get history records and store them on the entity."""
         entity_id = call.data.get(ATTR_ENTITY_ID)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
-        
+
         # Validate number_of_entries
         try:
             number_of_entries_int = int(number_of_entries)
@@ -249,7 +249,7 @@ class AlexaMediaServices:
                 number_of_entries,
             )
             return False
-        
+
         if number_of_entries_int <= 0:
             _LOGGER.error(
                 "Service get_history_records for %s with %s entries is invalid; must be > 0",
@@ -257,7 +257,7 @@ class AlexaMediaServices:
                 number_of_entries_int,
             )
             return False
-        
+
         _LOGGER.debug(
             "Service get_history_records for: %s with %s entries",
             entity_id,

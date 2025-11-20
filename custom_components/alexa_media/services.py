@@ -7,6 +7,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+import asyncio
 from dataclasses import dataclass
 import logging
 from typing import Any, Callable
@@ -237,10 +238,30 @@ class AlexaMediaServices:
         """Handle request to get history records and store them on the entity."""
         entity_id = call.data.get(ATTR_ENTITY_ID)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
+        
+        # Validate number_of_entries
+        try:
+            number_of_entries_int = int(number_of_entries)
+        except (TypeError, ValueError):
+            _LOGGER.error(
+                "Service get_history_records for %s has invalid entries value: %s",
+                entity_id,
+                number_of_entries,
+            )
+            return False
+        
+        if number_of_entries_int <= 0:
+            _LOGGER.error(
+                "Service get_history_records for %s with %s entries is invalid; must be > 0",
+                entity_id,
+                number_of_entries_int,
+            )
+            return False
+        
         _LOGGER.debug(
-            "Service get_history_records for: %s with %d entries",
+            "Service get_history_records for: %s with %s entries",
             entity_id,
-            number_of_entries,
+            number_of_entries_int,
         )
 
         # Validate the target entity
@@ -251,50 +272,78 @@ class AlexaMediaServices:
             return False
         target_serial_number = entity_entry.unique_id
 
-        history_data_total = []
+        history_data_total: list[dict[str, Any]] = []
+
+        async def _collect_history_for_account(login_obj) -> None:
+            """Collect history entries for a single account matching the target device."""
+            # Get the history records. Input: time_from, time_to (both None here).
+            history_data = await AlexaAPI.get_customer_history_records(
+                login_obj, None, None
+            )
+            if not history_data:
+                return
+
+            for item in history_data:
+                summary = item.get("description", {}).get("summary", "")
+                device_serial_number = item.get("deviceSerialNumber")
+
+                if (
+                    not summary
+                    or summary == ","
+                    or device_serial_number != target_serial_number
+                ):
+                    continue
+
+                entry = {
+                    "timestamp": item.get("creationTimestamp"),
+                    "summary": summary,
+                    "response": item.get("alexaResponse", ""),
+                }
+                history_data_total.append(entry)
+
+        # Iterate accounts and collect history
         for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
             login_obj = account_dict["login_obj"]
             try:
-                # Get the history records. Input: Time from, Time to,
-                history_data = await AlexaAPI.get_customer_history_records(
-                    login_obj, None, None
-                )
-                if history_data:
-                    for item in history_data:
-                        summary = item.get("description", {}).get("summary", "")
-                        device_serial_number = item.get("deviceSerialNumber")
-                        if (
-                            not summary
-                            or summary == ","
-                            or device_serial_number != target_serial_number
-                        ):
-                            continue
-                        entry = {
-                            "timestamp": item.get("creationTimestamp"),
-                            "summary": summary,
-                            "response": item.get("alexaResponse", ""),
-                        }
-                        history_data_total.append(entry)
-            except Exception as e:
+                await _collect_history_for_account(login_obj)
+            except AlexapyConnectionError as err:
                 _LOGGER.error(
-                    "Error retrieving history for %s: %s", hide_email(email), str(e)
+                    "Error retrieving history for %s: %s",
+                    hide_email(email),
+                    err,
+                )
+            except AlexapyLoginError as err:
+                # Optional: if history endpoints can throw this
+                _LOGGER.error(
+                    "Login error retrieving history for %s: %s",
+                    hide_email(email),
+                    err,
+                )
+            except asyncio.CancelledError:
+                # Let HA cancellation propagate
+                raise
+            except Exception as err:
+                # Fallback for truly unexpected errors
+                _LOGGER.exception(
+                    "Unexpected error retrieving history for %s: %s",
+                    hide_email(email),
+                    err,
                 )
 
         # Sort and limit entries
         history_data_total.sort(key=lambda x: x["timestamp"], reverse=True)
-        history_data_total = history_data_total[:number_of_entries]
+        history_data_total = history_data_total[:number_of_entries_int]
 
         # Update the entity's attributes
         state = self.hass.states.get(entity_id)
-        if state and self.hass.states.async_set:
+        if state is not None:
             new_attributes = dict(state.attributes)
             new_attributes["history_records"] = history_data_total
             self.hass.states.async_set(entity_id, state.state, new_attributes)
-        else:
-            _LOGGER.error("Entity %s state not found", entity_id)
-            return False
+            return True
 
-        return True
+        _LOGGER.error("Entity %s state not found", entity_id)
+        return False
 
     @_catch_login_errors
     async def enable_network_discovery(self, call: ServiceCall) -> None:

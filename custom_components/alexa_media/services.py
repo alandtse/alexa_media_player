@@ -18,7 +18,18 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 import voluptuous as vol
 
-from .const import ATTR_EMAIL, ATTR_ENTITY_ID, ATTR_NUM_ENTRIES, DATA_ALEXAMEDIA, DOMAIN
+from .const import (
+    ATTR_EMAIL,
+    ATTR_ENTITY_ID,
+    ATTR_NUM_ENTRIES,
+    DATA_ALEXAMEDIA,
+    DOMAIN,
+    SERVICE_FORCE_LOGOUT,
+    SERVICE_UPDATE_LAST_CALLED,
+    SERVICE_RESTORE_VOLUME,
+    SERVICE_GET_HISTORY_RECORDS,
+    SERVICE_ENABLE_NETWORK_DISCOVERY,
+)
 from .helpers import _catch_login_errors, report_relogin_required
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,27 +71,27 @@ class AlexaServiceDef:
 
 SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
     AlexaServiceDef(
-        name="force_logout",
+        name=SERVICE_FORCE_LOGOUT,
         schema=FORCE_LOGOUT_SCHEMA,
         handler="force_logout",
     ),
     AlexaServiceDef(
-        name="update_last_called",
+        name=SERVICE_UPDATE_LAST_CALLED,
         schema=LAST_CALL_UPDATE_SCHEMA,
         handler="last_call_handler",
     ),
     AlexaServiceDef(
-        name="restore_volume",
+        name=SERVICE_RESTORE_VOLUME,
         schema=RESTORE_VOLUME_SCHEMA,
         handler="restore_volume",
     ),
     AlexaServiceDef(
-        name="get_history_records",
+        name=SERVICE_GET_HISTORY_RECORDS,
         schema=GET_HISTORY_RECORDS_SCHEMA,
         handler="get_history_records",
     ),
     AlexaServiceDef(
-        name="enable_network_discovery",
+        name=SERVICE_ENABLE_NETWORK_DISCOVERY,
         schema=ENABLE_NETWORK_DISCOVERY_SCHEMA,
         handler="enable_network_discovery",
     ),

@@ -622,6 +622,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     self.schedule_update_ha_state(True)
                 except NoEntitySpecifiedError:
                     pass
+
     @property
     def hidden(self):
         """Return whether the sensor should be hidden."""
@@ -662,9 +663,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         # Normal path: notifications dict present
         self._timestamp = notifications.get("process_timestamp")
 
-        device_notifications = notifications.get(
-            self._client.device_serial_number, {}
-        )
+        device_notifications = notifications.get(self._client.device_serial_number, {})
         self._n_dict = device_notifications.get(self._type)
         self._process_raw_notifications()
         try:
@@ -687,9 +686,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         attr = {
             "recurrence": self.recurrence,
             "process_timestamp": (
-                dt.as_local(self._timestamp).isoformat()
-                if self._timestamp
-                else None
+                dt.as_local(self._timestamp).isoformat() if self._timestamp else None
             ),
             "prior_value": self._process_state(self._prior_value),
             "total_active": len(self._active),

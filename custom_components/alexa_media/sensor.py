@@ -40,6 +40,7 @@ from .alexa_entity import (
     parse_temperature_from_coordinator,
 )
 from .const import (
+    ALEXA_AIR_QUALITY_DEVICE_CLASS,
     ALEXA_ICON_CONVERSION,
     ALEXA_ICON_DEFAULT,
     ALEXA_UNIT_CONVERSION,
@@ -87,12 +88,10 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             raise ConfigEntryNotReady
         if key not in (account_dict["entities"]["sensor"]):
             (account_dict["entities"]["sensor"][key]) = {}
-
             for n_type, class_ in SENSOR_TYPES.items():
                 notifications = account_dict.get("notifications") or {}
                 key_notifications = notifications.get(key, {})
                 n_type_dict = key_notifications.get(n_type, {})
-
                 if (
                     n_type in ("Alarm", "Timer")
                     and "TIMERS_AND_ALARMS" in device["capabilities"]
@@ -169,7 +168,7 @@ async def async_unload_entry(hass, entry) -> bool:
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("Attempting to unload sensors")
     for key, sensors in account_dict["entities"]["sensor"].items():
-        for device in sensors.values():
+        for device in sensors[key].values():
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
     return True
@@ -340,7 +339,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             " " + char if char.isupper() else char.strip() for char in self._sensor_name
         ).strip()
         self._attr_name = name + " " + self._sensor_name
-        self._attr_device_class = self._sensor_name
+        self._attr_device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS.get(sensor_name)
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_value: Optional[datetime.datetime] = (
             parse_air_quality_from_coordinator(coordinator, entity_id, instance)
@@ -585,9 +584,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
     async def async_will_remove_from_hass(self):
         """Prepare to remove entity."""
-        if getattr(self, "_listener", None):
-            self._listener()
-        if getattr(self, "_tracker", None):
+        # Register event handler on bus
+        self._listener()
+        if self._tracker:
             self._tracker()
 
     def _handle_event(self, event):
@@ -607,21 +606,14 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 == self._client.device_serial_number
             ):
                 _LOGGER.debug("Updating sensor %s", self)
-                try:
-                    self.schedule_update_ha_state(True)
-                except NoEntitySpecifiedError:
-                    # Harmless startup race: entity not fully registered yet
-                    pass
+                self.schedule_update_ha_state(True)
         if "push_activity" in event:
             if (
                 event["push_activity"]["key"]["serialNumber"]
                 == self._client.device_serial_number
             ):
                 _LOGGER.debug("Updating sensor %s", self)
-                try:
-                    self.schedule_update_ha_state(True)
-                except NoEntitySpecifiedError:
-                    pass
+                self.schedule_update_ha_state(True)
 
     @property
     def hidden(self):
@@ -643,7 +635,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 return
         except AttributeError:
             pass
-
         account_dict = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]
         notifications = account_dict.get("notifications")
         if notifications is None:
@@ -663,7 +654,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
         # Normal path: notifications dict present
         self._timestamp = notifications.get("process_timestamp")
 
-        device_notifications = notifications.get(self._client.device_serial_number, {})
+        device_notifications = notifications.get(
+            self._client.device_serial_number, {}
+        )
         self._n_dict = device_notifications.get(self._type)
         self._process_raw_notifications()
         try:
@@ -686,7 +679,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
         attr = {
             "recurrence": self.recurrence,
             "process_timestamp": (
-                dt.as_local(self._timestamp).isoformat() if self._timestamp else None
+                dt.as_local(self._timestamp).isoformat()
+                if self._timestamp
+                else None
             ),
             "prior_value": self._process_state(self._prior_value),
             "total_active": len(self._active),

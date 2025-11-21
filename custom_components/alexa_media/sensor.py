@@ -655,7 +655,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._timestamp = notifications.get("process_timestamp")
 
         device_notifications = notifications.get(self._client.device_serial_number, {})
-        self._n_dict = device_notifications.get(self._type)
+        self._n_dict = device_notifications.get(self._type, {})
         self._process_raw_notifications()
         try:
             self.schedule_update_ha_state()

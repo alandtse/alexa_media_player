@@ -738,8 +738,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             _LOGGER.debug("Calling AlexaAPI.get_notifications")
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
             _LOGGER.debug(
-                "Response: %s",
-                raw_notifications if raw_notifications else "None"
+                "Response: %s", raw_notifications if raw_notifications else "None"
             )
 
         previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(

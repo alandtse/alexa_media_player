@@ -783,7 +783,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         _LOGGER.debug(
             "%s: Updated %s notifications for %s devices at %s",
             hide_email(email),
-            len(raw_notifications),
+            len(raw_notifications) if raw_notifications else 0,
             len(notifications),
             dt.as_local(
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"][

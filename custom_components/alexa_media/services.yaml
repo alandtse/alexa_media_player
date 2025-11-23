@@ -52,3 +52,19 @@ update_last_called:
       description: List of Alexa accounts to update. If empty, will update all known accounts.
       # Example value that can be passed for this field
       example: "my_email@alexa.com"
+
+enable_network_discovery:
+  name: Enable network discovery
+  description: >
+    Re-enable Alexa network discovery so the next polling cycle will
+    rediscover Alexa devices for the selected accounts.
+  fields:
+    email:
+      name: Account email(s)
+      description: >
+        Optional Alexa account email or list of emails. If omitted,
+        all Alexa Media accounts will be refreshed.
+      required: false
+      example: [email protected]
+      selector:
+        text:

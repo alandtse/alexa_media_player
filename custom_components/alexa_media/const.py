@@ -66,10 +66,12 @@ DEFAULT_PUBLIC_URL = ""
 DEFAULT_QUEUE_DELAY = 1.5
 DEFAULT_SCAN_INTERVAL = 60
 
+# Service name constants used by services.py SERVICE_DEFS
 SERVICE_UPDATE_LAST_CALLED = "update_last_called"
 SERVICE_RESTORE_VOLUME = "restore_volume"
 SERVICE_GET_HISTORY_RECORDS = "get_history_records"
 SERVICE_FORCE_LOGOUT = "force_logout"
+SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 
 RECURRING_PATTERN = {
     None: "Never Repeat",
@@ -111,6 +113,7 @@ RECURRING_PATTERN_ISO_SET = {
 
 ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
+ATTR_ENTITY_ID = "entity_id"
 ATTR_NUM_ENTRIES = "entries"
 STREAMING_ERROR_MESSAGE = (
     "Sorry, direct music streaming isn't supported. "

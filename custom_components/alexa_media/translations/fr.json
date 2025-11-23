@@ -9,8 +9,10 @@
       "2fa_key_invalid": "Clé 2FA intégrée non valide",
       "connection_error": "Erreur de connexion; vérifier le réseau et réessayer",
       "identifier_exists": "Email pour l'URL Alexa déjà enregistré",
+      "invalid_auth": "La connexion a échoué. Veuillez vérifier votre adresse e-mail, votre mot de passe et votre clé d'authentification.",
       "invalid_credentials": "Informations d'identification invalides",
       "invalid_url": "L'URL n'est pas valide: {message}",
+      "oauth_error": "Impossible de terminer la connexion OAuth. Veuillez réessayer.",
       "unable_to_connect_hass_url": "Impossible de se connecter à l'URL de Home Assistant. Veuillez vérifier l'URL interne sous Configuration - > Général",
       "unknown_error": "Erreur inconnue, veuillez signaler les informations du journal: {message}"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble",
           "scan_interval": "Secondes entre les analyses",
           "securitycode": "Code 2FA (recommandé pour éviter les problèmes de connexion)",
+          "should_get_network": "Découvrez le réseau Alexa",
           "url": "Domaine de la région Amazon (exemple, amazon.fr)"
         },
         "description": "Veuillez confirmer les informations ci-dessous. Pour la configuration héritée, désactivez l'option \"Utiliser la méthode de proxy de connexion\".",
@@ -66,7 +69,8 @@
           "include_devices": "Appareil inclus (séparé par des virgules)",
           "public_url": "URL publique pour accéder à Home Assistant (y compris le '/' final)",
           "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble",
-          "scan_interval": "Secondes entre les analyses"
+          "scan_interval": "Secondes entre les analyses",
+          "should_get_network": "Découvrez le réseau Alexa"
         },
         "description": "Requis *",
         "title": "Alexa Media Player – Reconfiguration"
@@ -74,6 +78,16 @@
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Réactive la découverte du réseau Alexa afin que le prochain cycle d'interrogation redécouvre les appareils Alexa pour les comptes sélectionnés.",
+      "fields": {
+        "email": {
+          "description": "Adresse e-mail ou liste d'adresses e-mail du compte Alexa (facultatif). Si ces champs sont vides, tous les comptes connus seront mis à jour.",
+          "name": "Adresse email"
+        }
+      },
+      "name": "Activer la découverte du réseau"
+    },
     "force_logout": {
       "description": "Forcer le compte à se déconnecter. Utilisé principalement pour le débogage.",
       "fields": {

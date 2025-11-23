@@ -9,8 +9,10 @@
       "2fa_key_invalid": "Ongeldige ingebouwde 2FA sleutel",
       "connection_error": "Fout bij verbinding; controleer netwerk en probeer opnieuw",
       "identifier_exists": "Dit e-mailadres voor Alexa URL is al geregistreerd",
+      "invalid_auth": "Inloggen is mislukt. Controleer uw e-mailadres, wachtwoord en Authenticator-sleutel nogmaals.",
       "invalid_credentials": "Ongeldige inloggegevens",
       "invalid_url": "De URL is ongeldig: {message}",
+      "oauth_error": "OAuth-aanmelding kon niet worden voltooid. Probeer het opnieuw.",
       "unable_to_connect_hass_url": "Kan geen verbinding maken met de Home Assistant url. Controleer de externe url onder Configuratie - > Algemeen",
       "unknown_error": "Onbekende fout: {message}"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "Aantal seconden wachten om opdrachten in de wachtrij te groeperen",
           "scan_interval": "Aantal seconden tussen scans",
           "securitycode": "2FA sleutel (aanbevolen om inlogproblemen te voorkomen)",
+          "should_get_network": "Ontdek het Alexa-netwerk",
           "url": "Domeinnaam van Amazon regio (bijv: amazon.co.uk)"
         },
         "description": "Bevestig de onderstaande informatie. Schakel voor oudere configuraties de optie 'Inlogproxymethode gebruiken' uit.",
@@ -66,7 +69,8 @@
           "include_devices": "Inbegrepen apparaten (Scheiding: komma)",
           "public_url": "Openbare URL voor toegang tot Home Assistant (inclusief afsluitende '/')",
           "queue_delay": "Aantal seconden wachten om opdrachten in de wachtrij te groeperen",
-          "scan_interval": "Aantal seconden tussen scans"
+          "scan_interval": "Aantal seconden tussen scans",
+          "should_get_network": "Ontdek het Alexa-netwerk"
         },
         "description": "Vereist *",
         "title": "Alexa Mediaspeler - Herconfiguratie"
@@ -74,6 +78,16 @@
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Schakelt Alexa-netwerkdetectie opnieuw in, zodat bij de volgende pollingcyclus Alexa-apparaten voor de geselecteerde accounts opnieuw worden gedetecteerd.",
+      "fields": {
+        "email": {
+          "description": "Optioneel Alexa-account-e-mailadres of lijst met e-mailadressen. Indien leeg, worden alle bekende accounts vernieuwd.",
+          "name": "E-mailadres"
+        }
+      },
+      "name": "Netwerkdetectie inschakelen"
+    },
     "force_logout": {
       "description": "Forceer account om uit te loggen. Voornamelijk gebruikt voor foutopsporing.",
       "fields": {

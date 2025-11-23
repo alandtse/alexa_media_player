@@ -9,8 +9,10 @@
       "2fa_key_invalid": "Nieprawidłowy klucz z wbudowanej aplikacji uwierzytelniania dwuskładnikowego",
       "connection_error": "Błąd podczas łączenia; sprawdź sieć i spróbuj ponownie",
       "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
+      "invalid_auth": "Logowanie nie powiodło się. Sprawdź ponownie swój adres e-mail, hasło i klucz uwierzytelniający.",
       "invalid_credentials": "Nieprawidłowe dane logowania",
       "invalid_url": "URL jest nieprawidłowy: {message}",
+      "oauth_error": "Nie udało się dokończyć logowania OAuth. Spróbuj ponownie.",
       "unable_to_connect_hass_url": "Nie można połączyć się z adresem URL Home Assistanta. Sprawdź wewnętrzny adres URL w sekcji Konfiguracja -> Ogólne",
       "unknown_error": "Nieznany błąd: {message}"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń",
           "scan_interval": "Interwał skanowania (sekundy)",
           "securitycode": "Kod uwierzytelniania dwuskładnikowego (zalecany w celu uniknięcia problemów z logowaniem)",
+          "should_get_network": "Odkryj sieć Alexa",
           "url": "Region/domena Amazon (np. amazon.co.uk)"
         },
         "description": "Potwierdź poniższe informacje.",
@@ -66,14 +69,25 @@
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
           "public_url": "Publiczny URL do dostępu do Home Assistant (z końcowym '/')",
           "queue_delay": "Sekundy oczekiwania na kolejkowanie poleceń",
-          "scan_interval": "Interwał skanowania (sekundy)"
+          "scan_interval": "Interwał skanowania (sekundy)",
+          "should_get_network": "Odkryj sieć Alexa"
         },
-        "description": "Required *",
+        "description": "* Wymagane wpisy \n Uwaga: **Rozszerzone wykrywanie jednostek** wymaga włączenia opcji **Odkryj sieć Alexa**.",
         "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Ponownie włącza wykrywanie sieci Alexa, dzięki czemu kolejny cykl sondowania ponownie wykryje urządzenia Alexa dla wybranych kont.",
+      "fields": {
+        "email": {
+          "description": "Opcjonalny adres e-mail konta Alexa lub lista adresów e-mail. Jeśli jest pusty, wszystkie znane konta zostaną odświeżone.",
+          "name": "Adres e-mail"
+        }
+      },
+      "name": "Włącz wykrywanie sieci"
+    },
     "force_logout": {
       "description": "Force account to logout. Used mainly for debugging.",
       "fields": {

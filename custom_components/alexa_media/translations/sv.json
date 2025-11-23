@@ -6,11 +6,13 @@
       "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
     },
     "error": {
-      "2fa_key_invalid": "Invalid Authenticator App key for Amazon 2SV",
+      "2fa_key_invalid": "{otp_secret} is invalid.\n{message}",
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
+      "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL is invalid: {message}",
+      "oauth_error": "Could not complete OAuth login. Please try again.",
       "unable_to_connect_hass_url": "Unable to connect to Home Assistant Local URL. Please check the URL under Settings > System > Network > Home Assistant URL > Local network",
       "unknown_error": "Unknown error: {message}"
     },
@@ -43,9 +45,10 @@
           "queue_delay": "Delay to queue multiple commands together (seconds)",
           "scan_interval": "Scheduled polling interval (seconds)",
           "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Discover Alexa network",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
-        "description": "Required *",
+        "description": "* Required entries\nNote: **Extended entity discovery** requires **Discover Alexa network** to be enabled.",
         "title": "Alexa Media Player - Configuration"
       }
     }
@@ -66,14 +69,25 @@
           "include_devices": "Only include these devices (comma separated)",
           "public_url": "Public URL shared with external hosted services",
           "queue_delay": "Delay to queue multiple commands together (seconds)",
-          "scan_interval": "Scheduled polling frequency (seconds)"
+          "scan_interval": "Scheduled polling frequency (seconds)",
+          "should_get_network": "Discover Alexa network"
         },
-        "description": "Required *",
+        "description": "* Required entries\nNote: **Extended entity discovery** requires **Discover Alexa network** to be enabled.",
         "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Re-enables Alexa network discovery so the next polling cycle will rediscover Alexa devices for the selected accounts.",
+      "fields": {
+        "email": {
+          "description": "Optional Alexa account email or list of emails. If empty, all known accounts will be refreshed.",
+          "name": "Email address"
+        }
+      },
+      "name": "Enable Network Discovery"
+    },
     "force_logout": {
       "description": "Force account to logout. Used mainly for debugging.",
       "fields": {

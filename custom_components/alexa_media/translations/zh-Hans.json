@@ -9,8 +9,10 @@
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "连接错误；检查网络并重试",
       "identifier_exists": "Alexa URL的电子邮件已注册",
+      "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL 无效： {message}",
+      "oauth_error": "Could not complete OAuth login. Please try again.",
       "unable_to_connect_hass_url": "无法连接到 Home Assistant 网址。请检查配置下的外部 URL - >常规",
       "unknown_error": "未知错误： {message}"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "Seconds to wait to queue commands together",
           "scan_interval": "Seconds between scans",
           "securitycode": "2FA Code (recommended to avoid login issues)",
+          "should_get_network": "Discover Alexa network",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
         "description": "请确认以下信息。对于旧配置，请禁用“使用登录代理方法”选项。",
@@ -66,7 +69,8 @@
           "include_devices": "Included device (comma separated)",
           "public_url": "访问Home Assistant的公共URL（包括尾随的'/'）",
           "queue_delay": "Seconds to wait to queue commands together",
-          "scan_interval": "Seconds between scans"
+          "scan_interval": "Seconds between scans",
+          "should_get_network": "Discover Alexa network"
         },
         "description": "必需的 *",
         "title": "Alexa 媒体播放器 - 重新配置"
@@ -74,6 +78,16 @@
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Re-enables Alexa network discovery so the next polling cycle will rediscover Alexa devices for the selected accounts.",
+      "fields": {
+        "email": {
+          "description": "Optional Alexa account email or list of emails. If empty, all known accounts will be refreshed.",
+          "name": "Email address"
+        }
+      },
+      "name": "Enable Network Discovery"
+    },
     "force_logout": {
       "description": "强制帐户注销。主要用于调试。",
       "fields": {

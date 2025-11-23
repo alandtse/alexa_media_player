@@ -9,8 +9,10 @@
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Feil ved tilkobling; sjekk nettverket og prøv på nytt",
       "identifier_exists": "E-post for Alexa URL allerede registrert",
+      "invalid_auth": "Innloggingen mislyktes. Dobbeltsjekk e-post, passord og autentiseringsnøkkel.",
       "invalid_credentials": "ugyldige legitimasjon",
       "invalid_url": "URL er ugyldig: {message}",
+      "oauth_error": "Kunne ikke fullføre OAuth-pålogging. Prøv på nytt.",
       "unable_to_connect_hass_url": "Kan ikke koble til Home Assistant-nettadressen. Vennligst sjekk den eksterne nettadressen under Konfigurasjon - > Generelt",
       "unknown_error": "Ukjent feil, vennligst rapporter logginfo"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "Sekunder for å vente på køkommandoer sammen",
           "scan_interval": "Sekunder mellom skanninger",
           "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)",
+          "should_get_network": "Oppdag Alexa-nettverket",
           "url": "Amazon-regiondomenet (f.eks. Amazon.co.uk)"
         },
         "description": "Bekreft informasjonen nedenfor.",
@@ -66,14 +69,25 @@
           "include_devices": "Inkluder enhet (kommaseparert)",
           "public_url": "Offentlig URL for å få tilgang til Home Assistant (inkludert etterfølgende ''/'')",
           "queue_delay": "Sekunder for å vente på køkommandoer sammen",
-          "scan_interval": "Sekunder mellom skanninger"
+          "scan_interval": "Sekunder mellom skanninger",
+          "should_get_network": "Oppdag Alexa-nettverket"
         },
-        "description": "Required *",
+        "description": "* Obligatoriske oppføringer \n Merk: **Utvidet enhetsoppdagelse** krever at **Discover Alexa-nettverket** er aktivert.",
         "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Aktiverer Alexa-nettverksoppdagelse på nytt, slik at neste avstemningssyklus vil oppdage Alexa-enheter på nytt for de valgte kontoene.",
+      "fields": {
+        "email": {
+          "description": "Valgfri e-postadresse for Alexa-kontoen eller liste over e-postadresser. Hvis tom, vil alle kjente kontoer bli oppdatert.",
+          "name": "E-postadresse"
+        }
+      },
+      "name": "Aktiver nettverksoppdagelse"
+    },
     "force_logout": {
       "description": "Force account to logout. Used mainly for debugging.",
       "fields": {

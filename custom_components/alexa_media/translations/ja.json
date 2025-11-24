@@ -9,8 +9,10 @@
       "2fa_key_invalid": "無効な Built-In 2FA key",
       "connection_error": "接続エラー：ネットワークを確認して再試行してください",
       "identifier_exists": "Alexa URLのメールアドレスはすでに登録されています",
+      "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
       "invalid_credentials": "無効な資格情報",
       "invalid_url": "URL が無効です：{message}",
+      "oauth_error": "Could not complete OAuth login. Please try again.",
       "unable_to_connect_hass_url": "Home Assistant URL に接続できません。[設定] -> [全般] の [外部 URL] を確認してください。",
       "unknown_error": "不明なエラー：{message}"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "コマンドをキューにまとめて待機させる秒数",
           "scan_interval": "スキャン間隔秒数",
           "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Discover Alexa network",
           "url": "Amazon 地域ドメイン (例: amazon.co.jp)"
         },
         "description": "以下の情報を確認してください。レガシー構成の場合は、`Use Login Proxy method`オプションを無効にしてください。",
@@ -66,7 +69,8 @@
           "include_devices": "含まれるデバイス（カンマ区切り）",
           "public_url": "Home Assistant にアクセスするための公開URL (末尾の '/' を含む)",
           "queue_delay": "コマンドをキューにまとめて待機させる秒数",
-          "scan_interval": "スキャン間隔秒数"
+          "scan_interval": "スキャン間隔秒数",
+          "should_get_network": "Discover Alexa network"
         },
         "description": "必須 *",
         "title": "Alexa Media Player - 再設定"
@@ -74,6 +78,16 @@
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Re-enables Alexa network discovery so the next polling cycle will rediscover Alexa devices for the selected accounts.",
+      "fields": {
+        "email": {
+          "description": "Optional Alexa account email or list of emails. If empty, all known accounts will be refreshed.",
+          "name": "Email address"
+        }
+      },
+      "name": "Enable Network Discovery"
+    },
     "force_logout": {
       "description": "アカウントを強制的にログアウトさせます (主にデバッグに使用します)",
       "fields": {

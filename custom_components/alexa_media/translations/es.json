@@ -9,8 +9,10 @@
       "2fa_key_invalid": "Invalid Built-In 2FA key",
       "connection_error": "Error al conectar, verifique la red y vuelva a intentarlo",
       "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
+      "invalid_auth": "No se pudo iniciar sesión correctamente. Por favor, revise su correo electrónico, contraseña y clave de autenticación.",
       "invalid_credentials": "Credenciales no válidas",
       "invalid_url": "La URL no es válida: {message}",
+      "oauth_error": "No se pudo completar el inicio de sesión de OAuth. Inténtalo de nuevo.",
       "unable_to_connect_hass_url": "No se puede conectar con la URL de Home Assistant. Verifique la URL externa en Configuración -> General",
       "unknown_error": "Error desconocido: {message}"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "Segundos a esperar para agrupar comandos",
           "scan_interval": "Segundos entre escaneos",
           "securitycode": "Código 2FA (recomendado para evitar problemas de inicio de sesión)",
+          "should_get_network": "Descubra la red Alexa",
           "url": "Región del dominio de Amazon (por ejemplo, amazon.es)"
         },
         "description": "Por favor, confirme la información a continuación. Para la configuración heredada, deshabilite la opción 'Usar método de proxy de inicio de sesión'.",
@@ -66,7 +69,8 @@
           "include_devices": "Dispositivo incluido (separado por comas)",
           "public_url": "URL pública para acceder a Home Assistant (incluyendo la '/' final)",
           "queue_delay": "Segundos a esperar para agrupar comandos",
-          "scan_interval": "Segundos entre escaneos"
+          "scan_interval": "Segundos entre escaneos",
+          "should_get_network": "Descubra la red Alexa"
         },
         "description": "Obligatorio*",
         "title": "Alexa Media Player - Reconfiguración"
@@ -74,6 +78,16 @@
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Vuelve a habilitar el descubrimiento de red de Alexa para que el próximo ciclo de sondeo redescubra los dispositivos Alexa para las cuentas seleccionadas.",
+      "fields": {
+        "email": {
+          "description": "Correo electrónico o lista de correos electrónicos de la cuenta de Alexa (opcional). Si está vacío, se actualizarán todas las cuentas conocidas.",
+          "name": "Dirección de correo electrónico"
+        }
+      },
+      "name": "Habilitar el descubrimiento de red"
+    },
     "force_logout": {
       "description": "Obligar el cierre de sesión de la cuenta. Usar principalmente para depuración.",
       "fields": {

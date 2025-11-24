@@ -9,8 +9,10 @@
       "2fa_key_invalid": "مفتاح تطبيق المصادقة غير صالح لـ Amazon 2SV",
       "connection_error": "خطأ في الاتصال؛ تحقق من الشبكة وأعد المحاولة",
       "identifier_exists": "البريد الإلكتروني لرابط Alexa مسجل مسبقًا",
+      "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
       "invalid_credentials": "بيانات اعتماد غير صالحة",
       "invalid_url": "رابط غير صالح: {message}",
+      "oauth_error": "Could not complete OAuth login. Please try again.",
       "unable_to_connect_hass_url": "غير قادر على الاتصال بالرابط المحلي لـ Home Assistant. يرجى التحقق من العنوان ضمن:\nالإعدادات > النظام > الشبكة > رابط Home Assistant > الشبكة المحلية.",
       "unknown_error": "خطأ غير معروف: {message}"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "تأخير وضع أوامر متعددة في قائمة الانتظار معًا (بالثواني)",
           "scan_interval": "الفاصل الزمني للإستطلاع المجدول (بالثواني)",
           "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Discover Alexa network",
           "url": "نطاق منطقة Amazon (على سبيل المثال، amazon.co.uk)"
         },
         "description": "إجباري *",
@@ -66,7 +69,8 @@
           "include_devices": "تضمين هذه الأجهزة فقط (مفصولة بفواصل)",
           "public_url": "رابط عام مشترك مع خدمات مستضافة خارجية",
           "queue_delay": "تأخير وضع أوامر متعددة في قائمة الانتظار معًا (بالثواني)",
-          "scan_interval": "تكرار الاستطلاع المجدول (بالثواني)"
+          "scan_interval": "تكرار الاستطلاع المجدول (بالثواني)",
+          "should_get_network": "Discover Alexa network"
         },
         "description": "إجباري *",
         "title": "Alexa Media Player - إعادة التكوين"
@@ -74,6 +78,16 @@
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Re-enables Alexa network discovery so the next polling cycle will rediscover Alexa devices for the selected accounts.",
+      "fields": {
+        "email": {
+          "description": "Optional Alexa account email or list of emails. If empty, all known accounts will be refreshed.",
+          "name": "Email address"
+        }
+      },
+      "name": "Enable Network Discovery"
+    },
     "force_logout": {
       "description": "إجبار الحساب على تسجيل الخروج. يُستخدم بشكل أساسي لأغراض التصحيح.",
       "fields": {

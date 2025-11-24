@@ -89,12 +89,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         if key not in (account_dict["entities"]["sensor"]):
             (account_dict["entities"]["sensor"][key]) = {}
             for n_type, class_ in SENSOR_TYPES.items():
-                n_type_dict = (
-                    account_dict["notifications"][key][n_type]
-                    if key in account_dict["notifications"]
-                    and n_type in account_dict["notifications"][key]
-                    else {}
-                )
+                notifications = account_dict.get("notifications") or {}
+                key_notifications = notifications.get(key, {})
+                n_type_dict = key_notifications.get(n_type, {})
                 if (
                     n_type in ("Alarm", "Timer")
                     and "TIMERS_AND_ALARMS" in device["capabilities"]
@@ -639,13 +636,26 @@ class AlexaMediaNotificationSensor(SensorEntity):
         except AttributeError:
             pass
         account_dict = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]
-        self._timestamp = account_dict["notifications"]["process_timestamp"]
-        try:
-            self._n_dict = account_dict["notifications"][
-                self._client.device_serial_number
-            ][self._type]
-        except KeyError:
+        notifications = account_dict.get("notifications")
+        if notifications is None:
+            _LOGGER.debug(
+                "%s: No notifications found in account_dict yet; skipping update",
+                self,
+            )
+            self._timestamp = None
             self._n_dict = None
+            self._process_raw_notifications()
+            try:
+                self.schedule_update_ha_state()
+            except NoEntitySpecifiedError:
+                pass
+            return
+
+        # Normal path: notifications dict present
+        self._timestamp = notifications.get("process_timestamp")
+
+        device_notifications = notifications.get(self._client.device_serial_number, {})
+        self._n_dict = device_notifications.get(self._type, {})
         self._process_raw_notifications()
         try:
             self.schedule_update_ha_state()
@@ -666,7 +676,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
         """Return additional attributes."""
         attr = {
             "recurrence": self.recurrence,
-            "process_timestamp": dt.as_local(self._timestamp).isoformat(),
+            "process_timestamp": (
+                dt.as_local(self._timestamp).isoformat() if self._timestamp else None
+            ),
             "prior_value": self._process_state(self._prior_value),
             "total_active": len(self._active),
             "total_all": len(self._all),

@@ -9,8 +9,10 @@
       "2fa_key_invalid": "Chave integrada 2FA inválida",
       "connection_error": "Erro de conexão; verifique a sua conexão e tente novamente",
       "identifier_exists": "Email para URL Alexa já registrado",
+      "invalid_auth": "O login não foi bem-sucedido. Verifique novamente seu e-mail, senha e chave de autenticação.",
       "invalid_credentials": "Credenciais inválidas",
       "invalid_url": "O URL é inválido: {message}",
+      "oauth_error": "Não foi possível concluir o login OAuth. Tente novamente.",
       "unable_to_connect_hass_url": "Não foi possível conectar ao URL do Home Assistant. Por favor, verifique o URL Externo em Configuração - > Geral",
       "unknown_error": "Erro desconhecido: {message}"
     },
@@ -43,6 +45,7 @@
           "queue_delay": "Segundos para aguardar os comandos de fila juntos",
           "scan_interval": "Segundos entre varreduras",
           "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Descubra a rede Alexa",
           "url": "Domínio regional da Amazon (ex: amazon.co.uk)"
         },
         "description": "Por favor, confirme as informações abaixo. Para configuração legada, desative a opção `Usar método de proxy de login`.",
@@ -66,7 +69,8 @@
           "include_devices": "Dispositivos incluídos (separado por vírgula)",
           "public_url": "URL pública para acessar o Home Assistant (incluindo a barra final ''/')",
           "queue_delay": "Segundos para aguardar os comandos de fila juntos",
-          "scan_interval": "Segundos entre escaneamentos"
+          "scan_interval": "Segundos entre escaneamentos",
+          "should_get_network": "Descubra a rede Alexa"
         },
         "description": "Obrigatório *",
         "title": "Alexa Media Player - Reconfiguração"
@@ -74,6 +78,16 @@
     }
   },
   "services": {
+    "enable_network_discovery": {
+      "description": "Reativa a descoberta de rede da Alexa para que o próximo ciclo de pesquisa redescubra os dispositivos Alexa das contas selecionadas.",
+      "fields": {
+        "email": {
+          "description": "Opcional: E-mail da conta Alexa ou lista de e-mails. Se estiver vazio, todas as contas conhecidas serão atualizadas.",
+          "name": "Endereço de email"
+        }
+      },
+      "name": "Habilitar descoberta de rede"
+    },
     "force_logout": {
       "description": "Forçar o logout da conta. Usado principalmente para depuração.",
       "fields": {

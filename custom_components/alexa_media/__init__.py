@@ -93,6 +93,8 @@ from .services import AlexaMediaServices
 
 _LOGGER = logging.getLogger(__name__)
 
+NOTIFY_REFRESH_BACKOFF = 15.0  # seconds between retries when API says "Rate exceeded"/None
+NOTIFY_REFRESH_MAX_RETRIES = 3
 
 ACCOUNT_CONFIG_SCHEMA = vol.Schema(
     {
@@ -282,6 +284,7 @@ async def async_setup_entry(hass, config_entry):
             )
             await setup_alexa(hass, config_entry, login_obj)
 
+
     if not hass.data.get(DATA_ALEXAMEDIA):
         _LOGGER.debug(STARTUP)
         _LOGGER.debug("Loaded alexapy==%s", alexapy_version)
@@ -331,6 +334,10 @@ async def async_setup_entry(hass, config_entry):
             "auth_info": None,
             "second_account_index": 0,
             "should_get_network": True,
+            "notifications": {},  # already used for the raw notifications dict
+            "notifications_pending": set(),  # doppler serials that need a refresh
+            "notifications_refresh_task": None,  # running task or None
+            "notifications_retry_count": 0,      # simple backoff counter
             "options": {
                 CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
                 CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
@@ -445,7 +452,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         bluetooth = {}
         preferences = {}
         dnd = {}
-        raw_notifications = {}
         entity_state = {}
         tasks = [
             AlexaAPI.get_devices(login_obj),
@@ -570,9 +576,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         ),
                     )
 
-            await process_notifications(login_obj, raw_notifications)
-            # Process last_called data to fire events
-            await update_last_called(login_obj)
+                # Always keep notifications in sync; internal cooldown prevents API spam
+                await process_notifications(login_obj)
+                
+                # Process last_called data to fire events
+                await update_last_called(login_obj)
+
         except (AlexapyLoginError, JSONDecodeError):
             _LOGGER.debug(
                 "%s: Alexa API disconnected; attempting to relogin : status %s",
@@ -754,16 +763,42 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         return entity_state
 
     @_catch_login_errors
-    async def process_notifications(login_obj, raw_notifications=None):
-        """Process raw notifications json."""
-        if not raw_notifications:
+    async def process_notifications(login_obj, raw_notifications=None) -> bool:
+        """Process raw notifications json.
+
+        Returns True if notifications were updated, False if we skipped
+        (e.g. due to cooldown or alexapy returned None).
+        """
+        email: str = login_obj.email
+        account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+
+        # Simple cooldown in seconds; tweak if needed
+        NOTIFICATION_COOLDOWN = 60
+
+        if raw_notifications is None:
+            now = time.time()
+            last = account_dict.get("last_notif_poll", 0.0)
+            delta = now - last
+
+            if delta < NOTIFICATION_COOLDOWN:
+                _LOGGER.debug(
+                    "%s: Skipping get_notifications; last poll %.1fs ago "
+                    "(cooldown %ss).",
+                    hide_email(email),
+                    delta,
+                    NOTIFICATION_COOLDOWN,
+                )
+                return False
+
+            account_dict["last_notif_poll"] = now
+
+            # Small delay to let Alexa settle if we're polling explicitly
             await asyncio.sleep(4)
             raw_notifications = await AlexaAPI.get_notifications(login_obj)
-        email: str = login_obj.email
-        previous = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-            "notifications", {}
-        )
+
+        previous = account_dict.get("notifications", {})
         notifications = {"process_timestamp": dt.utcnow()}
+
         if raw_notifications is not None:
             for notification in raw_notifications:
                 n_dev_id = notification.get("deviceSerialNumber")
@@ -804,18 +839,24 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if n_type not in notifications[n_dev_id]:
                     notifications[n_dev_id][n_type] = {}
                 notifications[n_dev_id][n_type][n_id] = notification
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"] = notifications
+
+        account_dict["notifications"] = notifications
         _LOGGER.debug(
             "%s: Updated %s notifications for %s devices at %s",
             hide_email(email),
-            len(raw_notifications) if raw_notifications else 0,
+            len(raw_notifications) if raw_notifications is not None else 0,
             len(notifications),
             dt.as_local(
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["notifications"][
-                    "process_timestamp"
-                ]
+                account_dict["notifications"]["process_timestamp"]
             ),
         )
+        # Notify sensors that the notifications snapshot has been refreshed
+        async_dispatcher_send(
+            hass,
+            f"{DOMAIN}_{hide_email(email)}"[0:32],
+            {"notifications_refreshed": True},
+        )
+        return True
 
     @_catch_login_errors
     async def update_last_called(login_obj, last_called=None, force=False):
@@ -929,7 +970,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             last_dnd_update_times[email] = now
 
         _LOGGER.debug("Updating DND state for %s", hide_email(email))
-
         try:
             # Fetch the DND state using the Alexa API
             dnd = await AlexaAPI.get_dnd_state(login_obj)
@@ -956,6 +996,103 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
         else:
             _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
+
+    def _schedule_notifications_refresh(
+        hass,
+        email: str,
+        device_serial: str | None = None,
+        reason: str = "",
+    ) -> None:
+        """Mark notifications as needing refresh and ensure worker task is running.
+
+        device_serial is just for debug; we track a set of pending devices but
+        we always refresh the full notifications payload once.
+        """
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+
+        if device_serial:
+            account["notifications_pending"].add(device_serial)
+        else:
+            # Special marker for "global" changes if you want one
+            account["notifications_pending"].add("*")
+
+        if reason:
+            _LOGGER.debug(
+                "%s: Scheduling notifications refresh (reason=%s, pending=%s)",
+                hide_email(email),
+                reason,
+                account["notifications_pending"],
+            )
+
+        task = account.get("notifications_refresh_task")
+        if task is not None and not task.done():
+            # Already have a running worker; it'll see the new pending set
+            return
+
+        # Start new worker
+        account["notifications_refresh_task"] = hass.loop.create_task(
+            _run_notifications_refresh(hass, email)
+        )
+
+    async def _run_notifications_refresh(hass, email: str) -> None:
+        """Worker task: refresh notifications for an account if pending.
+
+        - Uses alexapy.AlexaAPI.get_notifications(login)
+        - Retries a few times if we only get None (cooldown/throttle)
+        - Clears notifications_pending when successful or when we give up
+        """
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+        login = account["login_obj"]
+
+        try:
+            retries = 0
+            while account["notifications_pending"] and retries <= NOTIFY_REFRESH_MAX_RETRIES:
+                data = await AlexaAPI.get_notifications(login)
+
+                if data is not None:
+                    # Success: update through the normal processing path
+                    await process_notifications(login, raw_notifications=data)
+                    account["notifications_retry_count"] = 0
+                    account["notifications_pending"].clear()
+
+                    _LOGGER.debug(
+                        "%s: Refreshed notifications snapshot (pending cleared)",
+                        hide_email(email),
+                    )
+                    return
+
+                # If we get here, alexapy side returned None (cooldown / throttle)
+                retries += 1
+                account["notifications_retry_count"] = retries
+
+                if not account["notifications_pending"]:
+                    # Nothing to do anymore, bail early
+                    break
+
+                _LOGGER.debug(
+                    "%s: Notifications refresh returned None (retry %s/%s); "
+                    "pending=%s; sleeping %.1fs",
+                    hide_email(email),
+                    retries,
+                    NOTIFY_REFRESH_MAX_RETRIES,
+                    account["notifications_pending"],
+                    NOTIFY_REFRESH_BACKOFF,
+                )
+                await asyncio.sleep(NOTIFY_REFRESH_BACKOFF)
+
+            # If we fall through, give up for now but leave pending set alone
+            if account["notifications_pending"]:
+                _LOGGER.debug(
+                    "%s: Giving up notifications refresh after %s retries; "
+                    "still pending=%s",
+                    hide_email(email),
+                    retries,
+                    account["notifications_pending"],
+                )
+
+        finally:
+            # Always clear the task pointer so future pushes can schedule again
+            account["notifications_refresh_task"] = None
 
     async def http2_connect() -> HTTP2EchoClient:
         """Open HTTP2 Push connection.
@@ -1172,8 +1309,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             {"queue_state": json_payload},
                         )
                 elif command == "PUSH_NOTIFICATION_CHANGE":
-                    # Player update
-                    await process_notifications(login_obj)
+                    # Notification/alarm state changed on this device.
+                    # Queue a refresh with backoff to ride out alexa-side cooldowns.
+                    _schedule_notifications_refresh(
+                        hass,
+                        email,
+                        device_serial=serial,
+                        reason="PUSH_NOTIFICATION_CHANGE",
+                    )
+
                     if serial and serial in existing_serials:
                         _LOGGER.debug(
                             "Updating mediaplayer notifications: %s",

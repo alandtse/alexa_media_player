@@ -93,7 +93,9 @@ from .services import AlexaMediaServices
 
 _LOGGER = logging.getLogger(__name__)
 
-NOTIFY_REFRESH_BACKOFF = 15.0  # seconds between retries when API says "Rate exceeded"/None
+NOTIFY_REFRESH_BACKOFF = (
+    15.0  # seconds between retries when API says "Rate exceeded"/None
+)
 NOTIFY_REFRESH_MAX_RETRIES = 3
 
 ACCOUNT_CONFIG_SCHEMA = vol.Schema(
@@ -284,7 +286,6 @@ async def async_setup_entry(hass, config_entry):
             )
             await setup_alexa(hass, config_entry, login_obj)
 
-
     if not hass.data.get(DATA_ALEXAMEDIA):
         _LOGGER.debug(STARTUP)
         _LOGGER.debug("Loaded alexapy==%s", alexapy_version)
@@ -337,7 +338,7 @@ async def async_setup_entry(hass, config_entry):
             "notifications": {},  # already used for the raw notifications dict
             "notifications_pending": set(),  # doppler serials that need a refresh
             "notifications_refresh_task": None,  # running task or None
-            "notifications_retry_count": 0,      # simple backoff counter
+            "notifications_retry_count": 0,  # simple backoff counter
             "options": {
                 CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
                 CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
@@ -578,7 +579,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                 # Always keep notifications in sync; internal cooldown prevents API spam
                 await process_notifications(login_obj)
-                
+
                 # Process last_called data to fire events
                 await update_last_called(login_obj)
 
@@ -846,9 +847,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             hide_email(email),
             len(raw_notifications) if raw_notifications is not None else 0,
             len(notifications),
-            dt.as_local(
-                account_dict["notifications"]["process_timestamp"]
-            ),
+            dt.as_local(account_dict["notifications"]["process_timestamp"]),
         )
         # Notify sensors that the notifications snapshot has been refreshed
         async_dispatcher_send(
@@ -1046,7 +1045,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         try:
             retries = 0
-            while account["notifications_pending"] and retries <= NOTIFY_REFRESH_MAX_RETRIES:
+            while (
+                account["notifications_pending"]
+                and retries <= NOTIFY_REFRESH_MAX_RETRIES
+            ):
                 data = await AlexaAPI.get_notifications(login)
 
                 if data is not None:

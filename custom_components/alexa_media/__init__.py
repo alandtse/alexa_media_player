@@ -1048,8 +1048,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 account["notifications_pending"]
                 and retries <= NOTIFY_REFRESH_MAX_RETRIES
             ):
-                data = await AlexaAPI.get_notifications(login)
-
+                try:
+                    data = await AlexaAPI.get_notifications(login)
+                except Exception as ex:
+                    _LOGGER.debug(
+                        "%s: get_notifications raised %s; treating as None",
+                        hide_email(email),
+                        ex,
+                    )
+                    data = None
+ 
                 if data is not None:
                     # Success: update through the normal processing path
                     await process_notifications(login, raw_notifications=data)

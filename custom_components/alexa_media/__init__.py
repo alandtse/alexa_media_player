@@ -1028,7 +1028,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
 
         # Start new worker
-        account["notifications_refresh_task"] = hass.loop.create_task(
+        account["notifications_refresh_task"] = hass.async_create_task(
             _run_notifications_refresh(hass, email)
         )
 

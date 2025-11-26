@@ -790,11 +790,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
             }
         return attr
 
-    @callback
-    def exclude_attributes(hass: HomeAssistant) -> set[str]:
-        """Exclude heavy debug attributes from being recorded in the database."""
-        return {"alarms_brief"}
-
 
 class AlarmSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Alarm sensor."""

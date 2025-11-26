@@ -1051,8 +1051,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 try:
                     data = await AlexaAPI.get_notifications(login)
                 except Exception as ex:
-                    _LOGGER.debug(
-                        "%s: get_notifications raised %s; treating as None",
+                    _LOGGER.warning(
+                        "%s: get_notifications raised %s; treating as None. This may indicate an unexpected error.",
                         hide_email(email),
                         ex,
                     )

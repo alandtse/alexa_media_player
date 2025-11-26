@@ -1057,7 +1057,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         ex,
                     )
                     data = None
- 
+
                 if data is not None:
                     # Success: update through the normal processing path
                     await process_notifications(login, raw_notifications=data)

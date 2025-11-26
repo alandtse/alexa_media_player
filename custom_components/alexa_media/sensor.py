@@ -434,7 +434,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     }
                     for _, v in self._all
                 ]
-            except Exception as exc:  # extremely defensive
+            except (KeyError, TypeError, AttributeError) as exc:
                 summary_all = f"<error building summary_all: {exc}>"
 
             _LOGGER.debug(
@@ -476,7 +476,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     }
                     for _, v in self._active
                 ]
-            except Exception as exc:
+            except (KeyError, TypeError, AttributeError) as exc:
                 summary_active = f"<error building summary_active: {exc}>"
 
             _LOGGER.debug(

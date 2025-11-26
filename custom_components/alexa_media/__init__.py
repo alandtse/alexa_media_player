@@ -93,9 +93,11 @@ from .services import AlexaMediaServices
 
 _LOGGER = logging.getLogger(__name__)
 
-NOTIFY_REFRESH_BACKOFF = (
-    15.0  # seconds between retries when API says "Rate exceeded"/None
-)
+# Simple cooldown in seconds; tweak if needed
+NOTIFICATION_COOLDOWN = 60
+# seconds between retries when API says "Rate exceeded"/None
+NOTIFY_REFRESH_BACKOFF = 15.0
+# Maximum number of retries
 NOTIFY_REFRESH_MAX_RETRIES = 3
 
 ACCOUNT_CONFIG_SCHEMA = vol.Schema(
@@ -772,9 +774,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         """
         email: str = login_obj.email
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-
-        # Simple cooldown in seconds; tweak if needed
-        NOTIFICATION_COOLDOWN = 60
 
         if raw_notifications is None:
             now = time.time()

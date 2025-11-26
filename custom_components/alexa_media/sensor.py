@@ -785,8 +785,8 @@ class AlexaMediaNotificationSensor(SensorEntity):
         if self._all:
             # Limit to a few entries so attributes stay small
             attr["alarms_brief"] = {
-                "active": [_serialize_entry(v) for _, v in self._active[12],
-                "all": [_serialize_entry(v) for _, v in self._all[12],
+                "active": [_serialize_entry(v) for _, v in self._active[12]],
+                "all": [_serialize_entry(v) for _, v in self._all[12]],
             }
         return attr
 

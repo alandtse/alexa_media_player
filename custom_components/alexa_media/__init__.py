@@ -1560,6 +1560,13 @@ async def async_unload_entry(hass, entry) -> bool:
     email = entry.data["email"]
     login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
+    refresh_task = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("notifications_refresh_task")
+    if refresh_task and not refresh_task.done():
+        refresh_task.cancel()
+        try:
+            await refresh_task
+        except asyncio.CancelledError:
+            pass
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:
             if component == "notify":

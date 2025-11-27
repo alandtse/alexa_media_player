@@ -307,7 +307,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             return self.async_show_form(
                 step_id="user",
                 errors={"base": "2fa_key_invalid"},
-                description_placeholders={"message": ""},
+                description_placeholders={
+                    "otp_secret": self.config.get(CONF_OTPSECRET, ""),
+                },
             )
         hass_url: str = user_input.get(CONF_HASS_URL)
         if hass_url is None:
@@ -355,7 +357,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         ):
             otp: str = self.login.get_totp_token()
             if otp:
-                _LOGGER.debug("Generating OTP from %s", otp)
+                _LOGGER.debug("Generated TOTP: %s", otp)
                 return self.async_show_form(
                     step_id="totp_register",
                     data_schema=vol.Schema(self.totp_register),
@@ -493,7 +495,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             ):
                 otp: str = self.login.get_totp_token()
                 if otp:
-                    _LOGGER.debug("Generating OTP from %s", otp)
+                    _LOGGER.debug("Generated TOTP: %s", otp)
                     return self.async_show_form(
                         step_id="totp_register",
                         data_schema=vol.Schema(self.totp_register),
@@ -507,7 +509,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 return self.async_show_form(
                     step_id="user",
                     errors={"base": "2fa_key_invalid"},
-                    description_placeholders={"message": ""},
+                    description_placeholders={
+                        "otp_secret": user_input.get(CONF_OTPSECRET),
+                    },
                 )
             if self.login.status:
                 _LOGGER.debug("Resuming existing flow")
@@ -529,7 +533,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             return self.async_show_form(
                 step_id="user_legacy",
                 errors={"base": "2fa_key_invalid"},
-                description_placeholders={"message": ""},
+                description_placeholders={
+                    "otp_secret": user_input.get(CONF_OTPSECRET),
+                },
             )
         except BaseException as ex:  # pylint: disable=broad-except
             _LOGGER.warning("Unknown error: %s", ex)
@@ -562,7 +568,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             _LOGGER.debug("Not registered, regenerating")
             otp: str = self.login.get_totp_token()
             if otp:
-                _LOGGER.debug("Generating OTP from %s", otp)
+                _LOGGER.debug("Generated TOTP: %s", otp)
                 return self.async_show_form(
                     step_id="totp_register",
                     data_schema=vol.Schema(self.totp_register),

@@ -36,7 +36,7 @@
           "debug": "Avansert feilsøking",
           "email": "Epostadresse",
           "exclude_devices": "Ekskludert enhet (kommaseparert)",
-          "extended_entity_discovery": "Include devices connected via Echo",
+          "extended_entity_discovery": "Inkluder ekstra sensorer, brytere og lys",
           "hass_url": "Url to access Home Assistant",
           "include_devices": "Inkluder enhet (kommaseparert)",
           "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",

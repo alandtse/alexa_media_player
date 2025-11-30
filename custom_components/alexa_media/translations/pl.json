@@ -36,7 +36,7 @@
           "debug": "Zaawansowane debugowanie",
           "email": "Adres e-mail",
           "exclude_devices": "Wykluczone urządzenia (oddzielone przecinkami)",
-          "extended_entity_discovery": "Include devices connected via Echo",
+          "extended_entity_discovery": "Dodaj dodatkowe czujniki, przełączniki i światła",
           "hass_url": "URL dostępu do Home Assistanta",
           "include_devices": "Dodawane urządzenia (oddzielone przecinkami)",
           "otp_secret": "Wbudowana aplikacja kluczy uwierzytelniania dwuskładnikowego (automatycznie generuje kody uwierzytelniania dwuskładnikowego)",

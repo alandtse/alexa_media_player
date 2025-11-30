@@ -33,7 +33,7 @@
           "scan_interval": "Scheduled polling interval (seconds)",
           "queue_delay": "Delay to queue multiple commands together (seconds)",
           "should_get_network": "Discover Alexa network",
-          "extended_entity_discovery": "Include devices connected via Echo",
+          "extended_entity_discovery": "Include additional sensors, switches and lights",
           "debug": "Advanced debugging"
         }
       },
@@ -65,7 +65,7 @@
           "scan_interval": "Scheduled polling frequency (seconds)",
           "queue_delay": "Delay to queue multiple commands together (seconds)",
           "should_get_network": "Discover Alexa network",
-          "extended_entity_discovery": "Include devices connected via Echo",
+          "extended_entity_discovery": "Include additional sensors, switches and lights",
           "debug": "Advanced debugging"
         }
       }

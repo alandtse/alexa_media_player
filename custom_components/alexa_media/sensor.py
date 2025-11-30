@@ -8,7 +8,6 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import datetime
-import json
 import logging
 from typing import Callable, Optional
 
@@ -371,7 +370,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
 class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""
 
-    _unrecorded_attributes = frozenset({"sorted_active", "sorted_all"})
+    _unrecorded_attributes = frozenset({"alarms_brief"})
 
     def __init__(
         self,
@@ -413,6 +412,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._version: Optional[str] = None
 
     def _process_raw_notifications(self):
+        # Build full list for this device/type
         self._all = (
             list(map(self._fix_alarm_date_time, self._n_dict.items()))
             if self._n_dict
@@ -420,19 +420,90 @@ class AlexaMediaNotificationSensor(SensorEntity):
         )
         self._all = list(map(self._update_recurring_alarm, self._all))
         self._all = sorted(self._all, key=lambda x: x[1][self._sensor_property])
+
+        # DEBUG: log ALL notifications for this device/type
+        if self._all:
+            try:
+                summary_all = [
+                    {
+                        "id": v.get("id"),
+                        "status": v.get("status"),
+                        self._sensor_property: v.get(self._sensor_property),
+                        "lastUpdatedDate": v.get("lastUpdatedDate"),
+                        "type": v.get("type"),
+                    }
+                    for _, v in self._all
+                ]
+            except (KeyError, TypeError, AttributeError) as exc:
+                summary_all = f"<error building summary_all: {exc}>"
+
+            _LOGGER.debug(
+                "%s: %s %s ALL notifications: %s",
+                hide_email(self._account),
+                hide_serial(self._client.device_serial_number),
+                self._type,
+                summary_all,
+            )
+        else:
+            _LOGGER.debug(
+                "%s: %s %s has no notifications (_n_dict empty)",
+                hide_email(self._account),
+                hide_serial(self._client.device_serial_number),
+                self._type,
+            )
+
+        # Previous "next" for change detection
         self._prior_value = self._next if self._active else None
+
+        # Filter ACTIVE (ON / SNOOZED)
         self._active = (
             list(filter(lambda x: x[1]["status"] in ("ON", "SNOOZED"), self._all))
             if self._all
             else []
         )
         self._next = self._active[0][1] if self._active else None
+
+        # DEBUG: log ACTIVE set and which one we picked as next
+        if self._active:
+            try:
+                summary_active = [
+                    {
+                        "id": v.get("id"),
+                        "status": v.get("status"),
+                        self._sensor_property: v.get(self._sensor_property),
+                        "lastUpdatedDate": v.get("lastUpdatedDate"),
+                        "type": v.get("type"),
+                    }
+                    for _, v in self._active
+                ]
+            except (KeyError, TypeError, AttributeError) as exc:
+                summary_active = f"<error building summary_active: {exc}>"
+
+            _LOGGER.debug(
+                "%s: %s %s ACTIVE notifications: %s | picked next=%s",
+                hide_email(self._account),
+                hide_serial(self._client.device_serial_number),
+                self._type,
+                summary_active,
+                self._next.get("id") if self._next else None,
+            )
+        else:
+            _LOGGER.debug(
+                "%s: %s %s has no ACTIVE notifications (all=%s)",
+                hide_email(self._account),
+                hide_serial(self._client.device_serial_number),
+                self._type,
+                len(self._all),
+            )
+
+        # Track dismissal and schedule events (existing behavior)
         alarm = next(
             (alarm[1] for alarm in self._all if alarm[1].get("id") == self._amz_id),
             None,
         )
         if alarm_just_dismissed(alarm, self._status, self._version):
             self._dismissed = dt.now().isoformat()
+
         self._attr_native_value = self._process_state(self._next)
         self._status = self._next.get("status", "OFF") if self._next else "OFF"
         self._version = self._next.get("version", "0") if self._next else None
@@ -441,10 +512,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         if self._attr_native_value is None or self._next != self._prior_value:
             # cancel any event triggers
             if self._tracker:
-                _LOGGER.debug(
-                    "%s: Cancelling old event",
-                    self,
-                )
+                _LOGGER.debug("%s: Cancelling old event", self)
                 self._tracker()
             if self._attr_native_value is not None and self._status != "SNOOZED":
                 _LOGGER.debug(
@@ -592,27 +660,35 @@ class AlexaMediaNotificationSensor(SensorEntity):
     def _handle_event(self, event):
         """Handle events.
 
-        This will update PUSH_ACTIVITY or NOTIFICATION_UPDATE events to see if
-        the sensor should be updated.
+        This will update PUSH_ACTIVITY, NOTIFICATION_UPDATE, or a global
+        notifications refresh event to see if the sensor should be updated.
         """
         try:
             if not self.enabled:
                 return
         except AttributeError:
             pass
+
+        # Global refresh: any time we rebuild the notifications snapshot
+        if "notifications_refreshed" in event:
+            _LOGGER.debug("Force-refreshing notification sensor %s", self)
+            self.schedule_update_ha_state(True)
+            return
+
         if "notification_update" in event:
             if (
                 event["notification_update"]["dopplerId"]["deviceSerialNumber"]
                 == self._client.device_serial_number
             ):
-                _LOGGER.debug("Updating sensor %s", self)
+                _LOGGER.debug("Updating sensor %s from notification_update", self)
                 self.schedule_update_ha_state(True)
+
         if "push_activity" in event:
             if (
                 event["push_activity"]["key"]["serialNumber"]
                 == self._client.device_serial_number
             ):
-                _LOGGER.debug("Updating sensor %s", self)
+                _LOGGER.debug("Updating sensor %s from push_activity", self)
                 self.schedule_update_ha_state(True)
 
     @property
@@ -682,17 +758,37 @@ class AlexaMediaNotificationSensor(SensorEntity):
             "prior_value": self._process_state(self._prior_value),
             "total_active": len(self._active),
             "total_all": len(self._all),
-            "sorted_active": json.dumps(self._active, default=str),
-            "sorted_all": json.dumps(self._all, default=str),
             "status": self._status,
             "dismissed": self._dismissed,
         }
-        return attr
 
-    @callback
-    def exclude_attributes(hass: HomeAssistant) -> set[str]:
-        """Exclude sorted_active and sorted_all from being recorded in the database."""
-        return {"sorted_active", "sorted_all"}
+        # Optional lightweight debug/introspection view
+        # Only include a small subset and rely on _unrecorded_attributes
+        # so this doesn't end up in the recorder DB.
+        def _serialize_entry(entry: dict) -> dict:
+            """Serialize a single alarm/timer/reminder entry into a compact dict."""
+            if not entry:
+                return {}
+            when = entry.get(self._sensor_property)
+            if isinstance(when, datetime.datetime):
+                when_val = dt.as_local(when).isoformat()
+            else:
+                when_val = when
+            return {
+                "id": entry.get("id"),
+                "status": entry.get("status"),
+                "type": entry.get("type"),
+                self._sensor_property: when_val,
+                "lastUpdatedDate": entry.get("lastUpdatedDate"),
+            }
+
+        if self._all:
+            # Limit to a few entries so attributes stay small
+            attr["alarms_brief"] = {
+                "active": [_serialize_entry(v) for _, v in self._active[:12]],
+                "all": [_serialize_entry(v) for _, v in self._all[:12]],
+            }
+        return attr
 
 
 class AlarmSensor(AlexaMediaNotificationSensor):

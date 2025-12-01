@@ -6,7 +6,7 @@
       "reauth_successful": "Alexa Media Player è stato riautenticato con successo. Ignorare il messaggio \"Abortito\" da HA"
     },
     "error": {
-      "2fa_key_invalid": "Chiave 2FA incorporata non valida",
+      "2fa_key_invalid": "Chiave 2FA non valida",
       "connection_error": "Errore durante la connessione; controlla la rete e riprova",
       "identifier_exists": "L'email per l'URL di Alexa è già stata registrata",
       "invalid_auth": "Accesso non riuscito. Controlla nuovamente la tua email, la password e la chiave di autenticazione.",

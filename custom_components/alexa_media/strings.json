@@ -12,7 +12,7 @@
       "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
       "oauth_error": "Could not complete OAuth login. Please try again.",
       "invalid_url": "URL is invalid: {message}",
-      "2fa_key_invalid": "{otp_secret} is invalid.\n{message}",
+      "2fa_key_invalid": "{otp_secret} is invalid",
       "unable_to_connect_hass_url": "Unable to connect to Home Assistant Local URL. Please check the URL under Settings > System > Network > Home Assistant URL > Local network",
       "unknown_error": "Unknown error: {message}"
     },

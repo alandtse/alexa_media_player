@@ -521,10 +521,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             else:
                 self._last_called = False
             if self.hass and self.async_schedule_update_ha_state:
-                email = self._login.email
-                force_refresh = not (
-                    self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"]
-                )
+                force_refresh = not self.is_http2_enabled()
                 self.async_schedule_update_ha_state(force_refresh=force_refresh)
             if self._last_called:
                 self.hass.bus.async_fire(
@@ -905,12 +902,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             if self._session.get("state"):
                 self._set_attrs(self._session)
                 # Safely access 'http2' setting
-                push_disabled = self.hass and not (
-                    get_nested_value(
-                        self.hass.data,
-                        f"{DATA_ALEXAMEDIA}.accounts.{self._login.email}.http2",
-                    )
-                )
+                push_disabled = not self.is_http2_enabled()
                 if (
                     push_disabled
                     and self.hass
@@ -969,9 +961,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         await self.alexa_api.set_bluetooth(devices["address"])
                     self._source = source
         # Safely access 'http2' setting
-        if not get_nested_value(
-            self.hass.data, f"{DATA_ALEXAMEDIA}.accounts.{self._login.email}.http2"
-        ):
+        if not self.is_http2_enabled():
             await self.async_update()
 
     def _get_source(self):
@@ -1181,7 +1171,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         await self.refresh(device, no_throttle=True)
 
         # Safely access 'http2' setting
-        push_enabled = accounts_data[email].get("http2")
+        push_enabled = self.is_http2_enabled()
 
         if not push_enabled:
             if (
@@ -1369,9 +1359,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._media_vol_level = volume
 
         # Let http2push update the new volume level
-        if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
-        ):
+        if not self.is_http2_enabled():
             # Otherwise we do it ourselves
             await self.async_update()
 
@@ -1416,9 +1404,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     self.hass.async_create_task(self.alexa_api.set_volume(50))
                 else:
                     await self.alexa_api.set_volume(50)
-        if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
-        ):
+        if not self.is_http2_enabled():
             await self.async_update()
 
     @_catch_login_errors
@@ -1436,9 +1422,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.play())
             else:
                 await self.alexa_api.play()
-        if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
-        ):
+        if not self.is_http2_enabled():
             await self.async_update()
 
     @_catch_login_errors
@@ -1456,9 +1440,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.pause())
             else:
                 await self.alexa_api.pause()
-        if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
-        ):
+        if not self.is_http2_enabled():
             await self.async_update()
 
     @_catch_login_errors
@@ -1485,9 +1467,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         "options"
                     ][CONF_QUEUE_DELAY],
                 )
-        if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
-        ):
+        if not self.is_http2_enabled():
             await self.async_update()
 
     @_catch_login_errors
@@ -1526,9 +1506,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.next())
             else:
                 await self.alexa_api.next()
-        if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
-        ):
+        if not self.is_http2_enabled():
             await self.async_update()
 
     @_catch_login_errors
@@ -1546,9 +1524,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.previous())
             else:
                 await self.alexa_api.previous()
-        if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
-        ):
+        if not self.is_http2_enabled():
             await self.async_update()
 
     @_catch_login_errors
@@ -1841,9 +1817,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     timer=get_nested_value(kwargs, "extra.timer", None),
                     **kwargs,
                 )
-        if not (
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email]["http2"]
-        ):
+        if not self.is_http2_enabled():
             await self.async_update()
 
     @property
@@ -1910,3 +1884,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     "%s: Unable to refresh notify targets; notify not ready",
                     hide_email(self._login.email),
                 )
+
+    def is_http2_enabled(self) -> bool:
+        """Whether HTTP2 push is enabled for the current account session"""
+        if self.hass:
+            accounts = get_nested_value(self.hass.data, f"{DATA_ALEXAMEDIA}.accounts")
+            if isinstance(accounts, dict):
+                return bool(accounts.get(self._login.email, {}).get("http2"))
+        return False

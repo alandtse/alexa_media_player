@@ -8,10 +8,11 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
+from collections.abc import Mapping, Sequence
 import functools
 import hashlib
 import logging
-from typing import Any, Callable, Mapping, Optional, Sequence
+from typing import Any, Callable, Optional
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
@@ -335,6 +336,7 @@ def alarm_just_dismissed(
     # We also know the alarm's status rules out a snooze.
     # The only remaining possibility is that this alarm was just dismissed.
     return True
+
 
 def get_nested_value(
     data: Any,

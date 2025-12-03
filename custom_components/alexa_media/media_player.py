@@ -816,17 +816,13 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     session = parent_session.copy()
                     session["isPlayingInLemur"] = False
                     session["lemurVolume"] = None
-                    session["volume"] = (
-                        parent_session["lemurVolume"]["memberVolume"][
-                            self.device_serial_number
-                        ]
-                        if parent_session.get("lemurVolume")
-                        and get_nested_value(
+                    if parent_session.get("lemurVolume"):
+                        member_volume = get_nested_value(
                             parent_session,
                             f"lemurVolume.memberVolume.{self.device_serial_number}",
                         )
-                        else session["volume"]
-                    )
+                        if member_volume is not None:
+                            session["volume"] = member_volume
                     session = {"playerInfo": session}
                 else:
                     self._playing_parent = None

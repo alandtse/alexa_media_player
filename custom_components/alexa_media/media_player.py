@@ -440,9 +440,13 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     # Get and set mediaProgress only when mediaLength is obtained.
                     # Fixed an issue where mediaLength was sometimes acquired as 0 on Spotify etc.,
                     # causing the progress bar to disappear.
-                    media_progress = get_nested_value(player_info, "progress.mediaProgress")
+                    media_progress = get_nested_value(
+                        player_info, "progress.mediaProgress"
+                    )
                     if media_progress is not None:
-                        player_info["progress"]["mediaProgress"] = int(media_progress / 1000)
+                        player_info["progress"]["mediaProgress"] = int(
+                            media_progress / 1000
+                        )
                 if get_nested_value(player_info, "mainArt.url") is None:
                     if not player_info.get("mainArt"):
                         player_info["mainArt"] = {}

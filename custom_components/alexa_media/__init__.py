@@ -1568,6 +1568,7 @@ async def async_unload_entry(hass, entry) -> bool:
         try:
             await refresh_task
         except asyncio.CancelledError:
+            # Task cancellation is expected during unload; ignore this exception.
             pass
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

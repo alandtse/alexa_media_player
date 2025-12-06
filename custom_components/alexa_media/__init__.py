@@ -1092,7 +1092,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             # If we fall through, give up for now but leave pending set alone
             if account["notifications_pending"]:
                 _LOGGER.debug(
-                    "%s: Giving up notifications refresh after %s retries; "
+                    "%s: Giving up notifications refresh after %s attempts; "
                     "still pending=%s",
                     hide_email(email),
                     retries,

@@ -21,7 +21,7 @@ Always reference these instructions first and fallback to search or bash command
   - `poetry install` -- takes 2-3 minutes on first run. NEVER CANCEL. Set timeout to 10+ minutes.
   - If Poetry fails due to version conflicts: `poetry lock --no-update` first, then `poetry install`
 - **FALLBACK**: Install core dependencies manually if Poetry fails:
-  - `pip3 install alexapy==1.29.9 packaging wrapt async_timeout aiohttp`
+  - `pip3 install alexapy==1.29.12 packaging wrapt async_timeout aiohttp`
   - This allows basic functionality but may miss dev dependencies
 
 ### Linting and Code Quality (ALWAYS run before committing)
@@ -109,7 +109,7 @@ cat custom_components/alexa_media/manifest.json  # HA integration manifest
 
 ### Dependency Management
 
-- **Core dependencies**: alexapy==1.29.9, aiohttp>=3.8.1, packaging>=20.3, wrapt>=1.12.1
+- **Core dependencies**: alexapy==1.29.12, aiohttp>=3.8.1, packaging>=20.3, wrapt>=1.12.1
 - **Dev dependencies**: homeassistant>=2025.2.0, pytest-homeassistant-custom-component>=0.13.107
 - Add new dependencies to `pyproject.toml` then run `poetry lock`
 - **NEVER CANCEL**: `poetry lock` can take 60+ seconds. Set timeout to 10+ minutes.

@@ -252,6 +252,7 @@ class AlexaEntities(TypedDict):
     temperature: list[AlexaTemperatureEntity]
     air_quality: list[AlexaAirQualityEntity]
     binary_sensor: list[AlexaBinaryEntity]
+    smart_switch: list[AlexaEntity]
 
 
 def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEntities:

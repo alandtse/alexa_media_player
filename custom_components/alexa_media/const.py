@@ -158,7 +158,7 @@ ALEXA_AIR_QUALITY_DEVICE_CLASS = {
     "Alexa.AirQuality.ParticulateMatter": "pm25",
     "Alexa.AirQuality.CarbonMonoxide": "carbon_monoxide",
     "Alexa.AirQuality.IndoorAirQuality": "aqi",
-    "Alexa.AirQuality.VolatileOrganicCompounds": "volatile_organic_compounds",
+    "Alexa.AirQuality.VolatileOrganicCompounds": "aqi",
     "Alexa.AirQuality.Humidity": "humidity",
 }
 

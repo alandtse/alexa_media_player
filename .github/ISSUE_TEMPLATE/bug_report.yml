@@ -111,11 +111,13 @@ body:
     id: logs
     attributes:
       label: Debug Logs (alexa_media & alexapy)
-      description: Please provide [logs](https://github.com/alandtse/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component)
-      placeholder: Paste your debug logs here
+      description: |
+        Please provide [logs](https://github.com/alandtse/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component) if this is a functional issue.
+        For large logs, you can drag-and-drop a file here or use a pastebin service.
+      placeholder: Paste relevant log excerpts here, or attach log file
       render: text
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: additional

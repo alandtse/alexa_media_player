@@ -24,7 +24,7 @@ jobs:
             [
               {
               "type": "body",
-              "regex": ".*(Please search the issues, including closed issues,|Describe the bug|Home-assistant \\(version\\)|For a feature to be created it has to be doable in the Amazon app because we are basically replicating the app for HA|Is your feature request related to a problem)",
+              "regex": ".*(Please search the issues, including closed issues,|Describe the bug|Home Assistant version|Home-assistant \\(version\\)|For a feature to be created it has to be doable in the Amazon app because we are basically replicating the app for HA|Is your feature request related to a problem)",
               "message": "@${issue.user.login} this issue was automatically closed because it did not follow the [issue template](https://github.com/alandtse/alexa_media_player/issues/new/choose) and this warning: **IMPORTANT: Please search the issues, including closed issues, and the [FAQ](https://github.com/alandtse/alexa_media_player/wiki/FAQ) before opening a new issue. The template is mandatory; failure to use it will result in issue closure.**",
               "ignoreCase": true,
               "closeIfMatch": false

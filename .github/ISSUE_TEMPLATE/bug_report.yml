@@ -1,0 +1,115 @@
+name: Bug Report
+description: Create a report to help us improve
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **IMPORTANT: Please search the issues, including closed issues, and the [FAQ](https://github.com/alandtse/alexa_media_player/wiki/FAQ) before opening a new issue. The template is mandatory; failure to use it will result in issue closure.**
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what went wrong
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: To Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem.
+      placeholder: Paste screenshots here
+    validations:
+      required: false
+
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+      description: What version of Home Assistant are you running?
+      placeholder: e.g., 2024.12.1
+    validations:
+      required: true
+
+  - type: input
+    id: alexa-media-version
+    attributes:
+      label: alexa_media version
+      description: Version from `const.py` or HA startup log
+      placeholder: e.g., 5.8.2
+    validations:
+      required: true
+
+  - type: input
+    id: alexapy-version
+    attributes:
+      label: alexapy version
+      description: Version from `pip show alexapy` in homeassistant container or HA startup log
+      placeholder: e.g., 1.29.12
+    validations:
+      required: true
+
+  - type: dropdown
+    id: two-factor
+    attributes:
+      label: Is Amazon 2SV via Authenticator App enabled?
+      description: We will not debug login issues if unanswered. See [2SV configuration](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account)
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: input
+    id: amazon-domain
+    attributes:
+      label: Amazon Domain
+      description: Which Amazon domain are you using?
+      placeholder: e.g., amazon.com, amazon.co.uk, amazon.de
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug Logs (alexa_media & alexapy)
+      description: Please provide [logs](https://github.com/alandtse/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component)
+      placeholder: Paste your debug logs here
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
+      placeholder: Any other relevant information
+    validations:
+      required: false

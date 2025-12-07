@@ -13,9 +13,9 @@ import hashlib
 import logging
 from typing import Any, Callable, Optional
 
-from dictor import dictor
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
+from dictor import dictor
 from homeassistant.const import CONF_EMAIL, CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConditionErrorMessage
@@ -338,9 +338,16 @@ def alarm_just_dismissed(
     # The only remaining possibility is that this alarm was just dismissed.
     return True
 
+
 def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:
     """Whether HTTP2 push is enabled for the current account session"""
     if hass:
-        return bool(dictor(hass.data, f"{DATA_ALEXAMEDIA}.accounts.{login_email.replace(".", "\\.")}.http2", False))
+        return bool(
+            dictor(
+                hass.data,
+                f"{DATA_ALEXAMEDIA}.accounts.{login_email.replace(".", "\\.")}.http2",
+                False,
+            )
+        )
     else:
         return False

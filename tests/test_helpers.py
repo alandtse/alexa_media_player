@@ -4,7 +4,12 @@ from homeassistant.exceptions import ConditionErrorMessage
 import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
-from custom_components.alexa_media.helpers import _existing_serials, add_devices, is_http2_enabled
+from custom_components.alexa_media.helpers import (
+    _existing_serials,
+    add_devices,
+    is_http2_enabled,
+)
+
 
 def test_existing_serials_no_accounts():
     hass = MagicMock()
@@ -273,6 +278,7 @@ class TestAddDevices:
         # Only device1 should be added (included but not excluded)
         add_devices_callback.assert_called_once_with([device1], False)
 
+
 def make_hass_data_http2(data: dict | None):
     """Return a hass-like mock object with a data attribute."""
     if data is None:
@@ -290,15 +296,7 @@ def test_is_http2_enabled_hass_none():
 def test_is_http2_enabled_http2_none():
     """Test that http2 set to None results in a False return value."""
     hass = make_hass_data_http2(
-        {
-            DATA_ALEXAMEDIA: {
-                "accounts": {
-                    "test@example.com": {
-                        "http2": None
-                    }
-                }
-            }
-        }
+        {DATA_ALEXAMEDIA: {"accounts": {"test@example.com": {"http2": None}}}}
     )
 
     assert is_http2_enabled(hass, "test@example.com") is False
@@ -311,11 +309,7 @@ def test_is_http2_enabled_http2_object():
     hass = make_hass_data_http2(
         {
             DATA_ALEXAMEDIA: {
-                "accounts": {
-                    "test@example.com": {
-                        "http2": mock_http2_client
-                    }
-                }
+                "accounts": {"test@example.com": {"http2": mock_http2_client}}
             }
         }
     )

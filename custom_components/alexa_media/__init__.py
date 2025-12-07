@@ -819,8 +819,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     notification["date_time"] = (
                         f"{n_date} {n_time}" if n_date and n_time else None
                     )
-                    previous_alarm = (
-                        dictor(previous, f"{n_dev_id.replace(".", "\\.")}.Alarm.{n_id.replace(".", "\\.")}")
+                    previous_alarm = dictor(
+                        previous,
+                        f"{n_dev_id.replace(".", "\\.")}.Alarm.{n_id.replace(".", "\\.")}",
                     )
                     if previous_alarm and alarm_just_dismissed(
                         notification,

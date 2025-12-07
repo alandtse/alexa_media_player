@@ -6,7 +6,7 @@
       "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
     },
     "error": {
-      "2fa_key_invalid": "{otp_secret} is invalid.\n{message}",
+      "2fa_key_invalid": "{otp_secret} is invalid",
       "connection_error": "Error connecting; check network and retry",
       "identifier_exists": "Email for Alexa URL already registered",
       "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",

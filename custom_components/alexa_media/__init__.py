@@ -1092,7 +1092,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             # If we fall through, give up for now but leave pending set alone
             if account["notifications_pending"]:
                 _LOGGER.debug(
-                    "%s: Giving up notifications refresh after %s retries; "
+                    "%s: Giving up notifications refresh after %s attempts; "
                     "still pending=%s",
                     hide_email(email),
                     retries,
@@ -1568,6 +1568,7 @@ async def async_unload_entry(hass, entry) -> bool:
         try:
             await refresh_task
         except asyncio.CancelledError:
+            # Task cancellation is expected during unload; ignore this exception.
             pass
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

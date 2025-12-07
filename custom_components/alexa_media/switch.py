@@ -78,7 +78,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             for switch_key, class_ in SWITCH_TYPES:
                 if (
                     switch_key == "dnd"
-                    and not dictor(account_dict, f"devices.switch.{key.replace(".", "\\.")}.dnd")
+                    and not dictor(
+                        account_dict, f"devices.switch.{key.replace(".", "\\.")}.dnd"
+                    )
                 ) or (
                     switch_key in ["shuffle", "repeat"]
                     and "MUSIC_SKILL"

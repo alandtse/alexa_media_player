@@ -47,7 +47,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     coordinator = account_dict["coordinator"]
     binary_entities = dictor(account_dict, "devices.binary_sensor", [])
-    if isinstance(binary_entities, list) and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
+    if isinstance(binary_entities, list) and account_dict["options"].get(
+        CONF_EXTENDED_ENTITY_DISCOVERY
+    ):
         for binary_entity in binary_entities:
             _LOGGER.debug(
                 "Creating entity %s for a binary_sensor with name %s",

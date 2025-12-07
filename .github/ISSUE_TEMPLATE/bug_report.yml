@@ -70,8 +70,8 @@ body:
       label: Is Amazon 2SV via Authenticator App enabled?
       description: We will not debug login issues if unanswered. See [2SV configuration](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account)
       options:
-        - "Yes"
         - "No"
+        - "Yes"
     validations:
       required: true
 

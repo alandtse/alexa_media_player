@@ -48,30 +48,19 @@ body:
     validations:
       required: false
 
-  - type: input
-    id: ha-version
+  - type: textarea
+    id: versions
     attributes:
-      label: Home Assistant version
-      description: What version of Home Assistant are you running?
-      placeholder: e.g., 2024.12.1
-    validations:
-      required: true
-
-  - type: input
-    id: alexa-media-version
-    attributes:
-      label: alexa_media version
-      description: Version from `const.py` or HA startup log
-      placeholder: e.g., 5.8.2
-    validations:
-      required: true
-
-  - type: input
-    id: alexapy-version
-    attributes:
-      label: alexapy version
-      description: Version from `pip show alexapy` in Home Assistant container or HA startup log
-      placeholder: e.g., 1.29.12
+      label: Versions
+      description: |
+        Please provide the following version information:
+        - Home Assistant version
+        - alexa_media version (from `const.py` or HA startup log)
+        - alexapy version (from `pip show alexapy` in HA container or HA startup log)
+      placeholder: |
+        Home Assistant: 2024.12.1
+        alexa_media: 5.8.2
+        alexapy: 1.29.12
     validations:
       required: true
 
@@ -86,12 +75,25 @@ body:
     validations:
       required: true
 
-  - type: input
+  - type: dropdown
     id: amazon-domain
     attributes:
       label: Amazon Domain
       description: Which Amazon domain are you using?
-      placeholder: e.g., amazon.com, amazon.co.uk, amazon.de
+      options:
+        - amazon.com (US)
+        - amazon.co.uk (UK)
+        - amazon.de (Germany)
+        - amazon.fr (France)
+        - amazon.it (Italy)
+        - amazon.es (Spain)
+        - amazon.ca (Canada)
+        - amazon.com.au (Australia)
+        - amazon.co.jp (Japan)
+        - amazon.in (India)
+        - amazon.com.br (Brazil)
+        - amazon.com.mx (Mexico)
+        - Other
     validations:
       required: true
 

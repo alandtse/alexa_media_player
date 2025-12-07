@@ -4,10 +4,7 @@ from homeassistant.exceptions import ConditionErrorMessage
 import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
-from custom_components.alexa_media.helpers import (
-    _existing_serials,
-    add_devices,
-)
+from custom_components.alexa_media.helpers import _existing_serials, add_devices
 
 
 def test_existing_serials_no_accounts():

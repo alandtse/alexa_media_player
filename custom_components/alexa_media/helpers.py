@@ -14,9 +14,9 @@ import hashlib
 import logging
 from typing import Any, Callable, Optional
 
-from dictor import dictor
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
+from dictor import dictor
 from homeassistant.const import CONF_EMAIL, CONF_URL
 from homeassistant.exceptions import ConditionErrorMessage
 from homeassistant.helpers.entity_component import EntityComponent

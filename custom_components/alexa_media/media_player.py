@@ -428,9 +428,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         elif "push_activity" in event:
             event_serial = dictor(event, "push_activity.key.serialNumber")
         elif "now_playing" in event:
-            player_info = dictor(
-                event, "now_playing.update.update.nowPlayingData", {}
-            )
+            player_info = dictor(event, "now_playing.update.update.nowPlayingData", {})
             media_id = player_info.get("mediaId")
             if self._waiting_media_id and media_id in self._waiting_media_id:
                 if player_info.get("playerState"):
@@ -441,9 +439,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     # Get and set mediaProgress only when mediaLength is obtained.
                     # Fixed an issue where mediaLength was sometimes acquired as 0 on Spotify etc.,
                     # causing the progress bar to disappear.
-                    media_progress = dictor(
-                        player_info, "progress.mediaProgress"
-                    )
+                    media_progress = dictor(player_info, "progress.mediaProgress")
                     if media_progress is not None:
                         player_info["progress"]["mediaProgress"] = int(
                             media_progress / 1000
@@ -462,9 +458,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._player_info = player_info
                 info_changed = True
         elif "parent_state" in event:
-            event_serial = dictor(
-                event, "parent_state.dopplerId.deviceSerialNumber"
-            )
+            event_serial = dictor(event, "parent_state.dopplerId.deviceSerialNumber")
             if event_serial == self.device_serial_number:
                 _LOGGER.debug(
                     "DeviceID(%s) receive event form parent: %s",
@@ -481,9 +475,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._player_info = parent_state
                 if parent_state.get("state") == "PLAYING" and (
                     parentSerial := (
-                        dictor(
-                            event, "parent_state.dopplerId.parentSerialNumber"
-                        )
+                        dictor(event, "parent_state.dopplerId.parentSerialNumber")
                     )
                 ):
                     self._playing_parent = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
@@ -845,9 +837,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._session = session.get("playerInfo") if session else None
         if self._session:
             if self._session.get("isPlayingInLemur"):
-                if menbers_volume := dictor(
-                    self._session, "lemurVolume.memberVolume"
-                ):
+                if menbers_volume := dictor(self._session, "lemurVolume.memberVolume"):
                     if self.hass:
                         for device_id in self._cluster_members:
                             json_payload = self._make_dispatcher_data(
@@ -1043,9 +1033,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 muted = volume_info.get("muted")
                 volume = volume_info.get("volume")
         else:
-            if composite := dictor(
-                player_info, "lemurVolume.compositeVolume", {}
-            ):
+            if composite := dictor(player_info, "lemurVolume.compositeVolume", {}):
                 muted = dictor(composite, "muted")
                 volume = dictor(composite, "volume")
         if muted is not None:
@@ -1137,9 +1125,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         email = self._login.email
 
         # Check if DATA_ALEXAMEDIA and 'accounts' exist
-        accounts_data = dictor(
-            self.hass.data, f"{DATA_ALEXAMEDIA}.accounts", {}
-        )
+        accounts_data = dictor(self.hass.data, f"{DATA_ALEXAMEDIA}.accounts", {})
         if (
             self.entity_id is None  # Device has not initialized yet
             or email not in accounts_data

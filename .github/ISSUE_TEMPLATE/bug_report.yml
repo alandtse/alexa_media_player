@@ -58,9 +58,9 @@ body:
         - alexa_media version (from `const.py` or HA startup log)
         - alexapy version (from `pip show alexapy` in HA container or HA startup log)
       placeholder: |
-        Home Assistant: 2024.12.1
-        alexa_media: 5.8.2
-        alexapy: 1.29.12
+        Home Assistant: 2024.x.x
+        alexa_media: x.x.x
+        alexapy: x.x.x
     validations:
       required: true
 

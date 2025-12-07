@@ -14,6 +14,7 @@ from typing import Any, Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
+from dictor import dictor
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 import voluptuous as vol
@@ -299,7 +300,7 @@ class AlexaMediaServices:
                 return
 
             for item in history_data:
-                summary = item.get("description", {}).get("summary", "")
+                summary = dictor(item, "description.summary", "")
                 device_serial_number = item.get("deviceSerialNumber")
                 timestamp = item.get("creationTimestamp")
 

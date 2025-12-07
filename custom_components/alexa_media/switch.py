@@ -12,6 +12,7 @@ import logging
 from typing import List
 
 from alexapy import AlexaAPI
+from dictor import dictor
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
@@ -51,7 +52,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = discovery_info.get("config", {}).get(CONF_EMAIL)
+        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace(".", "\\.")}")
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -77,7 +78,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             for switch_key, class_ in SWITCH_TYPES:
                 if (
                     switch_key == "dnd"
-                    and not account_dict["devices"]["switch"].get(key, {}).get("dnd")
+                    and not dictor(account_dict, f"devices.switch.{key.replace(".", "\\.")}.dnd")
                 ) or (
                     switch_key in ["shuffle", "repeat"]
                     and "MUSIC_SKILL"
@@ -118,7 +119,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     alexa_client,
                 )
     # Add Amazon Smart Plug devices
-    switch_entities = account_dict.get("devices", {}).get("smart_switch", [])
+    switch_entities = dictor(account_dict, "devices.smart_switch", [])
     if switch_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for switch_entity in switch_entities:
             if not (switch_entity["is_hue_v1"] and hue_emulated_enabled):

@@ -12,6 +12,7 @@ import logging
 from typing import List, Optional
 
 from alexapy import hide_email, hide_serial
+from dictor import dictor
 from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
 from homeassistant.const import CONF_EMAIL, STATE_UNAVAILABLE
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -50,7 +51,7 @@ async def async_setup_platform(
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = discovery_info.get("config", {}).get(CONF_EMAIL)
+        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace(".", "\\.")}")
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -74,7 +75,7 @@ async def async_setup_platform(
             ]
         ) = {}
     alexa_client: Optional[AlexaAlarmControlPanel] = None
-    guard_entities = account_dict.get("devices", {}).get("guard", [])
+    guard_entities = dictor(account_dict, "devices.guard", [])
     if guard_entities:
         alexa_client = AlexaAlarmControlPanel(
             account_dict["login_obj"],

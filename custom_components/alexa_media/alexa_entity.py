@@ -14,6 +14,7 @@ import re
 from typing import Any, Optional, TypedDict, Union
 
 from alexapy import AlexaAPI, AlexaLogin, hide_serial
+from dictor import dictor
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ def is_hue_v1(appliance: dict[str, Any]) -> bool:
 
 
 def is_skill(appliance: dict[str, Any]) -> bool:
-    namespace = appliance.get("driverIdentity", {}).get("namespace", "")
+    namespace = dictor(appliance, "driverIdentity.namespace", "")
     return namespace and namespace == "SKILL"
 
 
@@ -387,7 +388,7 @@ async def get_entity_data(
         device_states = raw.get("deviceStates", []) if isinstance(raw, dict) else None
         if device_states:
             for device_state in device_states:
-                entity_id = device_state.get("entity", {}).get("entityId")
+                entity_id = dictor(device_state, "entity.entityId")
                 if entity_id:
                     entities[entity_id] = []
                     cap_states = device_state.get("capabilityStates", [])

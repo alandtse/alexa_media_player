@@ -62,7 +62,7 @@ from .const import (
     UPLOAD_PATH,
 )
 from .exceptions import TimeoutException
-from .helpers import _catch_login_errors, add_devices
+from .helpers import _catch_login_errors, add_devices, is_http2_enabled
 
 SUPPORT_ALEXA = (
     MediaPlayerEntityFeature.PAUSE
@@ -124,7 +124,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = dictor(discovery_info, f"config.{CONF_EMAIL}")
+        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace(".", "\\.")}")
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
@@ -514,7 +514,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             else:
                 self._last_called = False
             if self.hass and self.async_schedule_update_ha_state:
-                force_refresh = not self.is_http2_enabled()
+                force_refresh = not is_http2_enabled(self.hass, self._login.email)
                 self.async_schedule_update_ha_state(force_refresh=force_refresh)
             if self._last_called:
                 self.hass.bus.async_fire(
@@ -806,10 +806,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     session = parent_session.copy()
                     session["isPlayingInLemur"] = False
                     session["lemurVolume"] = None
-                    if parent_session.get("lemurVolume"):
+                    if parent_session.get("lemurVolume") and self.device_serial_number:
                         member_volume = dictor(
                             parent_session,
-                            f"lemurVolume.memberVolume.{self.device_serial_number}",
+                            f"lemurVolume.memberVolume.{self.device_serial_number.replace(".", "\\.")}",
                         )
                         if member_volume is not None:
                             session["volume"] = member_volume
@@ -893,7 +893,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             if self._session.get("state"):
                 self._set_attrs(self._session)
                 # Safely access 'http2' setting
-                push_disabled = not self.is_http2_enabled()
+                push_disabled = not is_http2_enabled(self.hass, self._login.email)
                 if (
                     push_disabled
                     and self.hass
@@ -952,7 +952,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         await self.alexa_api.set_bluetooth(devices["address"])
                     self._source = source
         # Safely access 'http2' setting
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
     def _get_source(self):
@@ -1158,7 +1158,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         await self.refresh(device, no_throttle=True)
 
         # Safely access 'http2' setting
-        push_enabled = self.is_http2_enabled()
+        push_enabled = is_http2_enabled(self.hass, self._login.email)
 
         if not push_enabled:
             if (
@@ -1346,7 +1346,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._media_vol_level = volume
 
         # Let http2push update the new volume level
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             # Otherwise we do it ourselves
             await self.async_update()
 
@@ -1391,7 +1391,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     self.hass.async_create_task(self.alexa_api.set_volume(50))
                 else:
                     await self.alexa_api.set_volume(50)
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
     @_catch_login_errors
@@ -1409,7 +1409,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.play())
             else:
                 await self.alexa_api.play()
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
     @_catch_login_errors
@@ -1427,7 +1427,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.pause())
             else:
                 await self.alexa_api.pause()
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
     @_catch_login_errors
@@ -1454,7 +1454,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         "options"
                     ][CONF_QUEUE_DELAY],
                 )
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
     @_catch_login_errors
@@ -1493,7 +1493,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.next())
             else:
                 await self.alexa_api.next()
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
     @_catch_login_errors
@@ -1511,7 +1511,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.previous())
             else:
                 await self.alexa_api.previous()
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
     @_catch_login_errors
@@ -1784,6 +1784,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 media_type,
                 queue_delay,
             )
+            timer = dictor(kwargs, "extra.timer")
+            if not isinstance(timer, (int, str)):
+                timer = None
+            else:
+                timer = int(timer)
             if self.hass:
                 self.hass.async_create_task(
                     self.alexa_api.play_music(
@@ -1791,7 +1796,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         media_id,
                         customer_id=self._customer_id,
                         queue_delay=queue_delay,
-                        timer=dictor(kwargs, "extra.timer", None),
+                        timer=timer,
                         **kwargs,
                     )
                 )
@@ -1801,10 +1806,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     media_id,
                     customer_id=self._customer_id,
                     queue_delay=queue_delay,
-                    timer=dictor(kwargs, "extra.timer", None),
+                    timer=timer,
                     **kwargs,
                 )
-        if not self.is_http2_enabled():
+        if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
     @property
@@ -1871,11 +1876,3 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     "%s: Unable to refresh notify targets; notify not ready",
                     hide_email(self._login.email),
                 )
-
-    def is_http2_enabled(self) -> bool:
-        """Whether HTTP2 push is enabled for the current account session"""
-        if self.hass:
-            accounts = dictor(self.hass.data, f"{DATA_ALEXAMEDIA}.accounts")
-            if isinstance(accounts, dict):
-                return bool(accounts.get(self._login.email, {}).get("http2"))
-        return False

@@ -10,6 +10,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import logging
 
 from alexapy import hide_serial
+from dictor import dictor
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -38,15 +39,15 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = discovery_info.get("config", {}).get(CONF_EMAIL)
+        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace(".", "\\.")}")
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     coordinator = account_dict["coordinator"]
-    binary_entities = account_dict.get("devices", {}).get("binary_sensor", [])
-    if binary_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
+    binary_entities = dictor(account_dict, "devices.binary_sensor", [])
+    if isinstance(binary_entities, list) and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for binary_entity in binary_entities:
             _LOGGER.debug(
                 "Creating entity %s for a binary_sensor with name %s",

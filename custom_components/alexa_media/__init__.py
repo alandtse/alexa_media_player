@@ -28,6 +28,7 @@ from alexapy import (
 )
 from alexapy.helpers import delete_cookie as alexapy_delete_cookie
 import async_timeout
+from dictor import dictor
 from homeassistant import util
 from homeassistant.components.persistent_notification import (
     async_create as async_create_persistent_notification,
@@ -237,7 +238,7 @@ async def async_setup_entry(hass, config_entry):
     async def close_alexa_media(event=None) -> None:
         """Clean up Alexa connections."""
         _LOGGER.debug("Received shutdown request: %s", event)
-        if hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts"):
+        if dictor(hass.data, f"{DATA_ALEXAMEDIA}.accounts"):
             for email, _ in hass.data[DATA_ALEXAMEDIA]["accounts"].items():
                 await close_connections(hass, email)
 
@@ -819,7 +820,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         f"{n_date} {n_time}" if n_date and n_time else None
                     )
                     previous_alarm = (
-                        previous.get(n_dev_id, {}).get("Alarm", {}).get(n_id)
+                        dictor(previous, f"{n_dev_id.replace(".", "\\.")}.Alarm.{n_id.replace(".", "\\.")}")
                     )
                     if previous_alarm and alarm_just_dismissed(
                         notification,

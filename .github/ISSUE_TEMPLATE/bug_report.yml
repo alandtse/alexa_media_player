@@ -70,7 +70,7 @@ body:
     id: alexapy-version
     attributes:
       label: alexapy version
-      description: Version from `pip show alexapy` in homeassistant container or HA startup log
+      description: Version from `pip show alexapy` in Home Assistant container or HA startup log
       placeholder: e.g., 1.29.12
     validations:
       required: true

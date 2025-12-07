@@ -15,6 +15,7 @@ import subprocess
 from typing import Any, Optional
 import urllib.request
 
+from dictor import dictor
 from homeassistant import util
 from homeassistant.components import media_source
 from homeassistant.components.media_player import MediaPlayerEntity as MediaPlayerDevice
@@ -61,7 +62,7 @@ from .const import (
     UPLOAD_PATH,
 )
 from .exceptions import TimeoutException
-from .helpers import _catch_login_errors, add_devices, get_nested_value
+from .helpers import _catch_login_errors, add_devices
 
 SUPPORT_ALEXA = (
     MediaPlayerEntityFeature.PAUSE
@@ -123,7 +124,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = get_nested_value(discovery_info, f"config.{CONF_EMAIL}")
+        account = dictor(discovery_info, f"config.{CONF_EMAIL}")
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
@@ -425,29 +426,29 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 else None
             )
         elif "push_activity" in event:
-            event_serial = get_nested_value(event, "push_activity.key.serialNumber")
+            event_serial = dictor(event, "push_activity.key.serialNumber")
         elif "now_playing" in event:
-            player_info = get_nested_value(
+            player_info = dictor(
                 event, "now_playing.update.update.nowPlayingData", {}
             )
             media_id = player_info.get("mediaId")
             if self._waiting_media_id and media_id in self._waiting_media_id:
                 if player_info.get("playerState"):
                     player_info["state"] = player_info["playerState"]
-                media_length = get_nested_value(player_info, "progress.mediaLength")
+                media_length = dictor(player_info, "progress.mediaLength")
                 if media_length is not None:
                     player_info["progress"]["mediaLength"] = int(media_length / 1000)
                     # Get and set mediaProgress only when mediaLength is obtained.
                     # Fixed an issue where mediaLength was sometimes acquired as 0 on Spotify etc.,
                     # causing the progress bar to disappear.
-                    media_progress = get_nested_value(
+                    media_progress = dictor(
                         player_info, "progress.mediaProgress"
                     )
                     if media_progress is not None:
                         player_info["progress"]["mediaProgress"] = int(
                             media_progress / 1000
                         )
-                if get_nested_value(player_info, "mainArt.url") is None:
+                if dictor(player_info, "mainArt.url") is None:
                     if not player_info.get("mainArt"):
                         player_info["mainArt"] = {}
                     player_info["mainArt"]["url"] = player_info["mainArt"].get(
@@ -461,7 +462,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._player_info = player_info
                 info_changed = True
         elif "parent_state" in event:
-            event_serial = get_nested_value(
+            event_serial = dictor(
                 event, "parent_state.dopplerId.deviceSerialNumber"
             )
             if event_serial == self.device_serial_number:
@@ -480,7 +481,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._player_info = parent_state
                 if parent_state.get("state") == "PLAYING" and (
                     parentSerial := (
-                        get_nested_value(
+                        dictor(
                             event, "parent_state.dopplerId.parentSerialNumber"
                         )
                     )
@@ -814,7 +815,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     session["isPlayingInLemur"] = False
                     session["lemurVolume"] = None
                     if parent_session.get("lemurVolume"):
-                        member_volume = get_nested_value(
+                        member_volume = dictor(
                             parent_session,
                             f"lemurVolume.memberVolume.{self.device_serial_number}",
                         )
@@ -832,7 +833,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         session = await self._api_get_state(no_throttle=no_throttle)
                         _LOGGER.debug("Returned data of _api_get_state(): %s", session)
                         api_call = True
-                        if get_nested_value(session, "playerInfo.state") is None:
+                        if dictor(session, "playerInfo.state") is None:
                             # _LOGGER.warning(
                             #     "%s: Can't get session state by alexa_api.get_state() of %s. Probably a re-login occurred, so ignore it this time.",
                             #     self.account,
@@ -844,7 +845,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._session = session.get("playerInfo") if session else None
         if self._session:
             if self._session.get("isPlayingInLemur"):
-                if menbers_volume := get_nested_value(
+                if menbers_volume := dictor(
                     self._session, "lemurVolume.memberVolume"
                 ):
                     if self.hass:
@@ -1029,12 +1030,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def _set_attrs(self, player_info):
         """Set player attributes by player info dict."""
         self._media_player_state = player_info.get("state")
-        self._media_title = get_nested_value(player_info, "infoText.title")
-        self._media_artist = get_nested_value(player_info, "infoText.subText1")
-        self._media_album_name = get_nested_value(player_info, "infoText.subText2")
-        self._media_image_url = get_nested_value(player_info, "mainArt.url")
-        self._media_pos = get_nested_value(player_info, "progress.mediaProgress")
-        self._media_duration = get_nested_value(player_info, "progress.mediaLength")
+        self._media_title = dictor(player_info, "infoText.title")
+        self._media_artist = dictor(player_info, "infoText.subText1")
+        self._media_album_name = dictor(player_info, "infoText.subText2")
+        self._media_image_url = dictor(player_info, "mainArt.url")
+        self._media_pos = dictor(player_info, "progress.mediaProgress")
+        self._media_duration = dictor(player_info, "progress.mediaLength")
         muted = volume = None
         if not player_info.get("lemurVolume"):
             if player_info.get("volume") is not None:
@@ -1042,11 +1043,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 muted = volume_info.get("muted")
                 volume = volume_info.get("volume")
         else:
-            if composite := get_nested_value(
+            if composite := dictor(
                 player_info, "lemurVolume.compositeVolume", {}
             ):
-                muted = get_nested_value(composite, "muted")
-                volume = get_nested_value(composite, "volume")
+                muted = dictor(composite, "muted")
+                volume = dictor(composite, "volume")
         if muted is not None:
             self._media_is_muted = muted
         if volume is not None and isinstance(volume, (int, float)):
@@ -1136,7 +1137,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         email = self._login.email
 
         # Check if DATA_ALEXAMEDIA and 'accounts' exist
-        accounts_data = get_nested_value(
+        accounts_data = dictor(
             self.hass.data, f"{DATA_ALEXAMEDIA}.accounts", {}
         )
         if (
@@ -1804,7 +1805,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         media_id,
                         customer_id=self._customer_id,
                         queue_delay=queue_delay,
-                        timer=get_nested_value(kwargs, "extra.timer", None),
+                        timer=dictor(kwargs, "extra.timer", None),
                         **kwargs,
                     )
                 )
@@ -1814,7 +1815,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     media_id,
                     customer_id=self._customer_id,
                     queue_delay=queue_delay,
-                    timer=get_nested_value(kwargs, "extra.timer", None),
+                    timer=dictor(kwargs, "extra.timer", None),
                     **kwargs,
                 )
         if not self.is_http2_enabled():
@@ -1888,7 +1889,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def is_http2_enabled(self) -> bool:
         """Whether HTTP2 push is enabled for the current account session"""
         if self.hass:
-            accounts = get_nested_value(self.hass.data, f"{DATA_ALEXAMEDIA}.accounts")
+            accounts = dictor(self.hass.data, f"{DATA_ALEXAMEDIA}.accounts")
             if isinstance(accounts, dict):
                 return bool(accounts.get(self._login.email, {}).get("http2"))
         return False

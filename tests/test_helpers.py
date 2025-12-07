@@ -1,5 +1,4 @@
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from homeassistant.exceptions import ConditionErrorMessage
 import pytest
@@ -8,7 +7,6 @@ from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.helpers import (
     _existing_serials,
     add_devices,
-    get_nested_value,
 )
 
 
@@ -114,48 +112,6 @@ def test_existing_serials_with_invalid_app_devices():
 
     result = _existing_serials(hass, login_obj)
     assert sorted(result) == ["app1", "device1"]
-
-
-@pytest.mark.parametrize(
-    "data, path, default, expected",
-    [
-        # Basic dict access
-        ({"a": {"b": 1}}, "a.b", None, 1),
-        # Missing key
-        ({"a": {}}, "a.c", "X", "X"),
-        # None inside dict (special case)
-        ({"a": None}, "a.b", "NOT_FOUND", "NOT_FOUND"),
-        # List index access
-        ({"a": [10, 20, 30]}, "a.1", None, 20),
-        # Invalid list index
-        ({"a": [10]}, "a.5", "OOB", "OOB"),
-        # Non-int list index
-        ({"a": [10]}, "a.foo", "ERR", "ERR"),
-        # Nested combinations
-        ({"a": [{"b": 99}]}, "a.0.b", None, 99),
-        # Sequence but not traversable
-        ("hello", "0", "D", "D"),
-        # Empty path → return data itself
-        ({"a": 1}, "", None, {"a": 1}),
-    ],
-)
-def test_get_nested_value(data: Any, path: str, default: Any, expected: Any):
-    assert get_nested_value(data, path, default) == expected
-
-
-def test_get_nested_value_deep_none():
-    data = {"a": {"b": None}}
-    assert get_nested_value(data, "a.b.c", "DEF") == "DEF"
-
-
-def test_get_nested_value_tuple_access():
-    data = {"a": (10, 20, 30)}
-    assert get_nested_value(data, "a.2", None) == 30
-
-
-def test_get_nested_value_non_container_midway():
-    data = {"a": 123}
-    assert get_nested_value(data, "a.b", "FAIL") == "FAIL"
 
 
 class TestAddDevices:

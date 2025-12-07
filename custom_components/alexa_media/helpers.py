@@ -14,6 +14,7 @@ import hashlib
 import logging
 from typing import Any, Callable, Optional
 
+from dictor import dictor
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
 from homeassistant.const import CONF_EMAIL, CONF_URL
@@ -336,61 +337,3 @@ def alarm_just_dismissed(
     # We also know the alarm's status rules out a snooze.
     # The only remaining possibility is that this alarm was just dismissed.
     return True
-
-
-def get_nested_value(
-    data: Any,
-    path: str,
-    default: Any = None,
-) -> Any:
-    """
-    Safely retrieve a nested value from arbitrarily deep structures.
-
-    This function can traverse nested mappings (e.g., dict-like objects)
-    and sequences (e.g., lists or tuples) using a dot-delimited path.
-    Missing keys, invalid indices, None values, and non-container types
-    are all safely handled without raising exceptions.
-
-    Parameters
-    ----------
-    data : Any
-        The input value, which may contain nested mappings or sequences.
-    path : str
-        Dot-delimited string representing the nested lookup path.
-        Example: "a.b.0.c"
-    default : Any, optional
-        Value returned when the lookup fails at any point.
-
-    Returns
-    -------
-    Any
-        The retrieved nested value or the default value.
-    """
-    if not path:
-        return data
-
-    current: Any = data
-    keys = path.split(".")
-
-    for key in keys:
-        if isinstance(current, Mapping):
-            # Mapping lookup
-            if key in current:
-                current = current[key]
-            else:
-                return default
-        elif isinstance(current, Sequence) and not isinstance(current, (str, bytes)):
-            # Sequence index lookup
-            try:
-                index = int(key)
-            except ValueError:
-                return default
-            if 0 <= index < len(current):
-                current = current[index]
-            else:
-                return default
-        else:
-            # Not a container → cannot traverse further
-            return default
-
-    return current

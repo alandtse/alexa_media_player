@@ -16,12 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Autoclose issues that did not follow issue template
-        # Skip autocloser for contributors (OWNER, MEMBER, CONTRIBUTOR, COLLABORATOR)
-        # Only run on issues events (not issue_comment), and only for non-contributors
+        # Skip autocloser for contributors (OWNER, MEMBER, CONTRIBUTOR, COLLABORATOR) and bot accounts
+        # Only run on issues events (not issue_comment), and only for non-contributors/non-bots
         # The action itself will only process 'opened' events internally
         if: |
           github.event_name == 'issues' &&
-          !contains(fromJSON('["OWNER", "MEMBER", "CONTRIBUTOR", "COLLABORATOR"]'), github.event.issue.author_association)
+          !contains(fromJSON('["OWNER", "MEMBER", "CONTRIBUTOR", "COLLABORATOR"]'), github.event.issue.author_association) &&
+          !contains(fromJSON('["coderabbitai", "copilot", "github-actions[bot]", "dependabot[bot]"]'), github.event.issue.user.login)
         uses: roots/issue-closer@v1.1
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}

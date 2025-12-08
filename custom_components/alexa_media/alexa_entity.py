@@ -7,15 +7,16 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
-from datetime import datetime
 import json
 import logging
 import re
+from datetime import datetime
 from typing import Any, Optional, TypedDict, Union
 
 from alexapy import AlexaAPI, AlexaLogin, hide_serial
-from dictor import dictor
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+from custom_components.alexa_media.helpers import safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def is_hue_v1(appliance: dict[str, Any]) -> bool:
 
 
 def is_skill(appliance: dict[str, Any]) -> bool:
-    namespace = dictor(appliance, "driverIdentity.namespace", "")
+    namespace = safe_get(appliance, ["driverIdentity", "namespace"], "")
     return namespace and namespace == "SKILL"
 
 
@@ -388,7 +389,7 @@ async def get_entity_data(
         device_states = raw.get("deviceStates", []) if isinstance(raw, dict) else None
         if device_states:
             for device_state in device_states:
-                entity_id = dictor(device_state, "entity.entityId")
+                entity_id = safe_get(device_state, ["entity", "entityId"])
                 if entity_id:
                     entities[entity_id] = []
                     cap_states = device_state.get("capabilityStates", [])

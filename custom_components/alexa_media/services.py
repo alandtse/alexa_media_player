@@ -8,16 +8,16 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import Any, Callable
 
+import voluptuous as vol
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
-from dictor import dictor
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import config_validation as cv, entity_registry as er
-import voluptuous as vol
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     ATTR_EMAIL,
@@ -31,7 +31,7 @@ from .const import (
     SERVICE_RESTORE_VOLUME,
     SERVICE_UPDATE_LAST_CALLED,
 )
-from .helpers import _catch_login_errors, report_relogin_required
+from .helpers import _catch_login_errors, report_relogin_required, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -300,7 +300,7 @@ class AlexaMediaServices:
                 return
 
             for item in history_data:
-                summary = dictor(item, "description.summary", "")
+                summary = safe_get(item, ["description", "summary"], "")
                 device_serial_number = item.get("deviceSerialNumber")
                 timestamp = item.get("creationTimestamp")
 

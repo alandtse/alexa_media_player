@@ -13,7 +13,6 @@ from math import sqrt
 from typing import Optional
 
 from alexapy import AlexaAPI, hide_serial
-from dictor import dictor
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
@@ -44,7 +43,7 @@ from .alexa_entity import (
     parse_power_from_coordinator,
 )
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
-from .helpers import add_devices
+from .helpers import add_devices, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace('.', '\\.')}")
+        account = safe_get(discovery_info, ["config", CONF_EMAIL])
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
@@ -68,10 +67,8 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     hue_emulated_enabled = "emulated_hue" in hass.config.as_dict().get(
         "components", set()
     )
-    light_entities = dictor(account_dict, "devices.light", [])
-    if isinstance(light_entities, list) and account_dict["options"].get(
-        CONF_EXTENDED_ENTITY_DISCOVERY
-    ):
+    light_entities = safe_get(account_dict, ["devices", "light"], [])
+    if account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for light_entity in light_entities:
             if not (light_entity["is_hue_v1"] and hue_emulated_enabled):
                 _LOGGER.debug(

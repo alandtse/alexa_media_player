@@ -11,8 +11,9 @@ import asyncio
 import functools
 import hashlib
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, TypeVar, overload
 
+import wrapt
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
 from dictor import dictor
@@ -21,11 +22,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConditionErrorMessage
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
-import wrapt
 
 from .const import DATA_ALEXAMEDIA, EXCEPTION_TEMPLATE
 
 _LOGGER = logging.getLogger(__name__)
+ArgType = TypeVar("ArgType")
 
 
 async def add_devices(
@@ -343,11 +344,69 @@ def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:
     """Whether HTTP2 push is enabled for the current account session"""
     if hass:
         return bool(
-            dictor(
+            safe_get(
                 hass.data,
-                f"{DATA_ALEXAMEDIA}.accounts.{login_email.replace('.', '\\.')}.http2",
-                False,
+                [DATA_ALEXAMEDIA, "accounts", login_email, "http2"],
             )
         )
     else:
         return False
+
+
+@overload
+def safe_get(data: Any, path_list: list[str | int] | None = None) -> Any | None: ...
+
+
+@overload
+def safe_get(
+    data: Any, path_list: list[str | int] | None, default: ArgType, *args, **kwargs
+) -> ArgType: ...
+
+
+def safe_get(
+    data: Any, path_list: list[str | int] | None = None, *args, **kwargs
+) -> None | Any:
+    """Safely get nested value using path segments with optional type checking.
+
+    Args:
+        data: Source data structure
+        path_list: List of path segments (dots in segment names are auto-escaped)
+        *args: Positional arguments passed to dictor (e.g., default value)
+        **kwargs: Keyword arguments passed to dictor (checknone, ignorecase)
+
+    Returns:
+        The value at the specified path, or None if:
+        - The path doesn't exist and no default is provided
+        - The path doesn't exist and the default is returned
+        - A default is provided and the retrieved value's type doesn't match the default's type
+
+    Note:
+        - Do not pass 'pathsep' in kwargs as the path is pre-built.
+        - Type checking: When a default value is provided and a non-None value is retrieved,
+          the result is validated against the default's type. If types don't match, None is returned.
+          This prevents silent type errors from malformed data structures.
+
+    Examples:
+        >>> safe_get({"a": {"b": "value"}}, ["a", "b"])
+        'value'
+
+        >>> safe_get({"a": {"b": 123}}, ["a", "b"], "default")
+        None  # Type mismatch: int vs str
+
+        >>> safe_get({"a": {"b": "value"}}, ["a", "b"], "default")
+        'value'  # Type matches
+    """
+    if not path_list:
+        raise ValueError("path_list cannot be empty")
+
+    if "pathsep" in kwargs:
+        kwargs.pop("pathsep")  # Ignore pathsep since we build the path
+
+    escaped_segments = (str(seg).replace(".", "\\.") for seg in path_list)
+    path = ".".join(escaped_segments)
+    default = args[0] if args else (kwargs.get("default") if kwargs else None)
+    result = dictor(data, path, *args, **kwargs)
+    if default is not None and result is not None:
+        if not isinstance(result, type(default)):
+            result = None
+    return result

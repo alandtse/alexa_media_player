@@ -11,14 +11,14 @@ import datetime
 import logging
 from typing import Callable, Optional
 
-from dictor import dictor
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import UnitOfTemperature
+from homeassistant.const import __version__ as HA_VERSION
+from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
@@ -31,9 +31,11 @@ from . import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
-    DOMAIN as ALEXA_DOMAIN,
     hide_email,
     hide_serial,
+)
+from . import (
+    DOMAIN as ALEXA_DOMAIN,
 )
 from .alexa_entity import (
     parse_air_quality_from_coordinator,
@@ -49,7 +51,7 @@ from .const import (
     RECURRING_PATTERN,
     RECURRING_PATTERN_ISO_SET,
 )
-from .helpers import add_devices, alarm_just_dismissed, is_http2_enabled
+from .helpers import add_devices, alarm_just_dismissed, is_http2_enabled, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,7 +71,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace('.', '\\.')}")
+        account = safe_get(discovery_info, ["config", CONF_EMAIL])
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -128,7 +130,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 )
 
     temperature_sensors = []
-    temperature_entities = dictor(account_dict, "devices.temperature", [])
+    temperature_entities = safe_get(account_dict, ["devices", "temperature"], [])
     if temperature_entities and account_dict["options"].get(
         CONF_EXTENDED_ENTITY_DISCOVERY
     ):
@@ -138,7 +140,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     # AIAQM Sensors
     air_quality_sensors = []
-    air_quality_entities = dictor(account_dict, "devices.air_quality", [])
+    air_quality_entities = safe_get(account_dict, ["devices", "air_quality"], [])
     if air_quality_entities and account_dict["options"].get(
         CONF_EXTENDED_ENTITY_DISCOVERY
     ):
@@ -223,9 +225,9 @@ async def create_air_quality_sensors(account_dict, air_quality_entities):
             _LOGGER.debug("Create air quality sensors %s", sensor)
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
-            account_dict["entities"]["sensor"][serial][sensor_type][
-                "Air_Quality"
-            ] = sensor
+            account_dict["entities"]["sensor"][serial][sensor_type]["Air_Quality"] = (
+                sensor
+            )
             devices.append(sensor)
     return devices
 
@@ -596,9 +598,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             )
         alarm_on = next_item["status"] == "ON"
         r_rule_data = next_item.get("rRuleData")
-        if (
-            r_rule_data
-        ):  # the new recurrence pattern; https://github.com/alandtse/alexa_media_player/issues/1608
+        if r_rule_data:  # the new recurrence pattern; https://github.com/alandtse/alexa_media_player/issues/1608
             next_trigger_times = r_rule_data.get("nextTriggerTimes")
             weekdays = r_rule_data.get("byWeekDays")
             if next_trigger_times:

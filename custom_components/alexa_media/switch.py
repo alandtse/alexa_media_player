@@ -12,7 +12,6 @@ import logging
 from typing import List
 
 from alexapy import AlexaAPI
-from dictor import dictor
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
@@ -23,14 +22,16 @@ from . import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
-    DOMAIN as ALEXA_DOMAIN,
     hide_email,
     hide_serial,
+)
+from . import (
+    DOMAIN as ALEXA_DOMAIN,
 )
 from .alexa_entity import parse_power_from_coordinator
 from .alexa_media import AlexaMedia
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
-from .helpers import _catch_login_errors, add_devices
+from .helpers import _catch_login_errors, add_devices, safe_get
 
 try:
     from homeassistant.components.switch import SwitchEntity as SwitchDevice
@@ -42,7 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa switch platform."""
-    devices = []  # type: List[DNDSwitch]
+    devices: List[DNDSwitch] = []
     SWITCH_TYPES = [  # pylint: disable=invalid-name
         ("dnd", DNDSwitch),
         ("shuffle", ShuffleSwitch),
@@ -52,7 +53,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace('.', '\\.')}")
+        account = safe_get(discovery_info, ["config", CONF_EMAIL])
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -69,8 +70,11 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 hide_serial(key),
             )
             raise ConfigEntryNotReady
-        if key not in (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
+        if (
+            key
+            not in (
+                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
+            )
         ):
             hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"][
                 key
@@ -78,9 +82,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             for switch_key, class_ in SWITCH_TYPES:
                 if (
                     switch_key == "dnd"
-                    and not dictor(
-                        account_dict, f"devices.switch.{key.replace('.', '\\.')}.dnd"
-                    )
+                    and not safe_get(account_dict, ["devices.switch", key, "dnd"])
                 ) or (
                     switch_key in ["shuffle", "repeat"]
                     and "MUSIC_SKILL"
@@ -95,9 +97,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                         hide_serial(key),
                     )
                     continue
-                alexa_client = class_(
-                    account_dict["entities"]["media_player"][key]
-                )  # type: AlexaMediaSwitch
+                alexa_client = class_(account_dict["entities"]["media_player"][key])  # type: AlexaMediaSwitch
                 _LOGGER.debug(
                     "%s: Found %s %s switch with status: %s",
                     hide_email(account),
@@ -121,7 +121,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     alexa_client,
                 )
     # Add Amazon Smart Plug devices
-    switch_entities = dictor(account_dict, "devices.smart_switch", [])
+    switch_entities = safe_get(account_dict, ["devices", "smart_switch"], [])
     if switch_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for switch_entity in switch_entities:
             if not (switch_entity["is_hue_v1"] and hue_emulated_enabled):

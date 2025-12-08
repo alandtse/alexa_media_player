@@ -7,12 +7,11 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
-from asyncio import sleep
 import logging
+from asyncio import sleep
 from typing import List, Optional
 
 from alexapy import hide_email, hide_serial
-from dictor import dictor
 from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
 from homeassistant.const import CONF_EMAIL, STATE_UNAVAILABLE
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -26,9 +25,11 @@ from .const import (
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DEFAULT_QUEUE_DELAY,
+)
+from .const import (
     DOMAIN as ALEXA_DOMAIN,
 )
-from .helpers import _catch_login_errors, add_devices
+from .helpers import _catch_login_errors, add_devices, safe_get
 
 try:
     from homeassistant.components.alarm_control_panel import AlarmControlPanelState
@@ -46,12 +47,12 @@ async def async_setup_platform(
     hass, config, add_devices_callback, discovery_info=None
 ) -> bool:
     """Set up the Alexa alarm control panel platform."""
-    devices = []  # type: List[AlexaAlarmControlPanel]
+    devices: List[AlexaAlarmControlPanel] = []
     account = None
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace('.', '\\.')}")
+        account = safe_get(discovery_info, ["config", CONF_EMAIL])
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -75,7 +76,7 @@ async def async_setup_platform(
             ]
         ) = {}
     alexa_client: Optional[AlexaAlarmControlPanel] = None
-    guard_entities = dictor(account_dict, "devices.guard", [])
+    guard_entities = safe_get(account_dict, ["devices", "guard"], [])
     if guard_entities:
         alexa_client = AlexaAlarmControlPanel(
             account_dict["login_obj"],
@@ -91,8 +92,8 @@ async def async_setup_platform(
             hide_email(account),
             alexa_client,
         )
-    elif alexa_client.unique_id not in (
-        account_dict["entities"]["alarm_control_panel"]
+    elif (
+        alexa_client.unique_id not in (account_dict["entities"]["alarm_control_panel"])
     ):
         devices.append(alexa_client)
         (
@@ -157,7 +158,9 @@ class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEnt
 
     @_catch_login_errors
     async def _async_alarm_set(
-        self, command: str = "", code=None  # pylint: disable=unused-argument
+        self,
+        command: str = "",
+        code=None,  # pylint: disable=unused-argument
     ) -> None:
         """Send command."""
         try:
@@ -191,13 +194,15 @@ class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEnt
         await self.coordinator.async_request_refresh()
 
     async def async_alarm_disarm(
-        self, code=None  # pylint:disable=unused-argument
+        self,
+        code=None,  # pylint:disable=unused-argument
     ) -> None:
         """Send disarm command."""
         await self._async_alarm_set(STATE_ALARM_DISARMED)
 
     async def async_alarm_arm_away(
-        self, code=None  # pylint:disable=unused-argument
+        self,
+        code=None,  # pylint:disable=unused-argument
     ) -> None:
         """Send arm away command."""
         await self._async_alarm_set(STATE_ALARM_ARMED_AWAY)

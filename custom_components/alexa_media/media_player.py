@@ -12,8 +12,8 @@ import logging
 import os
 import re
 import subprocess
-from typing import Any, Optional
 import urllib.request
+from typing import Any, Optional
 
 from homeassistant import util
 from homeassistant.components import media_source
@@ -45,9 +45,11 @@ from . import (
     DATA_ALEXAMEDIA,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
-    DOMAIN as ALEXA_DOMAIN,
     hide_email,
     hide_serial,
+)
+from . import (
+    DOMAIN as ALEXA_DOMAIN,
 )
 from .alexa_media import AlexaMedia
 from .const import (
@@ -1799,10 +1801,15 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 queue_delay,
             )
             timer = safe_get(kwargs, ["extra", "timer"])
-            if not isinstance(timer, (int, str)):
-                timer = None
+            if isinstance(timer, int):
+                pass  # Already an int
+            elif isinstance(timer, str):
+                try:
+                    timer = int(timer)
+                except ValueError:
+                    timer = None
             else:
-                timer = int(timer)
+                timer = None
             if self.hass:
                 self.hass.async_create_task(
                     self.alexa_api.play_music(

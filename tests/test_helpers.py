@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-from homeassistant.exceptions import ConditionErrorMessage
 import pytest
+from homeassistant.exceptions import ConditionErrorMessage
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.helpers import (
@@ -342,6 +342,7 @@ def test_safe_get_escapes_dots_in_keys():
 
         args = mock_dictor.call_args[0]
         assert args[1] == "config.user\\.email"
+        assert result == "test@example.com"
 
 
 def test_safe_get_multiple_dots_in_key():
@@ -413,29 +414,29 @@ def test_safe_get_type_match_returns_value():
         assert result == 42
 
 
-def test_safe_get_type_mismatch_returns_none():
-    """Test that type mismatches return None."""
+def test_safe_get_type_mismatch_returns_default():
+    """Test that type mismatches return the default value."""
 
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # String default, int result - should return None
+        # String default, int result - should return default
         mock_dictor.return_value = 123
         result = safe_get({}, ["key"], "default")
-        assert result is None
+        assert result == "default"
 
-        # List default, dict result - should return None
+        # List default, dict result - should return default
         mock_dictor.return_value = {"a": 1}
         result = safe_get({}, ["key"], [])
-        assert result is None
+        assert result == []
 
-        # Dict default, string result - should return None
+        # Dict default, string result - should return default
         mock_dictor.return_value = "string"
         result = safe_get({}, ["key"], {})
-        assert result is None
+        assert result == {}
 
-        # Int default, string result - should return None
+        # Int default, string result - should return default
         mock_dictor.return_value = "123"
         result = safe_get({}, ["key"], 0)
-        assert result is None
+        assert result == 0
 
 
 def test_safe_get_none_result_with_default():
@@ -489,12 +490,9 @@ def test_safe_get_none_default_no_type_check():
 
 def test_safe_get_empty_path_raises():
     """Test that empty path_list raises ValueError."""
-
-    try:
+    with pytest.raises(ValueError) as exc:
         safe_get({}, [])
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "path_list cannot be empty" in str(e)
+    assert "path_list cannot be empty" in str(exc.value)
 
 
 def test_safe_get_pathsep_kwarg_removed():
@@ -520,7 +518,7 @@ def test_safe_get_subclass_type_check():
         # But int is not instance of bool
         mock_dictor.return_value = 1
         result = safe_get({}, ["key"], False)
-        assert result is None  # Should fail isinstance check
+        assert result is False  # Should fail isinstance check -> return default
 
 
 def test_safe_get_complex_type_scenarios():

@@ -13,6 +13,7 @@ import hashlib
 import logging
 from typing import Any, Callable, Optional, TypeVar, overload
 
+import wrapt
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
 from dictor import dictor
@@ -21,7 +22,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConditionErrorMessage
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
-import wrapt
 
 from .const import DATA_ALEXAMEDIA, EXCEPTION_TEMPLATE
 
@@ -354,7 +354,16 @@ def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:
 
 
 @overload
-def safe_get(data: Any, path_list: list[str | int] | None = None) -> Any | None: ...
+def safe_get(
+    data: Any,
+    path_list: list[str | int] | None = None,
+    checknone: bool = False,
+    ignorecase: bool = False,
+    pathsep: str = ".",
+    search: Any = None,
+    pretty: bool = False,
+    rtype: str | None = None,
+) -> Any | None: ...
 
 
 @overload
@@ -377,13 +386,14 @@ def safe_get(
     Returns:
         The value at the specified path, or None if:
         - The path doesn't exist and no default is provided
-        - The path doesn't exist and the default is returned
+        or default if:
+        - A default is provided and the path doesn't exist
         - A default is provided and the retrieved value's type doesn't match the default's type
 
     Note:
         - Do not pass 'pathsep' in kwargs as the path is pre-built.
         - Type checking: When a default value is provided and a non-None value is retrieved,
-          the result is validated against the default's type. If types don't match, None is returned.
+          the result is validated against the default's type. If types don't match, default is returned.
           This prevents silent type errors from malformed data structures.
 
     Examples:
@@ -391,7 +401,7 @@ def safe_get(
         'value'
 
         >>> safe_get({"a": {"b": 123}}, ["a", "b"], "default")
-        None  # Type mismatch: int vs str
+        'default'  # Type mismatch: int vs str
 
         >>> safe_get({"a": {"b": "value"}}, ["a", "b"], "default")
         'value'  # Type matches
@@ -408,5 +418,5 @@ def safe_get(
     result = dictor(data, path, *args, **kwargs)
     if default is not None and result is not None:
         if not isinstance(result, type(default)):
-            result = None
+            result = default
     return result

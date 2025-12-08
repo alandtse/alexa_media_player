@@ -345,7 +345,7 @@ def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:
         return bool(
             dictor(
                 hass.data,
-                f"{DATA_ALEXAMEDIA}.accounts.{login_email.replace(".", "\\.")}.http2",
+                f"{DATA_ALEXAMEDIA}.accounts.{login_email.replace('.', '\\.')}.http2",
                 False,
             )
         )

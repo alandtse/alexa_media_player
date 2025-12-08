@@ -51,7 +51,7 @@ async def async_setup_platform(
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace(".", "\\.")}")
+        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace('.', '\\.')}")
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])

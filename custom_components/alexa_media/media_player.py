@@ -124,7 +124,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace(".", "\\.")}")
+        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace('.', '\\.')}")
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
@@ -809,7 +809,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     if parent_session.get("lemurVolume") and self.device_serial_number:
                         member_volume = dictor(
                             parent_session,
-                            f"lemurVolume.memberVolume.{self.device_serial_number.replace(".", "\\.")}",
+                            f"lemurVolume.memberVolume.{self.device_serial_number.replace('.', '\\.')}",
                         )
                         if member_volume is not None:
                             session["volume"] = member_volume

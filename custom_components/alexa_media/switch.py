@@ -52,7 +52,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace(".", "\\.")}")
+        account = dictor(discovery_info, f"config.{CONF_EMAIL.replace('.', '\\.')}")
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -79,7 +79,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 if (
                     switch_key == "dnd"
                     and not dictor(
-                        account_dict, f"devices.switch.{key.replace(".", "\\.")}.dnd"
+                        account_dict, f"devices.switch.{key.replace('.', '\\.')}.dnd"
                     )
                 ) or (
                     switch_key in ["shuffle", "repeat"]

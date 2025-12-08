@@ -821,7 +821,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
                     previous_alarm = dictor(
                         previous,
-                        f"{n_dev_id.replace(".", "\\.")}.Alarm.{n_id.replace(".", "\\.")}",
+                        f"{n_dev_id.replace('.', '\\.')}.Alarm.{n_id.replace('.', '\\.')}",
                     )
                     if previous_alarm and alarm_just_dismissed(
                         notification,

@@ -21,11 +21,9 @@ from . import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
+    DOMAIN as ALEXA_DOMAIN,
     hide_email,
     hide_serial,
-)
-from . import (
-    DOMAIN as ALEXA_DOMAIN,
 )
 from .alexa_entity import parse_power_from_coordinator
 from .alexa_media import AlexaMedia
@@ -69,11 +67,8 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 hide_serial(key),
             )
             raise ConfigEntryNotReady
-        if (
-            key
-            not in (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
-            )
+        if key not in (
+            hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
         ):
             hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"][
                 key
@@ -96,7 +91,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                         hide_serial(key),
                     )
                     continue
-                alexa_client = class_(account_dict["entities"]["media_player"][key])  # type: AlexaMediaSwitch
+                alexa_client = class_(
+                    account_dict["entities"]["media_player"][key]
+                )  # type: AlexaMediaSwitch
                 _LOGGER.debug(
                     "%s: Found %s %s switch with status: %s",
                     hide_email(account),

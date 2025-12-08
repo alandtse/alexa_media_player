@@ -13,6 +13,7 @@ import hashlib
 import logging
 from typing import Any, Callable, Optional, TypeVar, overload
 
+import wrapt
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
 from dictor import dictor
@@ -21,7 +22,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConditionErrorMessage
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
-import wrapt
 
 from .const import DATA_ALEXAMEDIA, EXCEPTION_TEMPLATE
 
@@ -349,8 +349,7 @@ def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:
                 [DATA_ALEXAMEDIA, "accounts", login_email, "http2"],
             )
         )
-    else:
-        return False
+    return False
 
 
 @overload

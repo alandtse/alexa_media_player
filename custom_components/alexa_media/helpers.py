@@ -13,7 +13,6 @@ import hashlib
 import logging
 from typing import Any, Callable, Optional, TypeVar, overload
 
-import wrapt
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
 from dictor import dictor
@@ -22,6 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConditionErrorMessage
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
+import wrapt
 
 from .const import DATA_ALEXAMEDIA, EXCEPTION_TEMPLATE
 

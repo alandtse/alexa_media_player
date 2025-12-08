@@ -7,8 +7,8 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
-import logging
 from asyncio import sleep
+import logging
 from typing import List, Optional
 
 from alexapy import hide_email, hide_serial
@@ -25,8 +25,6 @@ from .const import (
     CONF_QUEUE_DELAY,
     DATA_ALEXAMEDIA,
     DEFAULT_QUEUE_DELAY,
-)
-from .const import (
     DOMAIN as ALEXA_DOMAIN,
 )
 from .helpers import _catch_login_errors, add_devices, safe_get
@@ -47,7 +45,7 @@ async def async_setup_platform(
     hass, config, add_devices_callback, discovery_info=None
 ) -> bool:
     """Set up the Alexa alarm control panel platform."""
-    devices: List[AlexaAlarmControlPanel] = []
+    devices: list[AlexaAlarmControlPanel] = []
     account = None
     if config:
         account = config.get(CONF_EMAIL)
@@ -92,8 +90,8 @@ async def async_setup_platform(
             hide_email(account),
             alexa_client,
         )
-    elif (
-        alexa_client.unique_id not in (account_dict["entities"]["alarm_control_panel"])
+    elif alexa_client.unique_id not in (
+        account_dict["entities"]["alarm_control_panel"]
     ):
         devices.append(alexa_client)
         (

@@ -7,10 +7,10 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+from datetime import datetime
 import json
 import logging
 import re
-from datetime import datetime
 from typing import Any, Optional, TypedDict, Union
 
 from alexapy import AlexaAPI, AlexaLogin, hide_serial

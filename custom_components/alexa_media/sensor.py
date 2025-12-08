@@ -16,8 +16,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfTemperature
-from homeassistant.const import __version__ as HA_VERSION
+from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
 from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -31,11 +30,9 @@ from . import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
+    DOMAIN as ALEXA_DOMAIN,
     hide_email,
     hide_serial,
-)
-from . import (
-    DOMAIN as ALEXA_DOMAIN,
 )
 from .alexa_entity import (
     parse_air_quality_from_coordinator,
@@ -225,9 +222,9 @@ async def create_air_quality_sensors(account_dict, air_quality_entities):
             _LOGGER.debug("Create air quality sensors %s", sensor)
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
-            account_dict["entities"]["sensor"][serial][sensor_type]["Air_Quality"] = (
-                sensor
-            )
+            account_dict["entities"]["sensor"][serial][sensor_type][
+                "Air_Quality"
+            ] = sensor
             devices.append(sensor)
     return devices
 
@@ -598,7 +595,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
             )
         alarm_on = next_item["status"] == "ON"
         r_rule_data = next_item.get("rRuleData")
-        if r_rule_data:  # the new recurrence pattern; https://github.com/alandtse/alexa_media_player/issues/1608
+        if (
+            r_rule_data
+        ):  # the new recurrence pattern; https://github.com/alandtse/alexa_media_player/issues/1608
             next_trigger_times = r_rule_data.get("nextTriggerTimes")
             weekdays = r_rule_data.get("byWeekDays")
             if next_trigger_times:

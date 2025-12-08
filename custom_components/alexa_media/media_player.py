@@ -12,8 +12,8 @@ import logging
 import os
 import re
 import subprocess
-import urllib.request
 from typing import Any, Optional
+import urllib.request
 
 from homeassistant import util
 from homeassistant.components import media_source
@@ -45,11 +45,9 @@ from . import (
     DATA_ALEXAMEDIA,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
+    DOMAIN as ALEXA_DOMAIN,
     hide_email,
     hide_serial,
-)
-from . import (
-    DOMAIN as ALEXA_DOMAIN,
 )
 from .alexa_media import AlexaMedia
 from .const import (

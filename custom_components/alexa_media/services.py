@@ -30,7 +30,7 @@ from .const import (
     SERVICE_RESTORE_VOLUME,
     SERVICE_UPDATE_LAST_CALLED,
 )
-from .helpers import _catch_login_errors, report_relogin_required
+from .helpers import _catch_login_errors, report_relogin_required, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -299,7 +299,7 @@ class AlexaMediaServices:
                 return
 
             for item in history_data:
-                summary = item.get("description", {}).get("summary", "")
+                summary = safe_get(item, ["description", "summary"], "")
                 device_serial_number = item.get("deviceSerialNumber")
                 timestamp = item.get("creationTimestamp")
 

@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Free-form issue (Contributors only)
+    url: https://github.com/alandtse/alexa_media_player/issues/new
+    about: Contributors with write access can create free-form issues by visiting this direct link

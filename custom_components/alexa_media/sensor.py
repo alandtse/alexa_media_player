@@ -17,7 +17,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
@@ -48,7 +48,7 @@ from .const import (
     RECURRING_PATTERN,
     RECURRING_PATTERN_ISO_SET,
 )
-from .helpers import add_devices, alarm_just_dismissed
+from .helpers import add_devices, alarm_just_dismissed, is_http2_enabled, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = discovery_info.get("config", {}).get(CONF_EMAIL)
+        account = safe_get(discovery_info, ["config", CONF_EMAIL])
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -127,7 +127,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 )
 
     temperature_sensors = []
-    temperature_entities = account_dict.get("devices", {}).get("temperature", [])
+    temperature_entities = safe_get(account_dict, ["devices", "temperature"], [])
     if temperature_entities and account_dict["options"].get(
         CONF_EXTENDED_ENTITY_DISCOVERY
     ):
@@ -137,7 +137,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     # AIAQM Sensors
     air_quality_sensors = []
-    air_quality_entities = account_dict.get("devices", {}).get("air_quality", [])
+    air_quality_entities = safe_get(account_dict, ["devices", "air_quality"], [])
     if air_quality_entities and account_dict["options"].get(
         CONF_EXTENDED_ENTITY_DISCOVERY
     ):
@@ -699,7 +699,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
     @property
     def should_poll(self):
         """Return the polling state."""
-        return not (self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._account]["http2"])
+        return not is_http2_enabled(self.hass, self._account)
 
     def _process_state(self, value) -> Optional[datetime.datetime]:
         return dt.as_local(value[self._sensor_property]) if value else None

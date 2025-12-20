@@ -1400,6 +1400,17 @@ files = [
 ]
 
 [[package]]
+name = "dictor"
+version = "0.1.12"
+description = "an elegant dictionary and JSON handler"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "dictor-0.1.12.tar.gz", hash = "sha256:6db48375ae1e53dc9ed844e85b38f4e3fbfbf6a4e60beca377515ad14453b91b"},
+]
+
+[[package]]
 name = "dill"
 version = "0.4.0"
 description = "serialize all of Python"
@@ -5782,4 +5793,4 @@ ifaddr = ">=0.1.7"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "89e5c0ea2d6c36ef7520f7cc61215f5357592433461c3fb5fa87e689a803b689"
+content-hash = "a4960a2798ceee312a55f34d4b5090a83fec029ca33e8ad4ee2fa7e2ce24dbe1"

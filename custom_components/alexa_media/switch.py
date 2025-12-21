@@ -9,7 +9,6 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 import datetime
 import logging
-from typing import List
 
 from alexapy import AlexaAPI
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
@@ -29,7 +28,7 @@ from . import (
 from .alexa_entity import parse_power_from_coordinator
 from .alexa_media import AlexaMedia
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
-from .helpers import _catch_login_errors, add_devices
+from .helpers import _catch_login_errors, add_devices, safe_get
 
 try:
     from homeassistant.components.switch import SwitchEntity as SwitchDevice
@@ -41,7 +40,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa switch platform."""
-    devices = []  # type: List[DNDSwitch]
+    devices: list[DNDSwitch] = []
     SWITCH_TYPES = [  # pylint: disable=invalid-name
         ("dnd", DNDSwitch),
         ("shuffle", ShuffleSwitch),
@@ -51,7 +50,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = discovery_info.get("config", {}).get(CONF_EMAIL)
+        account = safe_get(discovery_info, ["config", CONF_EMAIL])
     if account is None:
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
@@ -77,7 +76,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             for switch_key, class_ in SWITCH_TYPES:
                 if (
                     switch_key == "dnd"
-                    and not account_dict["devices"]["switch"].get(key, {}).get("dnd")
+                    and not safe_get(account_dict, ["devices", "switch", key, "dnd"])
                 ) or (
                     switch_key in ["shuffle", "repeat"]
                     and "MUSIC_SKILL"
@@ -118,7 +117,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     alexa_client,
                 )
     # Add Amazon Smart Plug devices
-    switch_entities = account_dict.get("devices", {}).get("smart_switch", [])
+    switch_entities = safe_get(account_dict, ["devices", "smart_switch"], [])
     if switch_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for switch_entity in switch_entities:
             if not (switch_entity["is_hue_v1"] and hue_emulated_enabled):

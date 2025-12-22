@@ -124,7 +124,7 @@ PUBLIC_URL_ERROR_MESSAGE = (
 STARTUP_MESSAGE = """
 ----------------------- {name} -------------------------
 If you have any issues with this custom component, you need to open
-an issue here: https://github.com/alandtse/alexa_media_player/issues
+an issue here: {ISSUE_URL}
 Domain: {DOMAIN}
 Version: {version}
 API Library: alexapy

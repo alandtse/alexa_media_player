@@ -22,7 +22,6 @@ from alexapy import (
     AlexaProxy,
     AlexapyConnectionError,
     AlexapyPyotpInvalidKey,
-    __version__ as alexapy_version,
     hide_email,
     obfuscate,
 )

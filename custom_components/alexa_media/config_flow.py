@@ -75,7 +75,6 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     ISSUE_URL,
-    STARTUP,
 )
 from .helpers import calculate_uuid
 
@@ -123,9 +122,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     def __init__(self):
         """Initialize the config flow."""
-        if self.hass and not self.hass.data.get(DATA_ALEXAMEDIA):
-            _LOGGER.info(STARTUP)
-            _LOGGER.info("Loaded alexapy==%s", alexapy_version)
         self.login = None
         self.securitycode: Optional[str] = None
         self.automatic_steps: int = 0

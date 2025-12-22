@@ -128,8 +128,7 @@ an issue here: https://github.com/alandtse/alexa_media_player/issues
 Domain: {DOMAIN}
 Version: {version}
 API Library: alexapy
-Required version: {alexapy_required_version}
-Loaded version: {alexapy_version}
+Version: {alexapy_version}
 --------------------------------------------------------------------
 """
 

@@ -15,7 +15,6 @@ from homeassistant.const import (
     PERCENTAGE,
 )
 
-__version__ = "5.7.5"
 PROJECT_URL = "https://github.com/alandtse/alexa_media_player/"
 ISSUE_URL = f"{PROJECT_URL}issues"
 NOTIFY_URL = f"{PROJECT_URL}wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
@@ -122,14 +121,16 @@ STREAMING_ERROR_MESSAGE = (
 PUBLIC_URL_ERROR_MESSAGE = (
     "To send TTS, please set the public URL in integration configuration."
 )
-STARTUP = f"""
--------------------------------------------------------------------
-{DOMAIN}
-Version: {__version__}
-This is a custom component
-If you have any issues with this you need to open an issue here:
-{ISSUE_URL}
--------------------------------------------------------------------
+STARTUP_MESSAGE = """
+----------------------- {name} -------------------------
+If you have any issues with this custom component, you need to open
+an issue here: https://github.com/alandtse/alexa_media_player/issues
+Domain: {DOMAIN}
+Version: {version}
+API Library: alexapy
+Required version: {alexapy_required_version}
+Loaded version: {alexapy_version}
+--------------------------------------------------------------------
 """
 
 AUTH_CALLBACK_PATH = "/auth/alexamedia/callback"

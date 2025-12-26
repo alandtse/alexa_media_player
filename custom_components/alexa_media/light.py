@@ -1,5 +1,5 @@
 """
-Alexa Devices Sensors.
+Alexa Devices Lights.
 
 SPDX-License-Identifier: Apache-2.0
 

@@ -6,7 +6,7 @@
       "reauth_successful": "Alexa Mediaspeler is met succes opnieuw geverifieerd. Negeer a.u.b. het bericht \"Afgebroken\" van HA."
     },
     "error": {
-      "2fa_key_invalid": "Ongeldige ingebouwde 2FA sleutel",
+      "2fa_key_invalid": "Ongeldige ingebouwde 2FA sleutel {otp_secret}",
       "connection_error": "Fout bij verbinding; controleer netwerk en probeer opnieuw",
       "identifier_exists": "Dit e-mailadres voor Alexa URL is al geregistreerd",
       "invalid_auth": "Inloggen is mislukt. Controleer uw e-mailadres, wachtwoord en Authenticator-sleutel nogmaals.",

@@ -6,7 +6,7 @@
       "reauth_successful": "Alexa Media Player pomyślnie uwierzytelniona."
     },
     "error": {
-      "2fa_key_invalid": "Nieprawidłowy klucz z wbudowanej aplikacji uwierzytelniania dwuskładnikowego",
+      "2fa_key_invalid": "Nieprawidłowy klucz z wbudowanej aplikacji uwierzytelniania dwuskładnikowego {otp_secret}",
       "connection_error": "Błąd podczas łączenia; sprawdź sieć i spróbuj ponownie",
       "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
       "invalid_auth": "Logowanie nie powiodło się. Sprawdź ponownie swój adres e-mail, hasło i klucz uwierzytelniający.",

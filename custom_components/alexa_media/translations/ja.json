@@ -6,7 +6,7 @@
       "reauth_successful": "Alexa Media Playerは正常に再認証されました。Home Assistant からの \"Aborted\" メッセージは無視してください。"
     },
     "error": {
-      "2fa_key_invalid": "無効な Built-In 2FA key",
+      "2fa_key_invalid": "無効な Built-In 2FA key {otp_secret}",
       "connection_error": "接続エラー：ネットワークを確認して再試行してください",
       "identifier_exists": "Alexa URLのメールアドレスはすでに登録されています",
       "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",

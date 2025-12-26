@@ -6,7 +6,7 @@
       "reauth_successful": "Alexa Media Player se volvió a autenticar con éxito. Ignore el mensaje \"Cancelado\" de HA."
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "Invalid Built-In 2FA key {otp_secret}",
       "connection_error": "Error al conectar, verifique la red y vuelva a intentarlo",
       "identifier_exists": "Correo electrónico para la URL de Alexa ya registrado",
       "invalid_auth": "No se pudo iniciar sesión correctamente. Por favor, revise su correo electrónico, contraseña y clave de autenticación.",

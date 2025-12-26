@@ -6,7 +6,7 @@
       "reauth_successful": "Alexa Media Player reautenticado com sucesso. Por favor, ignore a mensagem \"Abortado\" do Home Assistant."
     },
     "error": {
-      "2fa_key_invalid": "Chave integrada 2FA inválida",
+      "2fa_key_invalid": "Chave integrada 2FA inválida {otp_secret}",
       "connection_error": "Erro de conexão; verifique a sua conexão e tente novamente",
       "identifier_exists": "Email para URL Alexa já registrado",
       "invalid_auth": "O login não foi bem-sucedido. Verifique novamente seu e-mail, senha e chave de autenticação.",

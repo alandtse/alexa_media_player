@@ -6,7 +6,7 @@
       "reauth_successful": "تمت إعادة التحقق من Alexa Media Player بنجاح. يرجى تجاهل رسالة \"تم الإلغاء\" من Home Assistant."
     },
     "error": {
-      "2fa_key_invalid": "مفتاح تطبيق المصادقة غير صالح لـ Amazon 2SV",
+      "2fa_key_invalid": "مفتاح تطبيق المصادقة غير صالح لـ Amazon 2SV {otp_secret}",
       "connection_error": "خطأ في الاتصال؛ تحقق من الشبكة وأعد المحاولة",
       "identifier_exists": "البريد الإلكتروني لرابط Alexa مسجل مسبقًا",
       "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",

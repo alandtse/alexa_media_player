@@ -6,7 +6,7 @@
       "reauth_successful": "Alexa 媒体播放器已成功重新验证。请忽略来自 HA 的“Aborted”消息。"
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "Invalid Built-In 2FA key {otp_secret}",
       "connection_error": "连接错误；检查网络并重试",
       "identifier_exists": "Alexa URL的电子邮件已注册",
       "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",

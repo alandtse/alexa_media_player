@@ -26,7 +26,7 @@ from . import (
 )
 from .alexa_entity import parse_detection_state_from_coordinator
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
-from .helpers import add_devices
+from .helpers import add_devices, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,15 +38,15 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if config:
         account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
-        account = discovery_info.get("config", {}).get(CONF_EMAIL)
+        account = safe_get(discovery_info, ["config", CONF_EMAIL])
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     coordinator = account_dict["coordinator"]
-    binary_entities = account_dict.get("devices", {}).get("binary_sensor", [])
-    if binary_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
+    binary_entities = safe_get(account_dict, ["devices", "binary_sensor"], [])
+    if account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for binary_entity in binary_entities:
             _LOGGER.debug(
                 "Creating entity %s for a binary_sensor with name %s",

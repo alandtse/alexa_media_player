@@ -283,14 +283,14 @@ tzdata = ">=2024.1"
 
 [[package]]
 name = "alexapy"
-version = "1.29.12"
+version = "1.29.13"
 description = "Python API to control Amazon Echo Devices Programmatically."
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "alexapy-1.29.12-py3-none-any.whl", hash = "sha256:77ccc568c10e0ed97919589ecb7be51ec4332ff4b70d2eefb2103d0aecffdc85"},
-    {file = "alexapy-1.29.12.tar.gz", hash = "sha256:83024a1b4041b9b742c4159334820a96857748ed557e6a30c93f547a57019f36"},
+    {file = "alexapy-1.29.13-py3-none-any.whl", hash = "sha256:ef71559363b9ce325c2f6685eeb4b3d1f76825069ba730b9cc8cddea89eef792"},
+    {file = "alexapy-1.29.13.tar.gz", hash = "sha256:d62b15cde1f1d3c26df7d019e26f0fe36791c91f88267f6e17012430e8accbd0"},
 ]
 
 [package.dependencies]
@@ -1397,6 +1397,17 @@ files = [
     {file = "dbus_fast-2.44.3-pp39-pypy39_pp73-manylinux_2_17_i686.manylinux_2_5_i686.manylinux1_i686.manylinux2014_i686.whl", hash = "sha256:e1643f9d47450e29fd14e62c583c71f332337dc157e9536692e5c0cd5e70ec53"},
     {file = "dbus_fast-2.44.3-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e1f3c673c40a3f82388b377d492aa31f9ba66c20ba1183f1bcd8f9b64eda599c"},
     {file = "dbus_fast-2.44.3.tar.gz", hash = "sha256:962b36abbe885159e31135c57a7d9659997c61a13d55ecb070a61dc502dbd87e"},
+]
+
+[[package]]
+name = "dictor"
+version = "0.1.12"
+description = "an elegant dictionary and JSON handler"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "dictor-0.1.12.tar.gz", hash = "sha256:6db48375ae1e53dc9ed844e85b38f4e3fbfbf6a4e60beca377515ad14453b91b"},
 ]
 
 [[package]]
@@ -5782,4 +5793,4 @@ ifaddr = ">=0.1.7"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "89e5c0ea2d6c36ef7520f7cc61215f5357592433461c3fb5fa87e689a803b689"
+content-hash = "7669d555e4da13fa5a07f338b74a1d25ca4f386345ff4d5b476004475fc9eae5"

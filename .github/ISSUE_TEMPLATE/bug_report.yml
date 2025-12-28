@@ -1,0 +1,130 @@
+name: Bug Report
+description: Create a report to help us improve
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **IMPORTANT: Please search the issues, including closed issues, and the [FAQ](https://github.com/alandtse/alexa_media_player/wiki/FAQ) before opening a new issue. The template is mandatory; failure to use it will result in issue closure.**
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what went wrong
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: To Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem.
+      placeholder: Paste screenshots here
+    validations:
+      required: false
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: |
+        Please provide the following version information:
+        - Home Assistant version
+        - alexa_media version (from `const.py` or HA startup log)
+        - alexapy version (from `pip show alexapy` in HA container or HA startup log)
+      placeholder: |
+        Home Assistant: 2024.x.x
+        alexa_media: x.x.x
+        alexapy: x.x.x
+    validations:
+      required: true
+
+  - type: dropdown
+    id: two-factor
+    attributes:
+      label: Is Amazon 2SV via Authenticator App enabled?
+      description: We will not debug login issues if unanswered. See [2SV configuration](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account)
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: amazon-domain
+    attributes:
+      label: Amazon Domain
+      description: Which Amazon domain are you using?
+      options:
+        - amazon.com (US)
+        - amazon.co.uk (UK)
+        - amazon.de (Germany)
+        - amazon.fr (France)
+        - amazon.it (Italy)
+        - amazon.es (Spain)
+        - amazon.nl (Netherlands)
+        - amazon.ca (Canada)
+        - amazon.com.au (Australia)
+        - amazon.co.jp (Japan)
+        - amazon.in (India)
+        - amazon.com.br (Brazil)
+        - amazon.com.mx (Mexico)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: amazon-domain-other
+    attributes:
+      label: Amazon Domain (if Other)
+      description: If you selected "Other" above, please specify which Amazon domain you're using
+      placeholder: e.g., amazon.se, amazon.pl
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug Logs (alexa_media & alexapy)
+      description: |
+        Please provide [logs](https://github.com/alandtse/alexa_media_player/wiki/FAQ#how-do-i-enable-debug-logging-for-the-component) if this is a functional issue.
+        Logs are especially helpful for login issues, device discovery problems, or unexpected errors.
+        For large logs, you can drag-and-drop a file here or use a pastebin service.
+      placeholder: Paste relevant log excerpts here, or attach log file
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
+      placeholder: Any other relevant information
+    validations:
+      required: false

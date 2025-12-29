@@ -341,7 +341,7 @@ def alarm_just_dismissed(
 
 
 def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:
-    """Whether HTTP2 push is enabled for the current account session"""
+    """Whether HTTP2 push is enabled for the current account session."""
     if hass:
         return bool(
             safe_get(
@@ -416,6 +416,6 @@ def safe_get(
     default = args[0] if args else (kwargs.get("default") if kwargs else None)
     result = dictor(data, path, *args, **kwargs)
     if default is not None and result is not None:
-        if not isinstance(result, type(default)):
+        if type(result) is not type(default):
             result = default
     return result

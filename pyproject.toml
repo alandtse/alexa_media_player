@@ -17,7 +17,7 @@ alexapy = "1.29.13"
 aiohttp = ">=3.8.1"
 packaging = ">=20.3"
 wrapt = ">=1.12.1"
-dictor = "<0.2"
+dictor = ">=0.1.12,<0.2"
 
 [tool.poetry.group.dev.dependencies]
 homeassistant = ">=2025.2.0"

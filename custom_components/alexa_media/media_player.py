@@ -1799,14 +1799,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 queue_delay,
             )
             timer = safe_get(kwargs, ["extra", "timer"])
-            if isinstance(timer, int):
-                pass  # Already an int
-            elif isinstance(timer, str):
+            if isinstance(timer, str):
                 try:
                     timer = int(timer)
                 except ValueError:
                     timer = None
-            else:
+            elif not isinstance(timer, int):
                 timer = None
             if self.hass:
                 self.hass.async_create_task(

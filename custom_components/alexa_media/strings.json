@@ -130,7 +130,7 @@
   "issues": {
     "deprecated_yaml_configuration": {
       "title": "YAML configuration is deprecated",
-      "description": "YAML configuration of Alexa Media Player is deprecated\nand will be removed in version 4.14.0.\nThere will be no automatic import of this.\nPlease remove it from your configuration, restart Home Assistant and use the UI to configure it instead.\nSettings > Devices & services > Integrations > ADD INTEGRATION"
+      "description": "YAML configuration of Alexa Media Player is deprecated.\nPlease remove `alexa_media` from your configuration, restart Home Assistant and use the UI to configure it instead.\nSettings > Devices & services > Integrations > ADD INTEGRATION"
     }
   }
 }

@@ -162,7 +162,7 @@ async def async_setup(hass, config):
             "YAML configuration of Alexa Media Player is no longer supported. "
             "Please remove `alexa_media` from your configuration, "
             "restart Home Assistant and use the UI to configure it instead. "
-            "Settings > Devices and services > Integrations > ADD INTEGRATION"
+            "Settings > Devices & services > Integrations > ADD INTEGRATION"
         )
         return False
     return True

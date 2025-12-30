@@ -416,6 +416,11 @@ def safe_get(
     default = args[0] if args else (kwargs.get("default") if kwargs else None)
     result = dictor(data, path, *args, **kwargs)
     if default is not None and result is not None:
-        if type(result) is not type(default):
-            result = default
+        expected = type(default)
+        if expected is bool:
+            if type(result) is not bool:
+                result = default
+        else:
+            if not isinstance(result, expected):
+                result = default
     return result

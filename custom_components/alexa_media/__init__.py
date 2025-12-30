@@ -134,8 +134,7 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
-async def async_setup(hass, config, discovery_info=None):
-    # pylint: disable=unused-argument
+async def async_setup(hass, config):
     """Set up the Alexa domain."""
     integration = await async_get_integration(hass, DOMAIN)
     integration_name = integration.name or "<not available>"

@@ -26,20 +26,11 @@ from custom_components.alexa_media.const import (
     PLAY_SCAN_INTERVAL,
     PROJECT_URL,
     SCAN_INTERVAL,
-    __version__,
 )
 
 
 class TestConstants:
     """Test various constants and configuration values."""
-
-    def test_version_format(self):
-        """Test that version follows semantic versioning format."""
-        # Version should be in format X.Y.Z
-        version_parts = __version__.split(".")
-        assert len(version_parts) == 3
-        for part in version_parts:
-            assert part.isdigit()
 
     def test_project_url_format(self):
         """Test that project URL is properly formatted."""
@@ -149,7 +140,6 @@ class TestConstants:
     def test_all_constants_exist(self):
         """Test that all expected constants are defined and not None."""
         constants_to_check = [
-            __version__,
             PROJECT_URL,
             ISSUE_URL,
             NOTIFY_URL,

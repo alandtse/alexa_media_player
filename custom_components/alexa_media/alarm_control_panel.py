@@ -83,7 +83,7 @@ async def async_setup_platform(
             guard_media_players,
         )
     else:
-        _LOGGER.debug("%s: No Alexa Guard entity found", account)
+        _LOGGER.debug("%s: No Alexa Guard entity found", hide_email(account))
     if not (alexa_client and alexa_client.unique_id):
         _LOGGER.debug(
             "%s: Skipping creation of uninitialized device: %s",

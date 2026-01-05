@@ -48,28 +48,30 @@ body:
     validations:
       required: false
 
-  - type: textarea
-    id: versions
-    attributes:
-      label: Versions
-      description: |
-        Please provide the following version information:
-        - Home Assistant version
-        - alexa_media version (from `const.py` or HA startup log)
-        - alexapy version (from `pip show alexapy` in HA container or HA startup log)
-      placeholder: |
-        Home Assistant: 2024.x.x
-        alexa_media: x.x.x
-        alexapy: x.x.x
-    validations:
-      required: true
-
   - type: input
     id: home-assistant-version
     attributes:
       label: Home Assistant Version
       description: Settings > About > Core version number
-      placeholder: Settings > About > Core version number
+      placeholder: 2025.x.x
+    validations:
+      required: true
+
+  - type: input
+    id: alexa-media-version
+    attributes:
+      label: Alexa Media Player Version
+      description: alexa_media version (from `const.py` or HA startup log)
+      placeholder: 5.8.x
+    validations:
+      required: true
+
+  - type: input
+    id: alexapy-version
+    attributes:
+      label: Alexa Media Player API library Version
+      description: alexapy version (from `pip show alexapy` in HA container or HA startup log)
+      placeholder: 1.29.x
     validations:
       required: true
 
@@ -78,6 +80,17 @@ body:
     attributes:
       label: Is Amazon 2SV via Authenticator App enabled?
       description: We will not debug login issues if unanswered. See [2SV configuration](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-factor-authentication-for-your-amazon-account)
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: alexa-devices
+    attributes:
+      label: Is the HA core integration Alexa Devices?
+      description: Running both integrations will undoubtedly cause Amazon to throttle API requests.
       options:
         - "No"
         - "Yes"

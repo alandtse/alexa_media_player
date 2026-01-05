@@ -89,7 +89,7 @@ body:
   - type: dropdown
     id: alexa-devices
     attributes:
-      label: Is the HA core integration Alexa Devices?
+      label: Is the HA core integration Alexa Devices installed?
       description: "Warning - Running both integrations will undoubtedly cause Amazon to throttle API requests."
       options:
         - "No"

@@ -19,7 +19,7 @@
     "step": {
       "user": {
         "title": "Alexa Media Player - Configuration",
-        "description": "* Required entries\nNote: **Extended entity discovery** requires **Discover Alexa network** to be enabled.",
+        "description": "* Required entry",
         "data": {
           "url": "Amazon region domain (e.g., amazon.co.uk)",
           "email": "Email Address",

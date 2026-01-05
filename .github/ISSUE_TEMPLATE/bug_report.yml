@@ -90,7 +90,7 @@ body:
     id: alexa-devices
     attributes:
       label: Is the HA core integration Alexa Devices?
-      description: "Warning - Running both integrations will undoubtedly cause Amazon to throttle API requests.
+      description: "Warning - Running both integrations will undoubtedly cause Amazon to throttle API requests."
       options:
         - "No"
         - "Yes"

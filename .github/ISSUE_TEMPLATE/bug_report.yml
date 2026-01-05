@@ -78,7 +78,7 @@ body:
   - type: dropdown
     id: two-factor
     attributes:
-      label: Is Amazon 2SV via Authenticator App enabled?
+      label: Have you entered a 52-character key for Amazon 2SV via Authenticator App login?
       description: Your preferred method must be via Authenticator App. No help will be provided for any authentication issues if you attempt to configure otherwise. See [Enable Two-Step Verification for your Amazon account](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-step-verification-for-your-amazon-account)
       options:
         - "No"

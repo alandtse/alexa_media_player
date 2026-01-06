@@ -780,7 +780,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 "label": entry.get("label"),
                 "status": entry.get("status"),
                 "type": entry.get("type"),
-                "version":entry.get("version"),
+                "version": entry.get("version"),
                 self._sensor_property: when_val,
                 "lastUpdatedDate": entry.get("lastUpdatedDate"),
             }
@@ -817,7 +817,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     attr.setdefault(self._type.lower(), first.get(label_key))
                     if self._type == "Reminder":
                         # Secondary reminder label (when present)
-                        attr.setdefault("reminder_sub_label", first.get("reminderSubLabel"))
+                        attr.setdefault(
+                            "reminder_sub_label", first.get("reminderSubLabel")
+                        )
         return attr
 
 

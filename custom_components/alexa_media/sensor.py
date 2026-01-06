@@ -796,7 +796,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             #
             # Historical behavior exposed the full notification dicts; we cap
             # to keep state attributes from getting excessively large.
-            cap = getattr(self, "_cap_legacy", 50) or 50
+            cap = 50  # Limit legacy attributes to prevent excessive state size
             legacy_all = [v for _, v in self._all[:cap]]
             legacy_active = [v for _, v in self._active[:cap]]
 

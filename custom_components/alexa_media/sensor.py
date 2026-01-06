@@ -801,8 +801,8 @@ class AlexaMediaNotificationSensor(SensorEntity):
             legacy_active = [v for _, v in self._active[:cap]]
 
             # Generic legacy names
-            attr.setdefault("sorted_all", legacy_all)
-            attr.setdefault("sorted_active", legacy_active)
+            attr["sorted_all"] = legacy_all
+            attr["sorted_active"] = legacy_active
 
             # Some consumers expect a single string label for the "next" item.
             # These keys are used by card-alexa-alarms-timers.
@@ -814,12 +814,11 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     "Reminder": "reminderLabel",
                 }.get(self._type)
                 if label_key:
-                    attr.setdefault(self._type.lower(), first.get(label_key))
+                    attr[self._type.lower()] = first.get(label_key)
+
                     if self._type == "Reminder":
                         # Secondary reminder label (when present)
-                        attr.setdefault(
-                            "reminder_sub_label", first.get("reminderSubLabel")
-                        )
+                        attr["reminder_sub_label"] = first.get("reminderSubLabel")
         return attr
 
 

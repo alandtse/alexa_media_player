@@ -371,7 +371,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
 class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""
 
-    _unrecorded_attributes = frozenset({"sorted_active", "sorted_all"})
+    _unrecorded_attributes = frozenset({"brief", "sorted_active", "sorted_all"})
 
     def __init__(
         self,

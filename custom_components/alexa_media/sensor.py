@@ -372,6 +372,11 @@ class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""
 
     _unrecorded_attributes = frozenset({"brief", "sorted_active", "sorted_all"})
+    _LABEL_KEY_MAP = {
+        "Alarm": "alarmLabel",
+        "Timer": "timerLabel",
+        "Reminder": "reminderLabel",
+    }
 
     def __init__(
         self,
@@ -777,11 +782,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 when_val = when
 
             # Labels are type-specific in Alexa's payload; resolve to a single generic key.
-            label_key = {
-                "Alarm": "alarmLabel",
-                "Timer": "timerLabel",
-                "Reminder": "reminderLabel",
-            }.get(self._type)
+            label_key = self._LABEL_KEY_MAP.get(self._type)
             label = entry.get(label_key) if label_key else None
 
             data = {
@@ -816,11 +817,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             # These keys are used by card-alexa-alarms-timers.
             if legacy_active:
                 first = legacy_active[0]
-                label_key = {
-                    "Alarm": "alarmLabel",
-                    "Timer": "timerLabel",
-                    "Reminder": "reminderLabel",
-                }.get(self._type)
+                label_key = self._LABEL_KEY_MAP.get(self._type)
                 if label_key:
                     attr[self._type.lower()] = first.get(label_key)
 

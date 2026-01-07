@@ -1,0 +1,136 @@
+{
+  "config": {
+    "abort": {
+      "forgot_password": "Die Seite „Passwort vergessen“ wurde erkannt. Dies ist normalerweise die Folge zu vieler fehlgeschlagener Anmeldeversuche. Amazon kann eine Aktion erfordern, bevor ein erneuter Anmeldeversuch unternommen werden kann.",
+      "login_failed": "Alexa Media Player konnte nicht angemeldet werden.",
+      "reauth_successful": "Alexa Media Player wurde erfolgreich neu authentifiziert. Bitte ignorieren Sie die Meldung „Abgebrochen“ von Home Assistant."
+    },
+    "error": {
+      "2fa_key_invalid": "{otp_secret} ist ungültig",
+      "connection_error": "Verbindungsfehler; Netzwerk prüfen und erneut versuchen",
+      "identifier_exists": "Diese E-Mail-Adresse ist bereits registriert",
+      "invalid_auth": "Die Anmeldung ist fehlgeschlagen. Bitte überprüfen Sie Ihre E-Mail-Adresse, Ihr Passwort und Ihren Authentifizierungsschlüssel.",
+      "invalid_credentials": "Ungültige Zugangsdaten",
+      "invalid_url": "URL ist ungültig: {message}",
+      "oauth_error": "Die OAuth-Anmeldung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
+      "unable_to_connect_hass_url": "Es konnte keine Verbindung zur lokalen Home Assistant-URL hergestellt werden. Bitte überprüfen Sie die URL unter Einstellungen > System > Netzwerk > Home Assistant-URL > Lokales Netzwerk.",
+      "unknown_error": "Unbekannter Fehler: {message}"
+    },
+    "step": {
+      "proxy_warning": {
+        "data": {
+          "proxy_warning": "Ignorieren und Fortfahren - Ich verstehe, dass keine Unterstützung für Anmeldeprobleme beim Umgehen dieser Warnung angeboten wird."
+        },
+        "description": "Der HA-Server kann keine Verbindung zur bereitgestellten URL herstellen: {hass_url}.\n> {error}\n\nUm dies zu beheben, bestätigen Sie bitte, dass Ihr **HA-Server** {hass_url} erreichen kann. Dieses Feld stammt aus der externen URL unter Konfiguration -> Allgemein, aber Sie können auch Ihre interne URL ausprobieren.\n\nWenn Sie **sicher** sind, dass Ihr Client diese URL erreichen kann, können Sie diese Warnung ignorieren und fortsetzen.",
+        "title": "Alexa Media Player - Keine Verbindung zur Home Assistant-URL möglich"
+      },
+      "totp_register": {
+        "data": {
+          "registered": "Ja, der OTP-Code wurde verifiziert."
+        },
+        "description": "**{email} - alexa.{url}** \nHaben Sie erfolgreich einen OTP-Code aus dem integrierten 2FA-App-Schlüssel mit Amazon bestätigt?\n >OTP-Code {message}",
+        "title": "Alexa Media Player - OTP-Bestätigung"
+      },
+      "user": {
+        "data": {
+          "debug": "Erweitertes Debugging",
+          "email": "E-Mail-Adresse",
+          "exclude_devices": "oder Diese Geräte von allen ausschließen (durch Komma getrennt)",
+          "extended_entity_discovery": "Fügen Sie zusätzliche Sensoren, Schalter und Leuchten hinzu.",
+          "hass_url": "Lokale Netzwerk-URL für den Zugriff auf Home Assistant",
+          "include_devices": "Eingebundene Geräte (Komma getrennt)",
+          "otp_secret": "Amazon 2SV Authenticator App-Schlüssel",
+          "password": "Passwort",
+          "public_url": "Öffentliche URL, die mit extern gehosteten Diensten geteilt wird",
+          "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in die Warteschlange (Sekunden)",
+          "scan_interval": "Geplantes Abfrageintervall (Sekunden)",
+          "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Entdecken Sie das Alexa-Netzwerk",
+          "url": "Amazon Region (z.B. amazon.de)"
+        },
+        "description": "* Erforderliche Angaben\nHinweis: **Die erweiterte Entitätserkennung** erfordert, dass **Alexa-Netzwerke erkennen** aktiviert ist.",
+        "title": "Alexa Media Player - Konfiguration"
+      }
+    }
+  },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "Die YAML-Konfiguration des Alexa Media Players ist veraltet.\nBitte entfernen Sie `alexa_media` aus Ihrer Konfiguration, starten Sie Home Assistant neu und verwenden Sie stattdessen die Benutzeroberfläche zur Konfiguration.\nEinstellungen > Geräte & Dienste > Integrationen > INTEGRATION HINZUFÜGEN",
+      "title": "Die YAML-Konfiguration ist veraltet"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "debug": "Erweitertes Debugging",
+          "exclude_devices": "oder Diese Geräte von allen ausschließen (durch Komma getrennt)",
+          "extended_entity_discovery": "Fügen Sie zusätzliche Sensoren, Schalter und Leuchten hinzu.",
+          "include_devices": "Nur diese Geräte angeben (durch Komma getrennt)",
+          "public_url": "Öffentliche URL, die mit externen gehosteten Diensten geteilt wird",
+          "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in die Warteschlange (Sekunden)",
+          "scan_interval": "Geplante Abfragehäufigkeit (Sekunden)",
+          "should_get_network": "Entdecken Sie das Alexa-Netzwerk"
+        },
+        "description": "* Erforderliche Angaben\nHinweis: **Die erweiterte Entitätserkennung** erfordert, dass **Alexa-Netzwerke erkennen** aktiviert ist.",
+        "title": "Alexa Media Player - Rekonfiguration"
+      }
+    }
+  },
+  "services": {
+    "enable_network_discovery": {
+      "description": "Aktiviert die Alexa-Netzwerkerkennung erneut, sodass beim nächsten Abfragezyklus die Alexa-Geräte für die ausgewählten Konten erneut erkannt werden.",
+      "fields": {
+        "email": {
+          "description": "Optionale E-Mail-Adresse oder Liste von E-Mail-Adressen Ihres Alexa-Kontos. Falls leer, werden alle bekannten Konten aktualisiert.",
+          "name": "E-Mail-Adresse"
+        }
+      },
+      "name": "Aktivieren Sie die Netzwerkerkennung"
+    },
+    "force_logout": {
+      "description": "Logout erzwingen. Primär für Debugging genutzt.",
+      "fields": {
+        "email": {
+          "description": "Zu löschende Accounts. Falls leer, werden alle gelöscht.",
+          "name": "E-Mail-Adresse"
+        }
+      },
+      "name": "Logout erzwingen"
+    },
+    "get_history_records": {
+      "description": "Analysiert die Verlaufsdatensätze für das angegebene Gerät",
+      "fields": {
+        "entity_id": {
+          "description": "Entität, für die der Verlauf abgerufen werden soll",
+          "name": "Mediaplayer auswählen:"
+        },
+        "entries": {
+          "description": "Anzahl der abzurufenden Einträge",
+          "name": "Anzahl der Einträge"
+        }
+      },
+      "name": "Verlaufsdatensätze abrufen"
+    },
+    "restore_volume": {
+      "description": "Vorherige Lautstärke auf dem Alexa-Mediaplayer-Gerät wiederherstellen",
+      "fields": {
+        "entity_id": {
+          "description": "Entität zum Wiederherstellen der vorherigen Lautstärke auf",
+          "name": "Mediaplayer auswählen:"
+        }
+      },
+      "name": "Vorherige Lautstärke wiederherstellen"
+    },
+    "update_last_called": {
+      "description": "Erzwinge Updates der zuletzt aufgerufenen Echo Geräte für jeden Alexa Account.",
+      "fields": {
+        "email": {
+          "description": "Liste der zu aktualisierenden Alexa-Konten. Wenn leer, werden alle bekannten Konten aktualisiert.",
+          "name": "E-Mail-Adresse"
+        }
+      },
+      "name": "Aktualisiere den zuletzt aufgerufenen Sensor"
+    }
+  }
+}

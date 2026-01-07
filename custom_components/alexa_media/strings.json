@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
+      "forgot_password": "The Forgot Password page was detected. This normally is the result of too many failed logins. Amazon may require action before a relogin can be attempted.",
       "login_failed": "Alexa Media Player failed to login.",
       "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
     },
@@ -57,7 +57,7 @@
     "step": {
       "init": {
         "title": "Alexa Media Player - Reconfiguration",
-        "description": "* Required entries\nNote: **Extended entity discovery** requires **Discover Alexa network** to be enabled.",
+        "description": "* Required entry",
         "data": {
           "public_url": "Public URL shared with external hosted services",
           "include_devices": "Only include these devices (comma separated)",

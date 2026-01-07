@@ -795,7 +795,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
             }
             return data
 
-
         if self._all:
             # Limit to a few entries so attributes stay small
             attr["brief"] = {

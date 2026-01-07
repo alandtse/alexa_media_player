@@ -775,15 +775,26 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 when_val = dt.as_local(when).isoformat()
             else:
                 when_val = when
-            return {
+
+            # Labels are type-specific in Alexa's payload; resolve to a single generic key.
+            label_key = {
+                "Alarm": "alarmLabel",
+                "Timer": "timerLabel",
+                "Reminder": "reminderLabel",
+            }.get(self._type)
+            label = entry.get(label_key) if label_key else None
+
+            data = {
                 "id": entry.get("id"),
-                "label": entry.get("label"),
+                "label": label,
                 "status": entry.get("status"),
                 "type": entry.get("type"),
                 "version": entry.get("version"),
                 self._sensor_property: when_val,
                 "lastUpdatedDate": entry.get("lastUpdatedDate"),
             }
+            return data
+
 
         if self._all:
             # Limit to a few entries so attributes stay small

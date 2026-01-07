@@ -794,11 +794,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
             # Legacy alias attributes (for backwards compatibility with
             # cards/automations that relied on the previous sorted_* attributes).
             #
-            # Historical behavior exposed the full notification dicts; we cap
-            # to keep state attributes from getting excessively large.
-            cap = 50  # Limit legacy attributes to prevent excessive state size
-            legacy_all = [v for _, v in self._all[:cap]]
-            legacy_active = [v for _, v in self._active[:cap]]
+            # Historical behavior exposed the full notification dicts
+            legacy_all = [v for _, v in self._all]
+            legacy_active = [v for _, v in self._active]
 
             # Generic legacy names
             attr["sorted_all"] = legacy_all

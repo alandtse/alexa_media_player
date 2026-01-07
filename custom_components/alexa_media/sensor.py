@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 import datetime
 import logging
-from typing import Callable, Optional
+from typing import Callable, ClassVar, Optional
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -372,7 +372,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""
 
     _unrecorded_attributes = frozenset({"brief", "sorted_active", "sorted_all"})
-    _LABEL_KEY_MAP = {
+    _LABEL_KEY_MAP: ClassVar[dict[str, str]] = {
         "Alarm": "alarmLabel",
         "Timer": "timerLabel",
         "Reminder": "reminderLabel",

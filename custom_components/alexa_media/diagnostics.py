@@ -1,4 +1,5 @@
 """Diagnostics support for Alexa Media Player."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -210,17 +211,23 @@ def _summarize_coordinator(coordinator: DataUpdateCoordinator) -> dict:
     data = {
         "name": getattr(coordinator, "name", None),
         "last_update_success": getattr(coordinator, "last_update_success", None),
-        "last_exception": repr(getattr(coordinator, "last_exception", None))
-        if getattr(coordinator, "last_exception", None)
-        else None,
-        "update_interval": str(getattr(coordinator, "update_interval", None))
-        if getattr(coordinator, "update_interval", None) is not None
-        else None,
+        "last_exception": (
+            repr(getattr(coordinator, "last_exception", None))
+            if getattr(coordinator, "last_exception", None)
+            else None
+        ),
+        "update_interval": (
+            str(getattr(coordinator, "update_interval", None))
+            if getattr(coordinator, "update_interval", None) is not None
+            else None
+        ),
         "last_update": _safe_dt(getattr(coordinator, "last_update", None)),
     }
 
     try:
-        data["data_summary"] = _summarize_coordinator_data(getattr(coordinator, "data", None))
+        data["data_summary"] = _summarize_coordinator_data(
+            getattr(coordinator, "data", None)
+        )
     except Exception:
         data["data_summary_error"] = True
 
@@ -242,7 +249,14 @@ def _summarize_amp_entry_runtime(entry_runtime: Any) -> dict:
         out["runtime_type"] = "mapping"
         out["runtime_keys"] = _maybe_keys(entry_runtime)
         # Common “bucket” counts if they happen to exist.
-        for key in ("accounts", "devices", "media_players", "players", "notifications", "entities"):
+        for key in (
+            "accounts",
+            "devices",
+            "media_players",
+            "players",
+            "notifications",
+            "entities",
+        ):
             if key in entry_runtime:
                 out[f"{key}_count"] = _maybe_len(entry_runtime.get(key))
         # Small sample of names
@@ -275,7 +289,9 @@ def _summarize_amp_domain(domain_data: Any, config_entry: ConfigEntry) -> dict:
     """
     out: dict[str, Any] = {}
     out["domain_data_present"] = domain_data is not None
-    out["domain_data_type"] = type(domain_data).__name__ if domain_data is not None else None
+    out["domain_data_type"] = (
+        type(domain_data).__name__ if domain_data is not None else None
+    )
 
     if not isinstance(domain_data, Mapping):
         return out
@@ -317,7 +333,7 @@ async def async_get_config_entry_diagnostics(
     domain_data = hass.data.get(DOMAIN)
     email = config_entry.data.get("email")
     safe_title = _obfuscate_title_with_email(config_entry.title, email)
-    
+
     # AMP *might* store runtime under entry_id, but often doesn't.
     entry_runtime = None
     if isinstance(domain_data, Mapping):

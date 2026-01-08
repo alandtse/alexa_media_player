@@ -1851,7 +1851,18 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     @property
     def device_info(self):
-        """Return the device_info of the device."""
+        """
+        Provide the device information mapping used by Home Assistant for this entity.
+        
+        Returns:
+            dict: A mapping containing the device's identification and metadata with keys:
+                - `identifiers`: set containing a (domain, unique_id) tuple
+                - `name`: device display name
+                - `manufacturer`: device manufacturer (always "Amazon")
+                - `model`: device model string
+                - `serial_number`: device serial number (unique_id)
+                - `sw_version`: software version
+        """
         return {
             "identifiers": {(ALEXA_DOMAIN, self.unique_id)},
             "name": self.name,

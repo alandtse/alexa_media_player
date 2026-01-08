@@ -1853,7 +1853,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def device_info(self):
         """
         Provide the device information mapping used by Home Assistant for this entity.
-        
+
         Returns:
             dict: A mapping containing the device's identification and metadata with keys:
                 - `identifiers`: set containing a (domain, unique_id) tuple

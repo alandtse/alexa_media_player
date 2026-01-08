@@ -56,7 +56,7 @@ def _redact_serial(serial: str | None) -> str | None:
     """Return a partially-redacted serial number for diagnostics."""
     if not serial:
         return serial
-    if len(serial) <= 4:
+    if len(serial) <= 6:
         return "****"
     return f"{serial[:2]}***{serial[-4:]}"
 
@@ -404,3 +404,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, _TO_REDACT)
+

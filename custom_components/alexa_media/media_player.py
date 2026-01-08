@@ -1859,6 +1859,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "model": MODEL_IDS.get(
                 self._device_type, f"{self._device_family} {self._device_type}"
             ),
+            "serial_number": self.unique_id,
             "sw_version": self._software_version,
         }
 

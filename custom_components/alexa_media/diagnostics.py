@@ -369,4 +369,3 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
-

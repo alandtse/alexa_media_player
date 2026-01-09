@@ -37,7 +37,7 @@ def _maybe_keys(val: Any, limit: int = 50) -> list[str] | None:
     if isinstance(val, Mapping):
         try:
             keys = [str(k) for k in val.keys()]
-            return sorted(keys[:limit])
+            return sorted(keys)[:limit]
         except (TypeError, AttributeError):
             return None
     return None
@@ -388,3 +388,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

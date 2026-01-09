@@ -253,6 +253,12 @@ def _obfuscate_title_with_email(title: str | None, email: str | None) -> str | N
     return title.replace(email, hide_email(email))
 
 
+def _get_safe_config_entry_title(config_entry: ConfigEntry) -> str | None:
+    """Get obfuscated config entry title."""
+    email = config_entry.data.get("email")
+    return _obfuscate_title_with_email(config_entry.title, email)
+
+
 def _summarize_amp_domain(domain_data: Any, config_entry: ConfigEntry) -> dict:
     """
     Best-effort summary of hass.data[DOMAIN] for AMP.
@@ -304,8 +310,7 @@ async def async_get_config_entry_diagnostics(
 ) -> dict:
     """Return diagnostics for a config entry."""
     domain_data = hass.data.get(DOMAIN)
-    email = config_entry.data.get("email")
-    safe_title = _obfuscate_title_with_email(config_entry.title, email)
+    safe_title = _get_safe_config_entry_title(config_entry)
 
     # AMP currently doesn't store runtime under entry_id.
     # This adds future-proofing for if and when it does.
@@ -357,8 +362,7 @@ async def async_get_device_diagnostics(
     _hass: HomeAssistant, config_entry: ConfigEntry, device: dr.DeviceEntry
 ) -> dict:
     """Return diagnostics for a specific device."""
-    email = config_entry.data.get("email")
-    safe_title = _obfuscate_title_with_email(config_entry.title, email)
+    safe_title = _get_safe_config_entry_title(config_entry)
     data: dict = {
         "device": {
             "id": device.id,
@@ -381,3 +385,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

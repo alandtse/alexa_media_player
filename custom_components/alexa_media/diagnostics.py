@@ -237,6 +237,14 @@ def _summarize_amp_entry_runtime(entry_runtime: Any) -> dict:
     return out
 
 
+def _obfuscate_identifier(val: Any) -> str | None:
+    if not isinstance(val, str) or not val:
+        return None
+    if len(val) <= 6:
+        return val
+    return f"{val[:2]}...{val[-2:]}"
+
+
 def _obfuscate_title_with_email(title: str | None, email: str | None) -> str | None:
     """Obfuscate email in config entry title using the same mechanism as AMP logs."""
     if not title or not email:
@@ -359,8 +367,9 @@ async def async_get_device_diagnostics(
             "model": device.model,
             "sw_version": device.sw_version,
             "serial_number": hide_serial(device.serial_number),
-            "identifiers": sorted(device.identifiers),
-            "via_device_id": device.via_device_id,
+            "identifiers": sorted(
+                (domain, _obfuscate_identifier(value)) for domain, value in device.identifiers
+            ),            "via_device_id": device.via_device_id,
         },
         "config_entry": {
             "entry_id": config_entry.entry_id,
@@ -369,3 +378,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

@@ -17,7 +17,6 @@ from alexapy import (
     AlexapyLoginCloseRequested,
     AlexapyLoginError,
     hide_email,
-    hide_password,
     hide_serial,
 )
 from alexapy.alexalogin import AlexaLogin

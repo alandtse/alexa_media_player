@@ -6,13 +6,13 @@
       "reauth_successful": "تمت إعادة التحقق من Alexa Media Player بنجاح. يرجى تجاهل رسالة \"تم الإلغاء\" من Home Assistant."
     },
     "error": {
-      "2fa_key_invalid": "مفتاح تطبيق المصادقة غير صالح لـ Amazon 2SV",
+      "2fa_key_invalid": "{otp_secret} غير صالح",
       "connection_error": "خطأ في الاتصال؛ تحقق من الشبكة وأعد المحاولة",
       "identifier_exists": "البريد الإلكتروني لرابط Alexa مسجل مسبقًا",
-      "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
+      "invalid_auth": "لم تنجح عملية تسجيل الدخول. يرجى التحقق من بريدك الإلكتروني وكلمة المرور ومفتاح المصادقة.",
       "invalid_credentials": "بيانات اعتماد غير صالحة",
       "invalid_url": "رابط غير صالح: {message}",
-      "oauth_error": "Could not complete OAuth login. Please try again.",
+      "oauth_error": "تعذر إكمال تسجيل الدخول عبر OAuth. يرجى المحاولة مرة أخرى.",
       "unable_to_connect_hass_url": "غير قادر على الاتصال بالرابط المحلي لـ Home Assistant. يرجى التحقق من العنوان ضمن:\nالإعدادات > النظام > الشبكة > رابط Home Assistant > الشبكة المحلية.",
       "unknown_error": "خطأ غير معروف: {message}"
     },
@@ -36,7 +36,7 @@
           "debug": "تصحيح  الأخطاء المتقدم",
           "email": "البريد الإلكتروني",
           "exclude_devices": "أو استبعاد هذه الأجهزة من الكل (مفصولة بفواصل)",
-          "extended_entity_discovery": "تضمين الأجهزة المتصلة عبر Echo",
+          "extended_entity_discovery": "أضف أجهزة استشعار ومفاتيح وأضواء إضافية",
           "hass_url": "رابط الشبكة المحلية للوصول إلى Home Assistant",
           "include_devices": "تضمين هذه الأجهزة فقط (مفصولة بفواصل)",
           "otp_secret": "مفتاح تطبيق Amazon 2SV للمصادقة الثنائية",
@@ -45,17 +45,17 @@
           "queue_delay": "تأخير وضع أوامر متعددة في قائمة الانتظار معًا (بالثواني)",
           "scan_interval": "الفاصل الزمني للإستطلاع المجدول (بالثواني)",
           "securitycode": "[%key_id:55616596%]",
-          "should_get_network": "Discover Alexa network",
+          "should_get_network": "اكتشف شبكة اليكسا",
           "url": "نطاق منطقة Amazon (على سبيل المثال، amazon.co.uk)"
         },
-        "description": "إجباري *",
+        "description": "* إدخالات مطلوبة\nملاحظة: يتطلب **اكتشاف الكيانات الموسع** تفعيل **شبكة اكتشاف أليكسا**.",
         "title": "Alexa Media Player - الإعدادات"
       }
     }
   },
   "issues": {
     "deprecated_yaml_configuration": {
-      "description": "تم إيقاف اعتماد إعدادات YAML لـ Alexa Media Player \n وسيتم إزالتها في الإصدار 4.14.0. \n لن يكون هناك استيراد تلقائي لها. \nيُرجى إزالتها من إعداداتك، ثم إعادة تشغيل Home Assistant واستخدام واجهة المستخدم للإعدادات بدلاً من ذلك. \n الإعدادات > الأجهزة والخدمات > التكاملات > إضافة التكامل",
+      "description": "تم إيقاف استخدام ملف YAML لتكوين مشغل وسائط Alexa.\n\nيرجى إزالة `alexa_media` من ملف التكوين، وإعادة تشغيل Home Assistant، واستخدام واجهة المستخدم لتكوينه.\n\nالإعدادات > الأجهزة والخدمات > التكاملات > إضافة تكامل",
       "title": "إعدادات YAML غير معتمد"
     }
   },
@@ -65,28 +65,28 @@
         "data": {
           "debug": "تصحيح  الأخطاء المتقدم",
           "exclude_devices": "أو استبعاد هذه الأجهزة من الكل (مفصولة بفواصل)",
-          "extended_entity_discovery": "تضمين الأجهزة المتصلة عبر Echo",
+          "extended_entity_discovery": "أضف أجهزة استشعار ومفاتيح وأضواء إضافية",
           "include_devices": "تضمين هذه الأجهزة فقط (مفصولة بفواصل)",
           "public_url": "رابط عام مشترك مع خدمات مستضافة خارجية",
           "queue_delay": "تأخير وضع أوامر متعددة في قائمة الانتظار معًا (بالثواني)",
           "scan_interval": "تكرار الاستطلاع المجدول (بالثواني)",
-          "should_get_network": "Discover Alexa network"
+          "should_get_network": "اكتشف شبكة اليكسا"
         },
-        "description": "إجباري *",
+        "description": "* إدخالات مطلوبة\nملاحظة: يتطلب **اكتشاف الكيانات الموسع** تفعيل **شبكة اكتشاف أليكسا**.",
         "title": "Alexa Media Player - إعادة التكوين"
       }
     }
   },
   "services": {
     "enable_network_discovery": {
-      "description": "Re-enables Alexa network discovery so the next polling cycle will rediscover Alexa devices for the selected accounts.",
+      "description": "يعيد تفعيل اكتشاف شبكة Alexa بحيث تعيد دورة الاستطلاع التالية اكتشاف أجهزة Alexa للحسابات المحددة.",
       "fields": {
         "email": {
-          "description": "Optional Alexa account email or list of emails. If empty, all known accounts will be refreshed.",
-          "name": "Email address"
+          "description": "بريد إلكتروني اختياري لحساب أليكسا أو قائمة عناوين البريد الإلكتروني. في حال عدم وجودها، سيتم تحديث جميع الحسابات المعروفة.",
+          "name": "عنوان البريد الإلكتروني"
         }
       },
-      "name": "Enable Network Discovery"
+      "name": "تفعيل اكتشاف الشبكة"
     },
     "force_logout": {
       "description": "إجبار الحساب على تسجيل الخروج. يُستخدم بشكل أساسي لأغراض التصحيح.",
@@ -99,18 +99,18 @@
       "name": "فرض تسجيل الخروج"
     },
     "get_history_records": {
-      "description": "Parses the history records for the specified device",
+      "description": "يقوم بتحليل سجلات التاريخ للجهاز المحدد",
       "fields": {
         "entity_id": {
-          "description": "Entity to get the history for",
-          "name": "Select media player:"
+          "description": "الكيان الذي سيتم الحصول منه على السجل",
+          "name": "حدد مشغل الوسائط:"
         },
         "entries": {
-          "description": "Number of entries to get",
-          "name": "Number of entries"
+          "description": "عدد الإدخالات المطلوب الحصول عليها",
+          "name": "عدد الإدخالات"
         }
       },
-      "name": "Get History Records"
+      "name": "الحصول على سجلات التاريخ"
     },
     "restore_volume": {
       "description": "استعادة مستوى الصوت السابق على جهاز Alexa media player",

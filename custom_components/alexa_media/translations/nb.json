@@ -3,59 +3,59 @@
     "abort": {
       "forgot_password": "Siden Glemt passord ble oppdaget. Dette er vanligvis et resultat av også mislykkede pålogginger. Amazon kan kreve handling før en pålogging kan forsøkes.",
       "login_failed": "Alexa Media Player kunne ikke logge inn.",
-      "reauth_successful": "Alexa Media Player er godkjent på nytt."
+      "reauth_successful": "Alexa Media Player er autentisert på nytt. Vennligst ignorer meldingen «Avbrutt» fra HA."
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "{otp_secret} er ugyldig",
       "connection_error": "Feil ved tilkobling; sjekk nettverket og prøv på nytt",
       "identifier_exists": "E-post for Alexa URL allerede registrert",
       "invalid_auth": "Innloggingen mislyktes. Dobbeltsjekk e-post, passord og autentiseringsnøkkel.",
       "invalid_credentials": "ugyldige legitimasjon",
       "invalid_url": "URL er ugyldig: {message}",
       "oauth_error": "Kunne ikke fullføre OAuth-pålogging. Prøv på nytt.",
-      "unable_to_connect_hass_url": "Kan ikke koble til Home Assistant-nettadressen. Vennligst sjekk den eksterne nettadressen under Konfigurasjon - > Generelt",
-      "unknown_error": "Ukjent feil, vennligst rapporter logginfo"
+      "unable_to_connect_hass_url": "Kan ikke koble til den lokale URL-adressen for Home Assistant. Sjekk URL-adressen under Innstillinger > System > Nettverk > URL for Home Assistant > Lokalt nettverk",
+      "unknown_error": "Ukjent feil: {message}"
     },
     "step": {
       "proxy_warning": {
         "data": {
           "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
         },
-        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your **HA server** can reach {hass_url}. This field is from the External Url under Configuration -> General but you can try your internal url.\n\nIf you are **certain** your client can reach this url, you can bypass this warning.",
-        "title": "Alexa Media Player - Unable to Connect to HA URL"
+        "description": "HA-serveren kan ikke koble til den oppgitte URL-en: {hass_url}.\n> {error}\n\nFor å fikse dette, må du bekrefte at nettleseren din kan nå {hass_url}. Dette feltet er fra Innstillinger > System > Nettverk > URL-adresse for Home Assistant.\n\nHvis du er **sikker** på at nettleseren din kan nå denne URL-en, kan du omgå denne advarselen.",
+        "title": "Alexa Media Player – Kan ikke koble til HA URL"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "Ja, engangskoden ble bekreftet"
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
+        "description": "**{email} - alexa.{url}**  \nHar du bekreftet engangskoden i Amazon 2SV?\n >OTP Kode {message}",
         "title": "Alexa Media Player - OTP Confirmation"
       },
       "user": {
         "data": {
           "debug": "Avansert feilsøking",
           "email": "Epostadresse",
-          "exclude_devices": "Ekskludert enhet (kommaseparert)",
+          "exclude_devices": "eller Ekskluder disse enhetene fra alle (kommaseparert)",
           "extended_entity_discovery": "Inkluder ekstra sensorer, brytere og lys",
-          "hass_url": "Url to access Home Assistant",
-          "include_devices": "Inkluder enhet (kommaseparert)",
-          "otp_secret": "Built-in 2FA App Key (automatically generate 2FA Codes)",
+          "hass_url": "URL-adresse for lokalt nettverk for å få tilgang til Home Assistant",
+          "include_devices": "Inkluder bare disse enhetene (kommaseparert)",
+          "otp_secret": "Amazon 2SV Authenticator-appnøkkel",
           "password": "Passord",
-          "public_url": "Offentlig URL delt med eksterne vertstjenester",
-          "queue_delay": "Sekunder for å vente på køkommandoer sammen",
-          "scan_interval": "Sekunder mellom skanninger",
-          "securitycode": "2FA-kode (anbefales for å unngå påloggingsproblemer)",
+          "public_url": "Offentlig URL delt med eksterne vertsbaserte tjenester",
+          "queue_delay": "Forsinkelse for å sette flere kommandoer sammen i kø (sekunder)",
+          "scan_interval": "Planlagt avstemningsintervall (sekunder)",
+          "securitycode": "[%key_id:55616596%]",
           "should_get_network": "Oppdag Alexa-nettverket",
           "url": "Amazon-regiondomenet (f.eks. Amazon.co.uk)"
         },
-        "description": "Bekreft informasjonen nedenfor.",
+        "description": "* Obligatoriske oppføringer\nMerk: **Utvidet enhetsoppdagelse** krever at **Oppdag Alexa-nettverket** er aktivert.",
         "title": "Alexa Media Player - Konfigurasjon"
       }
     }
   },
   "issues": {
     "deprecated_yaml_configuration": {
-      "description": "YAML-konfigurasjonen av Alexa Media Player er utdatert \n og vil bli fjernet i versjon 4.14.0. \n Det vil ikke være noen automatisk import av dette. \n Fjern den fra konfigurasjonen din, start Home Assistant på nytt og bruk brukergrensesnittet til å konfigurere det i stedet. \n Innstillinger > Enheter og tjenester > Integrasjoner > LEGG TIL INTEGRASJON",
+      "description": "YAML-konfigurasjonen av Alexa Media Player er utdatert.\nFjern `alexa_media` fra konfigurasjonen din, start Home Assistant på nytt og bruk brukergrensesnittet til å konfigurere den i stedet.\nInnstillinger > Enheter og tjenester > Integrasjoner > LEGG TIL INTEGRASJON",
       "title": "YAML-konfigurasjonen er utdatert"
     }
   },
@@ -64,16 +64,16 @@
       "init": {
         "data": {
           "debug": "Avansert feilsøking",
-          "exclude_devices": "Ekskludert enhet (kommaseparert)",
-          "extended_entity_discovery": "Inkluder enheter som er koblet til via Echo",
-          "include_devices": "Inkluder enhet (kommaseparert)",
-          "public_url": "Offentlig URL for å få tilgang til Home Assistant (inkludert etterfølgende ''/'')",
-          "queue_delay": "Sekunder for å vente på køkommandoer sammen",
-          "scan_interval": "Sekunder mellom skanninger",
+          "exclude_devices": "eller Ekskluder disse enhetene fra alle (kommaseparert)",
+          "extended_entity_discovery": "Inkluder ekstra sensorer, brytere og lys",
+          "include_devices": "Inkluder bare disse enhetene (kommaseparert)",
+          "public_url": "Offentlig URL delt med eksterne vertsbaserte tjenester",
+          "queue_delay": "Forsinkelse for å sette flere kommandoer sammen i kø (sekunder)",
+          "scan_interval": "Planlagt avstemningsfrekvens (sekunder)",
           "should_get_network": "Oppdag Alexa-nettverket"
         },
-        "description": "* Obligatoriske oppføringer \n Merk: **Utvidet enhetsoppdagelse** krever at **Discover Alexa-nettverket** er aktivert.",
-        "title": "Alexa Media Player - Reconfiguration"
+        "description": "* Obligatoriske oppføringer\nMerk: **Utvidet enhetsoppdagelse** krever at **Oppdag Alexa-nettverket** er aktivert.",
+        "title": "Alexa Media Player – Rekonfigurasjon"
       }
     }
   },
@@ -89,14 +89,14 @@
       "name": "Aktiver nettverksoppdagelse"
     },
     "force_logout": {
-      "description": "Force account to logout. Used mainly for debugging.",
+      "description": "Tving kontoen til å logge ut. Brukes hovedsakelig til feilsøking.",
       "fields": {
         "email": {
-          "description": "Accounts to clear. Empty will clear all.",
-          "name": "Email address"
+          "description": "Kontoer som skal tømmes. Tøm vil tømme alle.",
+          "name": "E-postadresse"
         }
       },
-      "name": "Force Logout"
+      "name": "Tving utlogging"
     },
     "get_history_records": {
       "description": "Analyserer historikkpostene for den angitte enheten",
@@ -123,14 +123,14 @@
       "name": "Gjenopprett forrige volum"
     },
     "update_last_called": {
-      "description": "Forces update of last_called echo device for each Alexa account.",
+      "description": "Tvinger frem oppdatering av sist oppringte echo-enhet for hver Alexa-konto.",
       "fields": {
         "email": {
-          "description": "List of Alexa accounts to update. If empty, will update all known accounts.",
-          "name": "Email address"
+          "description": "Liste over Alexa-kontoer som skal oppdateres. Hvis tom, oppdateres alle kjente kontoer.",
+          "name": "E-postadresse"
         }
       },
-      "name": "Update Last Called Sensor"
+      "name": "Oppdater sist oppringte sensor"
     }
   }
 }

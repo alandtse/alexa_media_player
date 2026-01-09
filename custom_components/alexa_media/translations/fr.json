@@ -1,61 +1,61 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "La page \"Mot de passe oublié\" a été détectée. Ceci est normalement le résultat d'un trop grand nombre d'échecs de connexion. Amazon peut exiger une action avant qu'une nouvelle connexion puisse être tentée.",
+      "forgot_password": "La page « Mot de passe oublié » s'affiche. Cela se produit généralement suite à un trop grand nombre d'échecs de connexion. Amazon peut exiger une action de votre part avant toute nouvelle tentative de connexion.",
       "login_failed": "Alexa Media Player n'a pas réussi à se connecter.",
-      "reauth_successful": "Alexa Media Player s'est ré-authentifié avec succès."
+      "reauth_successful": "Alexa Media Player s'est ré-authentifié avec succès. Veuillez ignorer le message \\\"Abandonné\\\" de Home Assistant."
     },
     "error": {
-      "2fa_key_invalid": "Clé 2FA intégrée non valide",
-      "connection_error": "Erreur de connexion; vérifier le réseau et réessayer",
-      "identifier_exists": "Email pour l'URL Alexa déjà enregistré",
+      "2fa_key_invalid": "{otp_secret} n'est pas valide",
+      "connection_error": "Erreur de connexion ; vérifiez le réseau et réessayez",
+      "identifier_exists": "L'adresse e-mail pour cette URL Alexa est déjà enregistrée",
       "invalid_auth": "La connexion a échoué. Veuillez vérifier votre adresse e-mail, votre mot de passe et votre clé d'authentification.",
-      "invalid_credentials": "Informations d'identification invalides",
+      "invalid_credentials": "Identifiants invalides",
       "invalid_url": "L'URL n'est pas valide: {message}",
       "oauth_error": "Impossible de terminer la connexion OAuth. Veuillez réessayer.",
-      "unable_to_connect_hass_url": "Impossible de se connecter à l'URL de Home Assistant. Veuillez vérifier l'URL interne sous Configuration - > Général",
-      "unknown_error": "Erreur inconnue, veuillez signaler les informations du journal: {message}"
+      "unable_to_connect_hass_url": "Impossible de se connecter à l'URL locale de Home Assistant. Veuillez vérifier l'URL sous Paramètres > Système > Réseau > URL de Home Assistant > Réseau local",
+      "unknown_error": "Erreur inconnue : {message}"
     },
     "step": {
       "proxy_warning": {
         "data": {
-          "proxy_warning": "Ignorer et continuer - Je comprends qu'aucune assistance pour les problèmes de connexion n'est fournie pour contourner cet avertissement."
+          "proxy_warning": "Ignorer et continuer - Je comprends qu'aucune assistance pour les problèmes de connexion ne sera fournie si je contourne cet avertissement."
         },
-        "description": "Le serveur HA ne peut pas se connecter à l'URL fournie: {hass_url}.\n > {error} \n\n Pour résoudre ce problème, veuillez confirmer que votre **serveur HA** peut atteindre {hass_url}. Ce champ provient de l'URL externe sous Configuration - > Général mais vous pouvez essayer votre URL interne. \n\n Si vous êtes **certain** que votre client peut accéder à cette URL, vous pouvez ignorer cet avertissement.",
-        "title": "Alexa Media Player - Impossible de se connecter à HA URL"
+        "description": "Le serveur Home Assistant ne peut pas se connecter à l'URL fournie : {hass_url}.\n> {error}\n\nPour résoudre ce problème, veuillez confirmer que votre navigateur peut atteindre {hass_url}. Ce champ provient de Paramètres > Système > Réseau > URL de Home Assistant.\n\nSi vous êtes **certain** que votre navigateur peut accéder à cette URL, vous pouvez ignorer cet avertissement.",
+        "title": "Alexa Media Player - Impossible de se connecter à l'URL de HA"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP de la clé d'application 2FA intégrée confirmée avec succès."
+          "registered": "Oui, le code OTP a été vérifié"
         },
-        "description": "** {email} - alexa. {url} **\n Avez-vous confirmé avec succès un OTP à partir de la clé d'application 2FA intégrée avec Amazon?\n > Code OTP {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "description": "**{email} - alexa.{url}**\nAvez-vous vérifié le code OTP dans la validation en deux étapes Amazon ?\n> Code OTP : {message}",
+        "title": "Alexa Media Player - Confirmation OTP"
       },
       "user": {
         "data": {
           "debug": "Débogage avancé",
-          "email": "Adresse Email",
-          "exclude_devices": "Appareil exclu (séparé par des virgules)",
-          "extended_entity_discovery": "Inclure les appareils connectés via Echo",
-          "hass_url": "URL pour accéder à Home Assistant",
-          "include_devices": "Appareil inclus (séparé par des virgules)",
-          "otp_secret": "Clé d'application 2FA (2 facteurs) intégrée (génère automatiquement des codes 2FA). Il ne s'agit pas d'un code à six chiffres.",
+          "email": "Adresse e-mail",
+          "exclude_devices": "ou Exclure ces appareils (séparés par des virgules)",
+          "extended_entity_discovery": "Inclure les capteurs, interrupteurs et lumières additionnels",
+          "hass_url": "URL du réseau local pour accéder à Home Assistant",
+          "include_devices": "Inclure uniquement ces appareils (séparés par des virgules)",
+          "otp_secret": "Clé de l'application d'authentification Amazon 2SV",
           "password": "Mot de passe",
-          "public_url": "URL publique partagée avec des services hébergés externes",
-          "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble",
-          "scan_interval": "Secondes entre les analyses",
-          "securitycode": "Code 2FA (recommandé pour éviter les problèmes de connexion)",
-          "should_get_network": "Découvrez le réseau Alexa",
-          "url": "Domaine de la région Amazon (exemple, amazon.fr)"
+          "public_url": "URL publique partagée avec les services externes hébergés",
+          "queue_delay": "Délai pour regrouper plusieurs commandes (secondes)",
+          "scan_interval": "Intervalle d'interrogation programmé (secondes)",
+          "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Découvrir le réseau Alexa",
+          "url": "Domaine de la région Amazon (ex : amazon.fr)"
         },
-        "description": "Veuillez confirmer les informations ci-dessous. Pour la configuration héritée, désactivez l'option \"Utiliser la méthode de proxy de connexion\".",
+        "description": "* Champs obligatoires\nNote : **Inclure les capteurs, interrupteurs et lumières additionnels** nécessite que **Découvrir le réseau Alexa** soit activé.",
         "title": "Alexa Media Player - Configuration"
       }
     }
   },
   "issues": {
     "deprecated_yaml_configuration": {
-      "description": "La configuration YAML d'Alexa Media Player est obsolète \n et sera supprimée dans la version 4.14.0. \n Il n'y aura pas d'importation automatique de celle-ci. \n Veuillez la supprimer de votre configuration, redémarrer Home Assistant et utiliser l'interface utilisateur pour la configurer à la place. \n Paramètres > Appareils et services > Intégrations > AJOUTER UNE INTÉGRATION",
+      "description": "La configuration YAML d'Alexa Media Player est obsolète.\nVeuillez supprimer `alexa_media` de votre configuration, redémarrer Home Assistant et utiliser l'interface utilisateur pour la configurer à la place.\nParamètres > Appareils et services > Intégrations > AJOUTER UNE INTÉGRATION",
       "title": "La configuration YAML est obsolète"
     }
   },
@@ -64,16 +64,16 @@
       "init": {
         "data": {
           "debug": "Débogage avancé",
-          "exclude_devices": "Appareil exclu (séparé par des virgules)",
-          "extended_entity_discovery": "Inclure les appareils connectés via Echo",
-          "include_devices": "Appareil inclus (séparé par des virgules)",
-          "public_url": "URL publique pour accéder à Home Assistant (y compris le '/' final)",
-          "queue_delay": "Secondes à attendre pour mettre les commandes en file d'attente ensemble",
-          "scan_interval": "Secondes entre les analyses",
-          "should_get_network": "Découvrez le réseau Alexa"
+          "exclude_devices": "ou Exclure ces appareils (séparés par des virgules)",
+          "extended_entity_discovery": "Inclure les capteurs, interrupteurs et lumières additionnels",
+          "include_devices": "Inclure uniquement ces appareils (séparés par des virgules)",
+          "public_url": "URL publique partagée avec les services externes hébergés",
+          "queue_delay": "Délai pour regrouper plusieurs commandes (secondes)",
+          "scan_interval": "Fréquence d'interrogation programmée (secondes)",
+          "should_get_network": "Découvrir le réseau Alexa"
         },
-        "description": "Requis *",
-        "title": "Alexa Media Player – Reconfiguration"
+        "description": "* Champs obligatoires\nNote : **Inclure les capteurs, interrupteurs et lumières additionnels** nécessite que **Découvrir le réseau Alexa** soit activé.",
+        "title": "Alexa Media Player - Reconfiguration"
       }
     }
   },
@@ -82,55 +82,55 @@
       "description": "Réactive la découverte du réseau Alexa afin que le prochain cycle d'interrogation redécouvre les appareils Alexa pour les comptes sélectionnés.",
       "fields": {
         "email": {
-          "description": "Adresse e-mail ou liste d'adresses e-mail du compte Alexa (facultatif). Si ces champs sont vides, tous les comptes connus seront mis à jour.",
+          "description": "Adresse e-mail du compte Alexa ou liste d'adresses (facultatif). Si vide, tous les comptes connus seront actualisés.",
           "name": "Adresse email"
         }
       },
       "name": "Activer la découverte du réseau"
     },
     "force_logout": {
-      "description": "Forcer le compte à se déconnecter. Utilisé principalement pour le débogage.",
+      "description": "Force la déconnexion du compte. Utilisé principalement pour le débogage.",
       "fields": {
         "email": {
-          "description": "Comptes à effacer. Laisser à vide effacera tout.",
-          "name": "Adresse email"
+          "description": "Comptes à effacer. Laisser vide effacera tous les comptes.",
+          "name": "Adresse e-mail"
         }
       },
       "name": "Forcer la déconnexion"
     },
     "get_history_records": {
-      "description": "Analyse les enregistrements d'historique pour le périphérique spécifié",
+      "description": "Analyse les enregistrements d'historique pour l'appareil spécifié.",
       "fields": {
         "entity_id": {
-          "description": "Entité pour obtenir l'historique",
-          "name": "Sélectionnez le lecteur multimédia :"
+          "description": "Entité pour laquelle obtenir l'historique",
+          "name": "Sélectionner le lecteur multimédia:"
         },
         "entries": {
-          "description": "Nombre d'entrées à obtenir",
+          "description": "Nombre d'entrées à récupérer",
           "name": "Nombre d'entrées"
         }
       },
-      "name": "Obtenir des enregistrements historiques"
+      "name": "Obtenir les enregistrements d'historique"
     },
     "restore_volume": {
-      "description": "Restaurer le niveau de volume précédent sur le lecteur multimédia Alexa",
+      "description": "Restaure le niveau de volume précédent sur l'appareil Alexa Media Player.",
       "fields": {
         "entity_id": {
-          "description": "Entité permettant de restaurer le niveau de volume précédent",
-          "name": "Sélectionnez le lecteur multimédia :"
+          "description": "Entité sur laquelle restaurer le niveau de volume précédent",
+          "name": "Sélectionner le lecteur multimédia:"
         }
       },
       "name": "Restaurer le volume précédent"
     },
     "update_last_called": {
-      "description": "Force la mise à jour du dernier périphérique Echo appelé pour chaque compte Alexa.",
+      "description": "Force la mise à jour du dernier appareil Echo appelé pour chaque compte Alexa.",
       "fields": {
         "email": {
-          "description": "Liste des comptes Alexa à mettre à jour. Si vide, mettra à jour tous les comptes connus.",
-          "name": "Adresse email"
+          "description": "Liste des comptes Alexa à mettre à jour. Si vide, tous les comptes connus seront mis à jour.",
+          "name": "Adresse e-mail"
         }
       },
-      "name": "Mettre à jour le dernier capteur appelé"
+      "name": "Mettre à jour le capteur du dernier appel"
     }
   }
 }

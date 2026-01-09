@@ -368,8 +368,10 @@ async def async_get_device_diagnostics(
             "sw_version": device.sw_version,
             "serial_number": hide_serial(device.serial_number),
             "identifiers": sorted(
-                (domain, _obfuscate_identifier(value)) for domain, value in device.identifiers
-            ),            "via_device_id": device.via_device_id,
+                (domain, _obfuscate_identifier(value))
+                for domain, value in device.identifiers
+            ),
+            "via_device_id": device.via_device_id,
         },
         "config_entry": {
             "entry_id": config_entry.entry_id,
@@ -378,4 +380,3 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
-

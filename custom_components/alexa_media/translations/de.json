@@ -1,19 +1,19 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "Die \"Passwort vergessen Seite\" wurde erkannt. Amazon verlangt möglicherweise Maßnahmen bevor ein erneuter Anmeldeversuch unternommen werden kann.",
+      "forgot_password": "Die Seite „Passwort vergessen“ wurde erkannt. Dies ist normalerweise die Folge zu vieler fehlgeschlagener Anmeldeversuche. Amazon kann eine Aktion erfordern, bevor ein erneuter Anmeldeversuch unternommen werden kann.",
       "login_failed": "Alexa Media Player konnte nicht angemeldet werden.",
-      "reauth_successful": "Alexa Media Player erfolgreich authentifiziert"
+      "reauth_successful": "Alexa Media Player wurde erfolgreich neu authentifiziert. Bitte ignorieren Sie die Meldung „Abgebrochen“ von Home Assistant."
     },
     "error": {
-      "2fa_key_invalid": "Ungültiger 2-Faktor Schlüssel",
+      "2fa_key_invalid": "{otp_secret} ist ungültig",
       "connection_error": "Verbindungsfehler; Netzwerk prüfen und erneut versuchen",
       "identifier_exists": "Diese E-Mail-Adresse ist bereits registriert",
       "invalid_auth": "Die Anmeldung ist fehlgeschlagen. Bitte überprüfen Sie Ihre E-Mail-Adresse, Ihr Passwort und Ihren Authentifizierungsschlüssel.",
       "invalid_credentials": "Ungültige Zugangsdaten",
       "invalid_url": "URL ist ungültig: {message}",
       "oauth_error": "Die OAuth-Anmeldung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
-      "unable_to_connect_hass_url": "Es kann keine Verbindung zur Home Assistant-URL hergestellt werden. Bitte überprüfen Sie die externe URL unter Konfiguration -> Allgemein",
+      "unable_to_connect_hass_url": "Es konnte keine Verbindung zur lokalen Home Assistant-URL hergestellt werden. Bitte überprüfen Sie die URL unter Einstellungen > System > Netzwerk > Home Assistant-URL > Lokales Netzwerk.",
       "unknown_error": "Unbekannter Fehler: {message}"
     },
     "step": {
@@ -26,7 +26,7 @@
       },
       "totp_register": {
         "data": {
-          "registered": "OTP aus dem integrierten 2FA-App-Schlüssel erfolgreich bestätigt."
+          "registered": "Ja, der OTP-Code wurde verifiziert."
         },
         "description": "**{email} - alexa.{url}** \nHaben Sie erfolgreich einen OTP-Code aus dem integrierten 2FA-App-Schlüssel mit Amazon bestätigt?\n >OTP-Code {message}",
         "title": "Alexa Media Player - OTP-Bestätigung"
@@ -35,27 +35,27 @@
         "data": {
           "debug": "Erweitertes Debugging",
           "email": "E-Mail-Adresse",
-          "exclude_devices": "Ausgeschlossene Geräte (Komma getrennt)",
-          "extended_entity_discovery": "Über Echo verbundene Geräte einbeziehen",
-          "hass_url": "Home Assistant-URL",
+          "exclude_devices": "oder Diese Geräte von allen ausschließen (durch Komma getrennt)",
+          "extended_entity_discovery": "Fügen Sie zusätzliche Sensoren, Schalter und Leuchten hinzu.",
+          "hass_url": "Lokale Netzwerk-URL für den Zugriff auf Home Assistant",
           "include_devices": "Eingebundene Geräte (Komma getrennt)",
-          "otp_secret": "Integrierter 2FA-App-Schlüssel (automatisch generierte 2FA-Code)",
+          "otp_secret": "Amazon 2SV Authenticator App-Schlüssel",
           "password": "Passwort",
           "public_url": "Öffentliche URL, die mit extern gehosteten Diensten geteilt wird",
-          "queue_delay": "Zu wartende Sekunden, um Befehle in die Warteschlange zu stellen",
+          "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in die Warteschlange (Sekunden)",
           "scan_interval": "Geplantes Abfrageintervall (Sekunden)",
-          "securitycode": "2FA-Code (empfohlen, um Anmeldeprobleme zu vermeiden)",
+          "securitycode": "[%key_id:55616596%]",
           "should_get_network": "Entdecken Sie das Alexa-Netzwerk",
           "url": "Amazon Region (z.B. amazon.de)"
         },
-        "description": "Erforderlich *",
+        "description": "* Erforderliche Angaben\nHinweis: **Die erweiterte Entitätserkennung** erfordert, dass **Alexa-Netzwerke erkennen** aktiviert ist.",
         "title": "Alexa Media Player - Konfiguration"
       }
     }
   },
   "issues": {
     "deprecated_yaml_configuration": {
-      "description": "Die YAML-Konfiguration des Alexa Media Players ist veraltet und wird in Version 4.14.0 entfernt. \nDiese wird nicht automatisch importiert. \nBitte entfernen Sie sie aus Ihrer Konfiguration, starten Sie Home Assistant neu und verwenden Sie stattdessen die Benutzeroberfläche zur Konfiguration. \nEinstellungen > Geräte und Dienste > Integrationen > INTEGRATION HINZUFÜGEN",
+      "description": "Die YAML-Konfiguration des Alexa Media Players ist veraltet.\nBitte entfernen Sie `alexa_media` aus Ihrer Konfiguration, starten Sie Home Assistant neu und verwenden Sie stattdessen die Benutzeroberfläche zur Konfiguration.\nEinstellungen > Geräte & Dienste > Integrationen > INTEGRATION HINZUFÜGEN",
       "title": "Die YAML-Konfiguration ist veraltet"
     }
   },
@@ -64,15 +64,15 @@
       "init": {
         "data": {
           "debug": "Erweitertes Debugging",
-          "exclude_devices": "Ausgeschlossene Geräte (Komma getrennt)",
-          "extended_entity_discovery": "Über Echo verbundene Geräte einbeziehen",
-          "include_devices": "Eingebundene Geräte (Komma getrennt)",
-          "public_url": "Öffentliche URL für den Zugriff auf Home Assistant (einschließlich '/' am Ende)",
-          "queue_delay": "Zu wartende Sekunden, um Befehle in die Warteschlange zu stellen",
-          "scan_interval": "Sekunden zwischen den Scans",
+          "exclude_devices": "oder Diese Geräte von allen ausschließen (durch Komma getrennt)",
+          "extended_entity_discovery": "Fügen Sie zusätzliche Sensoren, Schalter und Leuchten hinzu.",
+          "include_devices": "Nur diese Geräte angeben (durch Komma getrennt)",
+          "public_url": "Öffentliche URL, die mit externen gehosteten Diensten geteilt wird",
+          "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in die Warteschlange (Sekunden)",
+          "scan_interval": "Geplante Abfragehäufigkeit (Sekunden)",
           "should_get_network": "Entdecken Sie das Alexa-Netzwerk"
         },
-        "description": "Erforderlich *",
+        "description": "* Erforderliche Angaben\nHinweis: **Die erweiterte Entitätserkennung** erfordert, dass **Alexa-Netzwerke erkennen** aktiviert ist.",
         "title": "Alexa Media Player - Rekonfiguration"
       }
     }
@@ -86,7 +86,7 @@
           "name": "E-Mail-Adresse"
         }
       },
-      "name": "Netzwerkermittlung aktivieren"
+      "name": "Aktivieren Sie die Netzwerkerkennung"
     },
     "force_logout": {
       "description": "Logout erzwingen. Primär für Debugging genutzt.",

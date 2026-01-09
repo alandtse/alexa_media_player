@@ -6,14 +6,14 @@
       "reauth_successful": "Alexa 媒体播放器已成功重新验证。请忽略来自 HA 的“Aborted”消息。"
     },
     "error": {
-      "2fa_key_invalid": "Invalid Built-In 2FA key",
+      "2fa_key_invalid": "{otp_secret} 无效",
       "connection_error": "连接错误；检查网络并重试",
       "identifier_exists": "Alexa URL的电子邮件已注册",
-      "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
+      "invalid_auth": "登录失败。请仔细检查您的邮箱、密码和验证码。",
       "invalid_credentials": "Invalid credentials",
       "invalid_url": "URL 无效： {message}",
-      "oauth_error": "Could not complete OAuth login. Please try again.",
-      "unable_to_connect_hass_url": "无法连接到 Home Assistant 网址。请检查配置下的外部 URL - >常规",
+      "oauth_error": "OAuth登录失败，请重试。",
+      "unable_to_connect_hass_url": "无法连接到 Home Assistant 本地 URL。请检查“设置”>“系统”>“网络”>“Home Assistant URL”>“本地网络”中的 URL。",
       "unknown_error": "未知错误： {message}"
     },
     "step": {
@@ -21,42 +21,42 @@
         "data": {
           "proxy_warning": "忽略并继续 - 我了解不提供对登录问题的支持来绕过此警告。"
         },
-        "description": "HA 服务器无法连接到提供的 URL： {hass_url} 。\n > {error} \n\n要解决此问题，请确认您的 **HA 服务器** 可以访问{hass_url} 。此字段来自配置 - >常规下的外部 URL，但您可以尝试使用内部 URL。 \n\n如果您**确定**您的客户可以访问此网址，则可以绕过此警告。",
+        "description": "HA 服务器无法连接到提供的 URL： {hass_url} 。\n > {error} \n\n要解决此问题，请确认您的 **HA 服务器** 可以访问{hass_url} 。此字段位于“设置”>“系统”>“网络”>“Home Assistant URL”中。\n\n如果您**确定**您的客户可以访问此网址，则可以绕过此警告。",
         "title": "Alexa 媒体播放器 - 无法连接到 HA URL"
       },
       "totp_register": {
         "data": {
-          "registered": "OTP from the Built-in 2FA App Key confirmed successfully."
+          "registered": "是的，OTP验证码已验证"
         },
-        "description": "**{email} - alexa.{url}**  \nHave you successfully confirmed an OTP from the Built-in 2FA App Key with Amazon?  \n >OTP Code {message}",
+        "description": "**{email} - alexa.{url}**  \n您是否已在亚马逊 2SV 中验证过 OTP 代码？\n >OTP Code {message}",
         "title": "Alexa Media Player - OTP Confirmation"
       },
       "user": {
         "data": {
           "debug": "高级调试",
           "email": "电子邮件地址",
-          "exclude_devices": "Excluded device (comma separated)",
-          "extended_entity_discovery": "包括通过 Echo 连接的设备",
-          "hass_url": "Url to access Home Assistant",
-          "include_devices": "Included device (comma separated)",
-          "otp_secret": "内置 2FA 应用程序密钥（自动生成 2FA 代码）。该密钥长度不为六位数字。",
+          "exclude_devices": "或者将这些设备从所有列表中排除（以逗号分隔）",
+          "extended_entity_discovery": "增加额外的传感器、开关和灯",
+          "hass_url": "用于访问 Home Assistant 的本地网络 URL",
+          "include_devices": "仅包含以下设备（以逗号分隔）",
+          "otp_secret": "亚马逊 2SV 身份验证器应用程序密钥",
           "password": "密码",
-          "public_url": "Public URL shared with external hosted services",
-          "queue_delay": "Seconds to wait to queue commands together",
-          "scan_interval": "Seconds between scans",
+          "public_url": "与外部托管服务共享的公共 URL",
+          "queue_delay": "将多个命令排队的延迟时间（秒）",
+          "scan_interval": "计划轮询间隔（秒）",
           "securitycode": "2FA Code (recommended to avoid login issues)",
-          "should_get_network": "Discover Alexa network",
+          "should_get_network": "发现 Alexa 网络",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
-        "description": "请确认以下信息。对于旧配置，请禁用“使用登录代理方法”选项。",
+        "description": "* 必填项\n注意：**扩展实体发现**需要启用**发现 Alexa 网络**。",
         "title": "Alexa Media Player-配置"
       }
     }
   },
   "issues": {
     "deprecated_yaml_configuration": {
-      "description": "YAML configuration of Alexa Media Player is deprecated\nand will be removed in version 4.14.0.\nThere will be no automatic import of this.\nPlease remove it from your configuration, restart Home Assistant and use the UI to configure it instead.\nSettings > Devices & services > Integrations > ADD INTEGRATION",
-      "title": "YAML configuration is deprecated"
+      "description": "Alexa Media Player 的 YAML 配置已弃用。\n请从配置中移除 `alexa_media`，重启 Home Assistant，然后改用用户界面进行配置。\n设置 > 设备和服务 > 集成 > 添加集成",
+      "title": "YAML配置已弃用"
     }
   },
   "options": {
@@ -64,29 +64,29 @@
       "init": {
         "data": {
           "debug": "高级调试",
-          "exclude_devices": "Excluded device (comma separated)",
-          "extended_entity_discovery": "包括通过 Echo 连接的设备",
-          "include_devices": "Included device (comma separated)",
-          "public_url": "访问Home Assistant的公共URL（包括尾随的'/'）",
-          "queue_delay": "Seconds to wait to queue commands together",
-          "scan_interval": "Seconds between scans",
-          "should_get_network": "Discover Alexa network"
+          "exclude_devices": "或者将这些设备从所有列表中排除（以逗号分隔）",
+          "extended_entity_discovery": "增加额外的传感器、开关和灯",
+          "include_devices": "仅包含以下设备（以逗号分隔）",
+          "public_url": "与外部托管服务共享的公共 URL",
+          "queue_delay": "将多个命令排队的延迟时间（秒）",
+          "scan_interval": "计划轮询频率（秒）",
+          "should_get_network": "发现 Alexa 网络"
         },
-        "description": "必需的 *",
+        "description": "* 必填项\n注意：**扩展实体发现**需要启用**发现 Alexa 网络**。",
         "title": "Alexa 媒体播放器 - 重新配置"
       }
     }
   },
   "services": {
     "enable_network_discovery": {
-      "description": "Re-enables Alexa network discovery so the next polling cycle will rediscover Alexa devices for the selected accounts.",
+      "description": "重新启用 Alexa 网络发现功能，以便在下一个轮询周期中重新发现所选帐户的 Alexa 设备。",
       "fields": {
         "email": {
-          "description": "Optional Alexa account email or list of emails. If empty, all known accounts will be refreshed.",
-          "name": "Email address"
+          "description": "可选的 Alexa 帐户电子邮件地址或电子邮件地址列表。如果为空，则会刷新所有已知帐户。",
+          "name": "电子邮件"
         }
       },
-      "name": "Enable Network Discovery"
+      "name": "启用网络发现"
     },
     "force_logout": {
       "description": "强制帐户注销。主要用于调试。",
@@ -99,28 +99,28 @@
       "name": "强制注销"
     },
     "get_history_records": {
-      "description": "Parses the history records for the specified device",
+      "description": "解析指定设备的历史记录",
       "fields": {
         "entity_id": {
-          "description": "Entity to get the history for",
-          "name": "Select media player:"
+          "description": "要获取历史记录的实体",
+          "name": "选择媒体播放器："
         },
         "entries": {
-          "description": "Number of entries to get",
-          "name": "Number of entries"
+          "description": "需要获取的条目数量",
+          "name": "参赛作品数量"
         }
       },
-      "name": "Get History Records"
+      "name": "获取历史记录"
     },
     "restore_volume": {
-      "description": "Restore previous volume level on Alexa media player device",
+      "description": "恢复 Alexa 媒体播放器设备上的先前音量级别",
       "fields": {
         "entity_id": {
-          "description": "Entity to restore the previous volume level on",
-          "name": "Select media player:"
+          "description": "实体恢复先前的音量水平",
+          "name": "选择媒体播放器："
         }
       },
-      "name": "Restore Previous Volume"
+      "name": "恢复以前的卷"
     },
     "update_last_called": {
       "description": "强制更新每个 Alexa 帐户的 last_called 回声设备。",

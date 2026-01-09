@@ -356,6 +356,7 @@ async def async_get_device_diagnostics(
     hass: HomeAssistant, config_entry: ConfigEntry, device: dr.DeviceEntry
 ) -> dict:
     """Return diagnostics for a specific device."""
+    _ = hass  # noqa: ARG001 - required HA diagnostics signature
     email = config_entry.data.get("email")
     safe_title = _obfuscate_title_with_email(config_entry.title, email)
     data: dict = {

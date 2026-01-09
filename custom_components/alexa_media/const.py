@@ -123,7 +123,7 @@ COMMON_DIAGNOSTIC_BUCKETS = (
     "sessions",
 )
 DEVICE_PLAYER_BUCKETS = ("devices", "media_players", "players")
-FIELDS_TO_REDACT: set[str] = {
+TO_REDACT: set[str] = {
     "email",
     "password",
     "access_token",
@@ -142,8 +142,6 @@ FIELDS_TO_REDACT: set[str] = {
     "adp_token",
     "device_private_key",
     "customerId",
-    "serialNumber",
-    "serial_number",
 }
 STREAMING_ERROR_MESSAGE = (
     "Sorry, direct music streaming isn't supported. "

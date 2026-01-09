@@ -68,7 +68,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         "components", set()
     )
     light_entities = safe_get(account_dict, ["devices", "light"], [])
-    if account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
+    if light_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for light_entity in light_entities:
             if not (light_entity["is_hue_v1"] and hue_emulated_enabled):
                 _LOGGER.debug(

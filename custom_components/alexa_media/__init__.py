@@ -147,97 +147,24 @@ async def async_setup(hass, config):
             alexapy_version=alexapy_version,
         )
     )
-    if DOMAIN not in config:
-        _LOGGER.debug(
-            "Nothing to import from configuration.yaml, loading from Integrations",
+    if DOMAIN in config:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            "deprecated_yaml_configuration",
+            is_fixable=False,
+            issue_domain=DOMAIN,
+            severity=IssueSeverity.ERROR,
+            translation_key="deprecated_yaml_configuration",
+            learn_more_url="https://github.com/alandtse/alexa_media_player/wiki/Configuration#configurationyaml",
         )
-        return True
-
-    async_create_issue(
-        hass,
-        DOMAIN,
-        "deprecated_yaml_configuration",
-        is_fixable=False,
-        issue_domain=DOMAIN,
-        severity=IssueSeverity.WARNING,
-        translation_key="deprecated_yaml_configuration",
-        learn_more_url="https://github.com/alandtse/alexa_media_player/wiki/Configuration#configurationyaml",
-    )
-    _LOGGER.warning(
-        "YAML configuration of Alexa Media Player is deprecated "
-        "and will be removed in version 4.14.0."
-        "There will be no automatic import of this. "
-        "Please remove it from your configuration, "
-        "restart Home Assistant and use the UI to configure it instead. "
-        "Settings > Devices and services > Integrations > ADD INTEGRATION"
-    )
-
-    domainconfig = config.get(DOMAIN)
-    for account in domainconfig[CONF_ACCOUNTS]:
-        entry_found = False
-        _LOGGER.debug(
-            "Importing config information for %s - %s from configuration.yaml",
-            hide_email(account[CONF_EMAIL]),
-            account[CONF_URL],
+        _LOGGER.error(
+            "YAML configuration of Alexa Media Player is no longer supported. "
+            "Please remove `alexa_media` from your configuration, "
+            "restart Home Assistant and use the UI to configure it instead. "
+            "Settings > Devices & services > Integrations > ADD INTEGRATION"
         )
-        if hass.config_entries.async_entries(DOMAIN):
-            _LOGGER.debug("Found existing config entries")
-            for entry in hass.config_entries.async_entries(DOMAIN):
-                if (
-                    entry.data.get(CONF_EMAIL) == account[CONF_EMAIL]
-                    and entry.data.get(CONF_URL) == account[CONF_URL]
-                ):
-                    _LOGGER.debug("Updating existing entry")
-                    hass.config_entries.async_update_entry(
-                        entry,
-                        data={
-                            CONF_EMAIL: account[CONF_EMAIL],
-                            CONF_PASSWORD: account[CONF_PASSWORD],
-                            CONF_URL: account[CONF_URL],
-                            CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
-                            CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
-                            CONF_SCAN_INTERVAL: account[
-                                CONF_SCAN_INTERVAL
-                            ].total_seconds(),
-                            CONF_QUEUE_DELAY: account[CONF_QUEUE_DELAY],
-                            CONF_OAUTH: account.get(
-                                CONF_OAUTH, entry.data.get(CONF_OAUTH, {})
-                            ),
-                            CONF_OTPSECRET: account.get(
-                                CONF_OTPSECRET, entry.data.get(CONF_OTPSECRET, "")
-                            ),
-                            CONF_EXTENDED_ENTITY_DISCOVERY: account[
-                                CONF_EXTENDED_ENTITY_DISCOVERY
-                            ],
-                            CONF_DEBUG: account[CONF_DEBUG],
-                        },
-                    )
-                    entry_found = True
-                    break
-        if not entry_found:
-            _LOGGER.debug("Creating new config entry")
-            hass.async_create_task(
-                hass.config_entries.flow.async_init(
-                    DOMAIN,
-                    context={"source": SOURCE_IMPORT},
-                    data={
-                        CONF_URL: account[CONF_URL],
-                        CONF_EMAIL: account[CONF_EMAIL],
-                        CONF_PASSWORD: account[CONF_PASSWORD],
-                        CONF_PUBLIC_URL: account[CONF_PUBLIC_URL],
-                        CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
-                        CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
-                        CONF_SCAN_INTERVAL: account[CONF_SCAN_INTERVAL].total_seconds(),
-                        CONF_QUEUE_DELAY: account[CONF_QUEUE_DELAY],
-                        CONF_OAUTH: account.get(CONF_OAUTH, {}),
-                        CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
-                        CONF_EXTENDED_ENTITY_DISCOVERY: account[
-                            CONF_EXTENDED_ENTITY_DISCOVERY
-                        ],
-                        CONF_DEBUG: account[CONF_DEBUG],
-                    },
-                )
-            )
+        return False
     return True
 
 

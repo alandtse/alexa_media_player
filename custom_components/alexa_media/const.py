@@ -114,6 +114,37 @@ ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
 ATTR_ENTITY_ID = "entity_id"
 ATTR_NUM_ENTRIES = "entries"
+COMMON_DIAGNOSTIC_BUCKETS = (
+    "account",
+    "accounts",
+    "login",
+    "logins",
+    "session",
+    "sessions",
+)
+DEVICE_PLAYER_BUCKETS = ("devices", "media_players", "players")
+FIELDS_TO_REDACT: set[str] = {
+    "email",
+    "password",
+    "access_token",
+    "refresh_token",
+    "token",
+    "csrf",
+    "cookie",
+    "cookies",
+    "session",
+    "sessionid",
+    "macDms",
+    "mac_dms",
+    "otp_secret",
+    "authorization_code",
+    "code_verifier",
+    "adp_token",
+    "device_private_key",
+    "customerId",
+    "serialNumber",
+    "serial_number",
+}
 STREAMING_ERROR_MESSAGE = (
     "Sorry, direct music streaming isn't supported. "
     "This limitation is set by Amazon, and not by Alexa-Media-Player, Music-Assistant, nor Home-Assistant."

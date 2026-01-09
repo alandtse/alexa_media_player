@@ -114,8 +114,14 @@ def _sample_names(val: Any, *, limit: int = 5) -> list[str] | None:
 def _find_coordinators(obj: Any) -> list[DataUpdateCoordinator]:
     """Recursively find DataUpdateCoordinator instances in an object tree."""
     found: list[DataUpdateCoordinator] = []
+    visited: set[int] = set()
 
     def walk(x: Any) -> None:
+        obj_id = id(x)
+        if obj_id in visited:
+            return
+        visited.add(obj_id)
+
         if isinstance(x, DataUpdateCoordinator):
             found.append(x)
             return

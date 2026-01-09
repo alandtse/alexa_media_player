@@ -17,7 +17,7 @@ from .const import (
     COMMON_DIAGNOSTIC_BUCKETS,
     DEVICE_PLAYER_BUCKETS,
     DOMAIN,
-    FIELDS_TO_REDACT,
+    TO_REDACT,
 )
 from .helpers import hide_email, hide_serial
 
@@ -346,7 +346,7 @@ async def async_get_config_entry_diagnostics(
         },
     }
 
-    return async_redact_data(data, FIELDS_TO_REDACT)
+    return async_redact_data(data, TO_REDACT)
 
 
 async def async_get_device_diagnostics(
@@ -373,4 +373,5 @@ async def async_get_device_diagnostics(
         },
     }
 
-    return async_redact_data(data, FIELDS_TO_REDACT)
+    return async_redact_data(data, TO_REDACT)
+

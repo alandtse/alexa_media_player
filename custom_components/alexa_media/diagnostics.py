@@ -331,7 +331,8 @@ async def async_get_config_entry_diagnostics(
     email = config_entry.data.get("email")
     safe_title = _obfuscate_title_with_email(config_entry.title, email)
 
-    # AMP *might* store runtime under entry_id, but often doesn't.
+    # AMP currently doesn't store runtime under entry_id.
+    # This adds future-proofing for if and when it does.
     entry_runtime = None
     if isinstance(domain_data, Mapping):
         entry_runtime = domain_data.get(config_entry.entry_id)
@@ -401,3 +402,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, _TO_REDACT)
+

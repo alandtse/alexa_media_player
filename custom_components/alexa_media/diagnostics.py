@@ -13,37 +13,17 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.redact import async_redact_data
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    FIELDS_TO_REDACT,
+    COMMON_DIAGNOSTIC_BUCKETS,
+    DEVICE_PLAYER_BUCKETS,
+)
 from .helpers import hide_email, hide_serial
-
-# Be conservative: diagnostics often get pasted into GitHub issues.
-# Redact both common HA auth keys and AMP/Alexa-ish keys.
-_TO_REDACT: set[str] = {
-    "email",
-    "password",
-    "access_token",
-    "refresh_token",
-    "token",
-    "csrf",
-    "cookie",
-    "cookies",
-    "session",
-    "sessionid",
-    "macDms",
-    "mac_dms",
-    "otp_secret",
-    "authorization_code",
-    "code_verifier",
-    "adp_token",
-    "device_private_key",
-    "customerId",
-    "serialNumber",
-    "serial_number",
-}
 
 
 # --------------------
-# Small utilities
+# Local Functions
 # --------------------
 def _safe_dt(val: Any) -> str | None:
     """Serialize datetimes safely for JSON diagnostics."""
@@ -161,15 +141,7 @@ def _summarize_coordinator_data(cdata: Any) -> dict:
 
         # If coordinator.data sometimes contains named buckets (future-proof),
         # include just counts (but only if those keys actually exist).
-        for key in (
-            "devices",
-            "devices_list",
-            "media_players",
-            "players",
-            "notifications",
-            "entities",
-            "accounts",
-        ):
+        for key in COMMON_DIAGNOSTIC_BUCKETS:
             if key in cdata:
                 out[f"{key}_count"] = _maybe_len(cdata.get(key))
 
@@ -182,7 +154,7 @@ def _summarize_coordinator_data(cdata: Any) -> dict:
             }
 
         # If there are device/player buckets, sample friendly names (no IDs).
-        for key in ("devices", "media_players", "players"):
+        for key in DEVICE_PLAYER_BUCKETS:
             if key in cdata:
                 sample = _sample_names(cdata.get(key))
                 if sample:
@@ -257,7 +229,7 @@ def _summarize_amp_entry_runtime(entry_runtime: Any) -> dict:
             if key in entry_runtime:
                 out[f"{key}_count"] = _maybe_len(entry_runtime.get(key))
         # Small sample of names
-        for key in ("devices", "media_players", "players"):
+        for key in DEVICE_PLAYER_BUCKETS:
             if key in entry_runtime:
                 sample = _sample_names(entry_runtime.get(key))
                 if sample:
@@ -374,7 +346,7 @@ async def async_get_config_entry_diagnostics(
         },
     }
 
-    return async_redact_data(data, _TO_REDACT)
+    return async_redact_data(data, FIELDS_TO_REDACT)
 
 
 async def async_get_device_diagnostics(
@@ -401,4 +373,5 @@ async def async_get_device_diagnostics(
         },
     }
 
-    return async_redact_data(data, _TO_REDACT)
+    return async_redact_data(data, FIELDS_TO_REDACT)
+

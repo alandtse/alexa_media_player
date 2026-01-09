@@ -13,12 +13,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.redact import async_redact_data
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import (
-    COMMON_DIAGNOSTIC_BUCKETS,
-    DEVICE_PLAYER_BUCKETS,
-    DOMAIN,
-    TO_REDACT,
-)
+from .const import COMMON_DIAGNOSTIC_BUCKETS, DEVICE_PLAYER_BUCKETS, DOMAIN, TO_REDACT
 from .helpers import hide_email, hide_serial
 
 
@@ -374,4 +369,3 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
-

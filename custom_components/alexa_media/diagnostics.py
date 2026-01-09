@@ -93,7 +93,10 @@ def _find_coordinators(obj: Any) -> list[DataUpdateCoordinator]:
             found.append(x)
             return
         if is_dataclass(x):
-            walk(asdict(x))
+            try:
+                walk(asdict(x))
+            except (TypeError, ValueError):
+                pass  # Skip non-serializable dataclasses
             return
         if isinstance(x, Mapping):
             for v in x.values():
@@ -385,3 +388,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

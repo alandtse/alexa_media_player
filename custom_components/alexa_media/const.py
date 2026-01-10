@@ -114,6 +114,14 @@ ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
 ATTR_ENTITY_ID = "entity_id"
 ATTR_NUM_ENTRIES = "entries"
+COMMON_BUCKET_COUNTS = (
+            "accounts",
+            "devices",
+            "media_players",
+            "players",
+            "notifications",
+            "entities",
+)
 COMMON_DIAGNOSTIC_BUCKETS = (
     "account",
     "accounts",
@@ -121,6 +129,13 @@ COMMON_DIAGNOSTIC_BUCKETS = (
     "logins",
     "session",
     "sessions",
+)
+COMMON_DIAGNOSTIC_NAMES = (
+    "name",
+    "deviceName",
+    "accountName",
+    "friendlyName",
+    "title",
 )
 DEVICE_PLAYER_BUCKETS = ("devices", "media_players", "players")
 TO_REDACT: set[str] = {

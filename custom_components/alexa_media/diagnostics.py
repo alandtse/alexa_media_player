@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import asdict, is_dataclass
+from dataclasses import fields, is_dataclass
 from datetime import datetime
 from typing import Any
 
@@ -100,9 +100,20 @@ def _find_coordinators(obj: Any) -> list[DataUpdateCoordinator]:
             return
         if is_dataclass(x):
             try:
-                walk(asdict(x))
+                # Walk dataclass attributes directly; asdict() can lose/mangle objects.
+                for f in fields(x):
+                    try:
+                        walk(getattr(x, f.name))
+                    except (TypeError, ValueError):
+                        # Keep the existing “skip non-serializable” behavior
+                        continue
             except (TypeError, ValueError):
-                pass  # Skip non-serializable dataclasses
+                # Fallback: vars() can work for some dataclass/slots variations
+                try:
+                    for v in vars(x).values():
+                        walk(v)
+                except (TypeError, ValueError):
+                    pass
             return
         if isinstance(x, Mapping):
             for v in x.values():
@@ -393,3 +404,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

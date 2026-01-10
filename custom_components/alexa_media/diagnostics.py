@@ -49,7 +49,10 @@ def _maybe_keys(val: Any, limit: int = 50) -> list[str] | None:
                 # Emails/titles/tokens sometimes appear as keys in AMP structures.
                 if "@" in s and " " not in s and "/" not in s:
                     try:
-                        from alexapy import hide_email  # pylint: disable=import-outside-toplevel
+                        from alexapy import (  # pylint: disable=import-outside-toplevel
+                            hide_email,
+                        )
+
                         return hide_email(s)
                     except (ImportError, AttributeError, TypeError, ValueError):
                         pass
@@ -219,7 +222,9 @@ def _summarize_coordinator(coordinator: DataUpdateCoordinator) -> dict:
         data["data_summary"] = _summarize_coordinator_data(
             getattr(coordinator, "data", None)
         )
-    except Exception as exc:  # noqa: BLE001  # intentionally broad; diagnostics must not crash
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001  # intentionally broad; diagnostics must not crash
         data["data_summary_error"] = type(exc).__name__
         data["data_summary_error_present"] = True
 
@@ -262,6 +267,7 @@ def _obfuscate_identifier(val: Any) -> str:
     if not isinstance(val, str) or not val or len(val) <= 4:
         return "****"
     return f"{val[:2]}...{val[-2:]}"
+
 
 def _obfuscate_title_with_email(title: str | None, email: str | None) -> str | None:
     """Obfuscate email in config entry title using the same mechanism as AMP logs."""
@@ -408,4 +414,3 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
-

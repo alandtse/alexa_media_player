@@ -13,12 +13,7 @@ import hashlib
 import logging
 from typing import Any, Callable, Optional, TypeVar, overload
 
-from alexapy import (
-    AlexapyLoginCloseRequested,
-    AlexapyLoginError,
-    hide_email,
-    hide_serial,
-)
+from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
 from dictor import dictor
 from homeassistant.const import CONF_EMAIL, CONF_URL

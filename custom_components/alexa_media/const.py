@@ -153,6 +153,7 @@ TO_REDACT: set[str] = {
     "mac_dms",
     "otp_secret",
     "authorization_code",
+    "securitycode",
     "code_verifier",
     "adp_token",
     "device_private_key",

@@ -113,7 +113,7 @@ def _find_coordinators(obj: Any) -> list[DataUpdateCoordinator]:
                 try:
                     for v in vars(x).values():
                         walk(v)
-                except (AttribueError, TypeError, ValueError):
+                except (AttributeError, TypeError, ValueError):
                     pass
             return
         if isinstance(x, Mapping):
@@ -207,8 +207,9 @@ def _summarize_coordinator(coordinator: DataUpdateCoordinator) -> dict:
         data["data_summary"] = _summarize_coordinator_data(
             getattr(coordinator, "data", None)
         )
-    except Exception:
-        data["data_summary_error"] = True
+    except Exception as exc:  # intentionally broad; diagnostics must not crash
+        data["data_summary_error"] = type(exc).__name__
+        data["data_summary_error_present"] = True
 
     return data
 
@@ -378,7 +379,7 @@ async def async_get_device_diagnostics(
 
     data: dict = {
         "device": {
-            "id": device.id,
+            "id": _obfuscate_identifier(device.id),
             "name": device.name,
             "name_by_user": device.name_by_user,
             "manufacturer": device.manufacturer,
@@ -389,7 +390,7 @@ async def async_get_device_diagnostics(
                 (domain, _obfuscate_identifier(value))
                 for domain, value in device.identifiers
             ),
-            "via_device_id": device.via_device_id,
+            "via_device_id": _obfuscate_identifier(device.via_device_id),
         },
         "config_entry": {
             "entry_id": config_entry.entry_id,
@@ -398,3 +399,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

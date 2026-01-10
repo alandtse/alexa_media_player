@@ -1,0 +1,136 @@
+{
+  "config": {
+    "abort": {
+      "forgot_password": "「パスワードを忘れた場合」ページが検出されました。これは通常、ログインに何度も失敗した結果です。Amazonでは、再ログインを試みる前に対応を求める場合があります。",
+      "login_failed": "Alexa Media Playerがログインに失敗しました。",
+      "reauth_successful": "Alexa Media Playerは正常に再認証されました。Home Assistant からの \"Aborted\" メッセージは無視してください。"
+    },
+    "error": {
+      "2fa_key_invalid": "{otp_secret} は無効な認証アプリキーです",
+      "connection_error": "接続エラー：ネットワークを確認して再試行してください",
+      "identifier_exists": "Alexa URLに対するメールアドレスはすでに登録されています",
+      "invalid_auth": "ログインに失敗しました。メールアドレス、パスワード、認証キーを再度ご確認ください。",
+      "invalid_credentials": "無効な資格情報",
+      "invalid_url": "URL が無効です：{message}",
+      "oauth_error": "OAuthログインを完了できませんでした。もう一度お試しください。",
+      "unable_to_connect_hass_url": "Home Assistant URL に接続できません。[設定] -> [全般] の [外部 URL] を確認してください。",
+      "unknown_error": "不明なエラー：{message}"
+    },
+    "step": {
+      "proxy_warning": {
+        "data": {
+          "proxy_warning": "無視して続行 - この警告を回避することで、ログイン問題に関するサポートはされないことを承知しています。"
+        },
+        "description": "Home Assistant サーバーへ、指定された URL {hass_url}で接続できません。 \n> {error}\n\nこの問題を解決するには、あなたのHome Assistant サーバーに{hass_url}でアクセスできることを確認してください。このフィールドは、[設定] -> [全般] の [外部 URL] からのものですが、内部 URL を試すこともできます。クライアントがこの URL にアクセスできることが 確実であれば、この警告をバイパスできます。",
+        "title": "Alexa Media Player - Home Assistant URLに接続できません"
+      },
+      "totp_register": {
+        "data": {
+          "registered": "はい、OTP コードを確認しました。"
+        },
+        "description": "** {email} - alexa. {url} **\nAmazon 2段階認証で OTPコードを確認しましたか？ \n>OTP コード: {message}",
+        "title": "Alexa Media Player - OTP の確認"
+      },
+      "user": {
+        "data": {
+          "debug": "高度なデバッグ",
+          "email": "メールアドレス",
+          "exclude_devices": "除外するデバイス（カンマ区切り）",
+          "extended_entity_discovery": "Echo経由で接続されたデバイスを含める",
+          "hass_url": "Home AssistantにアクセスするためのURL",
+          "include_devices": "含まれるデバイス（カンマ区切り）",
+          "otp_secret": "Amazon 2段階認証用認証アプリキー(52桁)",
+          "password": "パスワード",
+          "public_url": "外部ホスティング・サービスと共有される公開URL",
+          "queue_delay": "コマンドをキューにまとめて待機させる秒数",
+          "scan_interval": "スキャン間隔秒数",
+          "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Alexaネットワークを探索",
+          "url": "Amazon 地域ドメイン (例: amazon.co.jp)"
+        },
+        "description": "以下の情報を確認してください。レガシー構成の場合は、`Use Login Proxy method`オプションを無効にしてください。",
+        "title": "Alexa Media Player - 設定"
+      }
+    }
+  },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "Alexa Media PlayerのYAML設定は非推奨であり、バージョン4.14.0で削除される予定です。 この設定の自動インポートは行われません。 設定から削除し、Home Assistantを再起動して、代わりにUIを使用して設定してください。 [設定] -> [デバイスとサービス] -> [統合] -> [統合を追加]",
+      "title": "YAML設定は非推奨です"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "debug": "高度なデバッグ",
+          "exclude_devices": "除外するデバイス（カンマ区切り）",
+          "extended_entity_discovery": "Alexaデバイスに接続された追加のセンサー、スイッチ、ライトを含める",
+          "include_devices": "含まれるデバイス（カンマ区切り）",
+          "public_url": "Home Assistant にアクセスするための公開URL (末尾の '/' を含む)",
+          "queue_delay": "コマンドをキューにまとめて待機させる秒数",
+          "scan_interval": "スキャン間隔秒数",
+          "should_get_network": "Alexaネットワークを探索"
+        },
+        "description": "* 必須エントリ\n注: **拡張エンティティ検出** を使用するには、**Alexa ネットワークの探索** を有効にする必要があります。",
+        "title": "Alexa Media Player - 再設定"
+      }
+    }
+  },
+  "services": {
+    "enable_network_discovery": {
+      "description": "Alexa ネットワーク検出を再度有効にすると、次のポーリングサイクルで、選択したアカウントの Alexa デバイスが再検出されます。",
+      "fields": {
+        "email": {
+          "description": "オプションのalexaアカウントのメールアドレスまたはメールアドレスのリスト。空の場合、すべての既知のアカウントが更新されます。",
+          "name": "Emailアドレス"
+        }
+      },
+      "name": "ネットワーク探索を有効にする"
+    },
+    "force_logout": {
+      "description": "アカウントを強制的にログアウトさせます (主にデバッグに使用します)",
+      "fields": {
+        "email": {
+          "description": "削除するアカウント 空にするとすべて削除されます",
+          "name": "メールアドレス"
+        }
+      },
+      "name": "強制ログアウト"
+    },
+    "get_history_records": {
+      "description": "指定したデバイスの履歴レコードを解析します",
+      "fields": {
+        "entity_id": {
+          "description": "履歴を取得するエンティティ",
+          "name": "メディアプレーヤーを選択:"
+        },
+        "entries": {
+          "description": "取得するエントリー数",
+          "name": "エントリー数"
+        }
+      },
+      "name": "履歴レコードを取得する"
+    },
+    "restore_volume": {
+      "description": "Alexaメディアプレーヤーデバイスで以前の音量レベルを復元する",
+      "fields": {
+        "entity_id": {
+          "description": "以前の音量レベルを復元するエンティティ",
+          "name": "メディアプレーヤーを選択:"
+        }
+      },
+      "name": "以前のボリュームを復元"
+    },
+    "update_last_called": {
+      "description": "各Alexaアカウントの最後に呼び出されたEchoデバイスを強制的に更新します。",
+      "fields": {
+        "email": {
+          "description": "更新する Alexa アカウントの一覧。空の場合、既知のすべてのアカウントが更新されます。",
+          "name": "メールアドレス"
+        }
+      },
+      "name": "最後に呼び出されたセンサーを更新"
+    }
+  }
+}

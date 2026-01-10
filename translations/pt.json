@@ -1,0 +1,136 @@
+{
+  "config": {
+    "abort": {
+      "forgot_password": "A página de Esqueci a Palavra-passe foi detetada. Isto normalmente é o resultado de demasiadas tentativas de login falhadas. A Amazon pode exigir uma ação antes de ser possível tentar iniciar sessão novamente.",
+      "login_failed": "Alexa Media Player não conseguiu fazer o login.",
+      "reauth_successful": "Alexa Media Player reautenticado com sucesso. Por favor, ignore a mensagem \"Aborted\" do HA."
+    },
+    "error": {
+      "2fa_key_invalid": "{otp_secret} é inválido",
+      "connection_error": "Erro ao conectar; verifique a rede e tente novamente",
+      "identifier_exists": "E-mail para URL Alexa já registado",
+      "invalid_auth": "O ‘login’ não foi bem-sucedido. Verifique novamente o seu endereço eletrónico, senha e chave de autenticação.",
+      "invalid_credentials": "Credenciais inválidas",
+      "invalid_url": "O URL é inválido: {message}",
+      "oauth_error": "Não foi possível concluir o ‘login’ Coautor. Tente novamente.",
+      "unable_to_connect_hass_url": "Não foi possível conectar ao URL local do Home Assistant. Verifique o URL em Configurações > Sistema > Rede > URL do Home Assistant > Rede local.",
+      "unknown_error": "Erro desconhecido: {message}"
+    },
+    "step": {
+      "proxy_warning": {
+        "data": {
+          "proxy_warning": "Ignore e Continue - Entendo que não há suporte para problemas de login para ignorar este aviso."
+        },
+        "description": "O servidor HA não consegue se conectar ao URL fornecido: {hass_url}.\n > {error} \n\nPara corrigir isso, confirme se o seu navegador consegue acessar o endereço. {hass_url}. Este campo é de Configurações > Sistema > Rede > URL do Home Assistant.\n\nSe você tiver **certeza** de que o seu navegador consegue acessar este URL, pode ignorar este aviso.",
+        "title": "Alexa Media Player - Não é possível conectar ao URL de alta disponibilidade"
+      },
+      "totp_register": {
+        "data": {
+          "registered": "Sim, o código OTP foi verificado."
+        },
+        "description": "** {email} - alexa. {url} **\nVocê verificou o código OTP na verificação de duas vias da Amazon?\n>Código OTP: {message}",
+        "title": "Alexa Media Player - Confirmação OTP"
+      },
+      "user": {
+        "data": {
+          "debug": "Depuração avançada",
+          "email": "Endereço de e-mail",
+          "exclude_devices": "ou Excluir esses dispositivos de todos (separados por vírgula)",
+          "extended_entity_discovery": "Inclua sensores, interruptores e luzes adicionais.",
+          "hass_url": "URL da rede local para acessar o Home Assistant",
+          "include_devices": "Inclua apenas estes dispositivos (separados por vírgula)",
+          "otp_secret": "Chave de 52 caracteres da App Autenticadora para Amazon 2SV",
+          "password": "Senha",
+          "public_url": "URL pública compartilhada com serviços hospedados externos",
+          "queue_delay": "Tempo de espera para enfileirar vários comandos (em segundos)",
+          "scan_interval": "Intervalo de sondagem programado (segundos)",
+          "securitycode": "Código 2FA (recomendado para evitar problemas de login)",
+          "should_get_network": "Descubra a rede Alexa",
+          "url": "Região do domínio Amazon (ex. amazon.com.br)"
+        },
+        "description": "* Entradas obrigatórias",
+        "title": "Alexa Media Player - Configuração"
+      }
+    }
+  },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "A configuração YAML do Alexa Media Player está obsoleta.\nRemova alexa_media da sua configuração, reinicie o Home Assistant e utilize a “interface” do utilizador para o configurar.\nConfigurações > Dispositivos e serviços > Integrações > ADICIONAR INTEGRAÇÃO",
+      "title": "A configuração YAML está obsoleta"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "debug": "Depuração avançada",
+          "exclude_devices": "ou Excluir esses dispositivos de todos (separados por vírgula)",
+          "extended_entity_discovery": "Inclua sensores, interruptores e luzes adicionais.",
+          "include_devices": "Inclua apenas estes dispositivos (separados por vírgula)",
+          "public_url": "URL pública compartilhada com serviços hospedados externamente",
+          "queue_delay": "Tempo de espera para enfileirar vários comandos (em segundos)",
+          "scan_interval": "Frequência de sondagem programada (segundos)",
+          "should_get_network": "Descubra a rede Alexa"
+        },
+        "description": "* Entradas obrigatórias",
+        "title": "Alexa Media Player - Reconfiguração"
+      }
+    }
+  },
+  "services": {
+    "enable_network_discovery": {
+      "description": "Reativa a descoberta de rede da Alexa para que o próximo ciclo de pesquisa redescubra a dispositivo, Alexa das contas selecionadas.",
+      "fields": {
+        "email": {
+          "description": "Opcional: Endereço eletrónico da conta Alexa ou lista de endereços eletrónicos. Se estiver vazio, todas as contas conhecidas serão atualizadas.",
+          "name": "Endereço de email"
+        }
+      },
+      "name": "Habilitar descoberta de rede"
+    },
+    "force_logout": {
+      "description": "Forçar o logout da conta. Usado principalmente para depuração.",
+      "fields": {
+        "email": {
+          "description": "Contas a limpar. Vazio vai limpar tudo.",
+          "name": "Endereço de email"
+        }
+      },
+      "name": "Forçar logout"
+    },
+    "get_history_records": {
+      "description": "Analisa os registos de histórico do dispositivo especificado",
+      "fields": {
+        "entity_id": {
+          "description": "Entidade para obter o histórico de",
+          "name": "Selecione o media MPlayer:"
+        },
+        "entries": {
+          "description": "Número de entradas para obter",
+          "name": "Número de entradas"
+        }
+      },
+      "name": "Obter registos históricos"
+    },
+    "restore_volume": {
+      "description": "Restaurar o nível de volume anterior no dispositivo reprodutor de média Alexa",
+      "fields": {
+        "entity_id": {
+          "description": "Entidade para restaurar o nível de volume anterior em",
+          "name": "Selecione o media MPlayer:"
+        }
+      },
+      "name": "Restaurar volume anterior"
+    },
+    "update_last_called": {
+      "description": "Força a atualização do dispositivo de echo last_called para cada conta Alexa.",
+      "fields": {
+        "email": {
+          "description": "Lista de contas Alexa para atualizar. Se estiver vazio, atualizará todas as contas conhecidas.",
+          "name": "Endereço de email"
+        }
+      },
+      "name": "Atualizar último sensor chamado"
+    }
+  }
+}

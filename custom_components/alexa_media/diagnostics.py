@@ -13,7 +13,14 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.redact import async_redact_data
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import COMMON_DIAGNOSTIC_BUCKETS, DEVICE_PLAYER_BUCKETS, DOMAIN, TO_REDACT
+from .const import (
+    COMMON_BUCKET_COUNTS,
+    COMMON_DIAGNOSTIC_BUCKETS,
+    COMMON_DIAGNOSTIC_NAMES,
+    DEVICE_PLAYER_BUCKETS,
+    DOMAIN,
+    TO_REDACT,
+)
 from .helpers import hide_email, hide_serial
 
 
@@ -49,7 +56,7 @@ def _sample_names(val: Any, *, limit: int = 5) -> list[str] | None:
 
     def add_name(x: Any) -> None:
         if isinstance(x, Mapping):
-            for key in ("name", "deviceName", "accountName", "friendlyName", "title"):
+            for key in COMMON_DIAGNOSTIC_NAMES:
                 v = x.get(key)
                 if isinstance(v, str) and v:
                     names.append(v)
@@ -217,14 +224,7 @@ def _summarize_amp_entry_runtime(entry_runtime: Any) -> dict:
         out["runtime_type"] = "mapping"
         out["runtime_keys"] = _maybe_keys(entry_runtime)
         # Common “bucket” counts if they happen to exist.
-        for key in (
-            "accounts",
-            "devices",
-            "media_players",
-            "players",
-            "notifications",
-            "entities",
-        ):
+        for key in COMMON_BUCKET_COUNTS:
             if key in entry_runtime:
                 out[f"{key}_count"] = _maybe_len(entry_runtime.get(key))
         # Small sample of names
@@ -282,7 +282,7 @@ def _summarize_amp_domain(domain_data: Any, config_entry: ConfigEntry) -> dict:
 
     # Try a few common/likely buckets without dumping contents.
     # NOTE: We deliberately avoid copying values; only report counts/types/samples.
-    for key in ("accounts", "account", "logins", "login", "sessions", "session"):
+    for key in COMMON_DIAGNOSTIC_BUCKETS:
         if key in domain_data:
             val = domain_data.get(key)
             out[f"{key}_type"] = type(val).__name__
@@ -388,3 +388,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

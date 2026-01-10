@@ -21,7 +21,6 @@ from .const import (
     DOMAIN,
     TO_REDACT,
 )
-from .helpers import hide_email, hide_serial
 
 
 # --------------------
@@ -253,6 +252,8 @@ def _obfuscate_title_with_email(title: str | None, email: str | None) -> str | N
     """Obfuscate email in config entry title using the same mechanism as AMP logs."""
     if not title or not email:
         return title
+    # Lazy import to keep diagnostics import cheap
+    from alexapy import hide_email  # pylint: disable=import-outside-toplevel
     return title.replace(email, hide_email(email))
 
 
@@ -366,6 +367,8 @@ async def async_get_device_diagnostics(
 ) -> dict:
     """Return diagnostics for a specific device."""
     safe_title = _get_safe_config_entry_title(config_entry)
+    # Lazy import to keep diagnostics import cheap
+    from alexapy import hide_serial  # pylint: disable=import-outside-toplevel
     data: dict = {
         "device": {
             "id": device.id,
@@ -388,3 +391,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

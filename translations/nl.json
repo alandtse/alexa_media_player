@@ -1,0 +1,136 @@
+{
+  "config": {
+    "abort": {
+      "forgot_password": "De pagina 'Wachtwoord vergeten' is gedetecteerd. Dit is meestal het gevolg van te veel mislukte inlogpogingen. Amazon kan actie vereisen voordat opnieuw kan worden ingelogd.",
+      "login_failed": "Het inloggen van Alexa Mediaspeler is mislukt.",
+      "reauth_successful": "Alexa Mediaspeler is met succes opnieuw geverifieerd. Negeer a.u.b. het bericht \"Afgebroken\" van HA."
+    },
+    "error": {
+      "2fa_key_invalid": "{otp_secret} is ongeldig",
+      "connection_error": "Fout bij verbinding; controleer netwerk en probeer opnieuw",
+      "identifier_exists": "E-mailadres voor Alexa-URL is al geregistreerd",
+      "invalid_auth": "Inloggen is mislukt. Controleer uw e-mailadres, wachtwoord en Authenticator-sleutel nogmaals.",
+      "invalid_credentials": "Ongeldige inloggegevens",
+      "invalid_url": "De URL is ongeldig: {message}",
+      "oauth_error": "OAuth-aanmelding kon niet worden voltooid. Probeer het opnieuw.",
+      "unable_to_connect_hass_url": "Kan geen verbinding maken met de lokale Home Assistant-URL. Controleer de URL onder Instellingen > Systeem > Netwerk > Home Assistant-URL > Lokaal netwerk.",
+      "unknown_error": "Onbekende fout: {message}"
+    },
+    "step": {
+      "proxy_warning": {
+        "data": {
+          "proxy_warning": "Negeren en doorgaan - Ik begrijp dat er geen ondersteuning wordt geboden bij inlogproblemen wanneer ik deze waarschuwing  omzeil."
+        },
+        "description": "De HA server kan geen verbinding maken met de opgegeven URL: {hass_url}.\n> {error}\n\nOm dit op te lossen, controleer of uw browser {hass_url} kan bereiken. Dit veld vindt u in Instellingen > Systeem > Netwerk > Home Assistant-URL.Als u **zeker** weet dat uw browser deze URL kan bereiken, kunt u deze waarschuwing negeren.\n\nAls u er **zeker van bent** dat uw browser deze URL kan bereiken, kunt u deze waarschuwing negeren.",
+        "title": "Alexa Mediaspeler - Kan geen verbinding maken met HA URL"
+      },
+      "totp_register": {
+        "data": {
+          "registered": "Ja, de OTP-code is geverifieerd."
+        },
+        "description": "**{email} -Alexa.{url}**\nHeb je met succes een OTP van de ingebouwde 2FA App Key met Amazon bevestigd?  \n >OTP-code {message}",
+        "title": "Alexa Mediaspeler - OTP Bevestiging"
+      },
+      "user": {
+        "data": {
+          "debug": "Geavanceerde foutopsporing",
+          "email": "E-mailadres",
+          "exclude_devices": "of Sluit deze apparaten uit van alles (gescheiden door komma's)",
+          "extended_entity_discovery": "Voeg extra sensoren, schakelaars en lampen toe.",
+          "hass_url": "Lokale netwerk-URL om toegang te krijgen tot Home Assistant",
+          "include_devices": "Vermeld alleen deze apparaten (gescheiden door komma's)",
+          "otp_secret": "52-karakter Authenticator-appsleutel voor Amazon 2SV",
+          "password": "Wachtwoord",
+          "public_url": "Openbare URL gedeeld met externe hostingdiensten",
+          "queue_delay": "Vertraging om meerdere opdrachten tegelijk in de wachtrij te plaatsen (seconden)",
+          "scan_interval": "Gepland pollinginterval (seconden)",
+          "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Ontdek het Alexa-netwerk",
+          "url": "Domeinnaam van Amazon regio (bijv: amazon.nl)"
+        },
+        "description": "* Vereiste invoer",
+        "title": "Alexa Mediaspeler - Configuratie"
+      }
+    }
+  },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "De YAML-configuratie van Alexa Media Player is verouderd.\n\nVerwijder `alexa_media` uit uw configuratie, herstart Home Assistant en gebruik in plaats daarvan de gebruikersinterface om het te configureren.\n\nInstellingen > Apparaten en services > Integraties > INTEGRATIE TOEVOEGEN",
+      "title": "YAML-configuratie is verouderd"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "debug": "Geavanceerde foutopsporing",
+          "exclude_devices": "of Sluit deze apparaten uit van alles (gescheiden door komma's)",
+          "extended_entity_discovery": "Voeg extra sensoren, schakelaars en lampen toe",
+          "include_devices": "Vermeld alleen deze apparaten (gescheiden door komma's)",
+          "public_url": "Openbare URL gedeeld met externe hostingdiensten",
+          "queue_delay": "Vertraging om meerdere opdrachten tegelijk in de wachtrij te plaatsen (seconden)",
+          "scan_interval": "Geplande pollingfrequentie (seconden)",
+          "should_get_network": "Ontdek het Alexa-netwerk"
+        },
+        "description": "* Vereiste invoer",
+        "title": "Alexa Mediaspeler - Herconfiguratie"
+      }
+    }
+  },
+  "services": {
+    "enable_network_discovery": {
+      "description": "Hiermee wordt de Alexa-netwerkdetectie opnieuw ingeschakeld, zodat de volgende pollingcyclus Alexa-apparaten voor de geselecteerde accounts opnieuw kan detecteren.",
+      "fields": {
+        "email": {
+          "description": "Optioneel Alexa-account-e-mailadres of lijst met e-mailadressen. Indien leeg, worden alle bekende accounts vernieuwd.",
+          "name": "E-mailadres"
+        }
+      },
+      "name": "Schakel netwerkdetectie in"
+    },
+    "force_logout": {
+      "description": "Forceer account om uit te loggen. Voornamelijk gebruikt voor foutopsporing.",
+      "fields": {
+        "email": {
+          "description": "Te vereffenen accounts. Leegmaken zal alles wissen.",
+          "name": "E-mailadres"
+        }
+      },
+      "name": "Uitloggen forceren"
+    },
+    "get_history_records": {
+      "description": "Analyseert de geschiedenisrecords voor het opgegeven apparaat",
+      "fields": {
+        "entity_id": {
+          "description": "Entiteit om de geschiedenis op te halen",
+          "name": "Selecteer mediaspeler:"
+        },
+        "entries": {
+          "description": "Aantal inzendingen om te krijgen",
+          "name": "Aantal inzendingen"
+        }
+      },
+      "name": "Geschiedenisrecords ophalen"
+    },
+    "restore_volume": {
+      "description": "Herstel het vorige volumeniveau op het Alexa-mediaspelerapparaat",
+      "fields": {
+        "entity_id": {
+          "description": "Entiteit om het vorige volumeniveau te herstellen op",
+          "name": "Selecteer mediaspeler:"
+        }
+      },
+      "name": "Vorig volume herstellen"
+    },
+    "update_last_called": {
+      "description": "Forceert update van last_called echo apparaat voor elk Alexa-account.",
+      "fields": {
+        "email": {
+          "description": "Lijst met Alexa accounts om bij te werken. Als het veld leeg is, worden alle bekende accounts bijgewerkt.",
+          "name": "E-mailadres"
+        }
+      },
+      "name": "Laatst opgeroepen sensor bijwerken"
+    }
+  }
+}

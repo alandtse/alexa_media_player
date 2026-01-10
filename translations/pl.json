@@ -1,0 +1,136 @@
+{
+  "config": {
+    "abort": {
+      "forgot_password": "Wykryto stronę „Zapomniałem hasła”. Zwykle jest to spowodowane zbyt wieloma nieudanymi próbami logowania. Amazon może wymagać podjęcia działań, zanim będzie można ponownie spróbować zalogować się.",
+      "login_failed": "Alexa Media Player nie może się zalogować.",
+      "reauth_successful": "Odtwarzacz multimedialny Alexa pomyślnie przeszedł ponowne uwierzytelnienie. Proszę zignorować komunikat „Przerwano” od HA."
+    },
+    "error": {
+      "2fa_key_invalid": "{otp_secret} jest nieprawidłowy",
+      "connection_error": "Błąd podczas łączenia; sprawdź sieć i spróbuj ponownie",
+      "identifier_exists": "Adres e-mail dla Alexy już jest zarejestrowany",
+      "invalid_auth": "Logowanie nie powiodło się. Sprawdź ponownie swój adres e-mail, hasło i klucz uwierzytelniający.",
+      "invalid_credentials": "Nieprawidłowe dane logowania",
+      "invalid_url": "URL jest nieprawidłowy: {message}",
+      "oauth_error": "Nie udało się dokończyć logowania OAuth. Spróbuj ponownie.",
+      "unable_to_connect_hass_url": "Nie można połączyć się z lokalnym adresem URL Home Assistant. Sprawdź adres URL w Ustawieniach > System > Sieć > Adres URL Home Assistant > Sieć lokalna.",
+      "unknown_error": "Nieznany błąd: {message}"
+    },
+    "step": {
+      "proxy_warning": {
+        "data": {
+          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+        },
+        "description": "Serwer HA nie może połączyć się z podanym adresem URL: {hass_url}.\n> {error}\n\nAby rozwiązać ten problem, upewnij się, że Twoja przeglądarka może uzyskać dostęp do adresu {hass_url}. To pole znajduje się w Ustawieniach > System > Sieć > Adres URL Asystenta Domowego.\n\nJeśli masz **pewność**, że Twoja przeglądarka może uzyskać dostęp do tego adresu URL, możesz pominąć to ostrzeżenie.",
+        "title": "Alexa Media Player – nie można połączyć się z adresem URL HA"
+      },
+      "totp_register": {
+        "data": {
+          "registered": "Tak, kod OTP został zweryfikowany"
+        },
+        "description": "**{email} - alexa.{url}** \nCzy zweryfikowałeś kod OTP w Amazon 2SV?\n>Kod OTP: {message}",
+        "title": "Alexa Media Player - Potwierdzanie hasła jednorazowego"
+      },
+      "user": {
+        "data": {
+          "debug": "Zaawansowane debugowanie",
+          "email": "Adres e-mail",
+          "exclude_devices": "lub Wyklucz te urządzenia ze wszystkich (rozdzielone przecinkami)",
+          "extended_entity_discovery": "Dodaj dodatkowe czujniki, przełączniki i światła",
+          "hass_url": "Lokalny adres URL sieciowy umożliwiający dostęp do Home Assistant",
+          "include_devices": "Uwzględnij tylko te urządzenia (rozdzielone przecinkami)",
+          "otp_secret": "52-znakowy klucz aplikacji uwierzytelniającej dla Amazon 2SV",
+          "password": "Hasło",
+          "public_url": "Publiczny adres URL udostępniany zewnętrznym usługom hostowanym",
+          "queue_delay": "Opóźnienie w kolejkowaniu wielu poleceń (sekundy)",
+          "scan_interval": "Zaplanowany interwał sondowania (sekundy)",
+          "securitycode": "[%key_id:55616596%]",
+          "should_get_network": "Odkryj sieć Alexa",
+          "url": "Region/domena Amazon (np. amazon.co.uk)"
+        },
+        "description": "* Wymagane wpisy",
+        "title": "Alexa Media Player — konfiguracja"
+      }
+    }
+  },
+  "issues": {
+    "deprecated_yaml_configuration": {
+      "description": "Konfiguracja YAML odtwarzacza multimedialnego Alexa jest przestarzała.\nUsuń „alexa_media” z konfiguracji, uruchom ponownie Asystenta Domowego i skonfiguruj go za pomocą interfejsu użytkownika.\nUstawienia > Urządzenia i usługi > Integracje > DODAJ INTEGRACJĘ",
+      "title": "Konfiguracja YAML jest przestarzała"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "debug": "Zaawansowane debugowanie",
+          "exclude_devices": "lub Wyklucz te urządzenia ze wszystkich (rozdzielone przecinkami)",
+          "extended_entity_discovery": "Dodaj dodatkowe czujniki, przełączniki i światła",
+          "include_devices": "Uwzględnij tylko te urządzenia (rozdzielone przecinkami)",
+          "public_url": "Publiczny adres URL udostępniany zewnętrznym usługom hostowanym",
+          "queue_delay": "Opóźnienie w kolejkowaniu wielu poleceń (sekundy)",
+          "scan_interval": "Interwał skanowania (sekundy)",
+          "should_get_network": "Odkryj sieć Alexa"
+        },
+        "description": "* Wymagane wpisy",
+        "title": "Odtwarzacz multimedialny Alexa – re konfiguracja"
+      }
+    }
+  },
+  "services": {
+    "enable_network_discovery": {
+      "description": "Ponownie włącza wykrywanie sieci Alexa, dzięki czemu kolejny cykl sondowania ponownie wykryje urządzenia Alexa dla wybranych kont.",
+      "fields": {
+        "email": {
+          "description": "Opcjonalny adres e-mail konta Alexa lub lista adresów e-mail. Jeśli jest pusty, wszystkie znane konta zostaną odświeżone.",
+          "name": "Adres e-mail"
+        }
+      },
+      "name": "Włącz wykrywanie sieci"
+    },
+    "force_logout": {
+      "description": "Wymuś wylogowanie z konta. Używane głównie do debugowania.",
+      "fields": {
+        "email": {
+          "description": "Konta do wyczyszczenia. Opcja „Opróżnij” wyczyści wszystkie konta.",
+          "name": "Adres e-mail"
+        }
+      },
+      "name": "Wymuś wylogowanie"
+    },
+    "get_history_records": {
+      "description": "Analizuje zapisy historii dla określonego urządzenia",
+      "fields": {
+        "entity_id": {
+          "description": "Podmiot, dla którego ma zostać pobrana historia",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        },
+        "entries": {
+          "description": "Liczba wpisów do uzyskania",
+          "name": "Liczba wpisów"
+        }
+      },
+      "name": "Pobierz zapisy historyczne"
+    },
+    "restore_volume": {
+      "description": "Przywróć poprzedni poziom głośności na urządzeniu z odtwarzaczem multimedialnym Alexa",
+      "fields": {
+        "entity_id": {
+          "description": "Podmiot przywracający poprzedni poziom głośności",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        }
+      },
+      "name": "Przywróć poprzednią głośność"
+    },
+    "update_last_called": {
+      "description": "Wymusza aktualizację ostatnio używanego urządzenia echo dla każdego konta Alexa.",
+      "fields": {
+        "email": {
+          "description": "Lista kont Alexa do aktualizacji. Jeśli pusta, zaktualizuje wszystkie znane konta.",
+          "name": "Adres e-mail"
+        }
+      },
+      "name": "Aktualizuj ostatnio wywołany czujnik"
+    }
+  }
+}

@@ -115,12 +115,12 @@ ATTR_EMAIL = "email"
 ATTR_ENTITY_ID = "entity_id"
 ATTR_NUM_ENTRIES = "entries"
 COMMON_BUCKET_COUNTS = (
-            "accounts",
-            "devices",
-            "media_players",
-            "players",
-            "notifications",
-            "entities",
+    "accounts",
+    "devices",
+    "media_players",
+    "players",
+    "notifications",
+    "entities",
 )
 COMMON_DIAGNOSTIC_BUCKETS = (
     "account",

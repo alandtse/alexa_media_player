@@ -105,15 +105,15 @@ def _find_coordinators(obj: Any) -> list[DataUpdateCoordinator]:
                 for f in fields(x):
                     try:
                         walk(getattr(x, f.name))
-                    except Exception:
-                        # Keep the existing “skip non-serializable” behavior
-                        continue
+                    except (AttributeError, TypeError, ValueError):
+                        # Skip fields that can't be read safely
+                        pass
             except (TypeError, ValueError):
                 # Fallback: vars() can work for some dataclass/slots variations
                 try:
                     for v in vars(x).values():
                         walk(v)
-                except (TypeError, ValueError):
+                except (AttribueError, TypeError, ValueError):
                     pass
             return
         if isinstance(x, Mapping):
@@ -398,3 +398,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

@@ -48,7 +48,8 @@ def _maybe_keys(val: Any, limit: int = 50) -> list[str] | None:
                 s = str(k)
                 # Emails/titles/tokens sometimes appear as keys in AMP structures.
                 import re
-                if re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', s):
+
+                if re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", s):
                     try:
                         from alexapy import (  # pylint: disable=import-outside-toplevel
                             hide_email,
@@ -223,7 +224,9 @@ def _summarize_coordinator(coordinator: DataUpdateCoordinator) -> dict:
         data["data_summary"] = _summarize_coordinator_data(
             getattr(coordinator, "data", None)
         )
-    except Exception as exc:  # noqa: BLE001 - intentionally broad; diagnostics must not crash
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 - intentionally broad; diagnostics must not crash
         data["data_summary_error"] = type(exc).__name__
         data["data_summary_error_present"] = True
 
@@ -413,4 +416,3 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
-

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from datetime import datetime
+from itertools import islice
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -42,8 +43,8 @@ def _maybe_len(val: Any) -> int | None:
 def _maybe_keys(val: Any, limit: int = 50) -> list[str] | None:
     if isinstance(val, Mapping):
         try:
-            keys = [str(k) for k in val.keys()]
-            return sorted(keys)[:limit]
+            # Sample up to `limit` keys to keep diagnostics small.
+            return sorted(str(k) for k in islice(val.keys(), limit))
         except (TypeError, AttributeError):
             return None
     return None
@@ -65,7 +66,7 @@ def _sample_names(val: Any, *, limit: int = 5) -> list[str] | None:
             names.append(v)
 
     if isinstance(val, Mapping):
-        for v in list(val.values())[: limit * 2]:
+        for v in islice(val.values(), limit * 2):
             add_name(v)
             if len(names) >= limit:
                 break
@@ -104,7 +105,7 @@ def _find_coordinators(obj: Any) -> list[DataUpdateCoordinator]:
                 for f in fields(x):
                     try:
                         walk(getattr(x, f.name))
-                    except (TypeError, ValueError):
+                    except Exception:
                         # Keep the existing “skip non-serializable” behavior
                         continue
             except (TypeError, ValueError):
@@ -139,19 +140,12 @@ def _summarize_coordinator_data(cdata: Any) -> dict:
     out: dict[str, Any] = {}
 
     if isinstance(cdata, Mapping):
-        # Preserve insertion order (avoids "sample vs full" order mismatch),
-        # and keep payload small.
-        keys = list(cdata.keys())
-        out["data_key_count"] = len(keys)
-        out["data_key_sample"] = [str(k) for k in keys[:10]]
+        out["data_key_count"] = len(cdata)
 
-        # For AMP, keys are often opaque UUIDs; the *value types* are often more helpful.
-        sample_vals = []
-        for k in keys[:3]:
-            try:
-                sample_vals.append(type(cdata[k]).__name__)
-            except Exception:
-                sample_vals.append("unknown")
+        key_sample = list(islice(cdata.keys(), 10))
+        out["data_key_sample"] = [str(k) for k in key_sample]
+
+        sample_vals = [type(cdata.get(k)).__name__ for k in key_sample[:3]]
         if sample_vals:
             out["data_value_types_sample"] = sample_vals
 
@@ -253,7 +247,7 @@ def _summarize_amp_entry_runtime(entry_runtime: Any) -> dict:
 
 def _obfuscate_identifier(val: Any) -> str | None:
     if not isinstance(val, str) or not val:
-        return None
+        return "****"
     if len(val) <= 6:
         return val
     return f"{val[:2]}...{val[-2:]}"
@@ -404,3 +398,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

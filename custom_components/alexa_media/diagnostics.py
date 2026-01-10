@@ -143,7 +143,8 @@ def _summarize_coordinator_data(cdata: Any) -> dict:
         out["data_key_count"] = len(cdata)
 
         key_sample = list(islice(cdata.keys(), 10))
-        out["data_key_sample"] = [str(k) for k in key_sample]
+
+        out["data_key_types_sample"] = [type(k).__name__ for k in key_sample]
 
         sample_vals = [type(cdata.get(k)).__name__ for k in key_sample[:3]]
         if sample_vals:
@@ -187,14 +188,13 @@ def _summarize_coordinator_data(cdata: Any) -> dict:
 
 def _summarize_coordinator(coordinator: DataUpdateCoordinator) -> dict:
     """Return a safe, compact view of a coordinator."""
+    exc = getattr(coordinator, "last_exception", None)
+
     data = {
         "name": getattr(coordinator, "name", None),
         "last_update_success": getattr(coordinator, "last_update_success", None),
-        "last_exception": (
-            repr(getattr(coordinator, "last_exception", None))
-            if getattr(coordinator, "last_exception", None)
-            else None
-        ),
+        "has_exception": exc is not None,
+        "last_exception_type": type(exc).__name__ if exc else None,
         "update_interval": (
             str(getattr(coordinator, "update_interval", None))
             if getattr(coordinator, "update_interval", None) is not None
@@ -398,3 +398,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

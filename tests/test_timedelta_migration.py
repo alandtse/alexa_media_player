@@ -7,8 +7,8 @@ The bug occurred when timedelta values ended up in config_entry.data
 and Home Assistant tried to persist the config entries to storage.
 """
 
-import json
 from datetime import timedelta
+import json
 
 import pytest
 
@@ -166,12 +166,12 @@ class TestOptionsFlowSanitizationLogic:
         }
 
         # Verify the data was sanitized
-        assert sanitized_input["scan_interval"] == 120.0, (
-            "timedelta should be converted to seconds"
-        )
-        assert not isinstance(sanitized_input["scan_interval"], timedelta), (
-            "scan_interval should not be a timedelta after sanitization"
-        )
+        assert (
+            sanitized_input["scan_interval"] == 120.0
+        ), "timedelta should be converted to seconds"
+        assert not isinstance(
+            sanitized_input["scan_interval"], timedelta
+        ), "scan_interval should not be a timedelta after sanitization"
         # Verify other values preserved
         assert sanitized_input["email"] == "test@example.com"
         assert sanitized_input["queue_delay"] == 2.0

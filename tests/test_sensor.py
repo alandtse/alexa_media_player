@@ -62,13 +62,7 @@ class TestAsyncUnloadEntry:
 
         hass.data = {
             DATA_ALEXAMEDIA: {
-                "accounts": {
-                    "test@example.com": {
-                        "entities": {
-                            "sensor": {}
-                        }
-                    }
-                }
+                "accounts": {"test@example.com": {"entities": {"sensor": {}}}}
             }
         }
 

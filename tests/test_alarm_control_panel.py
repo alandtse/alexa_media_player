@@ -10,9 +10,7 @@ class TestApplianceIdSplit:
         """Test split with valid format containing 3+ parts."""
         appliance_id = "prefix_middle_actual_id_suffix"
         appliance_parts = appliance_id.split("_")
-        result = (
-            appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
-        )
+        result = appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
 
         assert result == "actual"
 
@@ -20,9 +18,7 @@ class TestApplianceIdSplit:
         """Test split with exactly 3 parts."""
         appliance_id = "prefix_middle_actual"
         appliance_parts = appliance_id.split("_")
-        result = (
-            appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
-        )
+        result = appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
 
         assert result == "actual"
 
@@ -30,9 +26,7 @@ class TestApplianceIdSplit:
         """Test split with only 2 parts returns original."""
         appliance_id = "prefix_middle"
         appliance_parts = appliance_id.split("_")
-        result = (
-            appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
-        )
+        result = appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
 
         # Should return original since there's no third part
         assert result == appliance_id
@@ -45,9 +39,7 @@ class TestApplianceIdSplit:
         # Actually this has underscores, let's test without
         appliance_id = "singlepart"
         appliance_parts = appliance_id.split("_")
-        result = (
-            appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
-        )
+        result = appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
 
         # Should return original
         assert result == appliance_id
@@ -56,9 +48,7 @@ class TestApplianceIdSplit:
         """Test split with empty string returns original."""
         appliance_id = ""
         appliance_parts = appliance_id.split("_")
-        result = (
-            appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
-        )
+        result = appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
 
         # Should return original (empty string)
         assert result == appliance_id
@@ -71,8 +61,6 @@ class TestApplianceIdSplit:
 
         # Without safety check: appliance_parts[2] would raise IndexError
         # With safety check: returns original
-        result = (
-            appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
-        )
+        result = appliance_parts[2] if len(appliance_parts) > 2 else appliance_id
 
         assert result == appliance_id

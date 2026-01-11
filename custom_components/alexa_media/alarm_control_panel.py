@@ -90,8 +90,8 @@ async def async_setup_platform(
             hide_email(account),
             alexa_client,
         )
-    elif (
-        alexa_client.unique_id not in (account_dict["entities"]["alarm_control_panel"])
+    elif alexa_client.unique_id not in (
+        account_dict["entities"]["alarm_control_panel"]
     ):
         devices.append(alexa_client)
         (

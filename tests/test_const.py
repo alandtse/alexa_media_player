@@ -2,8 +2,6 @@
 
 from datetime import timedelta
 
-import pytest
-
 from custom_components.alexa_media.const import (
     ALEXA_AIR_QUALITY_DEVICE_CLASS,
     ALEXA_COMPONENTS,

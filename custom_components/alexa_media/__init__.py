@@ -1498,7 +1498,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry"""
     email = entry.data["email"]
-    login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
     refresh_task = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
         "notifications_refresh_task"

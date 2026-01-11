@@ -1,7 +1,5 @@
 """Tests for alarm_control_panel module."""
 
-import pytest
-
 
 class TestApplianceIdSplit:
     """Test the appliance_id split safety check."""

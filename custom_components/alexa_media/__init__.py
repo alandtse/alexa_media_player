@@ -1140,8 +1140,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     and "entryId" in json_payload["key"]
                     and json_payload["key"]["entryId"].find("#") != -1
                 ):
-                    serial = (json_payload["key"]["entryId"]).split("#")[2]
-                    json_payload["key"]["serialNumber"] = serial
+                    entry_parts = json_payload["key"]["entryId"].split("#")
+                    if len(entry_parts) > 2:
+                        serial = entry_parts[2]
+                        json_payload["key"]["serialNumber"] = serial
                 else:
                     serial = None
 

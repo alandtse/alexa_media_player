@@ -301,6 +301,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         except AlexapyPyotpInvalidKey:
             return self.async_show_form(
                 step_id="user",
+                data_schema=vol.Schema(self.proxy_schema),
                 errors={"base": "2fa_key_invalid"},
                 description_placeholders={
                     "otp_secret": self.config.get(CONF_OTPSECRET, ""),
@@ -1065,7 +1066,7 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 cls.known_ips[request.remote] = datetime.datetime.now()
             try:
                 return await cls.handler(request, **kwargs)
-            except httpx.ConnectError as ex:  # pylyint: disable=broad-except
+            except httpx.ConnectError as ex:  # pylint: disable=broad-except
                 _LOGGER.warning("Detected Connection error: %s", ex)
                 return web_response.Response(
                     headers={"content-type": "text/html"},

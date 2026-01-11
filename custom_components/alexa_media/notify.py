@@ -202,7 +202,7 @@ class AlexaNotificationService(BaseNotificationService):
         devices = []
         if (
             "accounts" not in self.hass.data[DATA_ALEXAMEDIA]
-            and not self.hass.data[DATA_ALEXAMEDIA]["accounts"].items()
+            or not self.hass.data[DATA_ALEXAMEDIA]["accounts"].items()
         ):
             return devices
         for _, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():

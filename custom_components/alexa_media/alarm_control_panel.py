@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 from asyncio import sleep
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from alexapy import hide_email, hide_serial
 from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
@@ -90,8 +90,8 @@ async def async_setup_platform(
             hide_email(account),
             alexa_client,
         )
-    elif alexa_client.unique_id not in (
-        account_dict["entities"]["alarm_control_panel"]
+    elif (
+        alexa_client.unique_id not in (account_dict["entities"]["alarm_control_panel"])
     ):
         devices.append(alexa_client)
         (

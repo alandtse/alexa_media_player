@@ -1,7 +1,5 @@
 """Tests for __init__ module split safety checks."""
 
-import pytest
-
 
 class TestEntryIdSplit:
     """Test the entryId split safety check in __init__.py."""

@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock
 
-import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 

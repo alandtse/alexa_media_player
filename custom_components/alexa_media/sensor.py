@@ -223,9 +223,9 @@ async def create_air_quality_sensors(account_dict, air_quality_entities):
             _LOGGER.debug("Create air quality sensors %s", sensor)
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
-            account_dict["entities"]["sensor"][serial][sensor_type][
-                "Air_Quality"
-            ] = sensor
+            account_dict["entities"]["sensor"][serial][sensor_type]["Air_Quality"] = (
+                sensor
+            )
             devices.append(sensor)
     return devices
 
@@ -605,9 +605,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             )
         alarm_on = next_item["status"] == "ON"
         r_rule_data = next_item.get("rRuleData")
-        if (
-            r_rule_data
-        ):  # the new recurrence pattern; https://github.com/alandtse/alexa_media_player/issues/1608
+        if r_rule_data:  # the new recurrence pattern; https://github.com/alandtse/alexa_media_player/issues/1608
             next_trigger_times = r_rule_data.get("nextTriggerTimes")
             weekdays = r_rule_data.get("byWeekDays")
             if next_trigger_times:

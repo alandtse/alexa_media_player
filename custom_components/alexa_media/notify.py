@@ -182,7 +182,7 @@ class AlexaNotificationService(BaseNotificationService):
             if last_called_entity is not None:
                 entity_name = (last_called_entity.entity_id).split(".")[1]
                 entity_name_last_called = (
-                    f"last_called{'_'+ email if entity_name[-1:].isdigit() else ''}"
+                    f"last_called{'_' + email if entity_name[-1:].isdigit() else ''}"
                 )
                 _LOGGER.debug(
                     "%s: Creating last_called target %s using %s called at %s",

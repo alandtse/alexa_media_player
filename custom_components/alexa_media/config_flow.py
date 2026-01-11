@@ -676,6 +676,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.hass.data[DATA_ALEXAMEDIA]["config_flows"][
                     f"{email} - {login.url}"
                 ] = None
+                # Reload the integration to apply new credentials and clear error state
+                _LOGGER.debug("Reloading integration for %s", hide_email(email))
+                await self.hass.config_entries.async_reload(existing_entry.entry_id)
                 return self.async_abort(reason="reauth_successful")
             _LOGGER.debug(
                 "Setting up Alexa devices with %s", dict(obfuscate(self.config))

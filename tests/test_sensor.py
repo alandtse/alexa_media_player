@@ -1,6 +1,7 @@
 """Tests for sensor module."""
 
-from unittest.mock import MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -19,12 +20,12 @@ class TestAsyncUnloadEntry:
         entry = MagicMock()
         entry.data = {"email": "test@example.com"}
 
-        # Create mock sensors with async_remove method
+        # Create mock sensors with async_remove method (must be AsyncMock)
         mock_sensor1 = MagicMock()
-        mock_sensor1.async_remove = MagicMock(return_value=None)
+        mock_sensor1.async_remove = AsyncMock()
 
         mock_sensor2 = MagicMock()
-        mock_sensor2.async_remove = MagicMock(return_value=None)
+        mock_sensor2.async_remove = AsyncMock()
 
         # Structure: account_dict["entities"]["sensor"][device_serial][sensor_type] = sensor
         hass.data = {

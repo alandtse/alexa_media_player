@@ -167,9 +167,10 @@ async def async_unload_entry(hass, entry) -> bool:
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("Attempting to unload sensors")
     for key, sensors in account_dict["entities"]["sensor"].items():
-        for device in sensors[key].values():
-            _LOGGER.debug("Removing %s", device)
-            await device.async_remove()
+        for device in sensors.values():
+            if hasattr(device, "async_remove"):
+                _LOGGER.debug("Removing %s", device)
+                await device.async_remove()
     return True
 
 
@@ -539,6 +540,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
             "alexa_media_notification_event",
             dt.as_local(time_date),
         )
+        if not self._active:
+            _LOGGER.debug("%s: No active notifications to fire event for", self)
+            return
         self.hass.bus.fire(
             "alexa_media_notification_event",
             event_data={

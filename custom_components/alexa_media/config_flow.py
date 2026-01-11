@@ -981,8 +981,17 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_EXCLUDE_DEVICES
                 ].strip()
 
+            # Sanitize data to ensure no timedelta values remain
+            # (prevents JSON serialization errors)
+            sanitized_input = {
+                k: (v.total_seconds() if isinstance(v, timedelta) else v)
+                for k, v in user_input.items()
+            }
+
             self.hass.config_entries.async_update_entry(
-                self.config_entry, data=user_input, options=self.config_entry.options
+                self.config_entry,
+                data=sanitized_input,
+                options=self.config_entry.options,
             )
             return self.async_create_entry(title="", data={})
 

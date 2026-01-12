@@ -67,8 +67,11 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 hide_serial(key),
             )
             raise ConfigEntryNotReady
-        if key not in (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
+        if (
+            key
+            not in (
+                hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
+            )
         ):
             hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"][
                 key
@@ -91,9 +94,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                         hide_serial(key),
                     )
                     continue
-                alexa_client = class_(
-                    account_dict["entities"]["media_player"][key]
-                )  # type: AlexaMediaSwitch
+                alexa_client = class_(account_dict["entities"]["media_player"][key])  # type: AlexaMediaSwitch
                 _LOGGER.debug(
                     "%s: Found %s %s switch with status: %s",
                     hide_email(account),
@@ -118,6 +119,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 )
     # Add Amazon Smart Plug devices
     switch_entities = safe_get(account_dict, ["devices", "smart_switch"], [])
+    hue_emulated_enabled = "emulated_hue" in hass.config.as_dict().get(
+        "components", set()
+    )
     if switch_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for switch_entity in switch_entities:
             if not (switch_entity["is_hue_v1"] and hue_emulated_enabled):

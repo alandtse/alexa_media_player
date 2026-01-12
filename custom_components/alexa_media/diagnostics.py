@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+# ✅ Standard library
+import re
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from itertools import islice
 from typing import Any
 
+# ✅ Third-party (Home Assistant)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.redact import async_redact_data
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+# ✅ Local imports
 from .const import (
     COMMON_BUCKET_COUNTS,
     COMMON_DIAGNOSTIC_BUCKETS,
@@ -35,20 +39,27 @@ def _safe_dt(val: Any) -> str | None:
 
 
 def _maybe_len(val: Any) -> int | None:
+    """Return the length of common container types or None if not applicable."""
     if isinstance(val, (list, tuple, dict, set)):
         return len(val)
     return None
 
 
 def _maybe_keys(val: Any, limit: int = 50) -> list[str] | None:
+    """Return a sanitized sample of mapping keys for diagnostics.
+
+    If ``val`` is a mapping, return up to ``limit`` obfuscated keys to provide
+    structural insight without exposing sensitive data. Email-like keys are
+    redacted when possible; otherwise keys are shortened to a non-identifying
+    form. Returns ``None`` if ``val`` is not a mapping or keys cannot be read.
+    """
+
     if isinstance(val, Mapping):
         try:
             # Sample up to `limit` keys to keep diagnostics small.
             def _safe_key(k: Any) -> str:
                 s = str(k)
                 # Emails/titles/tokens sometimes appear as keys in AMP structures.
-                import re
-
                 if re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", s):
                     try:
                         from alexapy import (  # pylint: disable=import-outside-toplevel
@@ -130,6 +141,7 @@ def _find_coordinators(obj: Any) -> list[DataUpdateCoordinator]:
                     for v in vars(x).values():
                         walk(v)
                 except (AttributeError, TypeError, ValueError):
+                    # Ignore attributes that cannot be introspected via vars()
                     pass
             return
         if isinstance(x, Mapping):
@@ -224,9 +236,7 @@ def _summarize_coordinator(coordinator: DataUpdateCoordinator) -> dict:
         data["data_summary"] = _summarize_coordinator_data(
             getattr(coordinator, "data", None)
         )
-    except (
-        Exception
-    ) as exc:  # noqa: BLE001 - intentionally broad; diagnostics must not crash
+    except Exception as exc:  # noqa: BLE001 - intentionally broad; diagnostics must not crash
         data["data_summary_error"] = type(exc).__name__
         data["data_summary_error_present"] = True
 
@@ -266,6 +276,12 @@ def _summarize_amp_entry_runtime(entry_runtime: Any) -> dict:
 
 
 def _obfuscate_identifier(val: Any) -> str:
+    """Return a shortened, non-identifying representation of a value.
+
+    Non-string, empty, or very short values are fully masked. Longer strings
+    are reduced to a minimal prefix and suffix to aid debugging without
+    exposing the original identifier.
+    """
     if not isinstance(val, str) or not val or len(val) <= 4:
         return "****"
     return f"{val[:2]}...{val[-2:]}"
@@ -275,11 +291,16 @@ def _obfuscate_title_with_email(title: str | None, email: str | None) -> str | N
     """Obfuscate email in config entry title using the same mechanism as AMP logs."""
     if not title or not email:
         return title
-    # Lazy import to keep diagnostics import cheap
-    from alexapy import hide_email  # pylint: disable=import-outside-toplevel
 
-    return title.replace(email, hide_email(email))
+    try:
+        # Lazy import to keep diagnostics import cheap
+        from alexapy import hide_email  # pylint: disable=import-outside-toplevel
 
+        redacted = hide_email(email)
+    except (ImportError, AttributeError, TypeError, ValueError):
+        redacted = _obfuscate_identifier(email)
+
+    return title.replace(email, redacted)
 
 def _get_safe_config_entry_title(config_entry: ConfigEntry) -> str | None:
     """Get obfuscated config entry title."""
@@ -391,8 +412,14 @@ async def async_get_device_diagnostics(
 ) -> dict:
     """Return diagnostics for a specific device."""
     safe_title = _get_safe_config_entry_title(config_entry)
-    # Lazy import to keep diagnostics import cheap
-    from alexapy import hide_serial  # pylint: disable=import-outside-toplevel
+
+    try:
+        # Lazy import to keep diagnostics import cheap
+        from alexapy import hide_serial  # pylint: disable=import-outside-toplevel
+
+        safe_serial = hide_serial(device.serial_number)
+    except (ImportError, AttributeError, TypeError, ValueError):
+        safe_serial = _obfuscate_identifier(device.serial_number)
 
     data: dict = {
         "device": {
@@ -402,7 +429,7 @@ async def async_get_device_diagnostics(
             "manufacturer": device.manufacturer,
             "model": device.model,
             "sw_version": device.sw_version,
-            "serial_number": hide_serial(device.serial_number),
+            "serial_number": safe_serial,
             "identifiers": sorted(
                 (domain, _obfuscate_identifier(value))
                 for domain, value in device.identifiers
@@ -416,3 +443,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

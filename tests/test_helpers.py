@@ -1,210 +1,740 @@
-"""Tests for the helpers module.
+from unittest.mock import MagicMock, patch
 
-This module verifies the helpers.py functions using source code analysis,
-avoiding the complexity of importing the module with its Home Assistant
-dependencies.
-"""
+from homeassistant.exceptions import ConditionErrorMessage
+import pytest
+
+from custom_components.alexa_media.const import DATA_ALEXAMEDIA
+from custom_components.alexa_media.helpers import (
+    _existing_serials,
+    add_devices,
+    is_http2_enabled,
+    safe_get,
+)
 
 
-class TestSafeGetFunction:
-    """Tests for the safe_get function in helpers.py."""
+def test_existing_serials_no_accounts():
+    hass = MagicMock()
+    login_obj = MagicMock()
+    login_obj.email = "test@example.com"
+    hass.data = {}
 
-    def test_safe_get_function_exists(self):
-        """Verify safe_get function is defined in helpers.py."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+    result = _existing_serials(hass, login_obj)
+    assert result == []
 
-        assert "def safe_get(" in content, "safe_get function not found in helpers.py"
 
-    def test_safe_get_escapes_dots_in_path_segments(self):
-        """Verify safe_get properly escapes dots in path segment keys.
+def test_existing_serials_no_email():
+    hass = MagicMock()
+    login_obj = MagicMock()
+    login_obj.email = "test@example.com"
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": {}}}
 
-        The dictor library uses dots as path separators, so keys containing
-        dots (like "user.email") need to be escaped with backslash.
+    result = _existing_serials(hass, login_obj)
+    assert result == []
+
+
+def test_existing_serials_with_devices():
+    hass = MagicMock()
+    login_obj = MagicMock()
+    email = "test@example.com"
+    login_obj.email = email
+
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "accounts": {
+                email: {
+                    "entities": {"media_player": {"device1": {}, "device2": {}}},
+                    "devices": {"media_player": {"device1": {}, "device2": {}}},
+                }
+            }
+        }
+    }
+
+    result = _existing_serials(hass, login_obj)
+    assert sorted(result) == ["device1", "device2"]
+
+
+def test_existing_serials_with_app_devices():
+    hass = MagicMock()
+    login_obj = MagicMock()
+    email = "test@example.com"
+    login_obj.email = email
+
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "accounts": {
+                email: {
+                    "entities": {"media_player": {"device1": {}}},
+                    "devices": {
+                        "media_player": {
+                            "device1": {
+                                "appDeviceList": [
+                                    {"serialNumber": "app1"},
+                                    {"serialNumber": "app2"},
+                                    {
+                                        "serialNumber": "device1"
+                                    },  # this reproduces the infinite loop bug
+                                ]
+                            }
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+    result = _existing_serials(hass, login_obj)
+    assert sorted(result) == ["app1", "app2", "device1", "device1"]
+
+
+def test_existing_serials_with_invalid_app_devices():
+    hass = MagicMock()
+    login_obj = MagicMock()
+    email = "test@example.com"
+    login_obj.email = email
+
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "accounts": {
+                email: {
+                    "entities": {"media_player": {"device1": {}}},
+                    "devices": {
+                        "media_player": {
+                            "device1": {
+                                "appDeviceList": [
+                                    {"invalid": "data"},
+                                    {"serialNumber": "app1"},
+                                ]
+                            }
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+    result = _existing_serials(hass, login_obj)
+    assert sorted(result) == ["app1", "device1"]
+
+
+class TestAddDevices:
+    """Test the add_devices function."""
+
+    @pytest.mark.asyncio
+    async def test_add_devices_success(self):
+        """Test successful device addition."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices("test_account", devices, add_devices_callback)
+
+        assert result is True
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_empty_list(self):
+        """Test adding empty device list."""
+        devices = []
+        add_devices_callback = MagicMock()
+
+        result = await add_devices("test_account", devices, add_devices_callback)
+
+        assert result is True
+        add_devices_callback.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_include_filter(self):
+        """Test device filtering with include filter."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+        include_filter = ["Device 1"]
+
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, include_filter=include_filter
+        )
+
+        assert result is True
+        # Only device1 should be added
+        add_devices_callback.assert_called_once_with([device1], False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_exclude_filter(self):
+        """Test device filtering with exclude filter."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+        exclude_filter = ["Device 2"]
+
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, exclude_filter=exclude_filter
+        )
+
+        assert result is True
+        # Only device1 should be added
+        add_devices_callback.assert_called_once_with([device1], False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_filtered_to_empty(self):
+        """Test when filtering results in no devices to add."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        devices = [device1]
+
+        add_devices_callback = MagicMock()
+        exclude_filter = ["Device 1"]
+
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, exclude_filter=exclude_filter
+        )
+
+        assert result is True
+        add_devices_callback.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_add_devices_condition_error_entity_exists(self):
+        """Test handling of entity already exists error."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        devices = [device1]
+
+        add_devices_callback = MagicMock()
+        add_devices_callback.side_effect = ConditionErrorMessage(
+            "entity_exists", "Entity id already exists: device1"
+        )
+
+        result = await add_devices("test_account", devices, add_devices_callback)
+
+        assert result is False
+        add_devices_callback.assert_called_once_with([device1], False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_condition_error_other(self):
+        """Test handling of other condition errors."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        devices = [device1]
+
+        add_devices_callback = MagicMock()
+        add_devices_callback.side_effect = ConditionErrorMessage(
+            "other_error", "Some other error"
+        )
+
+        result = await add_devices("test_account", devices, add_devices_callback)
+
+        assert result is False
+        add_devices_callback.assert_called_once_with([device1], False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_base_exception(self):
+        """Test handling of base exceptions."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        devices = [device1]
+
+        add_devices_callback = MagicMock()
+        add_devices_callback.side_effect = ValueError("Some error")
+
+        result = await add_devices("test_account", devices, add_devices_callback)
+
+        assert result is False
+        add_devices_callback.assert_called_once_with([device1], False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_include_and_exclude_filters(self):
+        """Test device filtering with both include and exclude filters."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
+
+        add_devices_callback = MagicMock()
+        include_filter = ["Device 1", "Device 2"]
+        exclude_filter = ["Device 2"]
+
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=include_filter,
+            exclude_filter=exclude_filter,
+        )
+
+        assert result is True
+        # Only device1 should be added (included but not excluded)
+        add_devices_callback.assert_called_once_with([device1], False)
+
+
+def make_hass_data_http2(data: dict | None):
+    """Return a hass-like mock object with a data attribute."""
+    if data is None:
+        return None
+    hass = MagicMock()
+    hass.data = data
+    return hass
+
+
+def test_is_http2_enabled_hass_none():
+    """Test that is_http2_enabled returns False when hass is None."""
+    assert is_http2_enabled(None, "test@example.com") is False
+
+
+def test_is_http2_enabled_http2_none():
+    """Test that http2 set to None results in a False return value."""
+    hass = make_hass_data_http2(
+        {DATA_ALEXAMEDIA: {"accounts": {"test@example.com": {"http2": None}}}}
+    )
+
+    assert is_http2_enabled(hass, "test@example.com") is False
+
+
+def test_is_http2_enabled_http2_object():
+    """Test that a non-None http2 object results in a True return value."""
+    mock_http2_client = MagicMock()
+
+    hass = make_hass_data_http2(
+        {
+            DATA_ALEXAMEDIA: {
+                "accounts": {"test@example.com": {"http2": mock_http2_client}}
+            }
+        }
+    )
+
+    assert is_http2_enabled(hass, "test@example.com") is True
+
+
+def test_safe_get_simple_path():
+    """Test that simple path list is correctly joined with dots."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        mock_dictor.return_value = "test@example.com"
+
+        result = safe_get({"config": {}}, ["config", "email"])
+
+        mock_dictor.assert_called_once()
+        args = mock_dictor.call_args[0]
+        assert args[1] == "config.email"
+        assert result == "test@example.com"
+
+
+def test_safe_get_escapes_dots_in_keys():
+    """Test that dots in key names are properly escaped."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        mock_dictor.return_value = "test@example.com"
+
+        result = safe_get({}, ["config", "user.email"])
+
+        args = mock_dictor.call_args[0]
+        assert args[1] == "config.user\\.email"
+        assert result == "test@example.com"
+
+
+def test_safe_get_multiple_dots_in_key():
+    """Test that multiple dots in a single key are all escaped."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        safe_get({}, ["config", "user.email.primary"])
+
+        args = mock_dictor.call_args[0]
+        assert args[1] == "config.user\\.email\\.primary"
+
+
+def test_safe_get_integer_path_segment():
+    """Test that integer path segments are converted to strings."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        safe_get({}, ["items", 0, "name"])
+
+        args = mock_dictor.call_args[0]
+        assert args[1] == "items.0.name"
+
+
+def test_safe_get_forwards_default_value():
+    """Test that default value is forwarded as positional arg."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        mock_dictor.return_value = "default@example.com"
+
+        safe_get({}, ["config", "email"], "default@example.com")
+
+        args = mock_dictor.call_args[0]
+        assert len(args) == 3
+        assert args[2] == "default@example.com"
+
+
+def test_safe_get_forwards_kwargs():
+    """Test that kwargs are forwarded to dictor."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        safe_get({}, ["config", "email"], ignorecase=True, checknone=False)
+
+        kwargs = mock_dictor.call_args[1]
+        assert kwargs["ignorecase"] is True
+        assert kwargs["checknone"] is False
+
+
+def test_safe_get_type_match_returns_value():
+    """Test that matching types pass through correctly."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        # String default, string result - should pass through
+        mock_dictor.return_value = "actual_value"
+        result = safe_get({}, ["key"], "default")
+        assert result == "actual_value"
+
+        # List default, list result - should pass through
+        mock_dictor.return_value = [1, 2, 3]
+        result = safe_get({}, ["key"], [])
+        assert result == [1, 2, 3]
+
+        # Dict default, dict result - should pass through
+        mock_dictor.return_value = {"a": 1}
+        result = safe_get({}, ["key"], {})
+        assert result == {"a": 1}
+
+        # Int default, int result - should pass through
+        mock_dictor.return_value = 42
+        result = safe_get({}, ["key"], 0)
+        assert result == 42
+
+
+def test_safe_get_type_mismatch_returns_default():
+    """Test that type mismatches return the default value."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        # String default, int result - should return default
+        mock_dictor.return_value = 123
+        result = safe_get({}, ["key"], "default")
+        assert result == "default"
+
+        # List default, dict result - should return default
+        mock_dictor.return_value = {"a": 1}
+        result = safe_get({}, ["key"], [])
+        assert result == []
+
+        # Dict default, string result - should return default
+        mock_dictor.return_value = "string"
+        result = safe_get({}, ["key"], {})
+        assert result == {}
+
+        # Int default, string result - should return default
+        mock_dictor.return_value = "123"
+        result = safe_get({}, ["key"], 0)
+        assert result == 0
+
+
+def test_safe_get_none_result_with_default():
+    """Test that None results are returned as-is (no type check)."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        # None result should pass through regardless of default type
+        mock_dictor.return_value = None
+
+        result = safe_get({}, ["key"], "default")
+        assert result is None
+
+        result = safe_get({}, ["key"], [])
+        assert result is None
+
+        result = safe_get({}, ["key"], {})
+        assert result is None
+
+
+def test_safe_get_no_default_no_type_check():
+    """Test that without a default, no type checking occurs."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        # Any type should pass through when no default
+        mock_dictor.return_value = "string"
+        result = safe_get({}, ["key"])
+        assert result == "string"
+
+        mock_dictor.return_value = 123
+        result = safe_get({}, ["key"])
+        assert result == 123
+
+        mock_dictor.return_value = [1, 2, 3]
+        result = safe_get({}, ["key"])
+        assert result == [1, 2, 3]
+
+
+def test_safe_get_none_default_no_type_check():
+    """Test that None as default doesn't trigger type checking."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        # Explicit None default should not trigger type check
+        mock_dictor.return_value = "string"
+        result = safe_get({}, ["key"], None)
+        assert result == "string"
+
+        mock_dictor.return_value = 123
+        result = safe_get({}, ["key"], None)
+        assert result == 123
+
+
+def test_safe_get_empty_path_raises():
+    """Test that empty path_list raises ValueError."""
+    with pytest.raises(ValueError) as exc:
+        safe_get({}, [])
+    assert "path_list cannot be empty" in str(exc.value)
+
+
+def test_safe_get_pathsep_kwarg_removed():
+    """Test that pathsep kwarg is removed before calling dictor."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        safe_get({}, ["key"], pathsep="/")
+
+        # pathsep should not be in kwargs
+        kwargs = mock_dictor.call_args[1]
+        assert "pathsep" not in kwargs
+
+
+def test_safe_get_subclass_type_check():
+    """Test type checking with subclasses."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        # bool is subclass of int in Python
+        mock_dictor.return_value = True
+        result = safe_get({}, ["key"], 0)
+        assert result is True  # Should pass isinstance check
+
+        # But int is not instance of bool
+        mock_dictor.return_value = 1
+        result = safe_get({}, ["key"], False)
+        assert result is False  # Should fail isinstance check -> return default
+
+
+def test_safe_get_complex_type_scenarios():
+    """Test type checking with more complex scenarios."""
+
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        # Empty list default, non-empty list result
+        mock_dictor.return_value = [1, 2, 3]
+        result = safe_get({}, ["key"], [])
+        assert result == [1, 2, 3]
+
+        # Empty dict default, non-empty dict result
+        mock_dictor.return_value = {"a": 1, "b": 2}
+        result = safe_get({}, ["key"], {})
+        assert result == {"a": 1, "b": 2}
+
+        # String default, empty string result
+        mock_dictor.return_value = ""
+        result = safe_get({}, ["key"], "default")
+        assert result == ""  # Empty string is still a string
+
+
+class TestAddDevicesFilterDefaults:
+    """Regression tests for add_devices filter default value handling.
+
+    These tests verify the fix for the "[] or x" logic bug where the incorrect
+    pattern "[] or include_filter" would return None when include_filter=None,
+    instead of properly defaulting to an empty list.
+
+    The correct pattern is "include_filter or []" which returns [] when
+    include_filter is None/falsy.
+    """
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_none_include_filter_adds_all_devices(self):
+        """Test that None include_filter defaults to empty list and adds all devices.
+
+        When include_filter is None (the default), it should be treated as an
+        empty list, meaning no inclusion filtering is applied and all devices
+        should be added.
         """
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
 
-        # The code should escape dots in keys - the pattern is replace(".", "\\.")
-        assert (
-            'replace(".", "\\\\.")' in content or "replace('.', '\\\\.')" in content
-        ), "safe_get should escape dots in path segment keys"
+        add_devices_callback = MagicMock()
 
-    def test_safe_get_handles_integer_path_segments(self):
-        """Verify safe_get handles integer path segments for array indexing."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+        # Explicitly pass None to test the default handling
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, include_filter=None
+        )
 
-        # The code should convert integers to strings for the path
-        assert (
-            "str(" in content
-        ), "safe_get should convert integer path segments to strings"
+        assert result is True
+        # All devices should be added when include_filter is None
+        add_devices_callback.assert_called_once_with(devices, False)
 
-    def test_safe_get_validates_empty_path_list(self):
-        """Verify safe_get raises ValueError for empty path_list."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+    @pytest.mark.asyncio
+    async def test_add_devices_with_none_exclude_filter_adds_all_devices(self):
+        """Test that None exclude_filter defaults to empty list and adds all devices.
 
-        assert (
-            "path_list cannot be empty" in content
-        ), "safe_get should raise ValueError with message for empty path_list"
-
-    def test_safe_get_performs_type_checking(self):
-        """Verify safe_get performs type checking when default is provided."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
-
-        # The code should check isinstance when default is provided
-        assert (
-            "isinstance" in content
-        ), "safe_get should use isinstance for type checking"
-
-
-class TestAddDevicesFunction:
-    """Tests for the add_devices function in helpers.py."""
-
-    def test_add_devices_function_exists(self):
-        """Verify add_devices function is defined in helpers.py."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
-
-        assert (
-            "async def add_devices(" in content
-        ), "add_devices function not found in helpers.py"
-
-    def test_add_devices_filter_default_handling(self):
-        """Verify add_devices uses correct pattern for filter defaults.
-
-        The correct pattern is "include_filter or []" which returns []
-        when include_filter is None. The incorrect pattern "[] or include_filter"
-        would return None when include_filter=None.
+        When exclude_filter is None (the default), it should be treated as an
+        empty list, meaning no exclusion filtering is applied and all devices
+        should be added.
         """
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
 
-        # Find the add_devices function
-        func_start = content.find("async def add_devices(")
-        assert func_start != -1
+        add_devices_callback = MagicMock()
 
-        # Get the function body (next ~500 chars should include the filter handling)
-        func_body = content[func_start : func_start + 800]
+        # Explicitly pass None to test the default handling
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, exclude_filter=None
+        )
 
-        # The correct pattern should be "include_filter or []" not "[] or include_filter"
-        # Look for the pattern where the variable comes first
-        assert (
-            "include_filter or [" in func_body or "include or [" in func_body
-        ), "add_devices should use 'include_filter or []' pattern for default handling"
-        assert (
-            "exclude_filter or [" in func_body or "exclude or [" in func_body
-        ), "add_devices should use 'exclude_filter or []' pattern for default handling"
+        assert result is True
+        # All devices should be added when exclude_filter is None
+        add_devices_callback.assert_called_once_with(devices, False)
 
-    def test_add_devices_handles_exceptions(self):
-        """Verify add_devices catches exceptions from the callback."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+    @pytest.mark.asyncio
+    async def test_add_devices_with_both_filters_none_adds_all_devices(self):
+        """Test that both filters being None adds all devices without filtering.
 
-        # Find the add_devices function
-        func_start = content.find("async def add_devices(")
-        assert func_start != -1
+        This is the default case when add_devices is called without filter
+        arguments. Both filters should default to empty lists internally.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
 
-        # Get a larger chunk to find exception handling
-        func_body = content[func_start : func_start + 1500]
+        add_devices_callback = MagicMock()
 
-        # Should have exception handling
-        assert (
-            "except" in func_body
-        ), "add_devices should have exception handling for callback errors"
+        # Explicitly pass None for both to test the default handling
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=None,
+            exclude_filter=None,
+        )
 
+        assert result is True
+        # All devices should be added when both filters are None
+        add_devices_callback.assert_called_once_with(devices, False)
 
-class TestExistingSerialsFunction:
-    """Tests for the _existing_serials function in helpers.py."""
+    @pytest.mark.asyncio
+    async def test_add_devices_with_empty_include_filter_adds_all_devices(self):
+        """Test that empty list include_filter is equivalent to None.
 
-    def test_existing_serials_function_exists(self):
-        """Verify _existing_serials function is defined in helpers.py."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+        An empty include_filter should mean "include all" (no filtering),
+        not "include nothing". This is consistent with the None behavior.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
 
-        assert (
-            "def _existing_serials(" in content
-        ), "_existing_serials function not found in helpers.py"
+        add_devices_callback = MagicMock()
 
-    def test_existing_serials_handles_app_devices(self):
-        """Verify _existing_serials includes app device serial numbers."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, include_filter=[]
+        )
 
-        # Should handle appDeviceList
-        assert (
-            "appDeviceList" in content
-        ), "_existing_serials should handle appDeviceList"
+        assert result is True
+        # All devices should be added when include_filter is empty list
+        add_devices_callback.assert_called_once_with(devices, False)
 
-    def test_existing_serials_handles_missing_serial_number(self):
-        """Verify _existing_serials handles missing serialNumber gracefully."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+    @pytest.mark.asyncio
+    async def test_add_devices_with_empty_exclude_filter_adds_all_devices(self):
+        """Test that empty list exclude_filter is equivalent to None.
 
-        # Should safely get serialNumber with a default
-        assert (
-            "serialNumber" in content
-        ), "_existing_serials should access serialNumber from app devices"
+        An empty exclude_filter should mean "exclude nothing" (no filtering).
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
 
+        add_devices_callback = MagicMock()
 
-class TestIsHttp2EnabledFunction:
-    """Tests for the is_http2_enabled function in helpers.py."""
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, exclude_filter=[]
+        )
 
-    def test_is_http2_enabled_function_exists(self):
-        """Verify is_http2_enabled function is defined in helpers.py."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+        assert result is True
+        # All devices should be added when exclude_filter is empty list
+        add_devices_callback.assert_called_once_with(devices, False)
 
-        assert (
-            "def is_http2_enabled(" in content
-        ), "is_http2_enabled function not found in helpers.py"
+    @pytest.mark.asyncio
+    async def test_add_devices_none_include_with_explicit_exclude_filters_correctly(
+        self,
+    ):
+        """Test that None include_filter combined with explicit exclude_filter works.
 
-    def test_is_http2_enabled_handles_none_hass(self):
-        """Verify is_http2_enabled handles None hass parameter."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+        When include_filter is None (adds all) but exclude_filter has entries,
+        only the exclude_filter should take effect.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
 
-        # Find the function
-        func_start = content.find("def is_http2_enabled(")
-        assert func_start != -1
+        add_devices_callback = MagicMock()
 
-        # Get the function body
-        func_body = content[func_start : func_start + 300]
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=None,
+            exclude_filter=["Device 2"],
+        )
 
-        # Should check for None hass
-        assert (
-            "not hass" in func_body
-            or "hass is None" in func_body
-            or "if hass" in func_body
-        ), "is_http2_enabled should handle None hass parameter"
+        assert result is True
+        # Device 2 should be excluded, others added
+        add_devices_callback.assert_called_once_with([device1, device3], False)
 
+    @pytest.mark.asyncio
+    async def test_add_devices_explicit_include_with_none_exclude_filters_correctly(
+        self,
+    ):
+        """Test that explicit include_filter combined with None exclude_filter works.
 
-class TestHelpersModuleStructure:
-    """Tests for the overall structure of helpers.py."""
+        When include_filter has entries but exclude_filter is None,
+        only devices in the include_filter should be added.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
 
-    def test_helpers_uses_dictor_for_safe_access(self):
-        """Verify helpers.py uses dictor library for safe dictionary access."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
+        add_devices_callback = MagicMock()
 
-        assert "dictor" in content, "helpers.py should use dictor for safe dict access"
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=["Device 1", "Device 3"],
+            exclude_filter=None,
+        )
 
-    def test_helpers_imports_logging(self):
-        """Verify helpers.py imports logging for debug/error messages."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
-
-        assert (
-            "import logging" in content or "from logging" in content
-        ), "helpers.py should import logging"
-
-    def test_helpers_defines_data_alexamedia_constant_usage(self):
-        """Verify helpers.py uses DATA_ALEXAMEDIA constant."""
-        with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
-            content = f.read()
-
-        assert (
-            "DATA_ALEXAMEDIA" in content
-        ), "helpers.py should use DATA_ALEXAMEDIA constant"
+        assert result is True
+        # Only Device 1 and 3 should be added (Device 2 not in include list)
+        add_devices_callback.assert_called_once_with([device1, device3], False)

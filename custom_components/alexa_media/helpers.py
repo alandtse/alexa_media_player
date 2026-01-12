@@ -37,8 +37,8 @@ async def add_devices(
     exclude_filter: Optional[list[str]] = None,
 ) -> bool:
     """Add devices using add_devices_callback."""
-    include_filter = [] or include_filter
-    exclude_filter = [] or exclude_filter
+    include_filter = include_filter or []
+    exclude_filter = exclude_filter or []
     new_devices = []
     for device in devices:
         if (

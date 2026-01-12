@@ -48,7 +48,11 @@ def test_obfuscate_identifier(val, expected):
 
 
 def test_obfuscate_title_with_email_uses_hide_email_when_available(monkeypatch):
-    monkeypatch.setitem(sys.modules, "alexapy", SimpleNamespace(hide_email=lambda _s: "h***@example.com"))
+    monkeypatch.setitem(
+        sys.modules,
+        "alexapy",
+        SimpleNamespace(hide_email=lambda _s: "h***@example.com"),
+    )
 
     title = "Alexa Media Player (daniel@example.com)"
     assert _obfuscate_title_with_email(title, "daniel@example.com") == (
@@ -73,7 +77,11 @@ def test_maybe_keys_non_mapping_returns_none():
 
 
 def test_maybe_keys_sanitizes_email_keys_and_limits(monkeypatch):
-    monkeypatch.setitem(sys.modules, "alexapy", SimpleNamespace(hide_email=lambda _s: "h***@example.com"))
+    monkeypatch.setitem(
+        sys.modules,
+        "alexapy",
+        SimpleNamespace(hide_email=lambda _s: "h***@example.com"),
+    )
 
     val = {
         "daniel@example.com": 1,
@@ -135,7 +143,9 @@ def test_summarize_amp_entry_runtime_mapping(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(mock_hass, monkeypatch):
+async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
+    mock_hass, monkeypatch
+):
     redact_key = next(iter(TO_REDACT))
     secret = "just_a_test_value"  # nosec B105
 
@@ -155,7 +165,6 @@ async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(mock_
         lambda _entry: "Alexa Media Player (h***@example.com)",
     )
 
-
     out = await async_get_config_entry_diagnostics(mock_hass, entry)
 
     assert out["data"].get(redact_key) != secret
@@ -165,9 +174,14 @@ async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(mock_
     if title:
         assert "daniel@example.com" not in title
 
+
 @pytest.mark.asyncio
-async def test_async_get_device_diagnostics_obfuscates_ids_and_serial(monkeypatch, mock_hass):
-    monkeypatch.setitem(sys.modules, "alexapy", SimpleNamespace(hide_serial=lambda _s: "12...90"))
+async def test_async_get_device_diagnostics_obfuscates_ids_and_serial(
+    monkeypatch, mock_hass
+):
+    monkeypatch.setitem(
+        sys.modules, "alexapy", SimpleNamespace(hide_serial=lambda _s: "12...90")
+    )
 
     entry = SimpleNamespace(
         entry_id="entry123",
@@ -199,7 +213,9 @@ async def test_async_get_device_diagnostics_obfuscates_ids_and_serial(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_async_get_config_entry_diagnostics_domain_data_not_mapping_is_robust(mock_hass, monkeypatch):
+async def test_async_get_config_entry_diagnostics_domain_data_not_mapping_is_robust(
+    mock_hass, monkeypatch
+):
     monkeypatch.setattr(
         "custom_components.alexa_media.diagnostics._summarize_amp_entry_runtime",
         lambda v: {"present": v is not None},

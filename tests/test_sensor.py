@@ -49,9 +49,9 @@ class TestUpdateRecurringAlarmBugfix:
         )
 
         # Verify it's used in the 'not in recurrence' check
-        assert "isoweekday() not in recurrence" in content, (
-            "The isoweekday() call should be used in a 'not in recurrence' check"
-        )
+        assert (
+            "isoweekday() not in recurrence" in content
+        ), "The isoweekday() call should be used in a 'not in recurrence' check"
 
     def test_while_loop_structure_is_correct(self) -> None:
         """Verify the while loop has the correct structure for recurring alarms.
@@ -74,15 +74,15 @@ class TestUpdateRecurringAlarmBugfix:
 
         # Verify all required conditions are present
         assert "alarm_on" in while_block, "alarm_on condition missing from while loop"
-        assert "recurrence" in while_block, (
-            "recurrence condition missing from while loop"
-        )
-        assert "isoweekday()" in while_block, (
-            "isoweekday() (with parentheses) missing from while loop"
-        )
-        assert "not in recurrence" in while_block, (
-            "'not in recurrence' check missing from while loop"
-        )
+        assert (
+            "recurrence" in while_block
+        ), "recurrence condition missing from while loop"
+        assert (
+            "isoweekday()" in while_block
+        ), "isoweekday() (with parentheses) missing from while loop"
+        assert (
+            "not in recurrence" in while_block
+        ), "'not in recurrence' check missing from while loop"
 
     def test_alarm_is_incremented_by_one_day_in_loop(self) -> None:
         """Verify the alarm is advanced by one day in the while loop body.
@@ -94,19 +94,19 @@ class TestUpdateRecurringAlarmBugfix:
             content = f.read()
 
         # Find the timedelta(days=1) addition
-        assert "timedelta(days=1)" in content, (
-            "The recurring alarm logic should increment by timedelta(days=1)"
-        )
+        assert (
+            "timedelta(days=1)" in content
+        ), "The recurring alarm logic should increment by timedelta(days=1)"
 
         # Find the while loop and verify the increment is inside it
         while_start = content.find("while (")
         while_end = content.find("alarm += datetime.timedelta", while_start)
-        assert while_start != -1 and while_end != -1, (
-            "Could not find while loop with alarm increment"
-        )
-        assert while_end > while_start, (
-            "alarm += datetime.timedelta should appear after the while statement"
-        )
+        assert (
+            while_start != -1 and while_end != -1
+        ), "Could not find while loop with alarm increment"
+        assert (
+            while_end > while_start
+        ), "alarm += datetime.timedelta should appear after the while statement"
 
     def test_no_isoweekday_without_parentheses_in_while_loop(self) -> None:
         """Verify there's no incorrect usage of isoweekday without parentheses.
@@ -150,9 +150,9 @@ class TestRecurringPatternConstants:
         with open("custom_components/alexa_media/sensor.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "RECURRING_PATTERN_ISO_SET" in content, (
-            "RECURRING_PATTERN_ISO_SET constant not found in sensor.py"
-        )
+        assert (
+            "RECURRING_PATTERN_ISO_SET" in content
+        ), "RECURRING_PATTERN_ISO_SET constant not found in sensor.py"
 
     def test_recurring_pattern_used_in_recurrence_check(self) -> None:
         """Verify the recurring pattern is used to get the recurrence set."""
@@ -160,9 +160,9 @@ class TestRecurringPatternConstants:
             content = f.read()
 
         # The code should get the recurrence set from the pattern
-        assert "recurringPattern" in content, (
-            "recurringPattern key lookup not found in sensor.py"
-        )
-        assert "RECURRING_PATTERN_ISO_SET.get" in content, (
-            "RECURRING_PATTERN_ISO_SET.get() call not found in sensor.py"
-        )
+        assert (
+            "recurringPattern" in content
+        ), "recurringPattern key lookup not found in sensor.py"
+        assert (
+            "RECURRING_PATTERN_ISO_SET.get" in content
+        ), "RECURRING_PATTERN_ISO_SET.get() call not found in sensor.py"

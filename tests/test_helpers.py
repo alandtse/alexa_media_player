@@ -36,18 +36,18 @@ class TestSafeGetFunction:
             content = f.read()
 
         # The code should convert integers to strings for the path
-        assert "str(" in content, (
-            "safe_get should convert integer path segments to strings"
-        )
+        assert (
+            "str(" in content
+        ), "safe_get should convert integer path segments to strings"
 
     def test_safe_get_validates_empty_path_list(self):
         """Verify safe_get raises ValueError for empty path_list."""
         with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "path_list cannot be empty" in content, (
-            "safe_get should raise ValueError with message for empty path_list"
-        )
+        assert (
+            "path_list cannot be empty" in content
+        ), "safe_get should raise ValueError with message for empty path_list"
 
     def test_safe_get_performs_type_checking(self):
         """Verify safe_get performs type checking when default is provided."""
@@ -55,9 +55,9 @@ class TestSafeGetFunction:
             content = f.read()
 
         # The code should check isinstance when default is provided
-        assert "isinstance" in content, (
-            "safe_get should use isinstance for type checking"
-        )
+        assert (
+            "isinstance" in content
+        ), "safe_get should use isinstance for type checking"
 
 
 class TestAddDevicesFunction:
@@ -68,9 +68,9 @@ class TestAddDevicesFunction:
         with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "async def add_devices(" in content, (
-            "add_devices function not found in helpers.py"
-        )
+        assert (
+            "async def add_devices(" in content
+        ), "add_devices function not found in helpers.py"
 
     def test_add_devices_filter_default_handling(self):
         """Verify add_devices uses correct pattern for filter defaults.
@@ -91,12 +91,12 @@ class TestAddDevicesFunction:
 
         # The correct pattern should be "include_filter or []" not "[] or include_filter"
         # Look for the pattern where the variable comes first
-        assert "include_filter or [" in func_body or "include or [" in func_body, (
-            "add_devices should use 'include_filter or []' pattern for default handling"
-        )
-        assert "exclude_filter or [" in func_body or "exclude or [" in func_body, (
-            "add_devices should use 'exclude_filter or []' pattern for default handling"
-        )
+        assert (
+            "include_filter or [" in func_body or "include or [" in func_body
+        ), "add_devices should use 'include_filter or []' pattern for default handling"
+        assert (
+            "exclude_filter or [" in func_body or "exclude or [" in func_body
+        ), "add_devices should use 'exclude_filter or []' pattern for default handling"
 
     def test_add_devices_handles_exceptions(self):
         """Verify add_devices catches exceptions from the callback."""
@@ -111,9 +111,9 @@ class TestAddDevicesFunction:
         func_body = content[func_start : func_start + 1500]
 
         # Should have exception handling
-        assert "except" in func_body, (
-            "add_devices should have exception handling for callback errors"
-        )
+        assert (
+            "except" in func_body
+        ), "add_devices should have exception handling for callback errors"
 
 
 class TestExistingSerialsFunction:
@@ -124,9 +124,9 @@ class TestExistingSerialsFunction:
         with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "def _existing_serials(" in content, (
-            "_existing_serials function not found in helpers.py"
-        )
+        assert (
+            "def _existing_serials(" in content
+        ), "_existing_serials function not found in helpers.py"
 
     def test_existing_serials_handles_app_devices(self):
         """Verify _existing_serials includes app device serial numbers."""
@@ -134,9 +134,9 @@ class TestExistingSerialsFunction:
             content = f.read()
 
         # Should handle appDeviceList
-        assert "appDeviceList" in content, (
-            "_existing_serials should handle appDeviceList"
-        )
+        assert (
+            "appDeviceList" in content
+        ), "_existing_serials should handle appDeviceList"
 
     def test_existing_serials_handles_missing_serial_number(self):
         """Verify _existing_serials handles missing serialNumber gracefully."""
@@ -144,9 +144,9 @@ class TestExistingSerialsFunction:
             content = f.read()
 
         # Should safely get serialNumber with a default
-        assert "serialNumber" in content, (
-            "_existing_serials should access serialNumber from app devices"
-        )
+        assert (
+            "serialNumber" in content
+        ), "_existing_serials should access serialNumber from app devices"
 
 
 class TestIsHttp2EnabledFunction:
@@ -157,9 +157,9 @@ class TestIsHttp2EnabledFunction:
         with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "def is_http2_enabled(" in content, (
-            "is_http2_enabled function not found in helpers.py"
-        )
+        assert (
+            "def is_http2_enabled(" in content
+        ), "is_http2_enabled function not found in helpers.py"
 
     def test_is_http2_enabled_handles_none_hass(self):
         """Verify is_http2_enabled handles None hass parameter."""
@@ -196,15 +196,15 @@ class TestHelpersModuleStructure:
         with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "import logging" in content or "from logging" in content, (
-            "helpers.py should import logging"
-        )
+        assert (
+            "import logging" in content or "from logging" in content
+        ), "helpers.py should import logging"
 
     def test_helpers_defines_data_alexamedia_constant_usage(self):
         """Verify helpers.py uses DATA_ALEXAMEDIA constant."""
         with open("custom_components/alexa_media/helpers.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "DATA_ALEXAMEDIA" in content, (
-            "helpers.py should use DATA_ALEXAMEDIA constant"
-        )
+        assert (
+            "DATA_ALEXAMEDIA" in content
+        ), "helpers.py should use DATA_ALEXAMEDIA constant"

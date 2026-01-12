@@ -617,7 +617,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         while (
             alarm_on
             and recurrence
-            and alarm.isoweekday not in recurrence
+            and alarm.isoweekday() not in recurrence
             and alarm < dt.now()
         ):
             alarm += datetime.timedelta(days=1)

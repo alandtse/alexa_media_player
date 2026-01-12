@@ -302,6 +302,7 @@ def _obfuscate_title_with_email(title: str | None, email: str | None) -> str | N
 
     return title.replace(email, redacted)
 
+
 def _get_safe_config_entry_title(config_entry: ConfigEntry) -> str | None:
     """Get obfuscated config entry title."""
     email = config_entry.data.get("email")
@@ -443,4 +444,5 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+
 

@@ -147,8 +147,12 @@ async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
     mock_hass, monkeypatch
 ):
     assert TO_REDACT, "TO_REDACT must be non-empty"
+@pytest.mark.asyncio
+async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
+    mock_hass, monkeypatch
+):
     redact_key = next(iter(TO_REDACT))
-    secret = "just_a_test_value"  # nosec B105
+    secret_value = "supersecret123"  # nosec B105
 
     entry = SimpleNamespace(
         entry_id="entry123",
@@ -156,13 +160,9 @@ async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
         domain=DOMAIN,
         version=1,
         minor_version=0,
-        data={"email": "daniel@example.com"},
-        options={},
+        data={"email": "daniel@example.com", redact_key: secret_value},
+        options={redact_key: secret_value},
     )
-
-    # Ensure redaction assertions are meaningful
-    entry.data[redact_key] = secret
-    entry.options[redact_key] = secret
 
     mock_hass.data.setdefault(DOMAIN, {})
     monkeypatch.setattr(
@@ -172,8 +172,8 @@ async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
 
     out = await async_get_config_entry_diagnostics(mock_hass, entry)
 
-    assert out["data"].get(redact_key) != secret
-    assert out["options"].get(redact_key) != secret
+    assert out["data"].get(redact_key) != secret_value
+    assert out["options"].get(redact_key) != secret_value
     title = out["entry"]["title"]
     assert isinstance(title, str) or title is None
     if title:

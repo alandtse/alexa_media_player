@@ -148,6 +148,7 @@ async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
 ):
     assert TO_REDACT, "TO_REDACT must be non-empty"
     redact_key = next(iter(TO_REDACT))
+    secret = "secret_value"  # nosec B105
 
     entry = SimpleNamespace(
         entry_id="entry123",
@@ -189,8 +190,8 @@ async def test_async_get_device_diagnostics_obfuscates_ids_and_serial(
         domain=DOMAIN,
         version=1,
         minor_version=0,
-        data={"email": "daniel@example.com"},
-        options={},
+        data={"email": "daniel@example.com", redact_key: secret},
+        options={redact_key: secret},
     )
 
     device = SimpleNamespace(

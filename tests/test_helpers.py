@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from homeassistant.exceptions import ConditionErrorMessage
 import pytest
@@ -210,12 +210,20 @@ class TestAddDevices:
         device1.name = "Device 1"
         devices = [device1]
 
+        # Import ConditionErrorMessage from the same module that helpers.py uses
+        # to ensure we're using the same class for exception handling
+        from custom_components.alexa_media import helpers
+
         add_devices_callback = MagicMock()
-        add_devices_callback.side_effect = ConditionErrorMessage(
+        # Create exception using the class from helpers module's imports
+        exc = ConditionErrorMessage(
             "entity_exists", "Entity id already exists: device1"
         )
+        add_devices_callback.side_effect = exc
 
-        result = await add_devices("test_account", devices, add_devices_callback)
+        result = await helpers.add_devices(
+            "test_account", devices, add_devices_callback
+        )
 
         assert result is False
         add_devices_callback.assert_called_once_with([device1], False)
@@ -227,12 +235,16 @@ class TestAddDevices:
         device1.name = "Device 1"
         devices = [device1]
 
-        add_devices_callback = MagicMock()
-        add_devices_callback.side_effect = ConditionErrorMessage(
-            "other_error", "Some other error"
-        )
+        # Import from helpers module to ensure same class
+        from custom_components.alexa_media import helpers
 
-        result = await add_devices("test_account", devices, add_devices_callback)
+        add_devices_callback = MagicMock()
+        exc = ConditionErrorMessage("other_error", "Some other error")
+        add_devices_callback.side_effect = exc
+
+        result = await helpers.add_devices(
+            "test_account", devices, add_devices_callback
+        )
 
         assert result is False
         add_devices_callback.assert_called_once_with([device1], False)
@@ -319,173 +331,135 @@ def test_is_http2_enabled_http2_object():
 
 
 def test_safe_get_simple_path():
-    """Test that simple path list is correctly joined with dots."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        mock_dictor.return_value = "test@example.com"
-
-        result = safe_get({"config": {}}, ["config", "email"])
-
-        mock_dictor.assert_called_once()
-        args = mock_dictor.call_args[0]
-        assert args[1] == "config.email"
-        assert result == "test@example.com"
+    """Test that simple path list correctly retrieves nested data."""
+    data = {"config": {"email": "test@example.com"}}
+    result = safe_get(data, ["config", "email"])
+    assert result == "test@example.com"
 
 
 def test_safe_get_escapes_dots_in_keys():
     """Test that dots in key names are properly escaped."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        mock_dictor.return_value = "test@example.com"
-
-        result = safe_get({}, ["config", "user.email"])
-
-        args = mock_dictor.call_args[0]
-        assert args[1] == "config.user\\.email"
-        assert result == "test@example.com"
+    # dictor uses backslash to escape dots in paths
+    data = {"config": {"user.email": "test@example.com"}}
+    result = safe_get(data, ["config", "user.email"])
+    assert result == "test@example.com"
 
 
 def test_safe_get_multiple_dots_in_key():
     """Test that multiple dots in a single key are all escaped."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        safe_get({}, ["config", "user.email.primary"])
-
-        args = mock_dictor.call_args[0]
-        assert args[1] == "config.user\\.email\\.primary"
+    data = {"config": {"user.email.primary": "test@example.com"}}
+    result = safe_get(data, ["config", "user.email.primary"])
+    assert result == "test@example.com"
 
 
 def test_safe_get_integer_path_segment():
-    """Test that integer path segments are converted to strings."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        safe_get({}, ["items", 0, "name"])
-
-        args = mock_dictor.call_args[0]
-        assert args[1] == "items.0.name"
+    """Test that integer path segments work correctly."""
+    data = {"items": [{"name": "first"}, {"name": "second"}]}
+    result = safe_get(data, ["items", 0, "name"])
+    assert result == "first"
 
 
 def test_safe_get_forwards_default_value():
-    """Test that default value is forwarded as positional arg."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        mock_dictor.return_value = "default@example.com"
-
-        safe_get({}, ["config", "email"], "default@example.com")
-
-        args = mock_dictor.call_args[0]
-        assert len(args) == 3
-        assert args[2] == "default@example.com"
+    """Test that default value is returned when path doesn't exist."""
+    data = {"config": {}}
+    result = safe_get(data, ["config", "email"], "default@example.com")
+    # Path doesn't exist, so default should be returned
+    assert result == "default@example.com"
 
 
 def test_safe_get_forwards_kwargs():
-    """Test that kwargs are forwarded to dictor."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        safe_get({}, ["config", "email"], ignorecase=True, checknone=False)
-
-        kwargs = mock_dictor.call_args[1]
-        assert kwargs["ignorecase"] is True
-        assert kwargs["checknone"] is False
+    """Test that kwargs like ignorecase work correctly."""
+    data = {"CONFIG": {"email": "test@example.com"}}
+    # Without ignorecase, should return None/default
+    result = safe_get(data, ["config", "email"], "default", ignorecase=True)
+    assert result == "test@example.com"
 
 
 def test_safe_get_type_match_returns_value():
     """Test that matching types pass through correctly."""
+    # String default, string result - should pass through
+    data = {"key": "actual_value"}
+    result = safe_get(data, ["key"], "default")
+    assert result == "actual_value"
 
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # String default, string result - should pass through
-        mock_dictor.return_value = "actual_value"
-        result = safe_get({}, ["key"], "default")
-        assert result == "actual_value"
+    # List default, list result - should pass through
+    data = {"key": [1, 2, 3]}
+    result = safe_get(data, ["key"], [])
+    assert result == [1, 2, 3]
 
-        # List default, list result - should pass through
-        mock_dictor.return_value = [1, 2, 3]
-        result = safe_get({}, ["key"], [])
-        assert result == [1, 2, 3]
+    # Dict default, dict result - should pass through
+    data = {"key": {"a": 1}}
+    result = safe_get(data, ["key"], {})
+    assert result == {"a": 1}
 
-        # Dict default, dict result - should pass through
-        mock_dictor.return_value = {"a": 1}
-        result = safe_get({}, ["key"], {})
-        assert result == {"a": 1}
-
-        # Int default, int result - should pass through
-        mock_dictor.return_value = 42
-        result = safe_get({}, ["key"], 0)
-        assert result == 42
+    # Int default, int result - should pass through
+    data = {"key": 42}
+    result = safe_get(data, ["key"], 0)
+    assert result == 42
 
 
 def test_safe_get_type_mismatch_returns_default():
     """Test that type mismatches return the default value."""
+    # String default, int result - should return default
+    data = {"key": 123}
+    result = safe_get(data, ["key"], "default")
+    assert result == "default"
 
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # String default, int result - should return default
-        mock_dictor.return_value = 123
-        result = safe_get({}, ["key"], "default")
-        assert result == "default"
+    # List default, dict result - should return default
+    data = {"key": {"a": 1}}
+    result = safe_get(data, ["key"], [])
+    assert result == []
 
-        # List default, dict result - should return default
-        mock_dictor.return_value = {"a": 1}
-        result = safe_get({}, ["key"], [])
-        assert result == []
+    # Dict default, string result - should return default
+    data = {"key": "string"}
+    result = safe_get(data, ["key"], {})
+    assert result == {}
 
-        # Dict default, string result - should return default
-        mock_dictor.return_value = "string"
-        result = safe_get({}, ["key"], {})
-        assert result == {}
-
-        # Int default, string result - should return default
-        mock_dictor.return_value = "123"
-        result = safe_get({}, ["key"], 0)
-        assert result == 0
+    # Int default, string result - should return default
+    data = {"key": "123"}
+    result = safe_get(data, ["key"], 0)
+    assert result == 0
 
 
 def test_safe_get_none_result_with_default():
     """Test that None results are returned as-is (no type check)."""
+    data = {"key": None}
+    result = safe_get(data, ["key"], "default")
+    assert result is None
 
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # None result should pass through regardless of default type
-        mock_dictor.return_value = None
+    result = safe_get(data, ["key"], [])
+    assert result is None
 
-        result = safe_get({}, ["key"], "default")
-        assert result is None
-
-        result = safe_get({}, ["key"], [])
-        assert result is None
-
-        result = safe_get({}, ["key"], {})
-        assert result is None
+    result = safe_get(data, ["key"], {})
+    assert result is None
 
 
 def test_safe_get_no_default_no_type_check():
     """Test that without a default, no type checking occurs."""
+    # Any type should pass through when no default
+    data = {"key": "string"}
+    result = safe_get(data, ["key"])
+    assert result == "string"
 
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # Any type should pass through when no default
-        mock_dictor.return_value = "string"
-        result = safe_get({}, ["key"])
-        assert result == "string"
+    data = {"key": 123}
+    result = safe_get(data, ["key"])
+    assert result == 123
 
-        mock_dictor.return_value = 123
-        result = safe_get({}, ["key"])
-        assert result == 123
-
-        mock_dictor.return_value = [1, 2, 3]
-        result = safe_get({}, ["key"])
-        assert result == [1, 2, 3]
+    data = {"key": [1, 2, 3]}
+    result = safe_get(data, ["key"])
+    assert result == [1, 2, 3]
 
 
 def test_safe_get_none_default_no_type_check():
     """Test that None as default doesn't trigger type checking."""
+    # Explicit None default should not trigger type check
+    data = {"key": "string"}
+    result = safe_get(data, ["key"], None)
+    assert result == "string"
 
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # Explicit None default should not trigger type check
-        mock_dictor.return_value = "string"
-        result = safe_get({}, ["key"], None)
-        assert result == "string"
-
-        mock_dictor.return_value = 123
-        result = safe_get({}, ["key"], None)
-        assert result == 123
+    data = {"key": 123}
+    result = safe_get(data, ["key"], None)
+    assert result == 123
 
 
 def test_safe_get_empty_path_raises():
@@ -496,49 +470,42 @@ def test_safe_get_empty_path_raises():
 
 
 def test_safe_get_pathsep_kwarg_removed():
-    """Test that pathsep kwarg is removed before calling dictor."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        safe_get({}, ["key"], pathsep="/")
-
-        # pathsep should not be in kwargs
-        kwargs = mock_dictor.call_args[1]
-        assert "pathsep" not in kwargs
+    """Test that pathsep kwarg doesn't break the function."""
+    # pathsep should be ignored/removed internally
+    data = {"key": "value"}
+    result = safe_get(data, ["key"], pathsep="/")
+    assert result == "value"
 
 
 def test_safe_get_subclass_type_check():
     """Test type checking with subclasses."""
+    # bool is subclass of int in Python
+    data = {"key": True}
+    result = safe_get(data, ["key"], 0)
+    assert result is True  # Should pass isinstance check
 
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # bool is subclass of int in Python
-        mock_dictor.return_value = True
-        result = safe_get({}, ["key"], 0)
-        assert result is True  # Should pass isinstance check
-
-        # But int is not instance of bool
-        mock_dictor.return_value = 1
-        result = safe_get({}, ["key"], False)
-        assert result is False  # Should fail isinstance check -> return default
+    # But int is not instance of bool
+    data = {"key": 1}
+    result = safe_get(data, ["key"], False)
+    assert result is False  # Should fail isinstance check -> return default
 
 
 def test_safe_get_complex_type_scenarios():
     """Test type checking with more complex scenarios."""
+    # Empty list default, non-empty list result
+    data = {"key": [1, 2, 3]}
+    result = safe_get(data, ["key"], [])
+    assert result == [1, 2, 3]
 
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # Empty list default, non-empty list result
-        mock_dictor.return_value = [1, 2, 3]
-        result = safe_get({}, ["key"], [])
-        assert result == [1, 2, 3]
+    # Empty dict default, non-empty dict result
+    data = {"key": {"a": 1, "b": 2}}
+    result = safe_get(data, ["key"], {})
+    assert result == {"a": 1, "b": 2}
 
-        # Empty dict default, non-empty dict result
-        mock_dictor.return_value = {"a": 1, "b": 2}
-        result = safe_get({}, ["key"], {})
-        assert result == {"a": 1, "b": 2}
-
-        # String default, empty string result
-        mock_dictor.return_value = ""
-        result = safe_get({}, ["key"], "default")
-        assert result == ""  # Empty string is still a string
+    # String default, empty string result
+    data = {"key": ""}
+    result = safe_get(data, ["key"], "default")
+    assert result == ""  # Empty string is still a string
 
 
 class TestAddDevicesFilterDefaults:

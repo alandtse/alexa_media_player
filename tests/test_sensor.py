@@ -71,7 +71,6 @@ sys.modules["custom_components.alexa_media.alexa_entity"] = MagicMock()
 sys.modules["custom_components.alexa_media.const"] = MagicMock()
 
 
-
 class TestUpdateRecurringAlarm:
     """Test the _update_recurring_alarm method of AlexaMediaNotificationSensor.
 
@@ -178,9 +177,10 @@ class TestUpdateRecurringAlarm:
         result_alarm = result[1]["alarmTime"]
 
         # Should advance to Saturday (Jan 6, 2024)
-        assert result_alarm.isoweekday() in {6, 7}, (
-            f"Alarm should be on weekend, but got isoweekday {result_alarm.isoweekday()}"
-        )
+        assert result_alarm.isoweekday() in {
+            6,
+            7,
+        }, f"Alarm should be on weekend, but got isoweekday {result_alarm.isoweekday()}"
         assert result_alarm == datetime.datetime(2024, 1, 6, 8, 0, 0)
 
     def test_alarm_in_future_not_modified(self) -> None:

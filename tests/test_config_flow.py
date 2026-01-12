@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # Mock the homeassistant and alexapy modules before importing config_flow
 sys.modules["homeassistant"] = MagicMock()
 sys.modules["homeassistant.config_entries"] = MagicMock()
@@ -111,9 +110,9 @@ class TestConfigFlowInvalidOtpKeyDataSchema:
         #         ...
 
         # Check that the exception handler exists
-        assert "except AlexapyPyotpInvalidKey:" in content, (
-            "AlexapyPyotpInvalidKey exception handler not found in config_flow.py"
-        )
+        assert (
+            "except AlexapyPyotpInvalidKey:" in content
+        ), "AlexapyPyotpInvalidKey exception handler not found in config_flow.py"
 
         # Find the exception handler block
         handler_start = content.find("except AlexapyPyotpInvalidKey:")
@@ -123,9 +122,9 @@ class TestConfigFlowInvalidOtpKeyDataSchema:
         handler_block = content[handler_start : handler_start + 500]
 
         # Verify the handler returns async_show_form
-        assert "async_show_form" in handler_block, (
-            "async_show_form not found in AlexapyPyotpInvalidKey handler"
-        )
+        assert (
+            "async_show_form" in handler_block
+        ), "async_show_form not found in AlexapyPyotpInvalidKey handler"
 
         # CRITICAL: Verify data_schema is present in the handler
         assert "data_schema" in handler_block, (
@@ -151,9 +150,9 @@ class TestConfigFlowInvalidOtpKeyDataSchema:
         handler_start = content.find("except AlexapyPyotpInvalidKey:")
         handler_block = content[handler_start : handler_start + 500]
 
-        assert "2fa_key_invalid" in handler_block, (
-            "Error key '2fa_key_invalid' not found in exception handler"
-        )
+        assert (
+            "2fa_key_invalid" in handler_block
+        ), "Error key '2fa_key_invalid' not found in exception handler"
 
     def test_error_form_includes_otp_secret_placeholder(self):
         """Test that the exception handler includes otp_secret in placeholders."""
@@ -251,6 +250,6 @@ class TestConfigFlowConsistency:
             content = f.read()
 
         # Check for voluptuous import
-        assert "import voluptuous as vol" in content or "from voluptuous" in content, (
-            "voluptuous not imported - required for vol.Schema(self.proxy_schema)"
-        )
+        assert (
+            "import voluptuous as vol" in content or "from voluptuous" in content
+        ), "voluptuous not imported - required for vol.Schema(self.proxy_schema)"

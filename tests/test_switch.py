@@ -9,7 +9,6 @@ import sys
 from unittest.mock import MagicMock
 
 
-
 # Create proper base classes to avoid metaclass conflicts
 class MockCoordinatorEntity:
     """Mock CoordinatorEntity base class."""
@@ -111,9 +110,9 @@ class TestHueEmulatedEnabledVariable:
             content = f.read()
 
         # The fix should check for "emulated_hue" in hass.config components
-        assert "emulated_hue" in content, (
-            "switch.py should check for 'emulated_hue' component"
-        )
+        assert (
+            "emulated_hue" in content
+        ), "switch.py should check for 'emulated_hue' component"
 
 
 class TestSmartSwitchCreation:
@@ -128,9 +127,9 @@ class TestSmartSwitchCreation:
         with open("custom_components/alexa_media/switch.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "class SmartSwitch" in content, (
-            "SmartSwitch class not found in switch.py"
-        )
+        assert (
+            "class SmartSwitch" in content
+        ), "SmartSwitch class not found in switch.py"
 
     def test_smart_switch_inherits_coordinator_entity(self):
         """Verify SmartSwitch inherits from CoordinatorEntity."""
@@ -138,9 +137,9 @@ class TestSmartSwitchCreation:
             content = f.read()
 
         # Find the SmartSwitch class definition
-        assert "class SmartSwitch(CoordinatorEntity" in content, (
-            "SmartSwitch should inherit from CoordinatorEntity"
-        )
+        assert (
+            "class SmartSwitch(CoordinatorEntity" in content
+        ), "SmartSwitch should inherit from CoordinatorEntity"
 
     def test_is_hue_v1_check_exists(self):
         """Verify is_hue_v1 check exists for filtering switches."""
@@ -148,18 +147,18 @@ class TestSmartSwitchCreation:
             content = f.read()
 
         # The logic should check is_hue_v1 for filtering
-        assert "is_hue_v1" in content, (
-            "switch.py should check is_hue_v1 for Hue device filtering"
-        )
+        assert (
+            "is_hue_v1" in content
+        ), "switch.py should check is_hue_v1 for Hue device filtering"
 
     def test_extended_entity_discovery_check(self):
         """Verify CONF_EXTENDED_ENTITY_DISCOVERY is checked."""
         with open("custom_components/alexa_media/switch.py", encoding="utf-8") as f:
             content = f.read()
 
-        assert "CONF_EXTENDED_ENTITY_DISCOVERY" in content, (
-            "switch.py should check CONF_EXTENDED_ENTITY_DISCOVERY"
-        )
+        assert (
+            "CONF_EXTENDED_ENTITY_DISCOVERY" in content
+        ), "switch.py should check CONF_EXTENDED_ENTITY_DISCOVERY"
 
 
 class TestHueEmulatedDetection:

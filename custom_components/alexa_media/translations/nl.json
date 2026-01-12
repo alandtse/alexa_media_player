@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "De pagina wachtwoord vergeten is gedetecteerd. Dit is normaal gesproken het gevolg van te veel mislukte aanmeldingen. Amazon kan actie vereisen voordat opnieuw kan worden ingelogd.",
+      "forgot_password": "De pagina 'Wachtwoord vergeten' is gedetecteerd. Dit is meestal het gevolg van te veel mislukte inlogpogingen. Amazon kan actie vereisen voordat opnieuw kan worden ingelogd.",
       "login_failed": "Het inloggen van Alexa Mediaspeler is mislukt.",
       "reauth_successful": "Alexa Mediaspeler is met succes opnieuw geverifieerd. Negeer a.u.b. het bericht \"Afgebroken\" van HA."
     },
@@ -19,16 +19,16 @@
     "step": {
       "proxy_warning": {
         "data": {
-          "proxy_warning": "Negeren en doorgaan - Ik begrijp dat er geen ondersteuning wordt geboden bij inlogproblemen wanneer ik deze waarschuwing  omzeil."
+          "proxy_warning": "Negeren en doorgaan - Ik begrijp dat er geen ondersteuning wordt geboden bij inlogproblemen wanneer ik deze waarschuwing omzeil."
         },
-        "description": "De HA server kan geen verbinding maken met de opgegeven URL: {hass_url}.\n> {error}\n\nOm dit op te lossen, controleer of uw browser {hass_url} kan bereiken. Dit veld vindt u in Instellingen > Systeem > Netwerk > Home Assistant-URL.Als u **zeker** weet dat uw browser deze URL kan bereiken, kunt u deze waarschuwing negeren.\n\nAls u er **zeker van bent** dat uw browser deze URL kan bereiken, kunt u deze waarschuwing negeren.",
+        "description": "De HA server kan geen verbinding maken met de opgegeven URL: {hass_url}.\n> {error}\n\nOm dit op te lossen, controleer of uw browser {hass_url} kan bereiken. Dit veld vindt u in Instellingen > Systeem > Netwerk > Home Assistant-URL.\n\nAls u er **zeker van bent** dat uw browser deze URL kan bereiken, kunt u deze waarschuwing negeren.",
         "title": "Alexa Mediaspeler - Kan geen verbinding maken met HA URL"
       },
       "totp_register": {
         "data": {
           "registered": "Ja, de OTP-code is geverifieerd."
         },
-        "description": "**{email} -Alexa.{url}**\nHeb je met succes een OTP van de ingebouwde 2FA App Key met Amazon bevestigd?  \n >OTP-code {message}",
+        "description": "**{email} - alexa.{url}**\nHeb je met succes een OTP van de ingebouwde 2FA App Key met Amazon bevestigd?  \n >OTP-code {message}",
         "title": "Alexa Mediaspeler - OTP Bevestiging"
       },
       "user": {
@@ -39,16 +39,16 @@
           "extended_entity_discovery": "Voeg extra sensoren, schakelaars en lampen toe.",
           "hass_url": "Lokale netwerk-URL om toegang te krijgen tot Home Assistant",
           "include_devices": "Vermeld alleen deze apparaten (gescheiden door komma's)",
-          "otp_secret": "Amazon 2SV Authenticator app-sleutel",
+          "otp_secret": "52-karakter Authenticator-appsleutel voor Amazon 2SV",
           "password": "Wachtwoord",
           "public_url": "Openbare URL gedeeld met externe hostingdiensten",
           "queue_delay": "Vertraging om meerdere opdrachten tegelijk in de wachtrij te plaatsen (seconden)",
           "scan_interval": "Gepland pollinginterval (seconden)",
-          "securitycode": "[%key_id:55616596%]",
+          "securitycode": "Eenmalig wachtwoord (OTP)",
           "should_get_network": "Ontdek het Alexa-netwerk",
           "url": "Domeinnaam van Amazon regio (bijv: amazon.nl)"
         },
-        "description": "* Vereiste invoer\nOpmerking: **Uitgebreide entiteitsdetectie** vereist dat **Alexa-netwerk ontdekken** is ingeschakeld.",
+        "description": "* Vereiste invoer",
         "title": "Alexa Mediaspeler - Configuratie"
       }
     }
@@ -72,7 +72,7 @@
           "scan_interval": "Geplande pollingfrequentie (seconden)",
           "should_get_network": "Ontdek het Alexa-netwerk"
         },
-        "description": "* Vereiste invoer\nOpmerking: **Uitgebreide entiteitsdetectie** vereist dat **Alexa-netwerk ontdekken** is ingeschakeld.",
+        "description": "* Vereiste invoer",
         "title": "Alexa Mediaspeler - Herconfiguratie"
       }
     }

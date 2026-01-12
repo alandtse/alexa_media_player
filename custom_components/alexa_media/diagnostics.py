@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-# ✅ Standard library
-import re
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from itertools import islice
+# ✅ Standard library
+import re
 from typing import Any
 
 # ✅ Third-party (Home Assistant)
@@ -236,7 +236,9 @@ def _summarize_coordinator(coordinator: DataUpdateCoordinator) -> dict:
         data["data_summary"] = _summarize_coordinator_data(
             getattr(coordinator, "data", None)
         )
-    except Exception as exc:  # noqa: BLE001 - intentionally broad; diagnostics must not crash
+    except (
+        Exception
+    ) as exc:  # noqa: BLE001 - intentionally broad; diagnostics must not crash
         data["data_summary_error"] = type(exc).__name__
         data["data_summary_error_present"] = True
 
@@ -444,5 +446,3 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
-
-

@@ -539,3 +539,202 @@ def test_safe_get_complex_type_scenarios():
         mock_dictor.return_value = ""
         result = safe_get({}, ["key"], "default")
         assert result == ""  # Empty string is still a string
+
+
+class TestAddDevicesFilterDefaults:
+    """Regression tests for add_devices filter default value handling.
+
+    These tests verify the fix for the "[] or x" logic bug where the incorrect
+    pattern "[] or include_filter" would return None when include_filter=None,
+    instead of properly defaulting to an empty list.
+
+    The correct pattern is "include_filter or []" which returns [] when
+    include_filter is None/falsy.
+    """
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_none_include_filter_adds_all_devices(self):
+        """Test that None include_filter defaults to empty list and adds all devices.
+
+        When include_filter is None (the default), it should be treated as an
+        empty list, meaning no inclusion filtering is applied and all devices
+        should be added.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+
+        # Explicitly pass None to test the default handling
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, include_filter=None
+        )
+
+        assert result is True
+        # All devices should be added when include_filter is None
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_none_exclude_filter_adds_all_devices(self):
+        """Test that None exclude_filter defaults to empty list and adds all devices.
+
+        When exclude_filter is None (the default), it should be treated as an
+        empty list, meaning no exclusion filtering is applied and all devices
+        should be added.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+
+        # Explicitly pass None to test the default handling
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, exclude_filter=None
+        )
+
+        assert result is True
+        # All devices should be added when exclude_filter is None
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_both_filters_none_adds_all_devices(self):
+        """Test that both filters being None adds all devices without filtering.
+
+        This is the default case when add_devices is called without filter
+        arguments. Both filters should default to empty lists internally.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
+
+        add_devices_callback = MagicMock()
+
+        # Explicitly pass None for both to test the default handling
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=None,
+            exclude_filter=None,
+        )
+
+        assert result is True
+        # All devices should be added when both filters are None
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_empty_include_filter_adds_all_devices(self):
+        """Test that empty list include_filter is equivalent to None.
+
+        An empty include_filter should mean "include all" (no filtering),
+        not "include nothing". This is consistent with the None behavior.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, include_filter=[]
+        )
+
+        assert result is True
+        # All devices should be added when include_filter is empty list
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_empty_exclude_filter_adds_all_devices(self):
+        """Test that empty list exclude_filter is equivalent to None.
+
+        An empty exclude_filter should mean "exclude nothing" (no filtering).
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, exclude_filter=[]
+        )
+
+        assert result is True
+        # All devices should be added when exclude_filter is empty list
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_none_include_with_explicit_exclude_filters_correctly(
+        self,
+    ):
+        """Test that None include_filter combined with explicit exclude_filter works.
+
+        When include_filter is None (adds all) but exclude_filter has entries,
+        only the exclude_filter should take effect.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=None,
+            exclude_filter=["Device 2"],
+        )
+
+        assert result is True
+        # Device 2 should be excluded, others added
+        add_devices_callback.assert_called_once_with([device1, device3], False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_explicit_include_with_none_exclude_filters_correctly(
+        self,
+    ):
+        """Test that explicit include_filter combined with None exclude_filter works.
+
+        When include_filter has entries but exclude_filter is None,
+        only devices in the include_filter should be added.
+        """
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=["Device 1", "Device 3"],
+            exclude_filter=None,
+        )
+
+        assert result is True
+        # Only Device 1 and 3 should be added (Device 2 not in include list)
+        add_devices_callback.assert_called_once_with([device1, device3], False)

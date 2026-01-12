@@ -159,10 +159,13 @@ async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(mock_
     out = await async_get_config_entry_diagnostics(mock_hass, entry)
 
     assert out["data"].get(redact_key) != secret
-    assert out["options"].get(redact_key) != secret    title = out["entry"]["title"]
+    assert out["options"].get(redact_key) != secret
+    title = out["entry"]["title"]
     assert isinstance(title, str) or title is None
     if title:
-        assert "daniel@example.com" not in title@pytest.mark.asyncio
+        assert "daniel@example.com" not in title
+
+@pytest.mark.asyncio
 async def test_async_get_device_diagnostics_obfuscates_ids_and_serial(monkeypatch, mock_hass):
     monkeypatch.setitem(sys.modules, "alexapy", SimpleNamespace(hide_serial=lambda _s: "12...90"))
 

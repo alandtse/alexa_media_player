@@ -131,7 +131,7 @@ def test_summarize_coordinator_error_handling(mock_hass):
 def test_summarize_amp_entry_runtime_mapping(monkeypatch):
     monkeypatch.setattr(
         "custom_components.alexa_media.diagnostics._maybe_keys",
-        lambda v, limit=50: ["aa...zz"],
+        lambda _v, _limit=50: ["aa...zz"],
     )
 
     entry_runtime = {"devices": [1, 2, 3]}

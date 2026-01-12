@@ -167,14 +167,10 @@ PUBLIC_URL_ERROR_MESSAGE = (
     "To send TTS, please set the public URL in integration configuration."
 )
 STARTUP_MESSAGE = """
------------------------ {name} -------------------------
-If you have any issues with this custom component, you need to open
-an issue here: {ISSUE_URL}
-Domain: {DOMAIN}
-Version: {version}
-API Library: alexapy
-Version: {alexapy_version}
---------------------------------------------------------------------
+{name} Version Info
+{DOMAIN}: v{version}
+alexapy API: v{alexapy_version}
+If you have any issues with this custom component, you need to open an issue here: {ISSUE_URL}
 """
 
 AUTH_CALLBACK_PATH = "/auth/alexamedia/callback"

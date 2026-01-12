@@ -146,6 +146,7 @@ def test_summarize_amp_entry_runtime_mapping(monkeypatch):
 async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
     mock_hass, monkeypatch
 ):
+    assert TO_REDACT, "TO_REDACT must be non-empty"
     redact_key = next(iter(TO_REDACT))
     secret = "just_a_test_value"  # nosec B105
 
@@ -158,6 +159,10 @@ async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
         data={"email": "daniel@example.com"},
         options={},
     )
+
+    # Ensure redaction assertions are meaningful
+    entry.data[redact_key] = secret
+    entry.options[redact_key] = secret
 
     mock_hass.data.setdefault(DOMAIN, {})
     monkeypatch.setattr(

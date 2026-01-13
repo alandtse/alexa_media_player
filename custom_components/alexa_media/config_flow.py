@@ -41,7 +41,6 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult, UnknownFlow
 from homeassistant.exceptions import Unauthorized
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
 import httpx
@@ -752,7 +751,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             step_id="user",
             data_schema=vol.Schema(new_schema),
             description_placeholders={
-                "message": f"  \n> {login.status.get('error_message','')}"
+                "message": f"  \n> {login.status.get('error_message', '')}"
             },
         )
 

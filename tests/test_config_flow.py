@@ -172,12 +172,12 @@ class TestReauthReload:
         flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
 
         # Track call order
-        call_order = []
+        call_order: list[str] = []
         flow.hass.config_entries.async_update_entry = MagicMock(
-            side_effect=lambda *args, **kwargs: call_order.append("update")
+            side_effect=lambda *_args, **_kwargs: call_order.append("update")
         )
         flow.hass.config_entries.async_reload = AsyncMock(
-            side_effect=lambda *args, **kwargs: call_order.append("reload")
+            side_effect=lambda *_args, **_kwargs: call_order.append("reload")
         )
         flow.hass.bus.async_fire = MagicMock()
         flow.async_abort = MagicMock(return_value={"type": "abort"})
@@ -192,3 +192,58 @@ class TestReauthReload:
             "update",
             "reload",
         ], f"Expected update before reload, got: {call_order}"
+
+    @pytest.mark.asyncio
+    async def test_reauth_succeeds_even_when_reload_fails(self):
+        """Test that reauth completes successfully even if reload raises an exception.
+
+        The implementation includes defensive error handling that logs a warning
+        but still returns reauth_successful when async_reload fails. This ensures
+        credentials are updated even if the integration can't be reloaded.
+        """
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config = {
+            "email": "test@example.com",
+        }
+
+        mock_login = MagicMock()
+        mock_login.email = "test@example.com"
+        mock_login.url = "https://amazon.com"
+        mock_login.status = {"login_successful": True}
+        mock_login.access_token = "test_token"  # noqa: S105
+        mock_login.refresh_token = "test_refresh"  # noqa: S105
+        mock_login.expires_in = 3600
+        mock_login.mac_dms = "test_mac"
+        mock_login.code_verifier = "test_verifier"
+        mock_login.authorization_code = "test_code"
+        flow.login = mock_login
+
+        mock_entry = MagicMock()
+        mock_entry.entry_id = "test_entry_id"
+
+        flow.hass.data = {
+            DATA_ALEXAMEDIA: {
+                "accounts": {},
+                "config_flows": {},
+            }
+        }
+
+        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
+        flow.hass.config_entries.async_update_entry = MagicMock()
+        # Simulate reload failure
+        flow.hass.config_entries.async_reload = AsyncMock(
+            side_effect=Exception("Reload failed")
+        )
+        flow.hass.bus.async_fire = MagicMock()
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
+
+        with patch(
+            "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
+        ):
+            await flow._test_login()
+
+        # Despite reload failure, reauth should still complete successfully
+        flow.async_abort.assert_called_once_with(reason="reauth_successful")
+        # Credentials should have been updated
+        flow.hass.config_entries.async_update_entry.assert_called_once()

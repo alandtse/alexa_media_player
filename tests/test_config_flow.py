@@ -193,6 +193,7 @@ class TestReauthReload:
             await flow._test_login()
 
         # Verify update was called before reload
-        assert call_order == ["update", "reload"], (
-            f"Expected update before reload, got: {call_order}"
-        )
+        assert call_order == [
+            "update",
+            "reload",
+        ], f"Expected update before reload, got: {call_order}"

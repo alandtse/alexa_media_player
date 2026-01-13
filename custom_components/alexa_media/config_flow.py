@@ -676,8 +676,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     f"{email} - {login.url}"
                 ] = None
                 # Reload the integration to apply new credentials and clear error state
-                _LOGGER.debug("Reloading integration for %s", hide_email(email))
-                await self.hass.config_entries.async_reload(existing_entry.entry_id)
+                try:
+                    _LOGGER.debug("Reloading integration for %s", hide_email(email))
+                    await self.hass.config_entries.async_reload(existing_entry.entry_id)
+                except Exception:  # noqa: BLE001
+                    _LOGGER.warning(
+                        "Failed to reload integration for %s; restart may be needed",
+                        hide_email(email),
+                    )
                 return self.async_abort(reason="reauth_successful")
             _LOGGER.debug(
                 "Setting up Alexa devices with %s", dict(obfuscate(self.config))

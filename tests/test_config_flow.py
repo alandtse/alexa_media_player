@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 
 
@@ -28,8 +29,6 @@ class TestReauthReload:
         2. Complete the reauth successfully
         3. Verify that async_reload is called to clear the error state
         """
-        from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
-
         # Create flow handler
         flow = AlexaMediaFlowHandler()
         flow.hass = MagicMock()
@@ -93,8 +92,6 @@ class TestReauthReload:
         Only reauth (existing entry update) should trigger reload.
         New entries should use async_create_entry instead.
         """
-        from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
-
         flow = AlexaMediaFlowHandler()
         flow.hass = MagicMock()
         flow.config = {
@@ -144,8 +141,6 @@ class TestReauthReload:
         The async_update_entry should be called before async_reload
         to ensure new credentials are in place.
         """
-        from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
-
         flow = AlexaMediaFlowHandler()
         flow.hass = MagicMock()
         flow.config = {

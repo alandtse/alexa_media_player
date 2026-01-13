@@ -15,7 +15,6 @@ from custom_components.alexa_media.helpers import (
     safe_get,
 )
 
-
 # =============================================================================
 # Tests for _existing_serials function
 # =============================================================================

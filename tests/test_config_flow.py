@@ -211,8 +211,8 @@ class TestReauthReload:
         mock_login.email = "test@example.com"
         mock_login.url = "https://amazon.com"
         mock_login.status = {"login_successful": True}
-        mock_login.access_token = "test_token"  # noqa: S105
-        mock_login.refresh_token = "test_refresh"  # noqa: S105
+        mock_login.access_token = "test_token"  # noqa: S105  # nosec B105
+        mock_login.refresh_token = "test_refresh"  # noqa: S105  # nosec B105
         mock_login.expires_in = 3600
         mock_login.mac_dms = "test_mac"
         mock_login.code_verifier = "test_verifier"

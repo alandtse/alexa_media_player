@@ -333,14 +333,14 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 
     def _get_temperature_value(self, value):
         if value and "value" in value:
-            if self._debug:
+            if getattr(self, "_debug", False):
                 _LOGGER.debug("TemperatureSensor value: %s", value.get("value"))
             return value.get("value")
         return None
 
     def _get_temperature_scale(self, value):
         if value and "scale" in value:
-            if self._debug:
+            if getattr(self, "_debug", False):
                 _LOGGER.debug("TemperatureSensor scale: %s", value.get("scale"))
             if value.get("scale") == "CELSIUS":
                 return UnitOfTemperature.CELSIUS
@@ -490,7 +490,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 self._type,
                 summary_all,
             )
-        elif self._debug:
+        elif getattr(self, "_debug", False):
             _LOGGER.debug(
                 "%s: %s %s has no notifications (_n_dict empty)",
                 hide_email(self._account),
@@ -533,7 +533,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 summary_active,
                 self._next.get("id") if self._next else None,
             )
-        elif self._debug:
+        elif getattr(self, "_debug", False):
             _LOGGER.debug(
                 "%s: %s %s has no ACTIVE notifications (all=%s)",
                 hide_email(self._account),
@@ -627,7 +627,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         return value
 
     def _update_recurring_alarm(self, value):
-        if self._debug:
+        if getattr(self, "_debug", False):
             _LOGGER.debug("Sensor value %s", value)
         next_item = value[1]
         alarm = next_item[self._sensor_property]

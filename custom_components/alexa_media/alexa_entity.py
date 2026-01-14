@@ -13,7 +13,7 @@ import logging
 import re
 from typing import Any, Optional, TypedDict, Union
 
-from alexapy import AlexaAPI, AlexaLogin, hide_serial
+from alexapy import AlexaAPI, AlexaLogin
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from custom_components.alexa_media.helpers import safe_get
@@ -410,7 +410,11 @@ def parse_temperature_from_coordinator(
 ) -> Optional[str]:
     """Get the temperature of an entity from the coordinator data."""
     temperature = parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.TemperatureSensor", "temperature", debug
+        coordinator,
+        entity_id,
+        "Alexa.TemperatureSensor",
+        "temperature",
+        debug=debug,
     )
     if debug:
         _LOGGER.debug("parse_temperature_from_coordinator: %s", temperature)
@@ -440,7 +444,11 @@ def parse_brightness_from_coordinator(
 ) -> Optional[int]:
     """Get the brightness in the range 0-100."""
     return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.BrightnessController", "brightness", since
+        coordinator,
+        entity_id,
+        "Alexa.BrightnessController",
+        "brightness",
+        since=since,
     )
 
 
@@ -453,7 +461,7 @@ def parse_color_temp_from_coordinator(
         entity_id,
         "Alexa.ColorTemperatureController",
         "colorTemperatureInKelvin",
-        since,
+        since=since,
     )
 
 
@@ -476,7 +484,11 @@ def parse_power_from_coordinator(
 ) -> Optional[str]:
     """Get the power state of the entity."""
     return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.PowerController", "powerState", since
+        coordinator,
+        entity_id,
+        "Alexa.PowerController",
+        "powerState",
+        since=since,
     )
 
 
@@ -505,6 +517,7 @@ def parse_value_from_coordinator(
     name: str,
     since: Optional[datetime] = None,
     instance: str = None,
+    *,
     debug: bool = False,
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""

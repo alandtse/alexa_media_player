@@ -146,13 +146,6 @@ def test_summarize_amp_entry_runtime_mapping(monkeypatch):
 async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
     mock_hass, monkeypatch
 ):
-    assert TO_REDACT, "TO_REDACT must be non-empty"
-
-
-@pytest.mark.asyncio
-async def test_async_get_config_entry_diagnostics_redacts_sensitive_fields(
-    mock_hass, monkeypatch
-):
     redact_key = next(iter(TO_REDACT))
     secret_value = "supersecret123"  # nosec B105
 

@@ -197,7 +197,9 @@ async def create_temperature_sensors(account_dict, temperature_entities):
     return devices
 
 
-async def create_air_quality_sensors(account_dict, air_quality_entities, debug: bool = False):
+async def create_air_quality_sensors(
+    account_dict, air_quality_entities, debug: bool = False
+):
     devices = []
     coordinator = account_dict["coordinator"]
 
@@ -353,7 +355,9 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS.get(sensor_name)
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_value: Optional[datetime.datetime] = (
-            parse_air_quality_from_coordinator(coordinator, entity_id, instance, debug=self._debug)
+            parse_air_quality_from_coordinator(
+                coordinator, entity_id, instance, debug=self._debug
+            )
         )
         self._attr_native_unit_of_measurement: Optional[str] = (
             ALEXA_UNIT_CONVERSION.get(unit)
@@ -848,7 +852,13 @@ class AlarmSensor(AlexaMediaNotificationSensor):
         # Class info
         self._type = "Alarm"
         super().__init__(
-            client, n_json, "date_time", account, f"next {self._type}", "mdi:alarm", debug=debug
+            client,
+            n_json,
+            "date_time",
+            account,
+            f"next {self._type}",
+            "mdi:alarm",
+            debug=debug,
         )
 
 
@@ -870,7 +880,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
                 if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
                 else "mdi:timer"
             ),
-                   debug=debug,
+            debug=debug,
         )
 
     def _process_state(self, value) -> Optional[datetime.datetime]:

@@ -46,6 +46,8 @@ async def add_devices(
             getattr(dev, "name", None)
             or getattr(dev, "_attr_name", None)
             or getattr(dev, "_name", None)
+            or getattr(dev, "_device_name", None)
+            or getattr(dev, "_friendly_name", None)
         )
 
     def _device_label(dev: Entity) -> str:
@@ -83,7 +85,7 @@ async def add_devices(
         return True
 
     _LOGGER.debug(
-        "%s: Adding %d device(s): %r",
+        "%s: Adding %d device(s): %s",
         account,
         len(devices),
         _devices_preview(devices),
@@ -91,7 +93,6 @@ async def add_devices(
 
     try:
         add_devices_callback(devices, False)
-        return True
     except ConditionErrorMessage as exception_:
         message: str = exception_.message
         if message.startswith("Entity id already exists"):
@@ -110,6 +111,8 @@ async def add_devices(
             len(devices),
             EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
         )
+    else:
+        return True
 
     return False
 

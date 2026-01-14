@@ -103,7 +103,7 @@ async def add_devices(
                 len(devices),
                 message,
             )
-    except BaseException as ex:  # pylint: disable=broad-except
+    except Exception as ex:  # pylint: disable=broad-except
         _LOGGER.debug(
             "%s: Unable to add %d device(s): %s",
             account,

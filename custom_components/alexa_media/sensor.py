@@ -197,7 +197,9 @@ async def create_temperature_sensors(account_dict, temperature_entities):
     return devices
 
 
-async def create_air_quality_sensors(account_dict, air_quality_entities, debug: bool = False):
+async def create_air_quality_sensors(
+    account_dict, air_quality_entities, debug: bool = False
+):
     devices = []
     coordinator = account_dict["coordinator"]
 
@@ -240,7 +242,9 @@ async def create_air_quality_sensors(account_dict, air_quality_entities, debug: 
 
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
-            account_dict["entities"]["sensor"][serial][sensor_type]["Air_Quality"] = sensor
+            account_dict["entities"]["sensor"][serial][sensor_type][
+                "Air_Quality"
+            ] = sensor
             devices.append(sensor)
 
     return devices
@@ -457,7 +461,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     ]
                 except (KeyError, TypeError, AttributeError) as exc:
                     summary_all = f"<error building summary_all: {exc}>"
-    
+
                 _LOGGER.debug(
                     "%s: %s %s %s ALL notifications: %s",
                     hide_email(self._account),
@@ -502,12 +506,12 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     ]
                 except (KeyError, TypeError, AttributeError) as exc:
                     summary_active = f"<error building summary_active: {exc}>"
-    
+
                 _LOGGER.debug(
                     "%s: %s %s ACTIVE notifications: %s | picked next=%s",
                     hide_email(self._account),
                     self._client.name,
-    #                hide_serial(self._client.device_serial_number),
+                    #                hide_serial(self._client.device_serial_number),
                     self._type,
                     summary_active,
                     self._next.get("id") if self._next else None,
@@ -517,7 +521,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     "%s: %s %s has no ACTIVE notifications (all=%s)",
                     hide_email(self._account),
                     self._client.name,
-    #                hide_serial(self._client.device_serial_number),
+                    #                hide_serial(self._client.device_serial_number),
                     self._type,
                     len(self._all),
                 )
@@ -808,7 +812,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 "label": entry.get("label"),
                 "status": entry.get("status"),
                 "type": entry.get("type"),
-                "version":entry.get("version"),
+                "version": entry.get("version"),
                 self._sensor_property: when_val,
                 "lastUpdatedDate": entry.get("lastUpdatedDate"),
             }
@@ -843,7 +847,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     attr.setdefault(self._type.lower(), first.get(label_key))
                     if self._type == "Reminder":
                         # Secondary reminder label (when present)
-                        attr.setdefault("reminder_sub_label", first.get("reminderSubLabel"))
+                        attr.setdefault(
+                            "reminder_sub_label", first.get("reminderSubLabel")
+                        )
         return attr
 
 

@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 import datetime
 import logging
-from typing import Callable, ClassVar, Optional
+from typing import Callable, Optional
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -43,6 +43,7 @@ from .const import (
     ALEXA_ICON_CONVERSION,
     ALEXA_ICON_DEFAULT,
     ALEXA_UNIT_CONVERSION,
+    CONF_DEBUG,
     CONF_EXTENDED_ENTITY_DISCOVERY,
     RECURRING_DAY,
     RECURRING_PATTERN,
@@ -73,6 +74,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
+    debug = config.get(CONF_DEBUG, False)
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("%s: Loading sensors", hide_email(account))
     if "sensor" not in account_dict["entities"]:
@@ -99,12 +101,14 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                         account_dict["entities"]["media_player"][key],
                         n_type_dict,
                         account,
+                        debug=debug,
                     )
                 elif n_type in ("Reminder") and "REMINDERS" in device["capabilities"]:
                     alexa_client = class_(
                         account_dict["entities"]["media_player"][key],
                         n_type_dict,
                         account,
+                        debug=debug,
                     )
                 else:
                     continue
@@ -142,7 +146,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         CONF_EXTENDED_ENTITY_DISCOVERY
     ):
         air_quality_sensors = await create_air_quality_sensors(
-            account_dict, air_quality_entities
+            account_dict, air_quality_entities, debug=debug
         )
 
     return await add_devices(
@@ -193,23 +197,36 @@ async def create_temperature_sensors(account_dict, temperature_entities):
     return devices
 
 
-async def create_air_quality_sensors(account_dict, air_quality_entities):
+async def create_air_quality_sensors(account_dict, air_quality_entities, debug: bool = False):
     devices = []
     coordinator = account_dict["coordinator"]
 
     for temp in air_quality_entities:
         _LOGGER.debug(
-            "Creating entity %s for a air quality sensor with name %s",
-            temp["id"],
+            "Creating sensors for %s id: %s",
             temp["name"],
+            temp["id"],
         )
+
+        subsensors = temp["sensors"]
+        last_index = len(subsensors) - 1
+
         # Each AIAQM has 5 different sensors.
-        for subsensor in temp["sensors"]:
+        for idx, subsensor in enumerate(subsensors):
+            prefix = "└─" if idx == last_index else "├─"
+
             sensor_type = subsensor["sensorType"]
             instance = subsensor["instance"]
             unit = subsensor["unit"]
             serial = temp["device_serial"]
             device_info = lookup_device_info(account_dict, serial)
+
+            _LOGGER.debug(
+                " %s AQM sensor: %s",
+                prefix,
+                sensor_type.rsplit(".", 1)[-1],
+            )
+
             sensor = AirQualitySensor(
                 coordinator,
                 temp["id"],
@@ -218,14 +235,14 @@ async def create_air_quality_sensors(account_dict, air_quality_entities):
                 sensor_type,
                 instance,
                 unit,
+                debug=debug,
             )
-            _LOGGER.debug("Create air quality sensors %s", sensor)
+
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
-            account_dict["entities"]["sensor"][serial][sensor_type][
-                "Air_Quality"
-            ] = sensor
+            account_dict["entities"]["sensor"][serial][sensor_type]["Air_Quality"] = sensor
             devices.append(sensor)
+
     return devices
 
 
@@ -267,10 +284,8 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             value_and_scale
         )
         _LOGGER.debug(
-            "Coordinator init: %s: %s %s",
+            "Coordinator init: %s",
             self._attr_name,
-            self._attr_native_value,
-            self._attr_native_unit_of_measurement,
         )
         self._attr_device_info = (
             {
@@ -318,7 +333,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 
 
 class AirQualitySensor(SensorEntity, CoordinatorEntity):
-    """A air quality sensor reported by an Amazon indoor air quality monitor."""
+    """An air quality sensor reported by an Amazon indoor air quality monitor."""
 
     def __init__(
         self,
@@ -329,6 +344,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         sensor_name,
         instance,
         unit,
+        debug: bool = False,
     ):
         super().__init__(coordinator)
         self.alexa_entity_id = entity_id
@@ -358,12 +374,13 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             else None
         )
         self._instance = instance
+        self._debug = bool(debug)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_native_value = parse_air_quality_from_coordinator(
-            self.coordinator, self.alexa_entity_id, self._instance
+            self.coordinator, self.alexa_entity_id, self._instance, debug=self._debug
         )
         super()._handle_coordinator_update()
 
@@ -372,11 +389,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""
 
     _unrecorded_attributes = frozenset({"brief", "sorted_active", "sorted_all"})
-    _LABEL_KEY_MAP: ClassVar[dict[str, str]] = {
-        "Alarm": "alarmLabel",
-        "Timer": "timerLabel",
-        "Reminder": "reminderLabel",
-    }
 
     def __init__(
         self,
@@ -386,6 +398,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         account,
         name="Next Notification",
         icon=None,
+        debug: bool = False,
     ):
         """Initialize the Alexa sensor device."""
         # Class info
@@ -416,6 +429,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._status: Optional[str] = None
         self._amz_id: Optional[str] = None
         self._version: Optional[str] = None
+        self._debug = bool(debug)
 
     def _process_raw_notifications(self):
         # Build full list for this device/type
@@ -428,35 +442,38 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._all = sorted(self._all, key=lambda x: x[1][self._sensor_property])
 
         # DEBUG: log ALL notifications for this device/type
-        if self._all:
-            try:
-                summary_all = [
-                    {
-                        "id": v.get("id"),
-                        "status": v.get("status"),
-                        self._sensor_property: v.get(self._sensor_property),
-                        "lastUpdatedDate": v.get("lastUpdatedDate"),
-                        "type": v.get("type"),
-                    }
-                    for _, v in self._all
-                ]
-            except (KeyError, TypeError, AttributeError) as exc:
-                summary_all = f"<error building summary_all: {exc}>"
-
-            _LOGGER.debug(
-                "%s: %s %s ALL notifications: %s",
-                hide_email(self._account),
-                hide_serial(self._client.device_serial_number),
-                self._type,
-                summary_all,
-            )
-        else:
-            _LOGGER.debug(
-                "%s: %s %s has no notifications (_n_dict empty)",
-                hide_email(self._account),
-                hide_serial(self._client.device_serial_number),
-                self._type,
-            )
+        if self._debug:
+            if self._all:
+                try:
+                    summary_all = [
+                        {
+                            "id": v.get("id"),
+                            "status": v.get("status"),
+                            self._sensor_property: v.get(self._sensor_property),
+                            "lastUpdatedDate": v.get("lastUpdatedDate"),
+                            "type": v.get("type"),
+                        }
+                        for _, v in self._all
+                    ]
+                except (KeyError, TypeError, AttributeError) as exc:
+                    summary_all = f"<error building summary_all: {exc}>"
+    
+                _LOGGER.debug(
+                    "%s: %s %s %s ALL notifications: %s",
+                    hide_email(self._account),
+                    self._client.name,
+                    hide_serial(self._client.device_serial_number),
+                    self._type,
+                    summary_all,
+                )
+            else:
+                _LOGGER.debug(
+                    "%s: %s %s %s has no notifications (_n_dict empty)",
+                    hide_email(self._account),
+                    self._client.name,
+                    hide_serial(self._client.device_serial_number),
+                    self._type,
+                )
 
         # Previous "next" for change detection
         self._prior_value = self._next if self._active else None
@@ -470,37 +487,40 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._next = self._active[0][1] if self._active else None
 
         # DEBUG: log ACTIVE set and which one we picked as next
-        if self._active:
-            try:
-                summary_active = [
-                    {
-                        "id": v.get("id"),
-                        "status": v.get("status"),
-                        self._sensor_property: v.get(self._sensor_property),
-                        "lastUpdatedDate": v.get("lastUpdatedDate"),
-                        "type": v.get("type"),
-                    }
-                    for _, v in self._active
-                ]
-            except (KeyError, TypeError, AttributeError) as exc:
-                summary_active = f"<error building summary_active: {exc}>"
-
-            _LOGGER.debug(
-                "%s: %s %s ACTIVE notifications: %s | picked next=%s",
-                hide_email(self._account),
-                hide_serial(self._client.device_serial_number),
-                self._type,
-                summary_active,
-                self._next.get("id") if self._next else None,
-            )
-        else:
-            _LOGGER.debug(
-                "%s: %s %s has no ACTIVE notifications (all=%s)",
-                hide_email(self._account),
-                hide_serial(self._client.device_serial_number),
-                self._type,
-                len(self._all),
-            )
+        if self._debug:
+            if self._active:
+                try:
+                    summary_active = [
+                        {
+                            "id": v.get("id"),
+                            "status": v.get("status"),
+                            self._sensor_property: v.get(self._sensor_property),
+                            "lastUpdatedDate": v.get("lastUpdatedDate"),
+                            "type": v.get("type"),
+                        }
+                        for _, v in self._active
+                    ]
+                except (KeyError, TypeError, AttributeError) as exc:
+                    summary_active = f"<error building summary_active: {exc}>"
+    
+                _LOGGER.debug(
+                    "%s: %s %s ACTIVE notifications: %s | picked next=%s",
+                    hide_email(self._account),
+                    self._client.name,
+    #                hide_serial(self._client.device_serial_number),
+                    self._type,
+                    summary_active,
+                    self._next.get("id") if self._next else None,
+                )
+            else:
+                _LOGGER.debug(
+                    "%s: %s %s has no ACTIVE notifications (all=%s)",
+                    hide_email(self._account),
+                    self._client.name,
+    #                hide_serial(self._client.device_serial_number),
+                    self._type,
+                    len(self._all),
+                )
 
         # Track dismissal and schedule events (existing behavior)
         alarm = next(
@@ -587,7 +607,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         return value
 
     def _update_recurring_alarm(self, value):
-        _LOGGER.debug("Sensor value %s", value)
+        # _LOGGER.debug("Sensor value %s", value)
         next_item = value[1]
         alarm = next_item[self._sensor_property]
         reminder = None
@@ -617,7 +637,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         while (
             alarm_on
             and recurrence
-            and alarm.isoweekday() not in recurrence
+            and alarm.isoweekday not in recurrence
             and alarm < dt.now()
         ):
             alarm += datetime.timedelta(days=1)
@@ -677,7 +697,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
         # Global refresh: any time we rebuild the notifications snapshot
         if "notifications_refreshed" in event:
-            _LOGGER.debug("Force-refreshing notification sensor %s", self)
+            _LOGGER.debug("Force-refreshing notification sensor %s", self._client.name)
             self.schedule_update_ha_state(True)
             return
 
@@ -705,6 +725,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
     @property
     def should_poll(self):
         """Return the polling state."""
+        # _LOGGER.debug("Should we poll? %s", "No" if is_http2_enabled else "Yes")
         return not is_http2_enabled(self.hass, self._account)
 
     def _process_state(self, value) -> Optional[datetime.datetime]:
@@ -729,6 +750,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             self._process_raw_notifications()
             try:
                 self.schedule_update_ha_state()
+                _LOGGER.debug("Scheduling no notifications update")
             except NoEntitySpecifiedError:
                 pass
             return
@@ -740,6 +762,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._n_dict = device_notifications.get(self._type, {})
         self._process_raw_notifications()
         try:
+            _LOGGER.debug("Scheduling notifications update")
             self.schedule_update_ha_state()
         except NoEntitySpecifiedError:
             pass  # we ignore this due to a harmless startup race condition
@@ -780,21 +803,15 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 when_val = dt.as_local(when).isoformat()
             else:
                 when_val = when
-
-            # Labels are type-specific in Alexa's payload; resolve to a single generic key.
-            label_key = self._LABEL_KEY_MAP.get(self._type)
-            label = entry.get(label_key) if label_key else None
-
-            data = {
+            return {
                 "id": entry.get("id"),
-                "label": label,
+                "label": entry.get("label"),
                 "status": entry.get("status"),
                 "type": entry.get("type"),
-                "version": entry.get("version"),
+                "version":entry.get("version"),
                 self._sensor_property: when_val,
                 "lastUpdatedDate": entry.get("lastUpdatedDate"),
             }
-            return data
 
         if self._all:
             # Limit to a few entries so attributes stay small
@@ -810,39 +827,48 @@ class AlexaMediaNotificationSensor(SensorEntity):
             legacy_active = [v for _, v in self._active]
 
             # Generic legacy names
-            attr["sorted_all"] = legacy_all
-            attr["sorted_active"] = legacy_active
+            attr.setdefault("sorted_all", legacy_all)
+            attr.setdefault("sorted_active", legacy_active)
 
             # Some consumers expect a single string label for the "next" item.
             # These keys are used by card-alexa-alarms-timers.
             if legacy_active:
                 first = legacy_active[0]
-                label_key = self._LABEL_KEY_MAP.get(self._type)
+                label_key = {
+                    "Alarm": "alarmLabel",
+                    "Timer": "timerLabel",
+                    "Reminder": "reminderLabel",
+                }.get(self._type)
                 if label_key:
-                    attr[self._type.lower()] = first.get(label_key)
-
+                    attr.setdefault(self._type.lower(), first.get(label_key))
                     if self._type == "Reminder":
                         # Secondary reminder label (when present)
-                        attr["reminder_sub_label"] = first.get("reminderSubLabel")
+                        attr.setdefault("reminder_sub_label", first.get("reminderSubLabel"))
         return attr
 
 
 class AlarmSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Alarm sensor."""
 
-    def __init__(self, client, n_json, account):
+    def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
         # Class info
         self._type = "Alarm"
         super().__init__(
-            client, n_json, "date_time", account, f"next {self._type}", "mdi:alarm"
+            client,
+            n_json,
+            "date_time",
+            account,
+            f"next {self._type}",
+            "mdi:alarm",
+            debug=debug,
         )
 
 
 class TimerSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Timer sensor."""
 
-    def __init__(self, client, n_json, account):
+    def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
         # Class info
         self._type = "Timer"
@@ -857,6 +883,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
                 if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
                 else "mdi:timer"
             ),
+            debug=debug,
         )
 
     def _process_state(self, value) -> Optional[datetime.datetime]:
@@ -902,12 +929,18 @@ class TimerSensor(AlexaMediaNotificationSensor):
 class ReminderSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Reminder sensor."""
 
-    def __init__(self, client, n_json, account):
+    def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
         # Class info
         self._type = "Reminder"
         super().__init__(
-            client, n_json, "alarmTime", account, f"next {self._type}", "mdi:reminder"
+            client,
+            n_json,
+            "alarmTime",
+            account,
+            f"next {self._type}",
+            "mdi:reminder",
+            debug=debug,
         )
 
     def _process_state(self, value) -> Optional[datetime.datetime]:

@@ -518,9 +518,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 # Always keep notifications in sync; internal cooldown prevents API spam
                 await process_notifications(login_obj)
 
-                # Process last_called data to fire events
-                # await update_last_called(login_obj)
-
         except (AlexapyLoginError, JSONDecodeError):
             _LOGGER.debug(
                 "%s: Alexa API disconnected; attempting to relogin : status %s",

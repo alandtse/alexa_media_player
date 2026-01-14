@@ -6,18 +6,15 @@ from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from itertools import islice
-# ✅ Standard library
 import re
 from typing import Any
 
-# ✅ Third-party (Home Assistant)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.redact import async_redact_data
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-# ✅ Local imports
 from .const import (
     COMMON_BUCKET_COUNTS,
     COMMON_DIAGNOSTIC_BUCKETS,
@@ -446,3 +443,4 @@ async def async_get_device_diagnostics(
     }
 
     return async_redact_data(data, TO_REDACT)
+

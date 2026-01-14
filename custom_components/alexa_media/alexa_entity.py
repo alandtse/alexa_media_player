@@ -410,7 +410,7 @@ def parse_temperature_from_coordinator(
 ) -> Optional[str]:
     """Get the temperature of an entity from the coordinator data."""
     temperature = parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.TemperatureSensor", "temperature"
+        coordinator, entity_id, "Alexa.TemperatureSensor", "temperature", debug
     )
     if debug:
         _LOGGER.debug("parse_temperature_from_coordinator: %s", temperature)

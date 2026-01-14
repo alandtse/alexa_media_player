@@ -706,7 +706,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         if not http2_enabled:
             await update_last_called(login_obj)
-            
+
         return entity_state
 
     @_catch_login_errors
@@ -1087,7 +1087,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
         _LOGGER.debug("%s: HTTP2 created: %s", hide_email(email), http2)
         return http2
-        
 
     @callback
     async def http2_handler(message_obj):
@@ -1124,12 +1123,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 async with account["last_called_probe_lock"]:
                     now = time.monotonic()
                     # Throttle: avoid hammering Amazon on storms
-                    if now - float(account.get("last_called_probe_last_run", 0.0)) < 2.0:
+                    if (
+                        now - float(account.get("last_called_probe_last_run", 0.0))
+                        < 2.0
+                    ):
                         return
                     account["last_called_probe_last_run"] = now
 
                     # Prefer a recent-window helper if present in the installed alexapy.
-                    get_recent = getattr(AlexaAPI, "get_last_device_serial_recent", None)
+                    get_recent = getattr(
+                        AlexaAPI, "get_last_device_serial_recent", None
+                    )
                     try:
                         if callable(get_recent):
                             last = await get_recent(
@@ -1138,7 +1142,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 items=10,
                             )
                         else:
-                            last = await AlexaAPI.get_last_device_serial(login_obj, items=10)
+                            last = await AlexaAPI.get_last_device_serial(
+                                login_obj, items=10
+                            )
                     except asyncio.CancelledError:
                         # Expected when push bursts reschedule probes
                         return
@@ -1605,10 +1611,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         hass, functions={"update_last_called": update_last_called}
     )
     await alexa_services.register()
-    
+
     _LOGGER.debug("%s: setup_alexa: Updating last_called", hide_email(email))
     await update_last_called(login_obj)
-    
+
     return True
 
 

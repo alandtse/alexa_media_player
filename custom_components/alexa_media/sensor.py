@@ -136,7 +136,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         CONF_EXTENDED_ENTITY_DISCOVERY
     ):
         temperature_sensors = await create_temperature_sensors(
-            account_dict, temperature_entities
+            account_dict, temperature_entities, debug=debug
         )
 
     # AIAQM Sensors
@@ -171,13 +171,17 @@ async def async_unload_entry(hass, entry) -> bool:
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("Attempting to unload sensors")
     for key, sensors in account_dict["entities"]["sensor"].items():
-        for device in sensors[key].values():
+        for device in sensors.values():
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
     return True
 
 
-async def create_temperature_sensors(account_dict, temperature_entities):
+async def create_temperature_sensors(
+    account_dict,
+    temperature_entities,
+    debug: bool = False,
+):
     """Create temperature sensors."""
     devices = []
     coordinator = account_dict["coordinator"]
@@ -190,7 +194,13 @@ async def create_temperature_sensors(account_dict, temperature_entities):
         )
         serial = temp["device_serial"]
         device_info = lookup_device_info(account_dict, serial)
-        sensor = TemperatureSensor(coordinator, temp["id"], temp["name"], device_info)
+        sensor = TemperatureSensor(
+            coordinator,
+            temp["id"],
+            temp["name"],
+            device_info,
+            debug=debug,
+        )
         account_dict["entities"]["sensor"].setdefault(serial, {})
         account_dict["entities"]["sensor"][serial]["Temperature"] = sensor
         devices.append(sensor)
@@ -220,6 +230,7 @@ async def create_air_quality_sensors(
             unit = subsensor["unit"]
             serial = temp["device_serial"]
             device_info = lookup_device_info(account_dict, serial)
+            _LOGGER.debug(" %s AQM sensor: %s", prefix, sensor_type.rsplit(".", 1)[-1])
             sensor = AirQualitySensor(
                 coordinator,
                 temp["id"],
@@ -228,8 +239,8 @@ async def create_air_quality_sensors(
                 sensor_type,
                 instance,
                 unit,
+                debug=debug,
             )
-            _LOGGER.debug(" %s AQM sensor: %s", prefix, sensor_type.rsplit(".", 1)[-1])
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
             account_dict["entities"]["sensor"][serial][sensor_type][
@@ -259,7 +270,14 @@ def lookup_device_info(account_dict, device_serial):
 class TemperatureSensor(SensorEntity, CoordinatorEntity):
     """A temperature sensor reported by an Echo."""
 
-    def __init__(self, coordinator, entity_id, name, media_player_device_id):
+    def __init__(
+        self,
+        coordinator,
+        entity_id,
+        name,
+        media_player_device_id,
+        debug: bool = False,
+    ):
         """Initialize temperature sensor."""
         super().__init__(coordinator)
         self._debug = bool(debug)
@@ -312,13 +330,15 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 
     def _get_temperature_value(self, value):
         if value and "value" in value:
-            _LOGGER.debug("TemperatureSensor value: %s", value.get("value"))
+            if self._debug:
+                _LOGGER.debug("TemperatureSensor value: %s", value.get("value"))
             return value.get("value")
         return None
 
     def _get_temperature_scale(self, value):
         if value and "scale" in value:
-            _LOGGER.debug("TemperatureSensor scale: %s", value.get("scale"))
+            if self._debug:
+                _LOGGER.debug("TemperatureSensor scale: %s", value.get("scale"))
             if value.get("scale") == "CELSIUS":
                 return UnitOfTemperature.CELSIUS
             if value.get("scale") == "FAHRENHEIT":
@@ -630,6 +650,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     recurrence.append(RECURRING_DAY[day])
         else:
             recurring_pattern = next_item.get("recurringPattern")
+            recurrence = RECURRING_PATTERN_ISO_SET.get(recurring_pattern)
         while (
             alarm_on
             and recurrence

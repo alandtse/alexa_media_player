@@ -47,35 +47,35 @@ async def add_devices(
             or getattr(dev, "_attr_name", None)
             or getattr(dev, "_name", None)
         )
-    
+
     def _device_label(dev: Entity) -> str:
         """Return a compact, stable identifier for logging."""
         name = _device_name(dev)
         entity_id = getattr(dev, "entity_id", None)  # often not set yet
         dev_type = type(dev).__name__
-    
+
         if name and entity_id:
             return f"{name} ({dev_type}, {entity_id})"
         if name:
             return f"{name} ({dev_type})"
         return f"<unnamed> ({dev_type})"
-    
+
     def _devices_preview(devs: list[Entity]) -> str:
         max_items = 8
         labels = [_device_label(d) for d in devs[:max_items]]
         suffix = f" …(+{len(devs) - max_items} more)" if len(devs) > max_items else ""
         return ", ".join(labels) + suffix
-    
+
     new_devices: list[Entity] = []
     for device in devices:
         dev_name = _device_name(device)
-    
+
         if (include_filter and dev_name not in include_filter) or (
             exclude_filter and dev_name in exclude_filter
         ):
             _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
             continue
-    
+
         new_devices.append(device)
 
     devices = new_devices

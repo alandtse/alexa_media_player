@@ -173,8 +173,15 @@ class AlexaNotificationService(BaseNotificationService):
                 entity_name = entity.entity_id.split(".")[1]
                 devices[entity_name] = entity.entity_id
 
-                if self.last_called and (entity.extra_state_attributes or {}).get("last_called"):
-                    ts = int((entity.extra_state_attributes or {}).get("last_called_timestamp") or 0)
+                if self.last_called and (entity.extra_state_attributes or {}).get(
+                    "last_called"
+                ):
+                    ts = int(
+                        (entity.extra_state_attributes or {}).get(
+                            "last_called_timestamp"
+                        )
+                        or 0
+                    )
                     if ts > last_called_ts:
                         last_called_entity = entity
                         last_called_ts = ts
@@ -275,14 +282,13 @@ class AlexaNotificationService(BaseNotificationService):
             base = 0
         return base + 1
 
-
     def _email_for_account_index(self, idx: int) -> str | None:
         """Reverse lookup: 1-based index -> email."""
         try:
             idx = int(idx)
         except (TypeError, ValueError):
             return None
-    
+
         for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
             raw = (account_dict or {}).get("second_account_index", 0)
             try:
@@ -301,7 +307,9 @@ class AlexaNotificationService(BaseNotificationService):
             ent = self._get_current_last_called_entity(email)
             if not ent:
                 continue
-            ts = int((ent.extra_state_attributes or {}).get("last_called_timestamp") or 0)
+            ts = int(
+                (ent.extra_state_attributes or {}).get("last_called_timestamp") or 0
+            )
             if ts > newest_ts:
                 newest = ent
                 newest_ts = ts
@@ -415,7 +423,9 @@ class AlexaNotificationService(BaseNotificationService):
         # Expand groups / entity IDs safely (strings only)
         entity_ids = [t for t in resolved_targets if isinstance(t, str)]
         try:
-            entity_ids = list(set(entity_ids + expand_entity_ids(self.hass, entity_ids)))
+            entity_ids = list(
+                set(entity_ids + expand_entity_ids(self.hass, entity_ids))
+            )
         except ValueError:
             _LOGGER.debug("Invalid Home Assistant entity in %s", entity_ids)
 
@@ -424,19 +434,30 @@ class AlexaNotificationService(BaseNotificationService):
         _LOGGER.debug("Converted entities: %s", entities)
         _LOGGER.debug(
             "Known serials: %s",
-            [hide_serial(getattr(d, "device_serial_number", None)) for d in self.devices if d],
+            [
+                hide_serial(getattr(d, "device_serial_number", None))
+                for d in self.devices
+                if d
+            ],
         )
 
         targets_entities = self.convert(entities, type_="entities", filter_matches=True)
-        targets_serials = self.convert(entities, type_="serialnumbers", filter_matches=True)
+        targets_serials = self.convert(
+            entities, type_="serialnumbers", filter_matches=True
+        )
 
         # --- NEW: synthesize last_called for single-device sends (no HTTP2 push) ---
         # If a call explicitly targets one device (e.g. notify.alexa_media_kitchen_echo_dot),
         # treat that as "last_called" immediately so automations/scripts have a stable signal.
         synthetic_serial: str | None = None
 
-        if data_type in ("tts", "push", "dropin_notification") and len(targets_entities) == 1:
-            synthetic_serial = getattr(targets_entities[0], "device_serial_number", None)
+        if (
+            data_type in ("tts", "push", "dropin_notification")
+            and len(targets_entities) == 1
+        ):
+            synthetic_serial = getattr(
+                targets_entities[0], "device_serial_number", None
+            )
 
         elif data_type == "announce" and len(targets_serials) == 1:
             synthetic_serial = targets_serials[0]
@@ -451,7 +472,9 @@ class AlexaNotificationService(BaseNotificationService):
             }
 
             # Find which account owns this serial and dispatch the same signal AMP uses
-            for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+            for email, account_dict in self.hass.data[DATA_ALEXAMEDIA][
+                "accounts"
+            ].items():
                 ents = (account_dict.get("entities") or {}).get("media_player") or {}
                 if any(
                     getattr(ent, "device_serial_number", None) == synthetic_serial
@@ -469,12 +492,16 @@ class AlexaNotificationService(BaseNotificationService):
                         f"{DOMAIN}_{hide_email(email)}"[0:32],
                         {"last_called_change": last_called_payload},
                     )
-                    self.hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called"] = last_called_payload
+                    self.hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "last_called"
+                    ] = last_called_payload
                     break
 
         tasks = []
 
-        for account, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+        for account, account_dict in self.hass.data[DATA_ALEXAMEDIA][
+            "accounts"
+        ].items():
             for alexa in account_dict["entities"]["media_player"].values():
                 if data_type == "tts":
                     if alexa in targets_entities and alexa.available:
@@ -482,14 +509,17 @@ class AlexaNotificationService(BaseNotificationService):
                         tasks.append(
                             alexa.async_send_tts(
                                 message,
-                                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][account][
-                                    "options"
-                                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                    account
+                                ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
 
                 elif data_type == "announce":
-                    if alexa.device_serial_number in targets_serials and alexa.available:
+                    if (
+                        alexa.device_serial_number in targets_serials
+                        and alexa.available
+                    ):
                         _LOGGER.debug(
                             "%s: Announce by %s to targets: %s: %s",
                             hide_email(account),
@@ -503,9 +533,9 @@ class AlexaNotificationService(BaseNotificationService):
                                 targets=targets_serials,
                                 title=title,
                                 method=(data["method"] if "method" in data else "all"),
-                                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][account][
-                                    "options"
-                                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                    account
+                                ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
                         break
@@ -517,22 +547,24 @@ class AlexaNotificationService(BaseNotificationService):
                             alexa.async_send_mobilepush(
                                 message,
                                 title=title,
-                                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][account][
-                                    "options"
-                                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                    account
+                                ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
 
                 elif data_type == "dropin_notification":
                     if alexa in targets_entities and alexa.available:
-                        _LOGGER.debug("Notification dropin by %s: %s %s", alexa, title, message)
+                        _LOGGER.debug(
+                            "Notification dropin by %s: %s %s", alexa, title, message
+                        )
                         tasks.append(
                             alexa.async_send_dropin_notification(
                                 message,
                                 title=title,
-                                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][account][
-                                    "options"
-                                ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+                                queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                                    account
+                                ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
 

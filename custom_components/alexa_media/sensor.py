@@ -186,12 +186,13 @@ async def create_temperature_sensors(
     devices = []
     coordinator = account_dict["coordinator"]
     for temp in temperature_entities:
-        _LOGGER.debug(
-            "Creating entity %s for a temperature sensor with name %s (%s)",
-            temp["id"],
-            temp["name"],
-            temp,
-        )
+        if debug:
+            _LOGGER.debug(
+                "Creating entity %s for a temperature sensor with name %s (%s)",
+                temp["id"],
+                temp["name"],
+                temp,
+            )
         serial = temp["device_serial"]
         device_info = lookup_device_info(account_dict, serial)
         sensor = TemperatureSensor(
@@ -626,7 +627,8 @@ class AlexaMediaNotificationSensor(SensorEntity):
         return value
 
     def _update_recurring_alarm(self, value):
-        _LOGGER.debug("Sensor value %s", value)
+        if self._debug:
+            _LOGGER.debug("Sensor value %s", value)
         next_item = value[1]
         alarm = next_item[self._sensor_property]
         reminder = None

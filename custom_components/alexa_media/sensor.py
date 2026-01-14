@@ -630,7 +630,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     recurrence.append(RECURRING_DAY[day])
         else:
             recurring_pattern = next_item.get("recurringPattern")
-            recurrence = RECURRING_PATTERN_ISO_SET.get(recurring_pattern)
         while (
             alarm_on
             and recurrence

@@ -1522,7 +1522,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             _LOGGER.debug(
                 "HTTP2push: %s, Polling interval: %s",
                 http2_enabled,
-                seconds,
+                coordinator.update_interval,
             )
             await coordinator.async_request_refresh()
 

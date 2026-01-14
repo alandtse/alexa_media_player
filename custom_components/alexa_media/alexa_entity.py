@@ -257,7 +257,10 @@ class AlexaEntities(TypedDict):
     smart_switch: list[AlexaEntity]
 
 
-def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEntities:
+def parse_alexa_entities(
+    network_details: Optional[dict[str, Any]],
+    debug: bool = False,
+) -> AlexaEntities:
     # pylint: disable=too-many-locals
     """Turn the network details into a list of useful entities with the important details extracted."""
     lights = []
@@ -297,7 +300,8 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             _LOGGER.debug("Added Alexa Guard: %s", processed_appliance["name"])
             guards.append(processed_appliance)
         elif is_temperature_sensor(appliance):
-            _LOGGER.debug("Added temperature sensor: %s", processed_appliance["name"])
+            if debug:
+                _LOGGER.debug("Added temperature sensor: %s", processed_appliance["name"])
             serial = get_device_serial(appliance)
             processed_appliance["device_serial"] = (
                 serial if serial else appliance["entityId"]
@@ -305,7 +309,8 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             temperature_sensors.append(processed_appliance)
         # Code for Amazon Smart Air Quality Monitor
         elif is_air_quality_sensor(appliance):
-            _LOGGER.debug("Added AIAQM sensor: %s", processed_appliance["name"])
+            if debug:
+                _LOGGER.debug("Added AIAQM sensor: %s", processed_appliance["name"])
             serial = get_device_serial(appliance)
             processed_appliance["device_serial"] = (
                 serial if serial else appliance["entityId"]
@@ -337,10 +342,12 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             temperature_sensors.append(processed_appliance)
             air_quality_sensors.append(processed_appliance)
         elif is_switch(appliance):
-            _LOGGER.debug("Added switch: %s", processed_appliance["name"])
+            if debug:
+                _LOGGER.debug("Added switch: %s", processed_appliance["name"])
             switches.append(processed_appliance)
         elif is_light(appliance):
-            _LOGGER.debug("Added light %s", processed_appliance["name"])
+            if debug:
+                _LOGGER.debug("Added light %s", processed_appliance["name"])
             processed_appliance["brightness"] = has_capability(
                 appliance, "Alexa.BrightnessController", "brightness"
             )
@@ -354,13 +361,15 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             )
             lights.append(processed_appliance)
         elif is_contact_sensor(appliance):
-            _LOGGER.debug("Added contact sensor: %s", processed_appliance["name"])
+            if debug:
+                _LOGGER.debug("Added contact sensor: %s", processed_appliance["name"])
             processed_appliance["battery_level"] = has_capability(
                 appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
             )
             contact_sensors.append(processed_appliance)
         else:
-            _LOGGER.debug("Unsupported entity: %s", processed_appliance["name"])
+            if debug:
+                _LOGGER.debug("Unsupported entity: %s", processed_appliance["name"])
 
     return {
         "light": lights,
@@ -516,7 +525,7 @@ def parse_value_from_coordinator(
     namespace: str,
     name: str,
     since: Optional[datetime] = None,
-    instance: str = None,
+    instance: Optional[str] = None,
     *,
     debug: bool = False,
 ) -> Any:

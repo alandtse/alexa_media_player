@@ -301,7 +301,9 @@ def parse_alexa_entities(
             guards.append(processed_appliance)
         elif is_temperature_sensor(appliance):
             if debug:
-                _LOGGER.debug("Added temperature sensor: %s", processed_appliance["name"])
+                _LOGGER.debug(
+                    "Added temperature sensor: %s", processed_appliance["name"]
+                )
             serial = get_device_serial(appliance)
             processed_appliance["device_serial"] = (
                 serial if serial else appliance["entityId"]

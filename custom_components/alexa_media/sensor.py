@@ -289,7 +289,9 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         value_and_scale: Optional[datetime.datetime] = (
-            parse_temperature_from_coordinator(coordinator, entity_id, debug=self._debug)
+            parse_temperature_from_coordinator(
+                coordinator, entity_id, debug=self._debug
+            )
         )
         self._attr_native_value = self._get_temperature_value(value_and_scale)
         self._attr_native_unit_of_measurement = self._get_temperature_scale(

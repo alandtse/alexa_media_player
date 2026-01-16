@@ -795,6 +795,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         )
         return True
 
+    def _valid_voice_summary(summary: object) -> bool:
+        """Return True if summary looks like a real spoken utterance."""
+        if not isinstance(summary, str):
+            return False
+        summary = summary.strip()
+        return bool(summary) and any(ch.isalnum() for ch in summary)
+
     @_catch_login_errors
     async def update_last_called(login_obj, last_called=None, force=False):
         """Update the last called device for the login_obj.
@@ -802,7 +809,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This will store the last_called in hass.data and also fire an event
         to notify listeners.
         """
-        if not last_called or not (last_called and last_called.get("summary")):
+
+        if not isinstance(last_called, dict) or not last_called.get("summary"):
             try:
                 async with async_timeout.timeout(10):
                     last_called = await AlexaAPI.get_last_device_serial(login_obj)
@@ -810,9 +818,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 _LOGGER.debug(
                     "%s: Error updating last_called: %s",
                     hide_email(email),
-                    hide_serial(last_called),
+                    repr(last_called),
                 )
                 return
+
+        # ---- Central voice-only gate (covers both passed-in and fetched cases) ----
+        summary = last_called.get("summary")
+        if not _valid_voice_summary(summary):
+            _LOGGER.debug(
+                "%s: Ignoring last_called with invalid/non-voice summary: %s",
+                hide_email(email),
+                repr(summary),
+            )
+            return
+
         _LOGGER.debug(
             "%s: Updated last_called: %s", hide_email(email), hide_serial(last_called)
         )
@@ -1159,10 +1178,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                     # IMPORTANT: update_last_called() will re-call AlexaAPI.get_last_device_serial()
                     # if summary is missing/empty. Require summary so we don't double-hit the API.
-                    summary = (last.get("summary") or "").strip()
+                    summary = last.get("summary")
                     # Drop empty/whitespace and punctuation-only summaries like ","
-                    if not summary or not summary.strip(" ,.!?;:"):
+                    if not _valid_voice_summary(summary):
                         return
+                    summary = summary.strip()
 
                     serial_num = last.get("serialNumber")
                     ts = int(last.get("timestamp") or 0)
@@ -1175,8 +1195,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     existing_serials_local = _existing_serials(hass, login_obj)
                     if serial_num not in existing_serials_local:
                         return
-
-                    account["last_called_customer_history_ts"] = ts
 
                     payload = {
                         "serialNumber": serial_num,
@@ -1191,6 +1209,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         hide_serial(serial_num),
                     )
                     await update_last_called(login_obj, payload)
+                    account["last_called_customer_history_ts"] = ts
 
             account["last_called_probe_task"] = hass.async_create_task(_runner())
 

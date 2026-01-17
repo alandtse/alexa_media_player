@@ -73,10 +73,9 @@ def is_known_ha_bridge(appliance: Optional[dict[str, Any]]) -> bool:
         driver_ns = safe_get(appliance, ["driverIdentity", "namespace"], "")
         driver_id = safe_get(appliance, ["driverIdentity", "identifier"], "")
         if driver_ns == "AAA" and driver_id == "SonarCloudService":
-            if (
-                _has_interface(appliance, "Alexa.Matter.NodeOperationalCredentials.FabricManagement")
-                or _has_interface(appliance, "Alexa.Commissionable")
-            ):
+            if _has_interface(
+                appliance, "Alexa.Matter.NodeOperationalCredentials.FabricManagement"
+            ) or _has_interface(appliance, "Alexa.Commissionable"):
                 # Optional: tighten further with name/description if you want
                 # e.g. "HomeAssistant Matter" shows up as friendlyName in the report
                 return True

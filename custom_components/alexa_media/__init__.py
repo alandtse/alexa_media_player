@@ -700,10 +700,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     },
                 },
             )
-
-        if not http2_enabled:
+        if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"]:
             await update_last_called(login_obj)
-
         return entity_state
 
     @_catch_login_errors

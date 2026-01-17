@@ -74,8 +74,7 @@ def is_known_ha_bridge(appliance: Optional[dict[str, Any]]) -> bool:
         driver_id = safe_get(appliance, ["driverIdentity", "identifier"], "")
         if driver_ns == "AAA" and driver_id == "SonarCloudService":
             interfaces = {
-                cap.get("interfaceName")
-                for cap in appliance.get("capabilities", [])
+                cap.get("interfaceName") for cap in appliance.get("capabilities", [])
             }
             if (
                 "Alexa.Matter.NodeOperationalCredentials.FabricManagement" in interfaces

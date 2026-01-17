@@ -800,6 +800,33 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         summary = summary.strip()
         return bool(summary) and any(ch.isalnum() for ch in summary)
 
+    def _build_last_called_payload(
+        last: dict | None,
+        account: dict,
+        existing_serials_local: set[str],
+    ) -> dict | None:
+        """Validate an alexapy history record and return an AMP last_called payload."""
+        if not isinstance(last, dict):
+            return None
+
+        summary = last.get("summary")
+        if not _valid_voice_summary(summary):
+            return None
+        summary = summary.strip()
+
+        serial_num = last.get("serialNumber")
+        ts = int(last.get("timestamp") or 0)
+        if not serial_num or ts <= 0:
+            return None
+
+        if ts <= int(account.get("last_called_customer_history_ts") or 0):
+            return None
+
+        if serial_num not in existing_serials_local:
+            return None
+
+        return {"serialNumber": serial_num, "timestamp": ts, "summary": summary}
+
     @_catch_login_errors
     async def update_last_called(login_obj, last_called=None, force=False):
         """Update the last called device for the login_obj.
@@ -1145,9 +1172,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     account["last_called_probe_last_run"] = now
 
                     # Prefer a recent-window helper if present in the installed alexapy.
-                    get_recent = getattr(
-                        AlexaAPI, "get_last_device_serial_recent", None
-                    )
+                    get_recent = getattr(AlexaAPI, "get_last_device_serial_recent", None)
                     try:
                         if callable(get_recent):
                             last = await get_recent(
@@ -1177,43 +1202,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             exc,
                         )
                         return
-                    if not last:
-                        return
-
-                    # IMPORTANT: update_last_called() will re-call AlexaAPI.get_last_device_serial()
-                    # if summary is missing/empty. Require summary so we don't double-hit the API.
-                    summary = last.get("summary")
-                    # Drop empty/whitespace and punctuation-only summaries like ","
-                    if not _valid_voice_summary(summary):
-                        return
-                    summary = summary.strip()
-
-                    serial_num = last.get("serialNumber")
-                    ts = int(last.get("timestamp") or 0)
-                    if not serial_num or ts <= 0:
-                        return
-
-                    if ts <= int(account.get("last_called_customer_history_ts") or 0):
-                        return
 
                     existing_serials_local = _existing_serials(hass, login_obj)
-                    if serial_num not in existing_serials_local:
+                    payload = _build_last_called_payload(
+                        last, account, existing_serials_local
+                    )
+                    if not payload:
                         return
-
-                    payload = {
-                        "serialNumber": serial_num,
-                        "timestamp": ts,
-                        "summary": summary,
-                    }
 
                     _LOGGER.debug(
                         "%s: Updating last_called via %s: %s",
                         hide_email(email),
                         trigger_command,
-                        hide_serial(serial_num),
+                        hide_serial(payload["serialNumber"]),
                     )
                     await update_last_called(login_obj, payload)
-                    account["last_called_customer_history_ts"] = ts
+                    account["last_called_customer_history_ts"] = payload["timestamp"]
 
             account["last_called_probe_task"] = hass.async_create_task(_runner())
 

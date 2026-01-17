@@ -1162,15 +1162,21 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     except asyncio.CancelledError:
                         # Expected when push bursts reschedule probes
                         return
-                    except Exception as exc:
+                    except AlexapyLoginError:
                         _LOGGER.debug(
-                            "%s: last_called probe failed (%s): %s",
+                            "%s: last_called probe login error (%s); skipping",
+                            hide_email(email),
+                            trigger_command,
+                        )
+                        return
+                    except AlexapyConnectionError as exc:
+                        _LOGGER.debug(
+                            "%s: last_called probe connection error (%s): %s",
                             hide_email(email),
                             trigger_command,
                             exc,
                         )
                         return
-
                     if not last:
                         return
 

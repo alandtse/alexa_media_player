@@ -1172,7 +1172,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     account["last_called_probe_last_run"] = now
 
                     # Prefer a recent-window helper if present in the installed alexapy.
-                    get_recent = getattr(AlexaAPI, "get_last_device_serial_recent", None)
+                    get_recent = getattr(
+                        AlexaAPI, "get_last_device_serial_recent", None
+                    )
                     try:
                         if callable(get_recent):
                             last = await get_recent(

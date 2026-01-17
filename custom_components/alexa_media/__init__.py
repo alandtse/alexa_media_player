@@ -1653,6 +1653,24 @@ async def async_unload_entry(hass, entry) -> bool:
         except asyncio.CancelledError:
             # Task cancellation is expected during unload; ignore this exception.
             pass
+    last_called_task = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+        "last_called_probe_task"
+    )
+    if last_called_task and not last_called_task.done():
+        last_called_task.cancel()
+        try:
+            await last_called_task
+        except asyncio.CancelledError:
+            # Expected during unload
+            pass
+        except Exception as err:  # pragma: no cover
+            _LOGGER.debug(
+                "%s: Exception while cancelling last_called_probe_task: %s",
+                hide_email(email),
+                err,
+            )
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called_probe_task"] = None
+
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:
             if component == "notify":

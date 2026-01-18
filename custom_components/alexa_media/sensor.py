@@ -44,7 +44,6 @@ from .const import (
     ALEXA_ICON_DEFAULT,
     ALEXA_UNIT_CONVERSION,
     CONF_DEBUG,
-    CONF_EXTENDED_ENTITY_DISCOVERY,
     RECURRING_DAY,
     RECURRING_PATTERN,
     RECURRING_PATTERN_ISO_SET,
@@ -132,9 +131,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     temperature_sensors = []
     temperature_entities = safe_get(account_dict, ["devices", "temperature"], [])
-    if temperature_entities and account_dict["options"].get(
-        CONF_EXTENDED_ENTITY_DISCOVERY
-    ):
+    if temperature_entities:
         temperature_sensors = await create_temperature_sensors(
             account_dict, temperature_entities, debug=debug
         )
@@ -142,9 +139,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     # AIAQM Sensors
     air_quality_sensors = []
     air_quality_entities = safe_get(account_dict, ["devices", "air_quality"], [])
-    if air_quality_entities and account_dict["options"].get(
-        CONF_EXTENDED_ENTITY_DISCOVERY
-    ):
+    if air_quality_entities:
         air_quality_sensors = await create_air_quality_sensors(
             account_dict, air_quality_entities, debug=debug
         )

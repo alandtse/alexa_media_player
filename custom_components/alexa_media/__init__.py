@@ -846,6 +846,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     repr(last_called),
                 )
                 return
+            # AlexaAPI can return None or non-dict under some failure/throttle cases
+            if not isinstance(last_called, dict):
+                _LOGGER.debug(
+                    "%s: Error updating last_called: unexpected response %s",
+                    hide_email(email),
+                    repr(last_called),
+                )
+                return
 
         # ---- Central voice-only gate (covers both passed-in and fetched cases) ----
         summary = last_called.get("summary")

@@ -80,8 +80,6 @@ def is_known_ha_bridge(appliance: Optional[dict[str, Any]]) -> bool:
                 "Alexa.Matter.NodeOperationalCredentials.FabricManagement" in interfaces
                 or "Alexa.Commissionable" in interfaces
             ):
-                # Optional: tighten further with name/description if you want
-                # e.g. "HomeAssistant Matter" shows up as friendlyName in the report
                 return True
 
     return False

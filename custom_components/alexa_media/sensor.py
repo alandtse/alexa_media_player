@@ -321,7 +321,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         _LOGGER.debug(
             "Coordinator update: %s: %s%s",
             self._attr_name,
-            self._attr_native_value,
+            self._attr_native_value if self._attr_native_value else "",
             self._attr_native_unit_of_measurement,
         )
         super()._handle_coordinator_update()
@@ -406,7 +406,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
                 else "Coordinator update: %s: %s %s"
             ),
             self._attr_name,
-            self._attr_native_value,
+            self._attr_native_value if self._attr_native_value else "",
             (
                 self._attr_native_unit_of_measurement
                 if self._attr_native_unit_of_measurement

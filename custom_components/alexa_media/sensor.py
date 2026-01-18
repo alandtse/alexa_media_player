@@ -307,7 +307,9 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             else None
         )
         if self._debug:
-            _LOGGER.debug("Coordinator init: %s",)
+            _LOGGER.debug(
+                "Coordinator init: %s",
+            )
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -393,7 +395,9 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         )
         self._instance = instance
         if self._debug:
-            _LOGGER.debug("Coordinator init: %s",)
+            _LOGGER.debug(
+                "Coordinator init: %s",
+            )
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -402,13 +406,18 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             self.coordinator, self.alexa_entity_id, self._instance, debug=self._debug
         )
         _LOGGER.debug(
-            "Coordinator update: %s: %s%s"
+            (
+                "Coordinator update: %s: %s%s"
                 if self._attr_native_unit_of_measurement == "%"
-                else "Coordinator update: %s: %s %s",
+                else "Coordinator update: %s: %s %s"
+            ),
             self._attr_name,
             self._attr_native_value,
-            self._attr_native_unit_of_measurement
-                if self._attr_native_unit_of_measurement else "",
+            (
+                self._attr_native_unit_of_measurement
+                if self._attr_native_unit_of_measurement
+                else ""
+            ),
         )
         super()._handle_coordinator_update()
 

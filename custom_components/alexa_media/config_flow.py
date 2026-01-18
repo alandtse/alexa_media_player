@@ -41,7 +41,6 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult, UnknownFlow
 from homeassistant.exceptions import Unauthorized
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
 import httpx
@@ -675,6 +674,15 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.hass.data[DATA_ALEXAMEDIA]["config_flows"][
                     f"{email} - {login.url}"
                 ] = None
+                # Reload the integration to apply new credentials and clear error state
+                try:
+                    _LOGGER.debug("Reloading integration for %s", hide_email(email))
+                    await self.hass.config_entries.async_reload(existing_entry.entry_id)
+                except Exception:  # noqa: BLE001
+                    _LOGGER.warning(
+                        "Failed to reload integration for %s; restart may be needed",
+                        hide_email(email),
+                    )
                 return self.async_abort(reason="reauth_successful")
             _LOGGER.debug(
                 "Setting up Alexa devices with %s", dict(obfuscate(self.config))
@@ -743,7 +751,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             step_id="user",
             data_schema=vol.Schema(new_schema),
             description_placeholders={
-                "message": f"  \n> {login.status.get('error_message','')}"
+                "message": f"  \n> {login.status.get('error_message', '')}"
             },
         )
 

@@ -382,7 +382,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         extended_entity_discovery = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "options"
         ].get(CONF_EXTENDED_ENTITY_DISCOVERY)
-        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["should_get_network"]
+        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "should_get_network"
+        ]
         devices = {}
         bluetooth = {}
         preferences = {}

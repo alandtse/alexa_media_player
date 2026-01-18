@@ -1275,28 +1275,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 else:
                     serial = None
 
-                if command == "PUSH_ACTIVITY":  # Deprecated
-                    #  Last_Alexa Updated - Amazon no longer pushes this
-                    last_called = {
-                        "serialNumber": serial,
-                        "timestamp": json_payload["timestamp"],
-                    }
-                    try:
-                        if coordinator:
-                            await coordinator.async_request_refresh()
-
-                        if serial and serial in existing_serials:
-                            await update_last_called(login_obj, last_called)
-                        _LOGGER.debug("Updating last_called: %s", last_called)
-                        async_dispatcher_send(
-                            hass,
-                            f"{DOMAIN}_{hide_email(email)}"[0:32],
-                            {"push_activity": json_payload},
-                        )
-                    except AlexapyConnectionError:
-                        # Catch case where activities doesn't report valid json
-                        pass
-                elif command in (
+                if command in (
                     "PUSH_AUDIO_PLAYER_STATE",
                     "PUSH_MEDIA_CHANGE",
                     "PUSH_MEDIA_PROGRESS_CHANGE",

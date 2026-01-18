@@ -76,7 +76,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     debug = bool(config.get(CONF_DEBUG, False))
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
-    ("%s: Loading sensors", hide_email(account))
+    _LOGGER.debug("%s: Loading sensors", hide_email(account))
     if "sensor" not in account_dict["entities"]:
         (hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["sensor"]) = {}
     for key, device in account_dict["devices"]["media_player"].items():

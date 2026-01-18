@@ -322,7 +322,11 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             "Coordinator update: %s: %s%s",
             self._attr_name,
             self._attr_native_value if self._attr_native_value else "",
-            self._attr_native_unit_of_measurement if self._attr_native_unit_of_measurement else "",
+            (
+                self._attr_native_unit_of_measurement
+                if self._attr_native_unit_of_measurement
+                else ""
+            ),
         )
         super()._handle_coordinator_update()
 

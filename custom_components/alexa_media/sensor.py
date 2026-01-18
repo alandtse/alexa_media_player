@@ -81,7 +81,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         (hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["sensor"]) = {}
     for key, device in account_dict["devices"]["media_player"].items():
         if key not in account_dict["entities"]["media_player"]:
-            (
+            _LOGGER.debug(
                 "%s: Media player %s not loaded yet; delaying load",
                 hide_email(account),
                 hide_serial(key),
@@ -112,7 +112,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     )
                 else:
                     continue
-                (
+                _LOGGER.debug(
                     "%s: Found %s %s sensor (%s) with next: %s",
                     hide_email(account),
                     hide_serial(key),
@@ -124,7 +124,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 (account_dict["entities"]["sensor"][key][n_type]) = alexa_client
         else:
             for alexa_client in account_dict["entities"]["sensor"][key].values():
-                (
+                _LOGGER.debug(
                     "%s: Skipping already added device: %s",
                     hide_email(account),
                     alexa_client,
@@ -172,7 +172,7 @@ async def async_unload_entry(hass, entry) -> bool:
     ("Attempting to unload sensors")
     for key, sensors in account_dict["entities"]["sensor"].items():
         for device in sensors.values():
-            ("Removing %s", device)
+            _LOGGER.debug("Removing %s", device)
             await device.async_remove()
     return True
 
@@ -187,7 +187,7 @@ async def create_temperature_sensors(
     coordinator = account_dict["coordinator"]
     for temp in temperature_entities:
         if debug:
-            (
+            _LOGGER.debug(
                 "Creating entity %s for a temperature sensor with name %s (%s)",
                 temp["id"],
                 temp["name"],
@@ -215,7 +215,7 @@ async def create_air_quality_sensors(
     coordinator = account_dict["coordinator"]
 
     for temp in air_quality_entities:
-        (
+        _LOGGER.debug(
             "Creating sensors for %s id: %s",
             temp["name"],
             temp["id"],
@@ -231,7 +231,7 @@ async def create_air_quality_sensors(
             unit = subsensor["unit"]
             serial = temp["device_serial"]
             device_info = lookup_device_info(account_dict, serial)
-            (" %s AQM sensor: %s", prefix, sensor_type.rsplit(".", 1)[-1])
+            _LOGGER.debug(" %s AQM sensor: %s", prefix, sensor_type.rsplit(".", 1)[-1])
             sensor = AirQualitySensor(
                 coordinator,
                 temp["id"],

@@ -19,7 +19,7 @@ from dictor import dictor
 from homeassistant.const import CONF_EMAIL, CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConditionErrorMessage
-from homeassistant.helpers.entity_component import EntityComponent
+from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 import wrapt
 
@@ -31,47 +31,89 @@ ArgType = TypeVar("ArgType")
 
 async def add_devices(
     account: str,
-    devices: list[EntityComponent],
-    add_devices_callback: Callable,
+    devices: list[Entity],
+    add_devices_callback: Callable[[list[Entity], bool], None],
     include_filter: Optional[list[str]] = None,
     exclude_filter: Optional[list[str]] = None,
 ) -> bool:
     """Add devices using add_devices_callback."""
-    include_filter = [] or include_filter
-    exclude_filter = [] or exclude_filter
-    new_devices = []
+    include_filter = include_filter or []
+    exclude_filter = exclude_filter or []
+
+    def _device_name(dev: Entity) -> str | None:
+        """Best-effort name before entity_id is assigned."""
+        return (
+            getattr(dev, "name", None)
+            or getattr(dev, "_attr_name", None)
+            or getattr(dev, "_name", None)
+            or getattr(dev, "_device_name", None)
+            or getattr(dev, "_friendly_name", None)
+        )
+
+    def _device_label(dev: Entity) -> str:
+        """Return a compact, stable identifier for logging."""
+        name = _device_name(dev)
+        entity_id = getattr(dev, "entity_id", None)  # often not set yet
+        dev_type = type(dev).__name__
+
+        if name and entity_id:
+            return f"{name} ({dev_type}, {entity_id})"
+        if name:
+            return f"{name} ({dev_type})"
+        return f"<unnamed> ({dev_type})"
+
+    def _devices_preview(devs: list[Entity]) -> str:
+        max_items = 8
+        labels = [_device_label(d) for d in devs[:max_items]]
+        suffix = f" …(+{len(devs) - max_items} more)" if len(devs) > max_items else ""
+        return ", ".join(labels) + suffix
+
+    new_devices: list[Entity] = []
     for device in devices:
-        if (
-            include_filter
-            and device.name not in include_filter
-            or exclude_filter
-            and device.name in exclude_filter
+        dev_name = _device_name(device)
+
+        if (include_filter and dev_name not in include_filter) or (
+            exclude_filter and dev_name in exclude_filter
         ):
-            _LOGGER.debug("%s: Excluding device: %s", account, device)
+            _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
             continue
+
         new_devices.append(device)
+
     devices = new_devices
-    if devices:
-        _LOGGER.debug("%s: Adding %s", account, devices)
-        try:
-            add_devices_callback(devices, False)
-            return True
-        except ConditionErrorMessage as exception_:
-            message: str = exception_.message
-            if message.startswith("Entity id already exists"):
-                _LOGGER.debug("%s: Device already added: %s", account, message)
-            else:
-                _LOGGER.debug(
-                    "%s: Unable to add devices: %s : %s", account, devices, message
-                )
-        except BaseException as ex:  # pylint: disable=broad-except
+    if not devices:
+        return True
+
+    _LOGGER.debug(
+        "%s: Adding %d device(s): %s",
+        account,
+        len(devices),
+        _devices_preview(devices),
+    )
+
+    try:
+        add_devices_callback(devices, False)
+    except ConditionErrorMessage as exception_:
+        message: str = exception_.message
+        if message.startswith("Entity id already exists"):
+            _LOGGER.debug("%s: Device already added: %s", account, message)
+        else:
             _LOGGER.debug(
-                "%s: Unable to add devices: %s",
+                "%s: Unable to add %d device(s): %s",
                 account,
-                EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+                len(devices),
+                message,
             )
+    except Exception as ex:  # pylint: disable=broad-except
+        _LOGGER.debug(
+            "%s: Unable to add %d device(s): %s",
+            account,
+            len(devices),
+            EXCEPTION_TEMPLATE.format(type(ex).__name__, ex.args),
+        )
     else:
         return True
+
     return False
 
 
@@ -341,7 +383,7 @@ def alarm_just_dismissed(
 
 
 def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:
-    """Whether HTTP2 push is enabled for the current account session."""
+    """Whether HTTP2 push is enabled for the current account session"""
     if hass:
         return bool(
             safe_get(
@@ -416,11 +458,6 @@ def safe_get(
     default = args[0] if args else (kwargs.get("default") if kwargs else None)
     result = dictor(data, path, *args, **kwargs)
     if default is not None and result is not None:
-        expected = type(default)
-        if expected is bool:
-            if type(result) is not bool:
-                result = default
-        else:
-            if not isinstance(result, expected):
-                result = default
+        if not isinstance(result, type(default)):
+            result = default
     return result

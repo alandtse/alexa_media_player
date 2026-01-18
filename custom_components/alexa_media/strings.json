@@ -24,7 +24,7 @@
           "url": "Amazon region domain (e.g., amazon.co.uk)",
           "email": "Email Address",
           "password": "Password",
-          "securitycode": "[%key_id:55616596%]",
+          "securitycode": "One-time password (OTP)",
           "otp_secret": "52-character Authenticator App Key for Amazon 2SV",
           "hass_url": "Local network URL to access Home Assistant",
           "public_url": "Public URL shared with external hosted services",

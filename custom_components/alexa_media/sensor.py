@@ -43,6 +43,7 @@ from .const import (
     ALEXA_ICON_CONVERSION,
     ALEXA_ICON_DEFAULT,
     ALEXA_UNIT_CONVERSION,
+    CONF_DEBUG,
     CONF_EXTENDED_ENTITY_DISCOVERY,
     RECURRING_DAY,
     RECURRING_PATTERN,
@@ -73,6 +74,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         raise ConfigEntryNotReady
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
+    debug = bool(config.get(CONF_DEBUG, False))
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("%s: Loading sensors", hide_email(account))
     if "sensor" not in account_dict["entities"]:
@@ -99,12 +101,14 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                         account_dict["entities"]["media_player"][key],
                         n_type_dict,
                         account,
+                        debug=debug,
                     )
                 elif n_type in ("Reminder") and "REMINDERS" in device["capabilities"]:
                     alexa_client = class_(
                         account_dict["entities"]["media_player"][key],
                         n_type_dict,
                         account,
+                        debug=debug,
                     )
                 else:
                     continue
@@ -132,7 +136,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         CONF_EXTENDED_ENTITY_DISCOVERY
     ):
         temperature_sensors = await create_temperature_sensors(
-            account_dict, temperature_entities
+            account_dict, temperature_entities, debug=debug
         )
 
     # AIAQM Sensors
@@ -142,7 +146,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         CONF_EXTENDED_ENTITY_DISCOVERY
     ):
         air_quality_sensors = await create_air_quality_sensors(
-            account_dict, air_quality_entities
+            account_dict, air_quality_entities, debug=debug
         )
 
     return await add_devices(
@@ -167,49 +171,67 @@ async def async_unload_entry(hass, entry) -> bool:
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("Attempting to unload sensors")
     for key, sensors in account_dict["entities"]["sensor"].items():
-        for device in sensors[key].values():
+        for device in sensors.values():
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
     return True
 
 
-async def create_temperature_sensors(account_dict, temperature_entities):
+async def create_temperature_sensors(
+    account_dict,
+    temperature_entities,
+    debug: bool = False,
+):
     """Create temperature sensors."""
     devices = []
     coordinator = account_dict["coordinator"]
     for temp in temperature_entities:
-        _LOGGER.debug(
-            "Creating entity %s for a temperature sensor with name %s (%s)",
-            temp["id"],
-            temp["name"],
-            temp,
-        )
+        if debug:
+            _LOGGER.debug(
+                "Creating entity %s for a temperature sensor with name %s (%s)",
+                temp["id"],
+                temp["name"],
+                temp,
+            )
         serial = temp["device_serial"]
         device_info = lookup_device_info(account_dict, serial)
-        sensor = TemperatureSensor(coordinator, temp["id"], temp["name"], device_info)
+        sensor = TemperatureSensor(
+            coordinator,
+            temp["id"],
+            temp["name"],
+            device_info,
+            debug=debug,
+        )
         account_dict["entities"]["sensor"].setdefault(serial, {})
         account_dict["entities"]["sensor"][serial]["Temperature"] = sensor
         devices.append(sensor)
     return devices
 
 
-async def create_air_quality_sensors(account_dict, air_quality_entities):
+async def create_air_quality_sensors(
+    account_dict, air_quality_entities, debug: bool = False
+):
     devices = []
     coordinator = account_dict["coordinator"]
 
     for temp in air_quality_entities:
         _LOGGER.debug(
-            "Creating entity %s for a air quality sensor with name %s",
-            temp["id"],
+            "Creating sensors for %s id: %s",
             temp["name"],
+            temp["id"],
         )
+        subsensors = temp["sensors"]
+        last_index = len(subsensors) - 1
+
         # Each AIAQM has 5 different sensors.
-        for subsensor in temp["sensors"]:
+        for idx, subsensor in enumerate(subsensors):
+            prefix = "└─" if idx == last_index else "├─"
             sensor_type = subsensor["sensorType"]
             instance = subsensor["instance"]
             unit = subsensor["unit"]
             serial = temp["device_serial"]
             device_info = lookup_device_info(account_dict, serial)
+            _LOGGER.debug(" %s AQM sensor: %s", prefix, sensor_type.rsplit(".", 1)[-1])
             sensor = AirQualitySensor(
                 coordinator,
                 temp["id"],
@@ -218,8 +240,8 @@ async def create_air_quality_sensors(account_dict, air_quality_entities):
                 sensor_type,
                 instance,
                 unit,
+                debug=debug,
             )
-            _LOGGER.debug("Create air quality sensors %s", sensor)
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
             account_dict["entities"]["sensor"][serial][sensor_type][
@@ -249,9 +271,17 @@ def lookup_device_info(account_dict, device_serial):
 class TemperatureSensor(SensorEntity, CoordinatorEntity):
     """A temperature sensor reported by an Echo."""
 
-    def __init__(self, coordinator, entity_id, name, media_player_device_id):
+    def __init__(
+        self,
+        coordinator,
+        entity_id,
+        name,
+        media_player_device_id,
+        debug: bool = False,
+    ):
         """Initialize temperature sensor."""
         super().__init__(coordinator)
+        self._debug = bool(debug)
         self.alexa_entity_id = entity_id
         # Need to append "+temperature" because the Alexa entityId is for a physical device
         # and a single physical device can have multiple HA entities
@@ -260,7 +290,9 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         value_and_scale: Optional[datetime.datetime] = (
-            parse_temperature_from_coordinator(coordinator, entity_id)
+            parse_temperature_from_coordinator(
+                coordinator, entity_id, debug=self._debug
+            )
         )
         self._attr_native_value = self._get_temperature_value(value_and_scale)
         self._attr_native_unit_of_measurement = self._get_temperature_scale(
@@ -285,7 +317,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         value_and_scale = parse_temperature_from_coordinator(
-            self.coordinator, self.alexa_entity_id
+            self.coordinator, self.alexa_entity_id, debug=self._debug
         )
         self._attr_native_value = self._get_temperature_value(value_and_scale)
         self._attr_native_unit_of_measurement = self._get_temperature_scale(
@@ -301,13 +333,15 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 
     def _get_temperature_value(self, value):
         if value and "value" in value:
-            _LOGGER.debug("TemperatureSensor value: %s", value.get("value"))
+            if getattr(self, "_debug", False):
+                _LOGGER.debug("TemperatureSensor value: %s", value.get("value"))
             return value.get("value")
         return None
 
     def _get_temperature_scale(self, value):
         if value and "scale" in value:
-            _LOGGER.debug("TemperatureSensor scale: %s", value.get("scale"))
+            if getattr(self, "_debug", False):
+                _LOGGER.debug("TemperatureSensor scale: %s", value.get("scale"))
             if value.get("scale") == "CELSIUS":
                 return UnitOfTemperature.CELSIUS
             if value.get("scale") == "FAHRENHEIT":
@@ -329,8 +363,10 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         sensor_name,
         instance,
         unit,
+        debug: bool = False,
     ):
         super().__init__(coordinator)
+        self._debug = bool(debug)
         self.alexa_entity_id = entity_id
         self._sensor_name = sensor_name
         # tidy up name
@@ -342,7 +378,9 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS.get(sensor_name)
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_value: Optional[datetime.datetime] = (
-            parse_air_quality_from_coordinator(coordinator, entity_id, instance)
+            parse_air_quality_from_coordinator(
+                coordinator, entity_id, instance, debug=self._debug
+            )
         )
         self._attr_native_unit_of_measurement: Optional[str] = (
             ALEXA_UNIT_CONVERSION.get(unit)
@@ -363,7 +401,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_native_value = parse_air_quality_from_coordinator(
-            self.coordinator, self.alexa_entity_id, self._instance
+            self.coordinator, self.alexa_entity_id, self._instance, debug=self._debug
         )
         super()._handle_coordinator_update()
 
@@ -386,6 +424,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         account,
         name="Next Notification",
         icon=None,
+        debug: bool = False,
     ):
         """Initialize the Alexa sensor device."""
         # Class info
@@ -405,6 +444,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._n_dict = n_dict
         self._sensor_property = sensor_property
         self._account = account
+        self._debug = bool(debug)
         self._type = "" if not self._type else self._type
         self._all = []
         self._active = []
@@ -428,7 +468,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._all = sorted(self._all, key=lambda x: x[1][self._sensor_property])
 
         # DEBUG: log ALL notifications for this device/type
-        if self._all:
+        if self._debug and self._all:
             try:
                 summary_all = [
                     {
@@ -450,7 +490,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 self._type,
                 summary_all,
             )
-        else:
+        elif getattr(self, "_debug", False):
             _LOGGER.debug(
                 "%s: %s %s has no notifications (_n_dict empty)",
                 hide_email(self._account),
@@ -470,7 +510,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._next = self._active[0][1] if self._active else None
 
         # DEBUG: log ACTIVE set and which one we picked as next
-        if self._active:
+        if self._debug and self._active:
             try:
                 summary_active = [
                     {
@@ -493,7 +533,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 summary_active,
                 self._next.get("id") if self._next else None,
             )
-        else:
+        elif getattr(self, "_debug", False):
             _LOGGER.debug(
                 "%s: %s %s has no ACTIVE notifications (all=%s)",
                 hide_email(self._account),
@@ -587,7 +627,8 @@ class AlexaMediaNotificationSensor(SensorEntity):
         return value
 
     def _update_recurring_alarm(self, value):
-        _LOGGER.debug("Sensor value %s", value)
+        if getattr(self, "_debug", False):
+            _LOGGER.debug("Sensor value %s", value)
         next_item = value[1]
         alarm = next_item[self._sensor_property]
         reminder = None
@@ -617,7 +658,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         while (
             alarm_on
             and recurrence
-            and alarm.isoweekday not in recurrence
+            and alarm.isoweekday() not in recurrence
             and alarm < dt.now()
         ):
             alarm += datetime.timedelta(days=1)
@@ -830,19 +871,25 @@ class AlexaMediaNotificationSensor(SensorEntity):
 class AlarmSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Alarm sensor."""
 
-    def __init__(self, client, n_json, account):
+    def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
         # Class info
         self._type = "Alarm"
         super().__init__(
-            client, n_json, "date_time", account, f"next {self._type}", "mdi:alarm"
+            client,
+            n_json,
+            "date_time",
+            account,
+            f"next {self._type}",
+            "mdi:alarm",
+            debug=debug,
         )
 
 
 class TimerSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Timer sensor."""
 
-    def __init__(self, client, n_json, account):
+    def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
         # Class info
         self._type = "Timer"
@@ -857,6 +904,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
                 if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
                 else "mdi:timer"
             ),
+            debug=debug,
         )
 
     def _process_state(self, value) -> Optional[datetime.datetime]:
@@ -902,12 +950,18 @@ class TimerSensor(AlexaMediaNotificationSensor):
 class ReminderSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Reminder sensor."""
 
-    def __init__(self, client, n_json, account):
+    def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
         # Class info
         self._type = "Reminder"
         super().__init__(
-            client, n_json, "alarmTime", account, f"next {self._type}", "mdi:reminder"
+            client,
+            n_json,
+            "alarmTime",
+            account,
+            f"next {self._type}",
+            "mdi:reminder",
+            debug=debug,
         )
 
     def _process_state(self, value) -> Optional[datetime.datetime]:

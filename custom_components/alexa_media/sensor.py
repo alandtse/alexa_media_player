@@ -298,12 +298,6 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_native_unit_of_measurement = self._get_temperature_scale(
             value_and_scale
         )
-        _LOGGER.debug(
-            "Coordinator init: %s: %s %s",
-            self._attr_name,
-            self._attr_native_value,
-            self._attr_native_unit_of_measurement,
-        )
         self._attr_device_info = (
             {
                 "identifiers": {media_player_device_id},
@@ -312,6 +306,8 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             if media_player_device_id
             else None
         )
+        if self._debug:
+            _LOGGER.debug("Coordinator init: %s",)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -324,7 +320,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             value_and_scale
         )
         _LOGGER.debug(
-            "Coordinator update: %s: %s %s",
+            "Coordinator update: %s: %s%s",
             self._attr_name,
             self._attr_native_value,
             self._attr_native_unit_of_measurement,
@@ -396,12 +392,23 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             else None
         )
         self._instance = instance
+        if self._debug:
+            _LOGGER.debug("Coordinator init: %s",)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_native_value = parse_air_quality_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._instance, debug=self._debug
+        )
+        _LOGGER.debug(
+            "Coordinator update: %s: %s%s"
+                if self._attr_native_unit_of_measurement == "%"
+                else "Coordinator update: %s: %s %s",
+            self._attr_name,
+            self._attr_native_value,
+            self._attr_native_unit_of_measurement
+                if self._attr_native_unit_of_measurement else "",
         )
         super()._handle_coordinator_update()
 
@@ -428,6 +435,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
     ):
         """Initialize the Alexa sensor device."""
         # Class info
+        self._debug = bool(debug)
         self._attr_device_class = SensorDeviceClass.TIMESTAMP
         self._attr_state_class = None
         self._attr_native_value: Optional[datetime.datetime] = None
@@ -444,7 +452,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._n_dict = n_dict
         self._sensor_property = sensor_property
         self._account = account
-        self._debug = bool(debug)
         self._type = "" if not self._type else self._type
         self._all = []
         self._active = []

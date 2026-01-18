@@ -306,8 +306,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             if media_player_device_id
             else None
         )
-        if self._debug:
-            _LOGGER.debug("Coordinator init: %s", self._attr_name)
+        _LOGGER.debug("Coordinator init: %s", self._attr_name)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -392,8 +391,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             else None
         )
         self._instance = instance
-        if self._debug:
-            _LOGGER.debug("Coordinator init: %s", self._attr_name)
+        _LOGGER.debug("Coordinator init: %s", self._attr_name)
 
     @callback
     def _handle_coordinator_update(self) -> None:

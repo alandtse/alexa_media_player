@@ -482,7 +482,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                         _entities_to_monitor = set()
                         for type_of_entity, entities in alexa_entities.items():
-                            if type_of_entity == "guard" or extended_entity_discovery:
+                            if (
+                                type_of_entity in {"guard", "temperature", "air_quality", "aiaqm"}
+                                or extended_entity_discovery
+                            ):
                                 for entity in entities:
                                     _entities_to_monitor.add(entity.get("id"))
                         _LOGGER.debug(

@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "Die Seite „Passwort vergessen“ wurde erkannt. Dies ist normalerweise die Folge zu vieler fehlgeschlagener Anmeldeversuche. Amazon kann eine Aktion erfordern, bevor ein erneuter Anmeldeversuch unternommen werden kann.",
+      "forgot_password": "Die Seite 'Passwort vergessen' wurde erkannt. Dies ist normalerweise das Ergebnis zu vieler fehlgeschlagener Anmeldeversuche. Amazon könnte eine Aktion verlangen, bevor ein erneuter Login versucht werden kann.",
       "login_failed": "Alexa Media Player konnte nicht angemeldet werden.",
       "reauth_successful": "Alexa Media Player wurde erfolgreich neu authentifiziert. Bitte ignorieren Sie die Meldung „Abgebrochen“ von Home Assistant."
     },
@@ -39,16 +39,16 @@
           "extended_entity_discovery": "Fügen Sie zusätzliche Sensoren, Schalter und Leuchten hinzu.",
           "hass_url": "Lokale Netzwerk-URL für den Zugriff auf Home Assistant",
           "include_devices": "Eingebundene Geräte (Komma getrennt)",
-          "otp_secret": "Amazon 2SV Authenticator App-Schlüssel",
+          "otp_secret": "52-stelliger Authenticator-App Schlüssel für Amazon 2SV",
           "password": "Passwort",
           "public_url": "Öffentliche URL, die mit extern gehosteten Diensten geteilt wird",
           "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in die Warteschlange (Sekunden)",
           "scan_interval": "Geplantes Abfrageintervall (Sekunden)",
-          "securitycode": "[%key_id:55616596%]",
+          "securitycode": "Einmalpasswort (OTP)",
           "should_get_network": "Entdecken Sie das Alexa-Netzwerk",
           "url": "Amazon Region (z.B. amazon.de)"
         },
-        "description": "* Erforderliche Angaben\nHinweis: **Die erweiterte Entitätserkennung** erfordert, dass **Alexa-Netzwerke erkennen** aktiviert ist.",
+        "description": "* Erforderliche Angaben",
         "title": "Alexa Media Player - Konfiguration"
       }
     }
@@ -72,7 +72,7 @@
           "scan_interval": "Geplante Abfragehäufigkeit (Sekunden)",
           "should_get_network": "Entdecken Sie das Alexa-Netzwerk"
         },
-        "description": "* Erforderliche Angaben\nHinweis: **Die erweiterte Entitätserkennung** erfordert, dass **Alexa-Netzwerke erkennen** aktiviert ist.",
+        "description": "* Erforderliche Angaben",
         "title": "Alexa Media Player - Rekonfiguration"
       }
     }

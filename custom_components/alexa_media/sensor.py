@@ -169,7 +169,7 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     account = entry.data[CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
-    ("Attempting to unload sensors")
+    _LOGGER.debug("Attempting to unload sensors")
     for key, sensors in account_dict["entities"]["sensor"].items():
         for device in sensors.values():
             _LOGGER.debug("Removing %s", device)

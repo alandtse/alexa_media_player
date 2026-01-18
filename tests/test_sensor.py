@@ -4,9 +4,22 @@ Tests the sensor functionality using pytest-homeassistant-custom-component.
 """
 
 import datetime
+import importlib
+import pytest
 from unittest.mock import patch
 
-from custom_components.alexa_media.sensor import AlexaMediaNotificationSensor
+
+@pytest.fixture(autouse=True)
+def _ensure_homeassistant_const_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ensure `homeassistant.const.__version__` exists for sensor import."""
+    ha_const = importlib.import_module("homeassistant.const")
+    monkeypatch.setattr(ha_const, "__version__", "2025.1.0", raising=False)
+
+
+@pytest.fixture
+def sensor_cls() -> type:
+    from custom_components.alexa_media.sensor import AlexaMediaNotificationSensor
+    return AlexaMediaNotificationSensor
 
 
 class TestUpdateRecurringAlarm:
@@ -18,7 +31,7 @@ class TestUpdateRecurringAlarm:
     to integers, which would always be True, causing incorrect alarm scheduling.
     """
 
-    def test_isoweekday_method_is_called_correctly(self) -> None:
+    def test_isoweekday_method_is_called_correctly(self, sensor_cls) -> None:
         """Test that isoweekday() is called as a method, not accessed as attribute.
 
         This is a regression test for a bug where alarm.isoweekday was used instead
@@ -37,7 +50,7 @@ class TestUpdateRecurringAlarm:
         causing infinite loops or incorrect alarm times.
         """
         # Create a minimal mock for the sensor
-        sensor = object.__new__(AlexaMediaNotificationSensor)
+        sensor = object.__new__(sensor_cls)
         sensor._sensor_property = "alarmTime"
 
         # Create a datetime that is a Wednesday (isoweekday() == 3)
@@ -89,9 +102,9 @@ class TestUpdateRecurringAlarm:
         # Verify the alarm moved forward (not backward)
         assert result_alarm >= wednesday_in_past
 
-    def test_recurring_alarm_advances_to_correct_weekday(self) -> None:
+    def test_recurring_alarm_advances_to_correct_weekday(self, sensor_cls) -> None:
         """Test that a recurring alarm advances to the correct weekday."""
-        sensor = object.__new__(AlexaMediaNotificationSensor)
+        sensor = object.__new__(sensor_cls)
         sensor._sensor_property = "alarmTime"
 
         # Monday January 1, 2024
@@ -133,9 +146,9 @@ class TestUpdateRecurringAlarm:
         }, f"Alarm should be on weekend, but got isoweekday {result_alarm.isoweekday()}"
         assert result_alarm == datetime.datetime(2024, 1, 6, 8, 0, 0)
 
-    def test_alarm_on_correct_day_not_modified(self) -> None:
+    def test_alarm_on_correct_day_not_modified(self, sensor_cls) -> None:
         """Test that an alarm already on a correct day is not modified."""
-        sensor = object.__new__(AlexaMediaNotificationSensor)
+        sensor = object.__new__(sensor_cls)
         sensor._sensor_property = "alarmTime"
 
         # Friday January 5, 2024
@@ -174,9 +187,9 @@ class TestUpdateRecurringAlarm:
         # Alarm should not be modified since it's in the future relative to now
         assert result[1]["alarmTime"] == friday
 
-    def test_alarm_off_not_advanced(self) -> None:
+    def test_alarm_off_not_advanced(self, sensor_cls) -> None:
         """Test that an alarm with status OFF is not advanced."""
-        sensor = object.__new__(AlexaMediaNotificationSensor)
+        sensor = object.__new__(sensor_cls)
         sensor._sensor_property = "alarmTime"
 
         wednesday = datetime.datetime(2024, 1, 3, 8, 0, 0)
@@ -207,9 +220,9 @@ class TestUpdateRecurringAlarm:
         # Alarm should NOT be advanced since status is OFF
         assert result[1]["alarmTime"] == wednesday
 
-    def test_alarm_without_recurrence_not_modified(self) -> None:
+    def test_alarm_without_recurrence_not_modified(self, sensor_cls) -> None:
         """Test that an alarm without recurring pattern is not modified."""
-        sensor = object.__new__(AlexaMediaNotificationSensor)
+        sensor = object.__new__(sensor_cls)
         sensor._sensor_property = "alarmTime"
 
         wednesday = datetime.datetime(2024, 1, 3, 8, 0, 0)
@@ -234,9 +247,9 @@ class TestUpdateRecurringAlarm:
         # Alarm should NOT be advanced since there's no recurrence pattern
         assert result[1]["alarmTime"] == wednesday
 
-    def test_reminder_type_handled(self) -> None:
+    def test_reminder_type_handled(self, sensor_cls) -> None:
         """Test that reminder type alarms are handled correctly."""
-        sensor = object.__new__(AlexaMediaNotificationSensor)
+        sensor = object.__new__(sensor_cls)
         sensor._sensor_property = "alarmTime"  # Reminders also use alarmTime
 
         wednesday = datetime.datetime(2024, 1, 3, 8, 0, 0)

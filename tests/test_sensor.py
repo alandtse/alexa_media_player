@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+
 @pytest.fixture(autouse=True)
 def _ensure_homeassistant_const_version(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure `homeassistant.const.__version__` exists for sensor import."""

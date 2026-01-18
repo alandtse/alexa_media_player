@@ -5,8 +5,9 @@ Tests the sensor functionality using pytest-homeassistant-custom-component.
 
 import datetime
 import importlib
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +20,7 @@ def _ensure_homeassistant_const_version(monkeypatch: pytest.MonkeyPatch) -> None
 @pytest.fixture
 def sensor_cls() -> type:
     from custom_components.alexa_media.sensor import AlexaMediaNotificationSensor
+
     return AlexaMediaNotificationSensor
 
 

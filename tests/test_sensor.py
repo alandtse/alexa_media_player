@@ -9,14 +9,14 @@ from unittest.mock import patch
 
 import pytest
 
-`@pytest.fixture`(autouse=True)
+@pytest.fixture(autouse=True)
 def _ensure_homeassistant_const_version(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure `homeassistant.const.__version__` exists for sensor import."""
     ha_const = importlib.import_module("homeassistant.const")
     monkeypatch.setattr(ha_const, "__version__", "2025.1.0", raising=False)
 
 
-`@pytest.fixture`
+@pytest.fixture
 def sensor_cls(_ensure_homeassistant_const_version) -> type:
     from custom_components.alexa_media.sensor import AlexaMediaNotificationSensor
 

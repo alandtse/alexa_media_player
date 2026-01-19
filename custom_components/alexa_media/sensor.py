@@ -319,9 +319,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             value_and_scale
         )
         value_str = (
-            self._attr_native_value
-            if self._attr_native_value is not None
-            else ""
+            self._attr_native_value if self._attr_native_value is not None else ""
         )
         unit_str = self._attr_native_unit_of_measurement or ""
         _LOGGER.debug(
@@ -406,9 +404,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             self.coordinator, self.alexa_entity_id, self._instance, debug=self._debug
         )
         value_str = (
-            self._attr_native_value
-            if self._attr_native_value is not None
-            else ""
+            self._attr_native_value if self._attr_native_value is not None else ""
         )
         unit_str = self._attr_native_unit_of_measurement or ""
         fmt = (

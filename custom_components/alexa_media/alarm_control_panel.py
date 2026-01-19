@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 from asyncio import sleep
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from alexapy import hide_email, hide_serial
 from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
@@ -176,8 +176,13 @@ class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEnt
         if available_media_players:
             _LOGGER.debug("Sending guard command to: %s", available_media_players[0])
             available_media_players[0].check_login_changes()
+            # Extract appliance ID safely to prevent IndexError if format is unexpected
+            appliance_parts = self._appliance_id.split("_")
+            appliance_id = (
+                appliance_parts[2] if len(appliance_parts) > 2 else self._appliance_id
+            )
             await available_media_players[0].alexa_api.set_guard_state(
-                self._appliance_id.split("_")[2],
+                appliance_id,
                 command_map[command],
                 queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
                     "options"

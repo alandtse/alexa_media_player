@@ -318,15 +318,17 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_native_unit_of_measurement = self._get_temperature_scale(
             value_and_scale
         )
+        value_str = (
+            self._attr_native_value
+            if self._attr_native_value is not None
+            else ""
+        )
+        unit_str = self._attr_native_unit_of_measurement or ""
         _LOGGER.debug(
             "Coordinator update: %s: %s%s",
             self._attr_name,
-            self._attr_native_value if self._attr_native_value else "",
-            (
-                self._attr_native_unit_of_measurement
-                if self._attr_native_unit_of_measurement
-                else ""
-            ),
+            value_str,
+            unit_str,
         )
         super()._handle_coordinator_update()
 
@@ -403,19 +405,22 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_native_value = parse_air_quality_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._instance, debug=self._debug
         )
+        value_str = (
+            self._attr_native_value
+            if self._attr_native_value is not None
+            else ""
+        )
+        unit_str = self._attr_native_unit_of_measurement or ""
+        fmt = (
+            "Coordinator update: %s: %s%s"
+            if unit_str in ("", "%")
+            else "Coordinator update: %s: %s %s"
+        )
         _LOGGER.debug(
-            (
-                "Coordinator update: %s: %s%s"
-                if self._attr_native_unit_of_measurement == "%"
-                else "Coordinator update: %s: %s %s"
-            ),
+            fmt,
             self._attr_name,
-            self._attr_native_value if self._attr_native_value else "",
-            (
-                self._attr_native_unit_of_measurement
-                if self._attr_native_unit_of_measurement
-                else ""
-            ),
+            value_str,
+            unit_str,
         )
         super()._handle_coordinator_update()
 

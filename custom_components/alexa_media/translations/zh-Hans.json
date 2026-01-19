@@ -1,8 +1,8 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too may failed logins. Amazon may require action before a relogin can be attempted.",
-      "login_failed": "Alexa Media Player failed to login.",
+      "forgot_password": "检测到“忘记密码”页面。这通常是由于多次登录失败导致的。在重新登录之前，亚马逊可能需要采取一些措施。",
+      "login_failed": "Alexa 媒体播放器登录失败。",
       "reauth_successful": "Alexa 媒体播放器已成功重新验证。请忽略来自 HA 的“Aborted”消息。"
     },
     "error": {
@@ -10,7 +10,7 @@
       "connection_error": "连接错误；检查网络并重试",
       "identifier_exists": "Alexa URL的电子邮件已注册",
       "invalid_auth": "登录失败。请仔细检查您的邮箱、密码和验证码。",
-      "invalid_credentials": "Invalid credentials",
+      "invalid_credentials": "无效的凭证",
       "invalid_url": "URL 无效： {message}",
       "oauth_error": "OAuth登录失败，请重试。",
       "unable_to_connect_hass_url": "无法连接到 Home Assistant 本地 URL。请检查“设置”>“系统”>“网络”>“Home Assistant URL”>“本地网络”中的 URL。",
@@ -21,7 +21,7 @@
         "data": {
           "proxy_warning": "忽略并继续 - 我了解不提供对登录问题的支持来绕过此警告。"
         },
-        "description": "HA 服务器无法连接到提供的 URL： {hass_url} 。\n > {error} \n\n要解决此问题，请确认您的 **HA 服务器** 可以访问{hass_url} 。此字段位于“设置”>“系统”>“网络”>“Home Assistant URL”中。\n\n如果您**确定**您的客户可以访问此网址，则可以绕过此警告。",
+        "description": "HA 服务器无法连接到提供的 URL：{hass_url}。\n> {error}\n\n要解决此问题，请确认您的浏览器可以访问 {hass_url}。此字段位于“设置”>“系统”>“网络”>“Home Assistant URL”中。\n\n如果您**确定**您的浏览器可以访问此 URL，则可以绕过此警告。",
         "title": "Alexa 媒体播放器 - 无法连接到 HA URL"
       },
       "totp_register": {
@@ -29,7 +29,7 @@
           "registered": "是的，OTP验证码已验证"
         },
         "description": "**{email} - alexa.{url}**  \n您是否已在亚马逊 2SV 中验证过 OTP 代码？\n >OTP Code {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "title": "Alexa 媒体播放器 - OTP 确认"
       },
       "user": {
         "data": {
@@ -39,16 +39,16 @@
           "extended_entity_discovery": "增加额外的传感器、开关和灯",
           "hass_url": "用于访问 Home Assistant 的本地网络 URL",
           "include_devices": "仅包含以下设备（以逗号分隔）",
-          "otp_secret": "亚马逊 2SV 身份验证器应用程序密钥",
+          "otp_secret": "亚马逊双重验证的 52 字符身份验证器应用密钥",
           "password": "密码",
           "public_url": "与外部托管服务共享的公共 URL",
           "queue_delay": "将多个命令排队的延迟时间（秒）",
           "scan_interval": "计划轮询间隔（秒）",
-          "securitycode": "2FA Code (recommended to avoid login issues)",
+          "securitycode": "一次性密码（OTP）",
           "should_get_network": "发现 Alexa 网络",
-          "url": "Amazon region domain (e.g., amazon.co.uk)"
+          "url": "亚马逊区域域名（例如 amazon.co.uk）"
         },
-        "description": "* 必填项\n注意：**扩展实体发现**需要启用**发现 Alexa 网络**。",
+        "description": "* 必填项",
         "title": "Alexa Media Player-配置"
       }
     }
@@ -72,7 +72,7 @@
           "scan_interval": "计划轮询频率（秒）",
           "should_get_network": "发现 Alexa 网络"
         },
-        "description": "* 必填项\n注意：**扩展实体发现**需要启用**发现 Alexa 网络**。",
+        "description": "* 必填项",
         "title": "Alexa 媒体播放器 - 重新配置"
       }
     }
@@ -107,7 +107,7 @@
         },
         "entries": {
           "description": "需要获取的条目数量",
-          "name": "参赛作品数量"
+          "name": "条目数量"
         }
       },
       "name": "获取历史记录"
@@ -120,7 +120,7 @@
           "name": "选择媒体播放器："
         }
       },
-      "name": "恢复以前的卷"
+      "name": "恢复先前的音量"
     },
     "update_last_called": {
       "description": "强制更新每个 Alexa 帐户的 last_called 回声设备。",

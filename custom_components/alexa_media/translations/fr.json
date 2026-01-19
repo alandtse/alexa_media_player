@@ -1,9 +1,9 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "La page « Mot de passe oublié » s'affiche. Cela se produit généralement suite à un trop grand nombre d'échecs de connexion. Amazon peut exiger une action de votre part avant toute nouvelle tentative de connexion.",
+      "forgot_password": "La page de réinitialisation du mot de passe a été détectée. Cela résulte généralement de trop nombreuses tentatives de connexion échouées. Amazon peut exiger une action avant qu'une nouvelle connexion ne puisse être tentée.",
       "login_failed": "Alexa Media Player n'a pas réussi à se connecter.",
-      "reauth_successful": "Alexa Media Player s'est ré-authentifié avec succès. Veuillez ignorer le message \\\"Abandonné\\\" de Home Assistant."
+      "reauth_successful": "Alexa Media Player s'est ré-authentifié avec succès. Veuillez ignorer le message \"Abandonné\" de Home Assistant."
     },
     "error": {
       "2fa_key_invalid": "{otp_secret} n'est pas valide",
@@ -39,16 +39,16 @@
           "extended_entity_discovery": "Inclure les capteurs, interrupteurs et lumières additionnels",
           "hass_url": "URL du réseau local pour accéder à Home Assistant",
           "include_devices": "Inclure uniquement ces appareils (séparés par des virgules)",
-          "otp_secret": "Clé de l'application d'authentification Amazon 2SV",
+          "otp_secret": "Clé d'application d'authentification de 52 caractères pour Amazon 2SV",
           "password": "Mot de passe",
           "public_url": "URL publique partagée avec les services externes hébergés",
           "queue_delay": "Délai pour regrouper plusieurs commandes (secondes)",
           "scan_interval": "Intervalle d'interrogation programmé (secondes)",
-          "securitycode": "[%key_id:55616596%]",
+          "securitycode": "Mot de passe à usage unique (OTP)",
           "should_get_network": "Découvrir le réseau Alexa",
           "url": "Domaine de la région Amazon (ex : amazon.fr)"
         },
-        "description": "* Champs obligatoires\nNote : **Inclure les capteurs, interrupteurs et lumières additionnels** nécessite que **Découvrir le réseau Alexa** soit activé.",
+        "description": "* Champs obligatoires",
         "title": "Alexa Media Player - Configuration"
       }
     }
@@ -72,7 +72,7 @@
           "scan_interval": "Fréquence d'interrogation programmée (secondes)",
           "should_get_network": "Découvrir le réseau Alexa"
         },
-        "description": "* Champs obligatoires\nNote : **Inclure les capteurs, interrupteurs et lumières additionnels** nécessite que **Découvrir le réseau Alexa** soit activé.",
+        "description": "* Champs obligatoires",
         "title": "Alexa Media Player - Reconfiguration"
       }
     }

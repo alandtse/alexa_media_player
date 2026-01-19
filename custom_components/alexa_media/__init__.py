@@ -448,6 +448,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ) = await asyncio.gather(*tasks)
 
                 if should_get_network:
+                        # First run is a special case. Get the state of all entities(including disabled)
+                        # This ensures all entities have state during startup without needing to request coordinator refresh
+
                     _LOGGER.info("%s: Network Discovery: Checking", hide_email(email))
                     api_devices = optional_task_results.pop()
                     if not api_devices:
@@ -474,9 +477,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
                             alexa_entities
                         )
-
-                        # First run is a special case. Get the state of all entities(including disabled)
-                        # This ensures all entities have state during startup without needing to request coordinator refresh
 
                         _entities_to_monitor = set()
                         for type_of_entity, entities in alexa_entities.items():

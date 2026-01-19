@@ -68,10 +68,19 @@ def is_known_ha_bridge(appliance: Optional[dict[str, Any]]) -> bool:
     if appliance.get("manufacturerName") in ("t0bst4r", "Matterbridge"):
         return True
 
-    # If we want to exclude all Matter devices (these can always be added
-    # directly to HA instead of going through AMP), we could test for a
-    # networkInterfaceIdentifier of type "MATTER" or capabilities on the
-    # "Alexa.Matter.NodeOperationalCredentials.FabricManagement" interface.
+    # Identify Matter bridge hubs regardless of manufacturerName
+    if "HUB" in appliance.get("applianceTypes", []):
+        driver_ns = safe_get(appliance, ["driverIdentity", "namespace"], "")
+        driver_id = safe_get(appliance, ["driverIdentity", "identifier"], "")
+        if driver_ns == "AAA" and driver_id == "SonarCloudService":
+            interfaces = {
+                cap.get("interfaceName") for cap in appliance.get("capabilities", [])
+            }
+            if (
+                "Alexa.Matter.NodeOperationalCredentials.FabricManagement" in interfaces
+                or "Alexa.Commissionable" in interfaces
+            ):
+                return True
 
     return False
 

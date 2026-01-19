@@ -352,8 +352,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This will ping Alexa API to identify all devices, bluetooth, and the last
         called device.
 
-        If any guards, temperature sensors, or lights are configured, their
-        current state will be acquired. This data is returned directly so that it is available on the coordinator.
+        If any guards, sensors, switches, or lights are configured, their current state will be acquired.
+        This data is returned directly so that it is available on the coordinator.
 
         This will add new devices and services when discovered. By default this
         runs every SCAN_INTERVAL seconds unless another method calls it. if
@@ -462,6 +462,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             "%s: Network Discovery: Success, processing response",
                             hide_email(email),
                         )
+                        # First run is a special case. Get the state of all entities(including disabled)
+                        # This ensures all entities have state during startup without needing to request coordinator refresh
                         # Only process this once after success
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                             "should_get_network"
@@ -476,9 +478,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
                             alexa_entities
                         )
-
-                        # First run is a special case. Get the state of all entities(including disabled)
-                        # This ensures all entities have state during startup without needing to request coordinator refresh
 
                         _entities_to_monitor = set()
                         for type_of_entity, entities in alexa_entities.items():

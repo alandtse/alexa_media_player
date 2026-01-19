@@ -13,7 +13,7 @@ import logging
 import re
 from typing import Any, Optional, TypedDict, Union
 
-from alexapy import AlexaAPI, AlexaLogin, hide_serial
+from alexapy import AlexaAPI, AlexaLogin
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from custom_components.alexa_media.helpers import safe_get
@@ -68,10 +68,19 @@ def is_known_ha_bridge(appliance: Optional[dict[str, Any]]) -> bool:
     if appliance.get("manufacturerName") in ("t0bst4r", "Matterbridge"):
         return True
 
-    # If we want to exclude all Matter devices (these can always be added
-    # directly to HA instead of going through AMP), we could test for a
-    # networkInterfaceIdentifier of type "MATTER" or capabilities on the
-    # "Alexa.Matter.NodeOperationalCredentials.FabricManagement" interface.
+    # Identify Matter bridge hubs regardless of manufacturerName
+    if "HUB" in appliance.get("applianceTypes", []):
+        driver_ns = safe_get(appliance, ["driverIdentity", "namespace"], "")
+        driver_id = safe_get(appliance, ["driverIdentity", "identifier"], "")
+        if driver_ns == "AAA" and driver_id == "SonarCloudService":
+            interfaces = {
+                cap.get("interfaceName") for cap in appliance.get("capabilities", [])
+            }
+            if (
+                "Alexa.Matter.NodeOperationalCredentials.FabricManagement" in interfaces
+                or "Alexa.Commissionable" in interfaces
+            ):
+                return True
 
     return False
 
@@ -257,7 +266,10 @@ class AlexaEntities(TypedDict):
     smart_switch: list[AlexaEntity]
 
 
-def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEntities:
+def parse_alexa_entities(
+    network_details: Optional[dict[str, Any]],
+    debug: bool = False,
+) -> AlexaEntities:
     # pylint: disable=too-many-locals
     """Turn the network details into a list of useful entities with the important details extracted."""
     lights = []
@@ -277,6 +289,7 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             "smart_switch": switches,
         }
     network_dict = {}
+    _LOGGER.debug("Processing network_details")
     for appliance in network_details:
         network_dict[appliance["applianceId"]] = appliance
 
@@ -293,8 +306,13 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             "is_hue_v1": is_hue_v1(appliance),
         }
         if is_alexa_guard(appliance):
+            _LOGGER.debug("Added Alexa Guard: %s", processed_appliance["name"])
             guards.append(processed_appliance)
         elif is_temperature_sensor(appliance):
+            if debug:
+                _LOGGER.debug(
+                    "Added temperature sensor: %s", processed_appliance["name"]
+                )
             serial = get_device_serial(appliance)
             processed_appliance["device_serial"] = (
                 serial if serial else appliance["entityId"]
@@ -302,6 +320,8 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             temperature_sensors.append(processed_appliance)
         # Code for Amazon Smart Air Quality Monitor
         elif is_air_quality_sensor(appliance):
+            if debug:
+                _LOGGER.debug("Added AIAQM sensor: %s", processed_appliance["name"])
             serial = get_device_serial(appliance)
             processed_appliance["device_serial"] = (
                 serial if serial else appliance["entityId"]
@@ -328,15 +348,17 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
                             "unit": unit,
                         }
                         sensors.append(sensor)
-                        _LOGGER.debug("AIAQM sensor detected %s", sensor)
             processed_appliance["sensors"] = sensors
-
             # Add as both temperature and air quality sensor
             temperature_sensors.append(processed_appliance)
             air_quality_sensors.append(processed_appliance)
         elif is_switch(appliance):
+            if debug:
+                _LOGGER.debug("Added switch: %s", processed_appliance["name"])
             switches.append(processed_appliance)
         elif is_light(appliance):
+            if debug:
+                _LOGGER.debug("Added light %s", processed_appliance["name"])
             processed_appliance["brightness"] = has_capability(
                 appliance, "Alexa.BrightnessController", "brightness"
             )
@@ -350,12 +372,15 @@ def parse_alexa_entities(network_details: Optional[dict[str, Any]]) -> AlexaEnti
             )
             lights.append(processed_appliance)
         elif is_contact_sensor(appliance):
+            if debug:
+                _LOGGER.debug("Added contact sensor: %s", processed_appliance["name"])
             processed_appliance["battery_level"] = has_capability(
                 appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
             )
             contact_sensors.append(processed_appliance)
         else:
-            _LOGGER.debug("Found unsupported device %s", appliance)
+            if debug:
+                _LOGGER.debug("Unsupported entity: %s", processed_appliance["name"])
 
     return {
         "light": lights,
@@ -399,18 +424,28 @@ async def get_entity_data(
 
 
 def parse_temperature_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str
+    coordinator: DataUpdateCoordinator,
+    entity_id: str,
+    debug: bool = False,
 ) -> Optional[str]:
     """Get the temperature of an entity from the coordinator data."""
     temperature = parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.TemperatureSensor", "temperature"
+        coordinator,
+        entity_id,
+        "Alexa.TemperatureSensor",
+        "temperature",
+        debug=debug,
     )
-    _LOGGER.debug("parse_temperature_from_coordinator: %s", temperature)
+    if debug:
+        _LOGGER.debug("parse_temperature_from_coordinator: %s", temperature)
     return temperature
 
 
 def parse_air_quality_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, instance_id: str
+    coordinator: DataUpdateCoordinator,
+    entity_id: str,
+    instance_id: str,
+    debug: bool = False,
 ) -> Optional[str]:
     """Get the air quality of an entity from the coordinator data."""
     value = parse_value_from_coordinator(
@@ -419,6 +454,7 @@ def parse_air_quality_from_coordinator(
         "Alexa.RangeController",
         "rangeValue",
         instance=instance_id,
+        debug=debug,
     )
     return value
 
@@ -428,7 +464,11 @@ def parse_brightness_from_coordinator(
 ) -> Optional[int]:
     """Get the brightness in the range 0-100."""
     return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.BrightnessController", "brightness", since
+        coordinator,
+        entity_id,
+        "Alexa.BrightnessController",
+        "brightness",
+        since=since,
     )
 
 
@@ -441,7 +481,7 @@ def parse_color_temp_from_coordinator(
         entity_id,
         "Alexa.ColorTemperatureController",
         "colorTemperatureInKelvin",
-        since,
+        since=since,
     )
 
 
@@ -464,7 +504,11 @@ def parse_power_from_coordinator(
 ) -> Optional[str]:
     """Get the power state of the entity."""
     return parse_value_from_coordinator(
-        coordinator, entity_id, "Alexa.PowerController", "powerState", since
+        coordinator,
+        entity_id,
+        "Alexa.PowerController",
+        "powerState",
+        since=since,
     )
 
 
@@ -492,7 +536,9 @@ def parse_value_from_coordinator(
     namespace: str,
     name: str,
     since: Optional[datetime] = None,
-    instance: str = None,
+    instance: Optional[str] = None,
+    *,
+    debug: bool = False,
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
@@ -504,13 +550,21 @@ def parse_value_from_coordinator(
             ):
                 if is_cap_state_still_acceptable(cap_state, since):
                     return cap_state.get("value")
-                _LOGGER.debug(
-                    "Coordinator data for %s is too old to be returned.",
-                    hide_serial(entity_id),
-                )
+                if debug:
+                    _LOGGER.debug(
+                        "Coordinator data for %s is too old to be returned.",
+                        entity_id,
+                    )
                 return None
     else:
-        _LOGGER.debug("Coordinator has no data for %s", hide_serial(entity_id))
+        if debug:
+            _LOGGER.debug(
+                "Coordinator has no data yet for %s, %s, %s, %s",
+                entity_id,
+                namespace,
+                name,
+                instance,
+            )
     return None
 
 

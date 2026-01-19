@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "Siden Glemt passord ble oppdaget. Dette er vanligvis et resultat av også mislykkede pålogginger. Amazon kan kreve handling før en pålogging kan forsøkes.",
+      "forgot_password": "Glemt passord-siden ble oppdaget. Dette er vanligvis et resultat av for mange mislykkede påloggingsforsøk. Amazon kan kreve at du gjør noe før du kan prøve å logge inn igjen.",
       "login_failed": "Alexa Media Player kunne ikke logge inn.",
       "reauth_successful": "Alexa Media Player er autentisert på nytt. Vennligst ignorer meldingen «Avbrutt» fra HA."
     },
@@ -19,7 +19,7 @@
     "step": {
       "proxy_warning": {
         "data": {
-          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+          "proxy_warning": "Ignorer og fortsett – jeg forstår at det ikke gis støtte for innloggingsproblemer når denne advarselen omgås."
         },
         "description": "HA-serveren kan ikke koble til den oppgitte URL-en: {hass_url}.\n> {error}\n\nFor å fikse dette, må du bekrefte at nettleseren din kan nå {hass_url}. Dette feltet er fra Innstillinger > System > Nettverk > URL-adresse for Home Assistant.\n\nHvis du er **sikker** på at nettleseren din kan nå denne URL-en, kan du omgå denne advarselen.",
         "title": "Alexa Media Player – Kan ikke koble til HA URL"
@@ -29,7 +29,7 @@
           "registered": "Ja, engangskoden ble bekreftet"
         },
         "description": "**{email} - alexa.{url}**  \nHar du bekreftet engangskoden i Amazon 2SV?\n >OTP Kode {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
+        "title": "Alexa Media Player - OTP bekreftelse"
       },
       "user": {
         "data": {
@@ -39,16 +39,16 @@
           "extended_entity_discovery": "Inkluder ekstra sensorer, brytere og lys",
           "hass_url": "URL-adresse for lokalt nettverk for å få tilgang til Home Assistant",
           "include_devices": "Inkluder bare disse enhetene (kommaseparert)",
-          "otp_secret": "Amazon 2SV Authenticator-appnøkkel",
+          "otp_secret": "52-tegns nøkkel fra autentiseringsappen for Amazon 2SV",
           "password": "Passord",
           "public_url": "Offentlig URL delt med eksterne vertsbaserte tjenester",
           "queue_delay": "Forsinkelse for å sette flere kommandoer sammen i kø (sekunder)",
           "scan_interval": "Planlagt avstemningsintervall (sekunder)",
-          "securitycode": "[%key_id:55616596%]",
+          "securitycode": "Engangspassord (OTP)",
           "should_get_network": "Oppdag Alexa-nettverket",
           "url": "Amazon-regiondomenet (f.eks. Amazon.co.uk)"
         },
-        "description": "* Obligatoriske oppføringer\nMerk: **Utvidet enhetsoppdagelse** krever at **Oppdag Alexa-nettverket** er aktivert.",
+        "description": "* Obligatoriske oppføringer",
         "title": "Alexa Media Player - Konfigurasjon"
       }
     }
@@ -72,7 +72,7 @@
           "scan_interval": "Planlagt avstemningsfrekvens (sekunder)",
           "should_get_network": "Oppdag Alexa-nettverket"
         },
-        "description": "* Obligatoriske oppføringer\nMerk: **Utvidet enhetsoppdagelse** krever at **Oppdag Alexa-nettverket** er aktivert.",
+        "description": "* Obligatoriske oppføringer",
         "title": "Alexa Media Player – Rekonfigurasjon"
       }
     }

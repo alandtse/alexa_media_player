@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "È stata rilevata la pagina di password dimenticata. Normalmente questo è il risultato di troppi accessi falliti. Amazon potrebbe richiedere di eseguire alcune azioni prima di poter tentare un nuovo accesso.",
+      "forgot_password": "La pagina Password Dimenticata è stata rilevata. Questo normalmente è il risultato di troppi tentativi di accesso falliti. Amazon potrebbe richiedere un'azione prima di poter tentare nuovamente il login.",
       "login_failed": "Alexa Media Player ha fallito il login.",
       "reauth_successful": "Alexa Media Player è stato riautenticato con successo. Ignorare il messaggio \"Abortito\" da HA"
     },
@@ -14,12 +14,12 @@
       "invalid_url": "URL non valido: {message}",
       "oauth_error": "Impossibile completare l'accesso OAuth. Riprova.",
       "unable_to_connect_hass_url": "Impossibile connettersi all'URL locale di Home Assistant. Controllare l'URL in Impostazioni > Sistema > Rete > URL di Home Assistant > Rete locale",
-      "unknown_error": "Errore sconosciuto:{message}"
+      "unknown_error": "Errore sconosciuto: {message}"
     },
     "step": {
       "proxy_warning": {
         "data": {
-          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
+          "proxy_warning": "Ignora e continua - capisco che non verrà fornito alcun supporto per i problemi di accesso derivanti dall'aggirare questo avviso."
         },
         "description": "Il server HA non riesce a connettersi all'URL fornito: {hass_url}.\n> {error}\n\nPer risolvere questo problema, verifica che il tuo browser possa raggiungere {hass_url}. Questo campo si trova in Impostazioni > Sistema > Rete > URL Home Assistant.\n\nSe sei **certo** che il tuo browser possa raggiungere questo URL, puoi ignorare questo avviso.",
         "title": "Alexa Media Player - Impossibile connettersi all'URL HA"
@@ -39,23 +39,23 @@
           "extended_entity_discovery": "Includere sensori, interruttori e luci aggiuntivi",
           "hass_url": "URL della rete locale per accedere a Home Assistant",
           "include_devices": "Includi solo questi dispositivi (separati da virgole)",
-          "otp_secret": "Chiave dell'app Amazon 2SV Authenticator",
+          "otp_secret": "Chiave da 52 caratteri dell'app Authenticator per il 2SV di Amazon",
           "password": "Password",
           "public_url": "URL pubblico condiviso con servizi ospitati esterni",
           "queue_delay": "Ritardo per mettere in coda più comandi contemporaneamente (secondi)",
-          "scan_interval": "Intervallo di pollina pianificato (secondi)",
-          "securitycode": "Codice 2FA (raccomandato per evitare problemi di login)",
+          "scan_interval": "Frequenza di sondaggio pianificata (secondi)",
+          "securitycode": "Password monouso (OTP)",
           "should_get_network": "Scopri la rete Alexa",
           "url": "Regione del dominio Amazon (ad es., amazon.it)"
         },
-        "description": "* Voci obbligatorie\nNota: **L'individuazione estesa delle entità** richiede che **Scopri la rete Alexa** sia abilitata.",
+        "description": "* Voci obbligatorie",
         "title": "Alexa Media Player - Configurazione"
       }
     }
   },
   "issues": {
     "deprecated_yaml_configuration": {
-      "description": "La configurazione YAML di Alexa Media Placer è obsoleta.\nRimuovi `alexa_media` dalla configurazione, riavvia Homo Assistano e utilizza l'interfaccia utente per configurarla.\nImpostazioni > Dispositivi e servizi > Integrazioni > AGGIUNGI INTEGRAZIONE",
+      "description": "La configurazione YAML di Alexa Media Player è obsoleta.\nRimuovi `alexa_media` dalla configurazione, riavvia Home Assistant e utilizza l'interfaccia utente per configurarla.\nImpostazioni > Dispositivi e servizi > Integrazioni > AGGIUNGI INTEGRAZIONE",
       "title": "La configurazione YAML è deprecata"
     }
   },
@@ -69,17 +69,17 @@
           "include_devices": "Includi solo questi dispositivi (separati da virgole)",
           "public_url": "URL pubblico condiviso con servizi ospitati esterni",
           "queue_delay": "Ritardo per mettere in coda più comandi contemporaneamente (secondi)",
-          "scan_interval": "Frequenza di pollina pianificata (secondi)",
+          "scan_interval": "Frequenza di sondaggio pianificata (secondi)",
           "should_get_network": "Scopri la rete Alexa"
         },
-        "description": "* Voci obbligatorie\nNota: **L'individuazione estesa delle entità** richiede che **Scopri la rete Alexa** sia abilitata.",
+        "description": "* Voci obbligatorie",
         "title": "Alexa Media Player - Riconfigurazione"
       }
     }
   },
   "services": {
     "enable_network_discovery": {
-      "description": "Riattiva la rilevazione della rete Alexa in modo che il successivo ciclo di pollina rilevi i dispositivi Alexa per gli account selezionati.",
+      "description": "Riattiva la rilevazione della rete Alexa in modo che il successivo ciclo di sondaggio rilevi i dispositivi Alexa per gli account selezionati.",
       "fields": {
         "email": {
           "description": "Indirizzo email dell'account Alexa facoltativo o elenco d'indirizzi email. Se vuoto, tutti gli account noti verranno aggiornati.",

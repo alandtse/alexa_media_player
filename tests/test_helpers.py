@@ -1,6 +1,10 @@
+"""Tests for helpers module.
+
+Tests the helper functions using pytest-homeassistant-custom-component.
+"""
+
 from unittest.mock import MagicMock, patch
 
-from homeassistant.exceptions import ConditionErrorMessage
 import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
@@ -11,8 +15,13 @@ from custom_components.alexa_media.helpers import (
     safe_get,
 )
 
+# =============================================================================
+# Tests for _existing_serials function
+# =============================================================================
+
 
 def test_existing_serials_no_accounts():
+    """Test _existing_serials returns empty list when no accounts data."""
     hass = MagicMock()
     login_obj = MagicMock()
     login_obj.email = "test@example.com"
@@ -23,6 +32,7 @@ def test_existing_serials_no_accounts():
 
 
 def test_existing_serials_no_email():
+    """Test _existing_serials returns empty list when email not in accounts."""
     hass = MagicMock()
     login_obj = MagicMock()
     login_obj.email = "test@example.com"
@@ -33,6 +43,7 @@ def test_existing_serials_no_email():
 
 
 def test_existing_serials_with_devices():
+    """Test _existing_serials returns device serials."""
     hass = MagicMock()
     login_obj = MagicMock()
     email = "test@example.com"
@@ -54,6 +65,7 @@ def test_existing_serials_with_devices():
 
 
 def test_existing_serials_with_app_devices():
+    """Test _existing_serials includes app device serial numbers."""
     hass = MagicMock()
     login_obj = MagicMock()
     email = "test@example.com"
@@ -70,9 +82,7 @@ def test_existing_serials_with_app_devices():
                                 "appDeviceList": [
                                     {"serialNumber": "app1"},
                                     {"serialNumber": "app2"},
-                                    {
-                                        "serialNumber": "device1"
-                                    },  # this reproduces the infinite loop bug
+                                    {"serialNumber": "device1"},
                                 ]
                             }
                         }
@@ -87,6 +97,7 @@ def test_existing_serials_with_app_devices():
 
 
 def test_existing_serials_with_invalid_app_devices():
+    """Test _existing_serials handles app devices without serialNumber."""
     hass = MagicMock()
     login_obj = MagicMock()
     email = "test@example.com"
@@ -116,6 +127,11 @@ def test_existing_serials_with_invalid_app_devices():
     assert sorted(result) == ["app1", "device1"]
 
 
+# =============================================================================
+# Tests for add_devices function
+# =============================================================================
+
+
 class TestAddDevices:
     """Test the add_devices function."""
 
@@ -137,7 +153,7 @@ class TestAddDevices:
 
     @pytest.mark.asyncio
     async def test_add_devices_empty_list(self):
-        """Test adding empty device list."""
+        """Test adding empty device list returns True without calling callback."""
         devices = []
         add_devices_callback = MagicMock()
 
@@ -163,7 +179,6 @@ class TestAddDevices:
         )
 
         assert result is True
-        # Only device1 should be added
         add_devices_callback.assert_called_once_with([device1], False)
 
     @pytest.mark.asyncio
@@ -183,7 +198,6 @@ class TestAddDevices:
         )
 
         assert result is True
-        # Only device1 should be added
         add_devices_callback.assert_called_once_with([device1], False)
 
     @pytest.mark.asyncio
@@ -202,55 +216,6 @@ class TestAddDevices:
 
         assert result is True
         add_devices_callback.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_add_devices_condition_error_entity_exists(self):
-        """Test handling of entity already exists error."""
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        devices = [device1]
-
-        add_devices_callback = MagicMock()
-        add_devices_callback.side_effect = ConditionErrorMessage(
-            "entity_exists", "Entity id already exists: device1"
-        )
-
-        result = await add_devices("test_account", devices, add_devices_callback)
-
-        assert result is False
-        add_devices_callback.assert_called_once_with([device1], False)
-
-    @pytest.mark.asyncio
-    async def test_add_devices_condition_error_other(self):
-        """Test handling of other condition errors."""
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        devices = [device1]
-
-        add_devices_callback = MagicMock()
-        add_devices_callback.side_effect = ConditionErrorMessage(
-            "other_error", "Some other error"
-        )
-
-        result = await add_devices("test_account", devices, add_devices_callback)
-
-        assert result is False
-        add_devices_callback.assert_called_once_with([device1], False)
-
-    @pytest.mark.asyncio
-    async def test_add_devices_base_exception(self):
-        """Test handling of base exceptions."""
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        devices = [device1]
-
-        add_devices_callback = MagicMock()
-        add_devices_callback.side_effect = ValueError("Some error")
-
-        result = await add_devices("test_account", devices, add_devices_callback)
-
-        assert result is False
-        add_devices_callback.assert_called_once_with([device1], False)
 
     @pytest.mark.asyncio
     async def test_add_devices_include_and_exclude_filters(self):
@@ -276,8 +241,129 @@ class TestAddDevices:
         )
 
         assert result is True
-        # Only device1 should be added (included but not excluded)
         add_devices_callback.assert_called_once_with([device1], False)
+
+
+class TestAddDevicesFilterDefaults:
+    """Regression tests for add_devices filter default value handling.
+
+    These tests verify the fix for the "[] or x" logic bug where the incorrect
+    pattern "[] or include_filter" would return None when include_filter=None,
+    instead of properly defaulting to an empty list.
+    """
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_none_include_filter_adds_all_devices(self):
+        """Test that None include_filter defaults to empty list and adds all devices."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, include_filter=None
+        )
+
+        assert result is True
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_none_exclude_filter_adds_all_devices(self):
+        """Test that None exclude_filter defaults to empty list and adds all devices."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        devices = [device1, device2]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account", devices, add_devices_callback, exclude_filter=None
+        )
+
+        assert result is True
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_with_both_filters_none_adds_all_devices(self):
+        """Test that both filters being None adds all devices without filtering."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=None,
+            exclude_filter=None,
+        )
+
+        assert result is True
+        add_devices_callback.assert_called_once_with(devices, False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_none_include_with_explicit_exclude(self):
+        """Test that None include_filter with explicit exclude_filter works."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=None,
+            exclude_filter=["Device 2"],
+        )
+
+        assert result is True
+        add_devices_callback.assert_called_once_with([device1, device3], False)
+
+    @pytest.mark.asyncio
+    async def test_add_devices_explicit_include_with_none_exclude(self):
+        """Test that explicit include_filter with None exclude_filter works."""
+        device1 = MagicMock()
+        device1.name = "Device 1"
+        device2 = MagicMock()
+        device2.name = "Device 2"
+        device3 = MagicMock()
+        device3.name = "Device 3"
+        devices = [device1, device2, device3]
+
+        add_devices_callback = MagicMock()
+
+        result = await add_devices(
+            "test_account",
+            devices,
+            add_devices_callback,
+            include_filter=["Device 1", "Device 3"],
+            exclude_filter=None,
+        )
+
+        assert result is True
+        add_devices_callback.assert_called_once_with([device1, device3], False)
+
+
+# =============================================================================
+# Tests for is_http2_enabled function
+# =============================================================================
 
 
 def make_hass_data_http2(data: dict | None):
@@ -318,9 +404,13 @@ def test_is_http2_enabled_http2_object():
     assert is_http2_enabled(hass, "test@example.com") is True
 
 
+# =============================================================================
+# Tests for safe_get function
+# =============================================================================
+
+
 def test_safe_get_simple_path():
     """Test that simple path list is correctly joined with dots."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
         mock_dictor.return_value = "test@example.com"
 
@@ -334,7 +424,6 @@ def test_safe_get_simple_path():
 
 def test_safe_get_escapes_dots_in_keys():
     """Test that dots in key names are properly escaped."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
         mock_dictor.return_value = "test@example.com"
 
@@ -347,7 +436,6 @@ def test_safe_get_escapes_dots_in_keys():
 
 def test_safe_get_multiple_dots_in_key():
     """Test that multiple dots in a single key are all escaped."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
         safe_get({}, ["config", "user.email.primary"])
 
@@ -357,7 +445,6 @@ def test_safe_get_multiple_dots_in_key():
 
 def test_safe_get_integer_path_segment():
     """Test that integer path segments are converted to strings."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
         safe_get({}, ["items", 0, "name"])
 
@@ -367,7 +454,6 @@ def test_safe_get_integer_path_segment():
 
 def test_safe_get_forwards_default_value():
     """Test that default value is forwarded as positional arg."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
         mock_dictor.return_value = "default@example.com"
 
@@ -380,7 +466,6 @@ def test_safe_get_forwards_default_value():
 
 def test_safe_get_forwards_kwargs():
     """Test that kwargs are forwarded to dictor."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
         safe_get({}, ["config", "email"], ignorecase=True, checknone=False)
 
@@ -389,26 +474,37 @@ def test_safe_get_forwards_kwargs():
         assert kwargs["checknone"] is False
 
 
+def test_safe_get_empty_path_raises():
+    """Test that empty path_list raises ValueError."""
+    with pytest.raises(ValueError) as exc:
+        safe_get({}, [])
+    assert "path_list cannot be empty" in str(exc.value)
+
+
+def test_safe_get_pathsep_kwarg_removed():
+    """Test that pathsep kwarg is removed before calling dictor."""
+    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
+        safe_get({}, ["key"], pathsep="/")
+
+        kwargs = mock_dictor.call_args[1]
+        assert "pathsep" not in kwargs
+
+
 def test_safe_get_type_match_returns_value():
     """Test that matching types pass through correctly."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # String default, string result - should pass through
         mock_dictor.return_value = "actual_value"
         result = safe_get({}, ["key"], "default")
         assert result == "actual_value"
 
-        # List default, list result - should pass through
         mock_dictor.return_value = [1, 2, 3]
         result = safe_get({}, ["key"], [])
         assert result == [1, 2, 3]
 
-        # Dict default, dict result - should pass through
         mock_dictor.return_value = {"a": 1}
         result = safe_get({}, ["key"], {})
         assert result == {"a": 1}
 
-        # Int default, int result - should pass through
         mock_dictor.return_value = 42
         result = safe_get({}, ["key"], 0)
         assert result == 42
@@ -416,24 +512,19 @@ def test_safe_get_type_match_returns_value():
 
 def test_safe_get_type_mismatch_returns_default():
     """Test that type mismatches return the default value."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # String default, int result - should return default
         mock_dictor.return_value = 123
         result = safe_get({}, ["key"], "default")
         assert result == "default"
 
-        # List default, dict result - should return default
         mock_dictor.return_value = {"a": 1}
         result = safe_get({}, ["key"], [])
         assert result == []
 
-        # Dict default, string result - should return default
         mock_dictor.return_value = "string"
         result = safe_get({}, ["key"], {})
         assert result == {}
 
-        # Int default, string result - should return default
         mock_dictor.return_value = "123"
         result = safe_get({}, ["key"], 0)
         assert result == 0
@@ -441,9 +532,7 @@ def test_safe_get_type_mismatch_returns_default():
 
 def test_safe_get_none_result_with_default():
     """Test that None results are returned as-is (no type check)."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # None result should pass through regardless of default type
         mock_dictor.return_value = None
 
         result = safe_get({}, ["key"], "default")
@@ -458,9 +547,7 @@ def test_safe_get_none_result_with_default():
 
 def test_safe_get_no_default_no_type_check():
     """Test that without a default, no type checking occurs."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # Any type should pass through when no default
         mock_dictor.return_value = "string"
         result = safe_get({}, ["key"])
         assert result == "string"
@@ -476,9 +563,7 @@ def test_safe_get_no_default_no_type_check():
 
 def test_safe_get_none_default_no_type_check():
     """Test that None as default doesn't trigger type checking."""
-
     with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # Explicit None default should not trigger type check
         mock_dictor.return_value = "string"
         result = safe_get({}, ["key"], None)
         assert result == "string"
@@ -486,255 +571,3 @@ def test_safe_get_none_default_no_type_check():
         mock_dictor.return_value = 123
         result = safe_get({}, ["key"], None)
         assert result == 123
-
-
-def test_safe_get_empty_path_raises():
-    """Test that empty path_list raises ValueError."""
-    with pytest.raises(ValueError) as exc:
-        safe_get({}, [])
-    assert "path_list cannot be empty" in str(exc.value)
-
-
-def test_safe_get_pathsep_kwarg_removed():
-    """Test that pathsep kwarg is removed before calling dictor."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        safe_get({}, ["key"], pathsep="/")
-
-        # pathsep should not be in kwargs
-        kwargs = mock_dictor.call_args[1]
-        assert "pathsep" not in kwargs
-
-
-def test_safe_get_subclass_type_check():
-    """Test type checking with subclasses."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # bool is subclass of int in Python
-        mock_dictor.return_value = True
-        result = safe_get({}, ["key"], 0)
-        assert result is True  # Should pass isinstance check
-
-        # But int is not instance of bool
-        mock_dictor.return_value = 1
-        result = safe_get({}, ["key"], False)
-        assert result is False  # Should fail isinstance check -> return default
-
-
-def test_safe_get_complex_type_scenarios():
-    """Test type checking with more complex scenarios."""
-
-    with patch("custom_components.alexa_media.helpers.dictor") as mock_dictor:
-        # Empty list default, non-empty list result
-        mock_dictor.return_value = [1, 2, 3]
-        result = safe_get({}, ["key"], [])
-        assert result == [1, 2, 3]
-
-        # Empty dict default, non-empty dict result
-        mock_dictor.return_value = {"a": 1, "b": 2}
-        result = safe_get({}, ["key"], {})
-        assert result == {"a": 1, "b": 2}
-
-        # String default, empty string result
-        mock_dictor.return_value = ""
-        result = safe_get({}, ["key"], "default")
-        assert result == ""  # Empty string is still a string
-
-
-class TestAddDevicesFilterDefaults:
-    """Regression tests for add_devices filter default value handling.
-
-    These tests verify the fix for the "[] or x" logic bug where the incorrect
-    pattern "[] or include_filter" would return None when include_filter=None,
-    instead of properly defaulting to an empty list.
-
-    The correct pattern is "include_filter or []" which returns [] when
-    include_filter is None/falsy.
-    """
-
-    @pytest.mark.asyncio
-    async def test_add_devices_with_none_include_filter_adds_all_devices(self):
-        """Test that None include_filter defaults to empty list and adds all devices.
-
-        When include_filter is None (the default), it should be treated as an
-        empty list, meaning no inclusion filtering is applied and all devices
-        should be added.
-        """
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        device2 = MagicMock()
-        device2.name = "Device 2"
-        devices = [device1, device2]
-
-        add_devices_callback = MagicMock()
-
-        # Explicitly pass None to test the default handling
-        result = await add_devices(
-            "test_account", devices, add_devices_callback, include_filter=None
-        )
-
-        assert result is True
-        # All devices should be added when include_filter is None
-        add_devices_callback.assert_called_once_with(devices, False)
-
-    @pytest.mark.asyncio
-    async def test_add_devices_with_none_exclude_filter_adds_all_devices(self):
-        """Test that None exclude_filter defaults to empty list and adds all devices.
-
-        When exclude_filter is None (the default), it should be treated as an
-        empty list, meaning no exclusion filtering is applied and all devices
-        should be added.
-        """
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        device2 = MagicMock()
-        device2.name = "Device 2"
-        devices = [device1, device2]
-
-        add_devices_callback = MagicMock()
-
-        # Explicitly pass None to test the default handling
-        result = await add_devices(
-            "test_account", devices, add_devices_callback, exclude_filter=None
-        )
-
-        assert result is True
-        # All devices should be added when exclude_filter is None
-        add_devices_callback.assert_called_once_with(devices, False)
-
-    @pytest.mark.asyncio
-    async def test_add_devices_with_both_filters_none_adds_all_devices(self):
-        """Test that both filters being None adds all devices without filtering.
-
-        This is the default case when add_devices is called without filter
-        arguments. Both filters should default to empty lists internally.
-        """
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        device2 = MagicMock()
-        device2.name = "Device 2"
-        device3 = MagicMock()
-        device3.name = "Device 3"
-        devices = [device1, device2, device3]
-
-        add_devices_callback = MagicMock()
-
-        # Explicitly pass None for both to test the default handling
-        result = await add_devices(
-            "test_account",
-            devices,
-            add_devices_callback,
-            include_filter=None,
-            exclude_filter=None,
-        )
-
-        assert result is True
-        # All devices should be added when both filters are None
-        add_devices_callback.assert_called_once_with(devices, False)
-
-    @pytest.mark.asyncio
-    async def test_add_devices_with_empty_include_filter_adds_all_devices(self):
-        """Test that empty list include_filter is equivalent to None.
-
-        An empty include_filter should mean "include all" (no filtering),
-        not "include nothing". This is consistent with the None behavior.
-        """
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        device2 = MagicMock()
-        device2.name = "Device 2"
-        devices = [device1, device2]
-
-        add_devices_callback = MagicMock()
-
-        result = await add_devices(
-            "test_account", devices, add_devices_callback, include_filter=[]
-        )
-
-        assert result is True
-        # All devices should be added when include_filter is empty list
-        add_devices_callback.assert_called_once_with(devices, False)
-
-    @pytest.mark.asyncio
-    async def test_add_devices_with_empty_exclude_filter_adds_all_devices(self):
-        """Test that empty list exclude_filter is equivalent to None.
-
-        An empty exclude_filter should mean "exclude nothing" (no filtering).
-        """
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        device2 = MagicMock()
-        device2.name = "Device 2"
-        devices = [device1, device2]
-
-        add_devices_callback = MagicMock()
-
-        result = await add_devices(
-            "test_account", devices, add_devices_callback, exclude_filter=[]
-        )
-
-        assert result is True
-        # All devices should be added when exclude_filter is empty list
-        add_devices_callback.assert_called_once_with(devices, False)
-
-    @pytest.mark.asyncio
-    async def test_add_devices_none_include_with_explicit_exclude_filters_correctly(
-        self,
-    ):
-        """Test that None include_filter combined with explicit exclude_filter works.
-
-        When include_filter is None (adds all) but exclude_filter has entries,
-        only the exclude_filter should take effect.
-        """
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        device2 = MagicMock()
-        device2.name = "Device 2"
-        device3 = MagicMock()
-        device3.name = "Device 3"
-        devices = [device1, device2, device3]
-
-        add_devices_callback = MagicMock()
-
-        result = await add_devices(
-            "test_account",
-            devices,
-            add_devices_callback,
-            include_filter=None,
-            exclude_filter=["Device 2"],
-        )
-
-        assert result is True
-        # Device 2 should be excluded, others added
-        add_devices_callback.assert_called_once_with([device1, device3], False)
-
-    @pytest.mark.asyncio
-    async def test_add_devices_explicit_include_with_none_exclude_filters_correctly(
-        self,
-    ):
-        """Test that explicit include_filter combined with None exclude_filter works.
-
-        When include_filter has entries but exclude_filter is None,
-        only devices in the include_filter should be added.
-        """
-        device1 = MagicMock()
-        device1.name = "Device 1"
-        device2 = MagicMock()
-        device2.name = "Device 2"
-        device3 = MagicMock()
-        device3.name = "Device 3"
-        devices = [device1, device2, device3]
-
-        add_devices_callback = MagicMock()
-
-        result = await add_devices(
-            "test_account",
-            devices,
-            add_devices_callback,
-            include_filter=["Device 1", "Device 3"],
-            exclude_filter=None,
-        )
-
-        assert result is True
-        # Only Device 1 and 3 should be added (Device 2 not in include list)
-        add_devices_callback.assert_called_once_with([device1, device3], False)

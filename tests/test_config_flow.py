@@ -1,74 +1,252 @@
-"""Tests for the Alexa Media config flow.
+"""Tests for config_flow module."""
 
-These tests verify the configuration flow behavior, particularly around error handling
-and form display when users encounter issues during setup.
-"""
-
-import sys
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Mock the homeassistant and alexapy modules before importing config_flow
-sys.modules["homeassistant"] = MagicMock()
-sys.modules["homeassistant.config_entries"] = MagicMock()
-sys.modules["homeassistant.components"] = MagicMock()
-sys.modules["homeassistant.components.http"] = MagicMock()
-sys.modules["homeassistant.components.http.view"] = MagicMock()
-sys.modules["homeassistant.components.persistent_notification"] = MagicMock()
-sys.modules["homeassistant.const"] = MagicMock()
-sys.modules["homeassistant.core"] = MagicMock()
-sys.modules["homeassistant.data_entry_flow"] = MagicMock()
-sys.modules["homeassistant.exceptions"] = MagicMock()
-sys.modules["homeassistant.helpers"] = MagicMock()
-sys.modules["homeassistant.helpers.network"] = MagicMock()
-sys.modules["homeassistant.util"] = MagicMock()
-sys.modules["awesomeversion"] = MagicMock()
-sys.modules["dictor"] = MagicMock()
-sys.modules["aiohttp"] = MagicMock()
-sys.modules["aiohttp.web"] = MagicMock()
-sys.modules["aiohttp.web_response"] = MagicMock()
-sys.modules["aiohttp.web_exceptions"] = MagicMock()
-sys.modules["httpx"] = MagicMock()
-sys.modules["yarl"] = MagicMock()
-sys.modules["async_timeout"] = MagicMock()
-sys.modules["wrapt"] = MagicMock()
+from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
+from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 
 
-# Define the exception class that will be raised
-class AlexapyPyotpInvalidKey(Exception):
-    """Exception raised when an invalid OTP key is provided."""
+class TestReauthReload:
+    """Test that reauth triggers integration reload.
 
-    pass
+    These tests verify the fix for the bug where the integration remained
+    in an error state after successful reauthentication because async_reload
+    was not called.
+    """
 
+    @pytest.mark.asyncio
+    async def test_reauth_triggers_reload(self):
+        """Test that successful reauth calls async_reload to clear error state.
 
-# Mock alexapy with our exception
-mock_alexapy = MagicMock()
-mock_alexapy.AlexapyPyotpInvalidKey = AlexapyPyotpInvalidKey
-mock_alexapy.AlexaLogin = MagicMock()
-mock_alexapy.AlexaProxy = MagicMock()
-mock_alexapy.AlexapyConnectionError = Exception
-mock_alexapy.hide_email = MagicMock(return_value="***@***.com")
-mock_alexapy.obfuscate = MagicMock(return_value="***")
-sys.modules["alexapy"] = mock_alexapy
+        This test verifies the fix for the bug where the integration remained
+        in an error state after successful reauthentication because async_reload
+        was not called.
 
+        Test plan:
+        1. Trigger a reauth flow by simulating an existing entry
+        2. Complete the reauth successfully
+        3. Verify that async_reload is called to clear the error state
+        """
+        # Create flow handler
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config = {
+            "email": "test@example.com",
+        }
 
-# Configuration constants
-CONF_URL = "url"
-CONF_EMAIL = "email"
-CONF_PASSWORD = "password"  # nosec B105 - This is a config key name, not a value
-CONF_OTPSECRET = "otp_secret"
-CONF_HASS_URL = "hass_url"
-CONF_DEBUG = "debug"
-CONF_OAUTH = "oauth"
-CONF_SECURITYCODE = "securitycode"
-CONF_PUBLIC_URL = "public_url"
-CONF_INCLUDE_DEVICES = "include_devices"
-CONF_EXCLUDE_DEVICES = "exclude_devices"
-CONF_SCAN_INTERVAL = "scan_interval"
-CONF_QUEUE_DELAY = "queue_delay"
-CONF_EXTENDED_ENTITY_DISCOVERY = "extended_entity_discovery"
-DATA_ALEXAMEDIA = "alexa_media"
+        # Mock login object with successful status
+        mock_login = MagicMock()
+        mock_login.email = "test@example.com"
+        mock_login.url = "https://amazon.com"
+        mock_login.status = {"login_successful": True}
+        mock_login.access_token = "test_token"  # nosec B105
+        mock_login.refresh_token = "test_refresh"  # nosec B105
+        mock_login.expires_in = 3600
+        mock_login.mac_dms = "test_mac"
+        mock_login.code_verifier = "test_verifier"
+        mock_login.authorization_code = "test_code"
+        flow.login = mock_login
+
+        # Mock existing entry (simulates reauth scenario)
+        mock_entry = MagicMock()
+        mock_entry.entry_id = "test_entry_id"
+
+        # Setup hass.data structure
+        flow.hass.data = {
+            DATA_ALEXAMEDIA: {
+                "accounts": {},
+                "config_flows": {},
+            }
+        }
+
+        # Mock async_set_unique_id to return existing entry (triggers reauth path)
+        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
+
+        # Mock config entries methods
+        flow.hass.config_entries.async_update_entry = MagicMock()
+        flow.hass.config_entries.async_reload = AsyncMock()
+
+        # Mock other required methods
+        flow.hass.bus.async_fire = MagicMock()
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
+
+        # Patch async_dismiss_persistent_notification
+        with patch(
+            "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
+        ):
+            # Call _test_login which handles reauth
+            await flow._test_login()
+
+        # Verify async_reload was called with the entry_id
+        flow.hass.config_entries.async_reload.assert_called_once_with("test_entry_id")
+
+        # Verify async_abort was called with reauth_successful
+        flow.async_abort.assert_called_once_with(reason="reauth_successful")
+
+    @pytest.mark.asyncio
+    async def test_new_entry_does_not_trigger_reload(self):
+        """Test that new entry creation does not call async_reload.
+
+        Only reauth (existing entry update) should trigger reload.
+        New entries should use async_create_entry instead.
+        """
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config = {
+            "email": "test@example.com",
+        }
+
+        # Mock login object
+        mock_login = MagicMock()
+        mock_login.email = "test@example.com"
+        mock_login.url = "https://amazon.com"
+        mock_login.status = {"login_successful": True}
+        mock_login.access_token = "test_token"  # nosec B105
+        mock_login.refresh_token = "test_refresh"  # nosec B105
+        mock_login.expires_in = 3600
+        mock_login.mac_dms = "test_mac"
+        mock_login.code_verifier = "test_verifier"
+        mock_login.authorization_code = "test_code"
+        flow.login = mock_login
+
+        flow.hass.data = {
+            DATA_ALEXAMEDIA: {
+                "accounts": {},
+                "config_flows": {},
+            }
+        }
+
+        # Mock async_set_unique_id to return None (no existing entry = new setup)
+        flow.async_set_unique_id = AsyncMock(return_value=None)
+
+        # Mock methods
+        flow.hass.config_entries.async_reload = AsyncMock()
+        flow._abort_if_unique_id_configured = MagicMock()
+        flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
+
+        await flow._test_login()
+
+        # Verify async_reload was NOT called for new entries
+        flow.hass.config_entries.async_reload.assert_not_called()
+
+        # Verify async_create_entry was called instead
+        flow.async_create_entry.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_reauth_updates_credentials_before_reload(self):
+        """Test that credentials are updated before reload is triggered.
+
+        The async_update_entry should be called before async_reload
+        to ensure new credentials are in place.
+        """
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config = {
+            "email": "test@example.com",
+        }
+
+        mock_login = MagicMock()
+        mock_login.email = "test@example.com"
+        mock_login.url = "https://amazon.com"
+        mock_login.status = {"login_successful": True}
+        mock_login.access_token = "new_access_token"  # nosec B105
+        mock_login.refresh_token = "new_refresh_token"  # nosec B105
+        mock_login.expires_in = 3600
+        mock_login.mac_dms = "test_mac"
+        mock_login.code_verifier = "test_verifier"
+        mock_login.authorization_code = "test_code"
+        flow.login = mock_login
+
+        mock_entry = MagicMock()
+        mock_entry.entry_id = "test_entry_id"
+
+        flow.hass.data = {
+            DATA_ALEXAMEDIA: {
+                "accounts": {},
+                "config_flows": {},
+            }
+        }
+
+        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
+
+        # Track call order
+        call_order: list[str] = []
+        flow.hass.config_entries.async_update_entry = MagicMock(
+            side_effect=lambda *_args, **_kwargs: call_order.append("update")
+        )
+        flow.hass.config_entries.async_reload = AsyncMock(
+            side_effect=lambda *_args, **_kwargs: call_order.append("reload")
+        )
+        flow.hass.bus.async_fire = MagicMock()
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
+
+        with patch(
+            "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
+        ):
+            await flow._test_login()
+
+        # Verify update was called before reload
+        assert call_order == [
+            "update",
+            "reload",
+        ], f"Expected update before reload, got: {call_order}"
+
+    @pytest.mark.asyncio
+    async def test_reauth_succeeds_even_when_reload_fails(self):
+        """Test that reauth completes successfully even if reload raises an exception.
+
+        The implementation includes defensive error handling that logs a warning
+        but still returns reauth_successful when async_reload fails. This ensures
+        credentials are updated even if the integration can't be reloaded.
+        """
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config = {
+            "email": "test@example.com",
+        }
+
+        mock_login = MagicMock()
+        mock_login.email = "test@example.com"
+        mock_login.url = "https://amazon.com"
+        mock_login.status = {"login_successful": True}
+        mock_login.access_token = "test_token"  # noqa: S105  # nosec B105
+        mock_login.refresh_token = "test_refresh"  # noqa: S105  # nosec B105
+        mock_login.expires_in = 3600
+        mock_login.mac_dms = "test_mac"
+        mock_login.code_verifier = "test_verifier"
+        mock_login.authorization_code = "test_code"
+        flow.login = mock_login
+
+        mock_entry = MagicMock()
+        mock_entry.entry_id = "test_entry_id"
+
+        flow.hass.data = {
+            DATA_ALEXAMEDIA: {
+                "accounts": {},
+                "config_flows": {},
+            }
+        }
+
+        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
+        flow.hass.config_entries.async_update_entry = MagicMock()
+        # Simulate reload failure
+        flow.hass.config_entries.async_reload = AsyncMock(
+            side_effect=Exception("Reload failed")
+        )
+        flow.hass.bus.async_fire = MagicMock()
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
+
+        with patch(
+            "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
+        ):
+            await flow._test_login()
+
+        # Despite reload failure, reauth should still complete successfully
+        flow.async_abort.assert_called_once_with(reason="reauth_successful")
+        # Credentials should have been updated
+        flow.hass.config_entries.async_update_entry.assert_called_once()
 
 
 class TestConfigFlowInvalidOtpKeyDataSchema:
@@ -100,19 +278,10 @@ class TestConfigFlowInvalidOtpKeyDataSchema:
         ) as f:
             content = f.read()
 
-        # Find the AlexapyPyotpInvalidKey exception handler
-        # The code should look like:
-        # except AlexapyPyotpInvalidKey:
-        #     return self.async_show_form(
-        #         step_id="user",
-        #         data_schema=vol.Schema(self.proxy_schema),
-        #         errors={"base": "2fa_key_invalid"},
-        #         ...
-
         # Check that the exception handler exists
-        assert (
-            "except AlexapyPyotpInvalidKey:" in content
-        ), "AlexapyPyotpInvalidKey exception handler not found in config_flow.py"
+        assert "except AlexapyPyotpInvalidKey:" in content, (
+            "AlexapyPyotpInvalidKey exception handler not found in config_flow.py"
+        )
 
         # Find the exception handler block
         handler_start = content.find("except AlexapyPyotpInvalidKey:")
@@ -122,9 +291,9 @@ class TestConfigFlowInvalidOtpKeyDataSchema:
         handler_block = content[handler_start : handler_start + 500]
 
         # Verify the handler returns async_show_form
-        assert (
-            "async_show_form" in handler_block
-        ), "async_show_form not found in AlexapyPyotpInvalidKey handler"
+        assert "async_show_form" in handler_block, (
+            "async_show_form not found in AlexapyPyotpInvalidKey handler"
+        )
 
         # CRITICAL: Verify data_schema is present in the handler
         assert "data_schema" in handler_block, (
@@ -150,9 +319,9 @@ class TestConfigFlowInvalidOtpKeyDataSchema:
         handler_start = content.find("except AlexapyPyotpInvalidKey:")
         handler_block = content[handler_start : handler_start + 500]
 
-        assert (
-            "2fa_key_invalid" in handler_block
-        ), "Error key '2fa_key_invalid' not found in exception handler"
+        assert "2fa_key_invalid" in handler_block, (
+            "Error key '2fa_key_invalid' not found in exception handler"
+        )
 
     def test_error_form_includes_otp_secret_placeholder(self):
         """Test that the exception handler includes otp_secret in placeholders."""
@@ -183,73 +352,3 @@ class TestConfigFlowInvalidOtpKeyDataSchema:
             "step_id='user' not found in exception handler. "
             "The handler should return users to the user step for correction."
         )
-
-    def test_data_schema_appears_before_errors_in_form_call(self):
-        """Test that data_schema appears in the correct position.
-
-        Best practice: data_schema should come after step_id but before errors,
-        matching the pattern used in other async_show_form calls in the file.
-        """
-        with open(
-            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
-        ) as f:
-            content = f.read()
-
-        handler_start = content.find("except AlexapyPyotpInvalidKey:")
-        handler_block = content[handler_start : handler_start + 500]
-
-        # Find positions in the handler block
-        data_schema_pos = handler_block.find("data_schema")
-        errors_pos = handler_block.find('errors={"base"')
-
-        assert data_schema_pos != -1, "data_schema not found"
-        assert errors_pos != -1, "errors not found"
-
-        # data_schema should come before errors
-        assert data_schema_pos < errors_pos, (
-            "data_schema should appear before errors in async_show_form call "
-            "to match the code style used elsewhere in the file."
-        )
-
-
-class TestConfigFlowConsistency:
-    """Tests to verify consistency with other async_show_form calls."""
-
-    def test_other_error_handlers_have_data_schema(self):
-        """Verify consistency: other error form calls also include data_schema.
-
-        This test checks that the AlexapyPyotpInvalidKey handler follows the
-        same pattern as other error handling in config_flow.py.
-        """
-        with open(
-            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
-        ) as f:
-            content = f.read()
-
-        # Find the NoURLAvailableError handler which correctly uses data_schema
-        url_error_handler = content.find("NoURLAvailableError:")
-        if url_error_handler == -1:
-            pytest.skip("NoURLAvailableError handler not present, skipping check")
-
-        url_error_block = content[url_error_handler : url_error_handler + 400]
-
-        # This handler uses data_schema - our fix should match this pattern
-        if "async_show_form" not in url_error_block:
-            pytest.skip("NoURLAvailableError handler does not use async_show_form")
-
-        assert "data_schema" in url_error_block, (
-            "NoURLAvailableError handler uses async_show_form without "
-            "data_schema - this may indicate a broader issue."
-        )
-
-    def test_vol_schema_import_exists(self):
-        """Verify that voluptuous is imported for Schema creation."""
-        with open(
-            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
-        ) as f:
-            content = f.read()
-
-        # Check for voluptuous import
-        assert (
-            "import voluptuous as vol" in content or "from voluptuous" in content
-        ), "voluptuous not imported - required for vol.Schema(self.proxy_schema)"

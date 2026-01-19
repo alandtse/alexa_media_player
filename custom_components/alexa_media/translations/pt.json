@@ -1,7 +1,7 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "A página 'Esqueci a senha' foi detectada. Normalmente, isso é o resultado de logins que falharam. A Amazon pode exigir uma ação antes que um relogin possa ser tentado.",
+      "forgot_password": "A página de Esqueci a Palavra-passe foi detetada. Isto normalmente é o resultado de demasiadas tentativas de login falhadas. A Amazon pode exigir uma ação antes de ser possível tentar iniciar sessão novamente.",
       "login_failed": "Alexa Media Player não conseguiu fazer o login.",
       "reauth_successful": "Alexa Media Player reautenticado com sucesso. Por favor, ignore a mensagem \"Aborted\" do HA."
     },
@@ -12,7 +12,7 @@
       "invalid_auth": "O ‘login’ não foi bem-sucedido. Verifique novamente o seu endereço eletrónico, senha e chave de autenticação.",
       "invalid_credentials": "Credenciais inválidas",
       "invalid_url": "O URL é inválido: {message}",
-      "oauth_error": "Não foi possível concluir o ‘login’ Coautor. Tente novamente.",
+      "oauth_error": "Não foi possível concluir o login OAuth. Tente novamente.",
       "unable_to_connect_hass_url": "Não foi possível conectar ao URL local do Home Assistant. Verifique o URL em Configurações > Sistema > Rede > URL do Home Assistant > Rede local.",
       "unknown_error": "Erro desconhecido: {message}"
     },
@@ -39,16 +39,16 @@
           "extended_entity_discovery": "Inclua sensores, interruptores e luzes adicionais.",
           "hass_url": "URL da rede local para acessar o Home Assistant",
           "include_devices": "Inclua apenas estes dispositivos (separados por vírgula)",
-          "otp_secret": "Chave do aplicativo Amazon 2SV Autenticamente",
+          "otp_secret": "Chave de 52 caracteres da App Autenticadora para Amazon 2SV",
           "password": "Senha",
           "public_url": "URL pública compartilhada com serviços hospedados externos",
           "queue_delay": "Tempo de espera para enfileirar vários comandos (em segundos)",
           "scan_interval": "Intervalo de sondagem programado (segundos)",
-          "securitycode": "Código 2FA (recomendado para evitar problemas de login)",
+          "securitycode": "Palavra-passe de uso único (OTP)",
           "should_get_network": "Descubra a rede Alexa",
           "url": "Região do domínio Amazon (ex. amazon.com.br)"
         },
-        "description": "* Entradas obrigatórias\nObservação: **A descoberta de entidades estendida** requer que **Descobrir rede Alexa** esteja ativada.",
+        "description": "* Entradas obrigatórias",
         "title": "Alexa Media Player - Configuração"
       }
     }
@@ -72,14 +72,14 @@
           "scan_interval": "Frequência de sondagem programada (segundos)",
           "should_get_network": "Descubra a rede Alexa"
         },
-        "description": "* Entradas obrigatórias\nObservação: **A descoberta de entidades estendida** requer que **Descobrir rede Alexa** esteja ativada.",
+        "description": "* Entradas obrigatórias",
         "title": "Alexa Media Player - Reconfiguração"
       }
     }
   },
   "services": {
     "enable_network_discovery": {
-      "description": "Reativa a descoberta de rede da Alexa para que o próximo ciclo de pesquisa redescubra a dispositivo, Alexa das contas selecionadas.",
+      "description": "Reativa a descoberta de rede da Alexa para que o próximo ciclo de pesquisa redescubra os dispositivos Alexa das contas selecionadas.",
       "fields": {
         "email": {
           "description": "Opcional: Endereço eletrónico da conta Alexa ou lista de endereços eletrónicos. Se estiver vazio, todas as contas conhecidas serão atualizadas.",
@@ -103,7 +103,7 @@
       "fields": {
         "entity_id": {
           "description": "Entidade para obter o histórico de",
-          "name": "Selecione o media MPlayer:"
+          "name": "Selecione o media player:"
         },
         "entries": {
           "description": "Número de entradas para obter",
@@ -117,7 +117,7 @@
       "fields": {
         "entity_id": {
           "description": "Entidade para restaurar o nível de volume anterior em",
-          "name": "Selecione o media MPlayer:"
+          "name": "Selecione o media player:"
         }
       },
       "name": "Restaurar volume anterior"

@@ -352,8 +352,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This will ping Alexa API to identify all devices, bluetooth, and the last
         called device.
 
-        If any guards, temperature sensors, or lights are configured, their
-        current state will be acquired. This data is returned directly so that it is available on the coordinator.
+        If any guards, sensors, switches or lights are configured, their current state will be acquired.
+        This data is returned directly so that it is available on the coordinator.
 
         This will add new devices and services when discovered. By default this
         runs every SCAN_INTERVAL seconds unless another method calls it. if
@@ -382,11 +382,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         extended_entity_discovery = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "options"
         ].get(CONF_EXTENDED_ENTITY_DISCOVERY)
-        should_get_network = (
-            extended_entity_discovery
-            and hass.data[DATA_ALEXAMEDIA]["accounts"][email]["should_get_network"]
-        )
-
+        should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "should_get_network"
+        ]
         devices = {}
         bluetooth = {}
         preferences = {}
@@ -450,6 +448,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ) = await asyncio.gather(*tasks)
 
                 if should_get_network:
+                    # First run is a special case. Get the state of all entities(including disabled)
+                    # This ensures all entities have state during startup without needing to request coordinator refresh
+
                     _LOGGER.info("%s: Network Discovery: Checking", hide_email(email))
                     api_devices = optional_task_results.pop()
                     if not api_devices:
@@ -477,12 +478,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             alexa_entities
                         )
 
-                        # First run is a special case. Get the state of all entities(including disabled)
-                        # This ensures all entities have state during startup without needing to request coordinator refresh
-
                         _entities_to_monitor = set()
                         for type_of_entity, entities in alexa_entities.items():
-                            if type_of_entity == "guard" or extended_entity_discovery:
+                            if (
+                                type_of_entity
+                                in {"guard", "temperature", "air_quality", "aiaqm"}
+                                or extended_entity_discovery
+                            ):
                                 for entity in entities:
                                     _entities_to_monitor.add(entity.get("id"))
                         _LOGGER.debug(

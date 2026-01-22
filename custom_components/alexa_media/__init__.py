@@ -156,9 +156,8 @@ def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
                     if isinstance(ident, tuple) and len(ident) == 2:
                         identifiers.add(ident[1])
                 return
-        except Exception:
-            pass
-
+        except Exception as exc:  # pylint: disable=broad-except
+            _LOGGER.debug("Could not extract identifiers from device_info: %s", exc)
         # dict-style device_info
         if isinstance(device_info, dict):
             di_idents = device_info.get("identifiers")
@@ -167,6 +166,7 @@ def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
                     if isinstance(ident, tuple) and len(ident) == 2:
                         identifiers.add(ident[1])
 
+    # Recursively walk nested entity structures (dict/list/tuple/set) and collect any device_info found.
     def _walk(obj) -> None:
         if obj is None:
             return

@@ -300,6 +300,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         except AlexapyPyotpInvalidKey:
             return self.async_show_form(
                 step_id="user",
+                data_schema=vol.Schema(self.proxy_schema),
                 errors={"base": "2fa_key_invalid"},
                 description_placeholders={
                     "otp_secret": self.config.get(CONF_OTPSECRET, ""),

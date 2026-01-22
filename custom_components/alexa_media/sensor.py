@@ -19,9 +19,9 @@ from homeassistant.components.sensor import (
 from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
 from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt
 from packaging import version
@@ -286,9 +286,9 @@ async def create_air_quality_sensors(
             )
             account_dict["entities"]["sensor"].setdefault(serial, {})
             account_dict["entities"]["sensor"][serial].setdefault("Air_Quality", {})
-            account_dict["entities"]["sensor"][serial][
-                "Air_Quality"
-            ][sensor.unique_id] = sensor
+            account_dict["entities"]["sensor"][serial]["Air_Quality"][
+                sensor.unique_id
+            ] = sensor
             devices.append(sensor)
     return devices
 
@@ -333,8 +333,10 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
-        value_and_scale: Optional[datetime.datetime] = parse_temperature_from_coordinator(
-            coordinator, entity_id, debug=self._debug
+        value_and_scale: Optional[datetime.datetime] = (
+            parse_temperature_from_coordinator(
+                coordinator, entity_id, debug=self._debug
+            )
         )
         self._attr_native_value = self._get_temperature_value(value_and_scale)
         self._attr_native_unit_of_measurement = self._get_temperature_scale(
@@ -359,8 +361,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
 
             via = (
                 via_device_ident
-                if via_device_ident
-                and via_device_ident != device_ident
+                if via_device_ident and via_device_ident != device_ident
                 else None
             )
 
@@ -452,7 +453,9 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_native_unit_of_measurement: Optional[str] = (
             ALEXA_UNIT_CONVERSION.get(unit)
         )
-        self._attr_unique_id = entity_id + "_" + self._sensor_name.replace(" ", "_").lower()
+        self._attr_unique_id = (
+            entity_id + "_" + self._sensor_name.replace(" ", "_").lower()
+        )
         self._attr_icon = ALEXA_ICON_CONVERSION.get(sensor_name, ALEXA_ICON_DEFAULT)
         # Attach to the synthetic AIAQM device so all AQM sensors group under one device.
         if device_ident:

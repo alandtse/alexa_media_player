@@ -760,10 +760,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         ):
             for _, identifier in device_entry.identifiers:
                 if (
-                    identifier in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                    identifier
+                    in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
                         "media_player"
                     ]
-                    or identifier in map(
+                    or identifier
+                    in map(
                         lambda x: slugify(f"{x}_{email}"),
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
                             "media_player"

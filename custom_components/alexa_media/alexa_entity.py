@@ -61,7 +61,7 @@ def is_skill(appliance: dict[str, Any]) -> bool:
     return namespace and namespace == "SKILL"
 
 
-def is_known_ha_bridge(appliance: Optional[dict[str, Any]]) -> bool:
+def is_known_ha_bridge(appliance: dict[str, Any] | None) -> bool:
     """Test whether a bridge appliance is a known HA bridge to avoid creating loops."""
 
     if appliance is None:
@@ -143,6 +143,7 @@ def is_air_quality_sensor(appliance: dict[str, Any]) -> bool:
         and has_capability(appliance, "Alexa.RangeController", "rangeValue")
     )
 
+
 def is_light(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
     return (
@@ -190,7 +191,7 @@ def get_friendliest_name(appliance: dict[str, Any]) -> str:
     return appliance["friendlyName"]
 
 
-def get_device_serial(appliance: dict[str, Any]) -> Optional[str]:
+def get_device_serial(appliance: dict[str, Any]) -> str | None:
     """Find the device serial id if it is present."""
     alexa_device_id_list = appliance.get("alexaDeviceIdentifierList", [])
     for alexa_device_id in alexa_device_id_list:
@@ -201,7 +202,7 @@ def get_device_serial(appliance: dict[str, Any]) -> Optional[str]:
 
 def get_device_bridge(
     appliance: dict[str, Any], appliances: dict[str, dict[str, Any]]
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Find the bridge device for an appliance connected through e.g. a Matter bridge"""
     if not appliance.get("connectedVia"):
         # The appliance cannot be Matter if it does not connect to an Echo device
@@ -282,11 +283,11 @@ class AlexaCapabilityState(TypedDict):
 
     name: str
     namespace: str
-    value: Union[int, str, TypedDict]
+    value: int | str | TypedDict
 
 
 def parse_alexa_entities(
-    network_details: Optional[list[dict[str, Any]]],
+    network_details: list[dict[str, Any]] | None,
     debug: bool = False,
 ) -> AlexaEntities:
     # pylint: disable=too-many-locals
@@ -336,9 +337,13 @@ def parse_alexa_entities(
 
         elif is_temperature_sensor(appliance):
             if debug:
-                _LOGGER.debug("Added temperature sensor: %s", processed_appliance["name"])
+                _LOGGER.debug(
+                    "Added temperature sensor: %s", processed_appliance["name"]
+                )
             serial = get_device_serial(appliance)
-            processed_appliance["device_serial"] = serial if serial else appliance["entityId"]
+            processed_appliance["device_serial"] = (
+                serial if serial else appliance["entityId"]
+            )
             temperature_sensors.append(processed_appliance)  # type: ignore[arg-type]
 
         elif is_air_quality_sensor(appliance):
@@ -362,7 +367,8 @@ def parse_alexa_entities(
                 # Must support numeric rangeValue to be a sensor.
                 supported = safe_get(cap, ["properties", "supported"], [])
                 if not isinstance(supported, list) or not any(
-                    isinstance(p, dict) and p.get("name") == "rangeValue" for p in supported
+                    isinstance(p, dict) and p.get("name") == "rangeValue"
+                    for p in supported
                 ):
                     continue
 
@@ -372,8 +378,16 @@ def parse_alexa_entities(
 
                 unit = safe_get(cap, ["configuration", "unitOfMeasure"], "") or ""
 
-                resources = cap.get("resources", {}) if isinstance(cap.get("resources"), dict) else {}
-                friendly = resources.get("friendlyNames", []) if isinstance(resources.get("friendlyNames"), list) else []
+                resources = (
+                    cap.get("resources", {})
+                    if isinstance(cap.get("resources"), dict)
+                    else {}
+                )
+                friendly = (
+                    resources.get("friendlyNames", [])
+                    if isinstance(resources.get("friendlyNames"), list)
+                    else []
+                )
 
                 sensor_type: str | None = None
                 for entry in friendly:
@@ -389,7 +403,9 @@ def parse_alexa_entities(
                     # Only treat Alexa.AirQuality assetIds as real AIAQM sensors.
                     # Text-only friendlyNames (e.g. @type "text") must be ignored to avoid
                     # creating extra sensors such as PM10.
-                    if isinstance(asset_id, str) and asset_id.startswith("Alexa.AirQuality."):
+                    if isinstance(asset_id, str) and asset_id.startswith(
+                        "Alexa.AirQuality."
+                    ):
                         sensor_type = asset_id
                         break
 
@@ -429,7 +445,9 @@ def parse_alexa_entities(
                 appliance, "Alexa.ColorController", "color"
             )
             processed_appliance["color_temperature"] = has_capability(
-                appliance, "Alexa.ColorTemperatureController", "colorTemperatureInKelvin"
+                appliance,
+                "Alexa.ColorTemperatureController",
+                "colorTemperatureInKelvin",
             )
             lights.append(processed_appliance)  # type: ignore[arg-type]
 
@@ -480,7 +498,7 @@ def parse_temperature_from_coordinator(
     coordinator: DataUpdateCoordinator,
     entity_id: str,
     debug: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Get the temperature of an entity from the coordinator data."""
     temperature = parse_value_from_coordinator(
         coordinator,
@@ -499,7 +517,7 @@ def parse_air_quality_from_coordinator(
     entity_id: str,
     instance_id: str,
     debug: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Get the air quality of an entity from the coordinator data."""
     value = parse_value_from_coordinator(
         coordinator,
@@ -514,7 +532,7 @@ def parse_air_quality_from_coordinator(
 
 def parse_brightness_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
-) -> Optional[int]:
+) -> int | None:
     """Get the brightness in the range 0-100."""
     return parse_value_from_coordinator(
         coordinator,
@@ -527,7 +545,7 @@ def parse_brightness_from_coordinator(
 
 def parse_color_temp_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
-) -> Optional[int]:
+) -> int | None:
     """Get the color temperature in kelvin."""
     return parse_value_from_coordinator(
         coordinator,
@@ -540,7 +558,7 @@ def parse_color_temp_from_coordinator(
 
 def parse_color_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
-) -> Optional[tuple[float, float, float]]:
+) -> tuple[float, float, float] | None:
     """Get the color as a tuple of (hue, saturation, brightness)."""
     value = parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.ColorController", "color", since
@@ -554,7 +572,7 @@ def parse_color_from_coordinator(
 
 def parse_power_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
-) -> Optional[str]:
+) -> str | None:
     """Get the power state of the entity."""
     return parse_value_from_coordinator(
         coordinator,
@@ -567,7 +585,7 @@ def parse_power_from_coordinator(
 
 def parse_guard_state_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str
-) -> Optional[str]:
+) -> str | None:
     """Get the guard state from the coordinator data."""
     return parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.SecurityPanelController", "armState"
@@ -576,7 +594,7 @@ def parse_guard_state_from_coordinator(
 
 def parse_detection_state_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str
-) -> Optional[bool]:
+) -> bool | None:
     """Get the detection state from the coordinator data."""
     return parse_value_from_coordinator(
         coordinator, entity_id, "Alexa.ContactSensor", "detectionState"
@@ -588,8 +606,8 @@ def parse_value_from_coordinator(
     entity_id: str,
     namespace: str,
     name: str,
-    since: Optional[datetime] = None,
-    instance: Optional[str] = None,
+    since: datetime | None = None,
+    instance: str | None = None,
     *,
     debug: bool = False,
 ) -> Any:
@@ -622,7 +640,7 @@ def parse_value_from_coordinator(
 
 
 def is_cap_state_still_acceptable(
-    cap_state: dict[str, Any], since: Optional[datetime]
+    cap_state: dict[str, Any], since: datetime | None
 ) -> bool:
     """Determine if a particular capability state is still usable given its age."""
     if since is not None:

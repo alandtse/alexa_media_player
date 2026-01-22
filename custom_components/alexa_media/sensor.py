@@ -21,6 +21,7 @@ from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt
 from packaging import version
@@ -44,7 +45,6 @@ from .const import (
     ALEXA_ICON_DEFAULT,
     ALEXA_UNIT_CONVERSION,
     CONF_DEBUG,
-    CONF_EXTENDED_ENTITY_DISCOVERY,
     RECURRING_DAY,
     RECURRING_PATTERN,
     RECURRING_PATTERN_ISO_SET,
@@ -132,19 +132,15 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     temperature_sensors = []
     temperature_entities = safe_get(account_dict, ["devices", "temperature"], [])
-    if temperature_entities and account_dict["options"].get(
-        CONF_EXTENDED_ENTITY_DISCOVERY
-    ):
+    if temperature_entities:
         temperature_sensors = await create_temperature_sensors(
             account_dict, temperature_entities, debug=debug
         )
 
-    # AIAQM Sensors
+    # AQM Sensors
     air_quality_sensors = []
     air_quality_entities = safe_get(account_dict, ["devices", "air_quality"], [])
-    if air_quality_entities and account_dict["options"].get(
-        CONF_EXTENDED_ENTITY_DISCOVERY
-    ):
+    if air_quality_entities:
         air_quality_sensors = await create_air_quality_sensors(
             account_dict, air_quality_entities, debug=debug
         )
@@ -185,6 +181,7 @@ async def create_temperature_sensors(
     """Create temperature sensors."""
     devices = []
     coordinator = account_dict["coordinator"]
+
     for temp in temperature_entities:
         if debug:
             _LOGGER.debug(
@@ -193,18 +190,29 @@ async def create_temperature_sensors(
                 temp["name"],
                 temp,
             )
+
         serial = temp["device_serial"]
-        device_info = lookup_device_info(account_dict, serial)
+
+        # Temperature can be from an Echo OR from an AIAQM endpoint.
+        # If it's AIAQM, attach the sensor to the synthetic AIAQM HA device
+        # so all AIAQM entities group under one HA device.
+        if temp.get("sensors"):
+            device_ident = (ALEXA_DOMAIN, f"aiaqm_{temp['id']}")
+        else:
+            device_ident = lookup_device_info(account_dict, serial)
+
         sensor = TemperatureSensor(
             coordinator,
             temp["id"],
             temp["name"],
-            device_info,
+            device_ident,
             debug=debug,
         )
+
         account_dict["entities"]["sensor"].setdefault(serial, {})
         account_dict["entities"]["sensor"][serial]["Temperature"] = sensor
         devices.append(sensor)
+
     return devices
 
 
@@ -220,33 +228,67 @@ async def create_air_quality_sensors(
             temp["name"],
             temp["id"],
         )
-        subsensors = temp["sensors"]
+        subsensors = temp.get("sensors")
+        if not isinstance(subsensors, list) or not subsensors:
+            _LOGGER.debug(
+                "Skipping AIAQM %s (%s): no parsed subsensors found",
+                temp.get("name"),
+                temp.get("id"),
+            )
+            continue
+
         last_index = len(subsensors) - 1
+        seen_sensor_types: set[str] = set()
 
         # Each AIAQM has 5 different sensors.
         for idx, subsensor in enumerate(subsensors):
             prefix = "└─" if idx == last_index else "├─"
-            sensor_type = subsensor["sensorType"]
-            instance = subsensor["instance"]
-            unit = subsensor["unit"]
-            serial = temp["device_serial"]
-            device_info = lookup_device_info(account_dict, serial)
-            _LOGGER.debug(" %s AQM sensor: %s", prefix, sensor_type.rsplit(".", 1)[-1])
+            sensor_type = subsensor.get("sensorType")
+            instance = subsensor.get("instance")
+            unit = subsensor.get("unit", "")
+
+            if sensor_type in seen_sensor_types:
+                _LOGGER.debug(
+                    "%sSkipping duplicate AQM sensorType %s (instance=%s)",
+                    prefix,
+                    sensor_type,
+                    instance,
+                )
+                continue
+            if sensor_type:
+                seen_sensor_types.add(sensor_type)
+
+            if not sensor_type or instance is None:
+                _LOGGER.debug(
+                    "%sSkipping AIAQM subsensor missing sensorType/instance: %s",
+                    prefix,
+                    subsensor,
+                )
+                continue
+            serial = temp.get("device_serial")
+            via_ident = lookup_device_info(account_dict, serial) if serial else None
+            device_ident = (ALEXA_DOMAIN, f"aiaqm_{temp['id']}")
+            _LOGGER.debug(
+                " %s AQM sensor: %s",
+                prefix,
+                sensor_type.rsplit(".", 1)[-1],
+            )
             sensor = AirQualitySensor(
                 coordinator,
                 temp["id"],
                 temp["name"],
-                device_info,
+                device_ident,
                 sensor_type,
                 instance,
                 unit,
+                via_device_ident=via_ident,
                 debug=debug,
             )
             account_dict["entities"]["sensor"].setdefault(serial, {})
-            account_dict["entities"]["sensor"][serial].setdefault(sensor_type, {})
-            account_dict["entities"]["sensor"][serial][sensor_type][
+            account_dict["entities"]["sensor"][serial].setdefault("Air_Quality", {})
+            account_dict["entities"]["sensor"][serial][
                 "Air_Quality"
-            ] = sensor
+            ][sensor.unique_id] = sensor
             devices.append(sensor)
     return devices
 
@@ -269,49 +311,68 @@ def lookup_device_info(account_dict, device_serial):
 
 
 class TemperatureSensor(SensorEntity, CoordinatorEntity):
-    """A temperature sensor reported by an Echo."""
+    """A temperature sensor reported by an Echo or an AIAQM endpoint."""
 
     def __init__(
         self,
         coordinator,
         entity_id,
         name,
-        media_player_device_id,
+        device_ident,
+        *,
+        via_device_ident=None,
         debug: bool = False,
     ):
         """Initialize temperature sensor."""
         super().__init__(coordinator)
         self._debug = bool(debug)
         self.alexa_entity_id = entity_id
-        # Need to append "+temperature" because the Alexa entityId is for a physical device
-        # and a single physical device can have multiple HA entities
+
         self._attr_unique_id = entity_id + "_temperature"
         self._attr_name = name + " Temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        value_and_scale: Optional[datetime.datetime] = (
-            parse_temperature_from_coordinator(
-                coordinator, entity_id, debug=self._debug
-            )
+
+        value_and_scale: Optional[datetime.datetime] = parse_temperature_from_coordinator(
+            coordinator, entity_id, debug=self._debug
         )
         self._attr_native_value = self._get_temperature_value(value_and_scale)
         self._attr_native_unit_of_measurement = self._get_temperature_scale(
             value_and_scale
         )
-        _LOGGER.debug(
-            "Coordinator init: %s: %s %s",
-            self._attr_name,
-            self._attr_native_value,
-            self._attr_native_unit_of_measurement,
-        )
-        self._attr_device_info = (
-            {
-                "identifiers": {media_player_device_id},
-                "via_device": media_player_device_id,
-            }
-            if media_player_device_id
-            else None
-        )
+
+        # Attach to a HA device by identifier:
+        # - Echo: (DOMAIN, serial)
+        # - AIAQM: (DOMAIN, f"aiaqm_{entity_id}")
+        if device_ident:
+            info_kwargs = {}
+            if (
+                isinstance(device_ident, tuple)
+                and len(device_ident) == 2
+                and str(device_ident[1]).startswith("aiaqm_")
+            ):
+                info_kwargs = {
+                    "name": name,
+                    "manufacturer": "Amazon",
+                    "model": "Indoor Air Quality Monitor",
+                }
+
+            via = (
+                via_device_ident
+                if via_device_ident
+                and via_device_ident != device_ident
+                else None
+            )
+
+            self._attr_device_info = dr.DeviceInfo(
+                identifiers={device_ident},
+                via_device=via,
+                **info_kwargs,
+            )
+        else:
+            self._attr_device_info = None
+
+        _LOGGER.debug("Coordinator init: %s", self._attr_name)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -323,11 +384,15 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_native_unit_of_measurement = self._get_temperature_scale(
             value_and_scale
         )
+        value_str = (
+            self._attr_native_value if self._attr_native_value is not None else ""
+        )
+        unit_str = self._attr_native_unit_of_measurement or ""
         _LOGGER.debug(
-            "Coordinator update: %s: %s %s",
+            "Coordinator update: %s: %s%s",
             self._attr_name,
-            self._attr_native_value,
-            self._attr_native_unit_of_measurement,
+            value_str,
+            unit_str,
         )
         super()._handle_coordinator_update()
 
@@ -359,10 +424,12 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         coordinator,
         entity_id,
         name,
-        media_player_device_id,
+        device_ident,
         sensor_name,
         instance,
         unit,
+        *,
+        via_device_ident=None,
         debug: bool = False,
     ):
         super().__init__(coordinator)
@@ -385,23 +452,47 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_native_unit_of_measurement: Optional[str] = (
             ALEXA_UNIT_CONVERSION.get(unit)
         )
-        self._attr_unique_id = entity_id + " " + self._sensor_name
+        self._attr_unique_id = entity_id + "_" + self._sensor_name.replace(" ", "_").lower()
         self._attr_icon = ALEXA_ICON_CONVERSION.get(sensor_name, ALEXA_ICON_DEFAULT)
-        self._attr_device_info = (
-            {
-                "identifiers": {media_player_device_id},
-                "via_device": media_player_device_id,
-            }
-            if media_player_device_id
-            else None
-        )
+        # Attach to the synthetic AIAQM device so all AQM sensors group under one device.
+        if device_ident:
+            via = (
+                via_device_ident
+                if via_device_ident and via_device_ident != device_ident
+                else None
+            )
+            self._attr_device_info = dr.DeviceInfo(
+                identifiers={device_ident},
+                via_device=via,
+                name=name,
+                manufacturer="Amazon",
+                model="Indoor Air Quality Monitor",
+            )
+        else:
+            self._attr_device_info = None
         self._instance = instance
+        _LOGGER.debug("Coordinator init: %s", self._attr_name)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_native_value = parse_air_quality_from_coordinator(
             self.coordinator, self.alexa_entity_id, self._instance, debug=self._debug
+        )
+        value_str = (
+            self._attr_native_value if self._attr_native_value is not None else ""
+        )
+        unit_str = self._attr_native_unit_of_measurement or ""
+        fmt = (
+            "Coordinator update: %s: %s%s"
+            if unit_str in ("", "%")
+            else "Coordinator update: %s: %s %s"
+        )
+        _LOGGER.debug(
+            fmt,
+            self._attr_name,
+            value_str,
+            unit_str,
         )
         super()._handle_coordinator_update()
 
@@ -428,6 +519,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
     ):
         """Initialize the Alexa sensor device."""
         # Class info
+        self._debug = bool(debug)
         self._attr_device_class = SensorDeviceClass.TIMESTAMP
         self._attr_state_class = None
         self._attr_native_value: Optional[datetime.datetime] = None
@@ -444,7 +536,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._n_dict = n_dict
         self._sensor_property = sensor_property
         self._account = account
-        self._debug = bool(debug)
         self._type = "" if not self._type else self._type
         self._all = []
         self._active = []

@@ -339,10 +339,8 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
-        value_and_scale: Optional[dict] = (
-            parse_temperature_from_coordinator(
-                coordinator, entity_id, debug=self._debug
-            )
+        value_and_scale: Optional[dict] = parse_temperature_from_coordinator(
+            coordinator, entity_id, debug=self._debug
         )
         self._attr_native_value = self._get_temperature_value(value_and_scale)
         self._attr_native_unit_of_measurement = self._get_temperature_scale(
@@ -451,10 +449,8 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_name = name + " " + self._sensor_name
         self._attr_device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS.get(sensor_name)
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_value: Optional[str] = (
-            parse_air_quality_from_coordinator(
-                coordinator, entity_id, instance, debug=self._debug
-            )
+        self._attr_native_value: Optional[str] = parse_air_quality_from_coordinator(
+            coordinator, entity_id, instance, debug=self._debug
         )
         self._attr_native_unit_of_measurement: Optional[str] = (
             ALEXA_UNIT_CONVERSION.get(unit)

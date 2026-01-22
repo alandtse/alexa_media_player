@@ -449,7 +449,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_name = name + " " + self._sensor_name
         self._attr_device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS.get(sensor_name)
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_value: Optional[str] = parse_air_quality_from_coordinator(
+        self._attr_native_value: Optional[int | float | str] = parse_air_quality_from_coordinator(
             coordinator, entity_id, instance, debug=self._debug
         )
         self._attr_native_unit_of_measurement: Optional[str] = (

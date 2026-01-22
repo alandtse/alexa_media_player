@@ -373,8 +373,13 @@ def parse_alexa_entities(
                     continue
 
                 instance = cap.get("instance")
-                if not isinstance(instance, str) or not instance:
+                if instance is None or instance == "":
                     continue
+                if not isinstance(instance, str):
+                    if isinstance(instance, (int, float)):
+                        instance = str(instance)
+                    else:
+                        continue
 
                 unit = safe_get(cap, ["configuration", "unitOfMeasure"], "") or ""
 

@@ -498,7 +498,7 @@ def parse_temperature_from_coordinator(
     coordinator: DataUpdateCoordinator,
     entity_id: str,
     debug: bool = False,
-) -> str | None:
+) -> dict[str, Any] | None:
     """Get the temperature of an entity from the coordinator data."""
     temperature = parse_value_from_coordinator(
         coordinator,

@@ -168,6 +168,12 @@ async def async_unload_entry(hass, entry) -> bool:
     _LOGGER.debug("Attempting to unload sensors")
     for key, sensors in account_dict["entities"]["sensor"].items():
         for device in sensors.values():
+            if isinstance(device, dict):
+                # Air_Quality stores sensors in a nested dict
+                for nested_sensor in device.values():
+                    _LOGGER.debug("Removing %s", nested_sensor)
+                    await nested_sensor.async_remove()
+                continue
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
     return True
@@ -333,7 +339,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
-        value_and_scale: Optional[datetime.datetime] = (
+        value_and_scale: Optional[dict] = (
             parse_temperature_from_coordinator(
                 coordinator, entity_id, debug=self._debug
             )
@@ -445,7 +451,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_name = name + " " + self._sensor_name
         self._attr_device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS.get(sensor_name)
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._attr_native_value: Optional[datetime.datetime] = (
+        self._attr_native_value: Optional[str] = (
             parse_air_quality_from_coordinator(
                 coordinator, entity_id, instance, debug=self._debug
             )

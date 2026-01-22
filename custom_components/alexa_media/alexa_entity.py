@@ -283,7 +283,7 @@ class AlexaCapabilityState(TypedDict):
 
     name: str
     namespace: str
-    value: int | str | TypedDict
+    value: int | str | dict[str, Any]
 
 
 def parse_alexa_entities(

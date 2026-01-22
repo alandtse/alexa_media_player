@@ -7,6 +7,8 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 import json
 import logging
@@ -16,7 +18,7 @@ from typing import Any, Optional, TypedDict, Union
 from alexapy import AlexaAPI, AlexaLogin
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from custom_components.alexa_media.helpers import safe_get
+from .helpers import safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,10 +70,19 @@ def is_known_ha_bridge(appliance: Optional[dict[str, Any]]) -> bool:
     if appliance.get("manufacturerName") in ("t0bst4r", "Matterbridge"):
         return True
 
-    # If we want to exclude all Matter devices (these can always be added
-    # directly to HA instead of going through AMP), we could test for a
-    # networkInterfaceIdentifier of type "MATTER" or capabilities on the
-    # "Alexa.Matter.NodeOperationalCredentials.FabricManagement" interface.
+    # Identify Matter bridge hubs regardless of manufacturerName
+    if "HUB" in appliance.get("applianceTypes", []):
+        driver_ns = safe_get(appliance, ["driverIdentity", "namespace"], "")
+        driver_id = safe_get(appliance, ["driverIdentity", "identifier"], "")
+        if driver_ns == "AAA" and driver_id == "SonarCloudService":
+            interfaces = {
+                cap.get("interfaceName") for cap in appliance.get("capabilities", [])
+            }
+            if (
+                "Alexa.Matter.NodeOperationalCredentials.FabricManagement" in interfaces
+                or "Alexa.Commissionable" in interfaces
+            ):
+                return True
 
     return False
 
@@ -125,14 +136,12 @@ def is_temperature_sensor(appliance: dict[str, Any]) -> bool:
 
 # Checks if air quality sensor
 def is_air_quality_sensor(appliance: dict[str, Any]) -> bool:
-    """Is the given appliance the Air Quality Sensor."""
+    """Is the given appliance the Amazon Indoor Air Quality Monitor (AIAQM)."""
     return (
-        appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor"
+        appliance.get("friendlyDescription") == "Amazon Indoor Air Quality Monitor"
         and "AIR_QUALITY_MONITOR" in appliance.get("applianceTypes", [])
-        and has_capability(appliance, "Alexa.TemperatureSensor", "temperature")
         and has_capability(appliance, "Alexa.RangeController", "rangeValue")
     )
-
 
 def is_light(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
@@ -208,7 +217,10 @@ def get_device_bridge(
         return None
 
     # We expect the bridge to share the prefix without the device num
-    return appliances[match.group(1)]
+    return appliances.get(match.group(1))
+
+
+AlexaEntityData = dict[str, list["AlexaCapabilityState"]]
 
 
 class AlexaEntity(TypedDict):
@@ -240,6 +252,13 @@ class AlexaAirQualityEntity(AlexaEntity):
     device_serial: str
 
 
+class AlexaAIAQMEntity(AlexaEntity):
+    """Entity-backed "device" representing an Amazon Indoor Air Quality Monitor."""
+
+    device_serial: str
+    sensors: list[dict[str, str]]
+
+
 class AlexaBinaryEntity(AlexaEntity):
     """Class for AlexaBinaryEntity."""
 
@@ -247,140 +266,15 @@ class AlexaBinaryEntity(AlexaEntity):
 
 
 class AlexaEntities(TypedDict):
-    """Class for holding entities."""
+    """Class for Alexa Entities."""
 
     light: list[AlexaLightEntity]
     guard: list[AlexaEntity]
     temperature: list[AlexaTemperatureEntity]
     air_quality: list[AlexaAirQualityEntity]
+    aiaqm: list[AlexaAIAQMEntity]
     binary_sensor: list[AlexaBinaryEntity]
     smart_switch: list[AlexaEntity]
-
-
-def parse_alexa_entities(
-    network_details: Optional[dict[str, Any]],
-    debug: bool = False,
-) -> AlexaEntities:
-    # pylint: disable=too-many-locals
-    """Turn the network details into a list of useful entities with the important details extracted."""
-    lights = []
-    guards = []
-    temperature_sensors = []
-    air_quality_sensors = []
-    contact_sensors = []
-    switches = []
-
-    if not network_details:
-        return {
-            "light": lights,
-            "guard": guards,
-            "temperature": temperature_sensors,
-            "air_quality": air_quality_sensors,
-            "binary_sensor": contact_sensors,
-            "smart_switch": switches,
-        }
-    network_dict = {}
-    _LOGGER.debug("Processing network_details")
-    for appliance in network_details:
-        network_dict[appliance["applianceId"]] = appliance
-
-    for appliance in network_details:
-        device_bridge = get_device_bridge(appliance, network_dict)
-        if is_known_ha_bridge(device_bridge):
-            _LOGGER.debug("Found Home Assistant bridge, skipping %s", appliance)
-            continue
-
-        processed_appliance = {
-            "id": appliance["entityId"],
-            "appliance_id": appliance["applianceId"],
-            "name": get_friendliest_name(appliance),
-            "is_hue_v1": is_hue_v1(appliance),
-        }
-        if is_alexa_guard(appliance):
-            _LOGGER.debug("Added Alexa Guard: %s", processed_appliance["name"])
-            guards.append(processed_appliance)
-        elif is_temperature_sensor(appliance):
-            if debug:
-                _LOGGER.debug(
-                    "Added temperature sensor: %s", processed_appliance["name"]
-                )
-            serial = get_device_serial(appliance)
-            processed_appliance["device_serial"] = (
-                serial if serial else appliance["entityId"]
-            )
-            temperature_sensors.append(processed_appliance)
-        # Code for Amazon Smart Air Quality Monitor
-        elif is_air_quality_sensor(appliance):
-            if debug:
-                _LOGGER.debug("Added AIAQM sensor: %s", processed_appliance["name"])
-            serial = get_device_serial(appliance)
-            processed_appliance["device_serial"] = (
-                serial if serial else appliance["entityId"]
-            )
-            # create array of air quality sensors. We must store the instance id against
-            # the assetId so we know which sensors are which.
-            sensors = []
-            if appliance["friendlyDescription"] == "Amazon Indoor Air Quality Monitor":
-                for cap in appliance["capabilities"]:
-                    instance = cap.get("instance")
-                    if not instance:
-                        continue
-
-                    friendlyName = cap["resources"].get("friendlyNames")
-                    for entry in friendlyName:
-                        assetId = entry["value"].get("assetId")
-                        if not assetId or not assetId.startswith("Alexa.AirQuality"):
-                            continue
-
-                        unit = cap["configuration"]["unitOfMeasure"]
-                        sensor = {
-                            "sensorType": assetId,
-                            "instance": instance,
-                            "unit": unit,
-                        }
-                        sensors.append(sensor)
-            processed_appliance["sensors"] = sensors
-            # Add as both temperature and air quality sensor
-            temperature_sensors.append(processed_appliance)
-            air_quality_sensors.append(processed_appliance)
-        elif is_switch(appliance):
-            if debug:
-                _LOGGER.debug("Added switch: %s", processed_appliance["name"])
-            switches.append(processed_appliance)
-        elif is_light(appliance):
-            if debug:
-                _LOGGER.debug("Added light %s", processed_appliance["name"])
-            processed_appliance["brightness"] = has_capability(
-                appliance, "Alexa.BrightnessController", "brightness"
-            )
-            processed_appliance["color"] = has_capability(
-                appliance, "Alexa.ColorController", "color"
-            )
-            processed_appliance["color_temperature"] = has_capability(
-                appliance,
-                "Alexa.ColorTemperatureController",
-                "colorTemperatureInKelvin",
-            )
-            lights.append(processed_appliance)
-        elif is_contact_sensor(appliance):
-            if debug:
-                _LOGGER.debug("Added contact sensor: %s", processed_appliance["name"])
-            processed_appliance["battery_level"] = has_capability(
-                appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
-            )
-            contact_sensors.append(processed_appliance)
-        else:
-            if debug:
-                _LOGGER.debug("Unsupported entity: %s", processed_appliance["name"])
-
-    return {
-        "light": lights,
-        "guard": guards,
-        "temperature": temperature_sensors,
-        "air_quality": air_quality_sensors,
-        "binary_sensor": contact_sensors,
-        "smart_switch": switches,
-    }
 
 
 class AlexaCapabilityState(TypedDict):
@@ -391,7 +285,175 @@ class AlexaCapabilityState(TypedDict):
     value: Union[int, str, TypedDict]
 
 
-AlexaEntityData = dict[str, list[AlexaCapabilityState]]
+def parse_alexa_entities(
+    network_details: Optional[list[dict[str, Any]]],
+    debug: bool = False,
+) -> AlexaEntities:
+    # pylint: disable=too-many-locals
+    """Turn the network details into a list of useful entities with the important details extracted."""
+    temperature_sensors: list[AlexaTemperatureEntity] = []
+    air_quality_sensors: list[AlexaAirQualityEntity] = []
+    aiaqm_entities: list[AlexaAIAQMEntity] = []
+    contact_sensors: list[AlexaBinaryEntity] = []
+    switches: list[AlexaEntity] = []
+    guards: list[AlexaEntity] = []
+    lights: list[AlexaLightEntity] = []
+
+    if not network_details:
+        return {
+            "light": lights,
+            "guard": guards,
+            "temperature": temperature_sensors,
+            "air_quality": air_quality_sensors,
+            "aiaqm": aiaqm_entities,
+            "binary_sensor": contact_sensors,
+            "smart_switch": switches,
+        }
+
+    network_dict: dict[str, dict[str, Any]] = {}
+    _LOGGER.debug("Processing network_details")
+    for appliance in network_details:
+        appliance_id = appliance.get("applianceId")
+        if appliance_id:
+            network_dict[appliance_id] = appliance
+
+    for appliance in network_details:
+        device_bridge = get_device_bridge(appliance, network_dict)
+        if is_known_ha_bridge(device_bridge):
+            _LOGGER.debug("Found Home Assistant bridge, skipping %s", appliance)
+            continue
+
+        processed_appliance: dict[str, Any] = {
+            "id": appliance["entityId"],
+            "appliance_id": appliance["applianceId"],
+            "name": get_friendliest_name(appliance),
+            "is_hue_v1": is_hue_v1(appliance),
+        }
+
+        if is_alexa_guard(appliance):
+            _LOGGER.debug("Added Alexa Guard: %s", processed_appliance["name"])
+            guards.append(processed_appliance)  # type: ignore[arg-type]
+
+        elif is_temperature_sensor(appliance):
+            if debug:
+                _LOGGER.debug("Added temperature sensor: %s", processed_appliance["name"])
+            serial = get_device_serial(appliance)
+            processed_appliance["device_serial"] = serial if serial else appliance["entityId"]
+            temperature_sensors.append(processed_appliance)  # type: ignore[arg-type]
+
+        elif is_air_quality_sensor(appliance):
+            if debug:
+                _LOGGER.debug("Added AIAQM sensor: %s", processed_appliance["name"])
+
+            serial = get_device_serial(appliance)
+            processed_appliance["device_serial"] = (
+                serial if serial else appliance["entityId"]
+            )
+
+            # Build a list of sub-sensors we can read via AlexaAPI.get_entity_state.
+            # AIAQM metrics are exposed via Alexa.RangeController(rangeValue) with an
+            # instance per metric. Some accounts/devices use numeric instances, so
+            # we derive the sensor type from the friendlyName assetId/text.
+            sensors: list[dict[str, str]] = []
+            for cap in appliance.get("capabilities", []):
+                if cap.get("interfaceName") != "Alexa.RangeController":
+                    continue
+
+                # Must support numeric rangeValue to be a sensor.
+                supported = safe_get(cap, ["properties", "supported"], [])
+                if not isinstance(supported, list) or not any(
+                    isinstance(p, dict) and p.get("name") == "rangeValue" for p in supported
+                ):
+                    continue
+
+                instance = cap.get("instance")
+                if not isinstance(instance, str) or not instance:
+                    continue
+
+                unit = safe_get(cap, ["configuration", "unitOfMeasure"], "") or ""
+
+                resources = cap.get("resources", {}) if isinstance(cap.get("resources"), dict) else {}
+                friendly = resources.get("friendlyNames", []) if isinstance(resources.get("friendlyNames"), list) else []
+
+                sensor_type: str | None = None
+                for entry in friendly:
+                    if not isinstance(entry, dict):
+                        continue
+                    value_obj = entry.get("value")
+                    asset_id = None
+                    if isinstance(value_obj, dict):
+                        asset_id = value_obj.get("assetId")
+                    else:
+                        asset_id = entry.get("assetId")
+
+                    # Only treat Alexa.AirQuality assetIds as real AIAQM sensors.
+                    # Text-only friendlyNames (e.g. @type "text") must be ignored to avoid
+                    # creating extra sensors such as PM10.
+                    if isinstance(asset_id, str) and asset_id.startswith("Alexa.AirQuality."):
+                        sensor_type = asset_id
+                        break
+
+                if not sensor_type:
+                    continue
+                sensors.append(
+                    {
+                        "sensorType": str(sensor_type),
+                        "instance": instance,
+                        "unit": str(unit),
+                    }
+                )
+
+            if sensors:
+                processed_appliance["sensors"] = sensors
+                aiaqm_entities.append(processed_appliance)  # type: ignore[arg-type]
+                # Backwards compatibility: also expose as air_quality for existing paths.
+                air_quality_sensors.append(processed_appliance)  # type: ignore[arg-type]
+                # AIAQM also has temperature; ensure it gets created and grouped with AIAQM.
+                temperature_sensors.append(processed_appliance)  # type: ignore[arg-type]
+            else:
+                # Still add to air_quality so the coordinator monitors the entityId.
+                air_quality_sensors.append(processed_appliance)  # type: ignore[arg-type]
+
+        elif is_switch(appliance):
+            if debug:
+                _LOGGER.debug("Added switch: %s", processed_appliance["name"])
+            switches.append(processed_appliance)  # type: ignore[arg-type]
+
+        elif is_light(appliance):
+            if debug:
+                _LOGGER.debug("Added light %s", processed_appliance["name"])
+            processed_appliance["brightness"] = has_capability(
+                appliance, "Alexa.BrightnessController", "brightness"
+            )
+            processed_appliance["color"] = has_capability(
+                appliance, "Alexa.ColorController", "color"
+            )
+            processed_appliance["color_temperature"] = has_capability(
+                appliance, "Alexa.ColorTemperatureController", "colorTemperatureInKelvin"
+            )
+            lights.append(processed_appliance)  # type: ignore[arg-type]
+
+        elif is_contact_sensor(appliance):
+            if debug:
+                _LOGGER.debug("Added contact sensor: %s", processed_appliance["name"])
+            processed_appliance["battery_level"] = has_capability(
+                appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
+            )
+            contact_sensors.append(processed_appliance)  # type: ignore[arg-type]
+
+        else:
+            if debug:
+                _LOGGER.debug("Unsupported entity: %s", processed_appliance["name"])
+
+    return {
+        "light": lights,
+        "guard": guards,
+        "temperature": temperature_sensors,
+        "air_quality": air_quality_sensors,
+        "aiaqm": aiaqm_entities,
+        "binary_sensor": contact_sensors,
+        "smart_switch": switches,
+    }
 
 
 async def get_entity_data(

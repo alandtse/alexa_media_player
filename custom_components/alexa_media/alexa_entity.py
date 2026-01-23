@@ -429,36 +429,28 @@ def parse_alexa_entities(
                     }
                 )
 
-            if sensors:
-                aiaqm_entity: AlexaAIAQMEntity = {
-                    **processed_appliance,
-                    "device_serial": device_serial,
-                    "sensors": sensors,
-                }
-                aiaqm_entities.append(aiaqm_entity)
+            # Always register the AIAQM device (even if no sub-sensors are exposed).
+            aiaqm_entity: AlexaAIAQMEntity = {
+                **processed_appliance,
+                "device_serial": device_serial,
+                "sensors": sensors,
+            }
+            aiaqm_entities.append(aiaqm_entity)
 
-                # Backwards compatibility: also expose as air_quality for existing paths.
-                aq_entity: AlexaAirQualityEntity = {
-                    **processed_appliance,
-                    "device_serial": device_serial,
-                }
-                air_quality_sensors.append(aq_entity)
+            # Backwards compatibility: also expose as air_quality for existing paths.
+            aq_entity: AlexaAirQualityEntity = {
+                **processed_appliance,
+                "device_serial": device_serial,
+            }
+            air_quality_sensors.append(aq_entity)
 
-                # AIAQM also has temperature; ensure it gets created and grouped with AIAQM.
-                temp_entity: AlexaTemperatureEntity = {
-                    **processed_appliance,
-                    "device_serial": device_serial,
-                    "is_aiaqm": True,
-                }
-                temperature_sensors.append(temp_entity)
-            else:
-                # Still add to air_quality so the coordinator monitors the entityId.
-                aq_entity: AlexaAirQualityEntity = {
-                    **processed_appliance,
-                    "device_serial": device_serial,
-                }
-                air_quality_sensors.append(aq_entity)
-
+            # AIAQM also has temperature; ensure it gets created and grouped with AIAQM.
+            temp_entity: AlexaTemperatureEntity = {
+                **processed_appliance,
+                "device_serial": device_serial,
+                "is_aiaqm": True,
+            }
+            temperature_sensors.append(temp_entity)
         elif is_switch(appliance):
             if debug:
                 _LOGGER.debug("Added switch: %s", processed_appliance["name"])

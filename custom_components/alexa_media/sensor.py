@@ -333,7 +333,6 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         device_ident,
         *,
         device_serial: Optional[str] = None,
-        via_device_ident=None,
         debug: bool = False,
     ):
         """Initialize temperature sensor."""
@@ -433,7 +432,6 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         unit,
         *,
         device_serial: Optional[str] = None,
-        via_device_ident=None,
         debug: bool = False,
     ):
         super().__init__(coordinator)

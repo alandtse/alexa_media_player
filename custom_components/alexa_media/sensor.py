@@ -880,7 +880,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         try:
             self.schedule_update_ha_state()
         except NoEntitySpecifiedError:
-            pass # we ignore this due to a harmless startup race condition
+            pass  # we ignore this due to a harmless startup race condition
 
     @property
     def recurrence(self):

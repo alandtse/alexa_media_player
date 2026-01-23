@@ -276,7 +276,6 @@ async def create_air_quality_sensors(
                 continue
 
             serial = temp.get("device_serial")
-            via_ident = lookup_device_info(account_dict, serial) if serial else None
             if not serial:
                 _LOGGER.debug(
                     "Skipping AIAQM subsensor %s: missing device_serial",
@@ -298,7 +297,6 @@ async def create_air_quality_sensors(
                 instance,
                 unit,
                 device_serial=serial,
-                via_device_ident=via_ident,
                 debug=debug,
             )
             account_dict["entities"]["sensor"].setdefault(serial, {})

@@ -365,7 +365,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
             value_and_scale
         )
 
-        # Attach to a HA device by identifier:
+        # Attach to an HA device by identifier:
         # - Echo: (DOMAIN, serial)
         # - AIAQM: (DOMAIN, <hardware serial>)
         if device_ident:

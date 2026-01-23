@@ -802,7 +802,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             self._tracker()
 
     def _handle_event(self, event):
-       """Handle events.
+        """Handle events.
 
         This will update PUSH_ACTIVITY, NOTIFICATION_UPDATE, or a global
         notifications refresh event to see if the sensor should be updated.

@@ -327,7 +327,7 @@ def parse_alexa_entities(
             _LOGGER.debug("Found Home Assistant bridge, skipping %s", appliance)
             continue
 
-        processed_appliance: dict[str, Any] = {
+        processed_appliance: AlexaEntity = {
             "id": appliance["entityId"],
             "appliance_id": appliance["applianceId"],
             "name": get_friendliest_name(appliance),
@@ -344,10 +344,11 @@ def parse_alexa_entities(
                     "Added temperature sensor: %s", processed_appliance["name"]
                 )
             serial = get_device_serial(appliance)
-            processed_appliance["device_serial"] = (
-                serial if serial else appliance["entityId"]
-            )
-            temperature_sensors.append(processed_appliance)
+            temp_entity: AlexaTemperatureEntity = {
+                **processed_appliance,
+                "device_serial": serial if serial else appliance["entityId"],
+            }
+            temperature_sensors.append(temp_entity)
 
         elif is_air_quality_sensor(appliance):
             if debug:
@@ -428,20 +429,38 @@ def parse_alexa_entities(
                 )
 
             if sensors:
-                processed_appliance["sensors"] = sensors
-                aiaqm_entities.append(processed_appliance)  # type: ignore[arg-type]
+                aiaqm_entity: AlexaAIAQMEntity = {
+                    **processed_appliance,
+                    "device_serial": processed_appliance["device_serial"],
+                    "sensors": sensors,
+                }
+                aiaqm_entities.append(aiaqm_entity)
+
                 # Backwards compatibility: also expose as air_quality for existing paths.
-                air_quality_sensors.append(processed_appliance)  # type: ignore[arg-type]
+                aq_entity: AlexaAirQualityEntity = {
+                    **processed_appliance,
+                    "device_serial": processed_appliance["device_serial"],
+                }
+                air_quality_sensors.append(aq_entity)
+
                 # AIAQM also has temperature; ensure it gets created and grouped with AIAQM.
-                temperature_sensors.append(processed_appliance)  # type: ignore[arg-type]
+                temp_entity: AlexaTemperatureEntity = {
+                    **processed_appliance,
+                    "device_serial": processed_appliance["device_serial"],
+                }
+                temperature_sensors.append(temp_entity)
             else:
                 # Still add to air_quality so the coordinator monitors the entityId.
-                air_quality_sensors.append(processed_appliance)  # type: ignore[arg-type]
+                aq_entity: AlexaAirQualityEntity = {
+                    **processed_appliance,
+                    "device_serial": processed_appliance["device_serial"],
+                }
+                air_quality_sensors.append(aq_entity)
 
         elif is_switch(appliance):
             if debug:
                 _LOGGER.debug("Added switch: %s", processed_appliance["name"])
-            switches.append(processed_appliance)  # type: ignore[arg-type]
+            switches.append(processed_appliance)
 
         elif is_light(appliance):
             if debug:
@@ -457,7 +476,13 @@ def parse_alexa_entities(
                 "Alexa.ColorTemperatureController",
                 "colorTemperatureInKelvin",
             )
-            lights.append(processed_appliance)  # type: ignore[arg-type]
+            light_entity: AlexaLightEntity = {
+                **processed_appliance,
+                "brightness": processed_appliance["brightness"],
+                "color": processed_appliance["color"],
+                "color_temperature": processed_appliance["color_temperature"],
+            }
+            lights.append(light_entity)
 
         elif is_contact_sensor(appliance):
             if debug:
@@ -465,7 +490,11 @@ def parse_alexa_entities(
             processed_appliance["battery_level"] = has_capability(
                 appliance, "Alexa.BatteryLevelSensor", "batteryLevel"
             )
-            contact_sensors.append(processed_appliance)  # type: ignore[arg-type]
+            binary_entity: AlexaBinaryEntity = {
+                **processed_appliance,
+                "battery_level": processed_appliance["battery_level"],
+            }
+            contact_sensors.append(binary_entity)
 
         else:
             if debug:

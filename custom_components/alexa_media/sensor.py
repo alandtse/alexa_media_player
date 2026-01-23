@@ -166,16 +166,25 @@ async def async_unload_entry(hass, entry) -> bool:
     account = entry.data[CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("Attempting to unload sensors")
-    for key, sensors in account_dict["entities"]["sensor"].items():
-        for device in sensors.values():
+
+    for key, sensors in list(account_dict["entities"]["sensor"].items()):
+        for sensor_key, device in list(sensors.items()):
             if isinstance(device, dict):
                 # Air_Quality stores sensors in a nested dict
-                for nested_sensor in device.values():
+                for nested_key, nested_sensor in list(device.items()):
                     _LOGGER.debug("Removing %s", nested_sensor)
                     await nested_sensor.async_remove()
+                    device.pop(nested_key, None)
+                sensors.pop(sensor_key, None)
                 continue
+
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
+            sensors.pop(sensor_key, None)
+
+        if not sensors:
+            account_dict["entities"]["sensor"].pop(key, None)
+
     return True
 
 

@@ -285,7 +285,7 @@ class AlexaCapabilityState(TypedDict, total=False):
     namespace: str
     value: int | float | str | dict[str, Any]
     instance: str
-    TimeOfSample: str
+    timeOfSample: str
     uncertaintyInMilliseconds: int
 
 

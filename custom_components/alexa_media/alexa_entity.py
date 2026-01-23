@@ -336,7 +336,7 @@ def parse_alexa_entities(
 
         if is_alexa_guard(appliance):
             _LOGGER.debug("Added Alexa Guard: %s", processed_appliance["name"])
-            guards.append(processed_appliance)  # type: ignore[arg-type]
+            guards: list[AlexaAppliance] = []
 
         elif is_temperature_sensor(appliance):
             if debug:
@@ -347,7 +347,7 @@ def parse_alexa_entities(
             processed_appliance["device_serial"] = (
                 serial if serial else appliance["entityId"]
             )
-            temperature_sensors.append(processed_appliance)  # type: ignore[arg-type]
+            temperature_sensors: list[AlexaAppliance] = []
 
         elif is_air_quality_sensor(appliance):
             if debug:

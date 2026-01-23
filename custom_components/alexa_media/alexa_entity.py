@@ -556,7 +556,7 @@ def parse_air_quality_from_coordinator(
     entity_id: str,
     instance_id: str,
     debug: bool = False,
-) -> str | None:
+) -> int | float | str | None:
     """Get the air quality of an entity from the coordinator data."""
     value = parse_value_from_coordinator(
         coordinator,

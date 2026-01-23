@@ -277,8 +277,13 @@ async def create_air_quality_sensors(
 
             serial = temp.get("device_serial")
             via_ident = lookup_device_info(account_dict, serial) if serial else None
-            device_ident = (ALEXA_DOMAIN, temp["device_serial"])
-
+            if not serial:
+                _LOGGER.debug(
+                    "Skipping AIAQM subsensor %s: missing device_serial",
+                    temp.get("name"),
+                )
+                continue
+            device_ident = (ALEXA_DOMAIN, serial)
             _LOGGER.debug(
                 " %s AQM sensor: %s",
                 prefix,

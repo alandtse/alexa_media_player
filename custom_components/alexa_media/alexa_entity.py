@@ -651,10 +651,15 @@ def parse_value_from_coordinator(
     """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
         for cap_state in coordinator.data[entity_id]:
+            cap_instance = cap_state.get("instance")
+            instance_match = (
+                instance is None
+                or (cap_instance is not None and str(cap_instance) == str(instance))
+            )
             if (
                 cap_state.get("namespace") == namespace
                 and cap_state.get("name") == name
-                and (cap_state.get("instance") == instance or instance is None)
+                and instance_match
             ):
                 if is_cap_state_still_acceptable(cap_state, since):
                     return cap_state.get("value")

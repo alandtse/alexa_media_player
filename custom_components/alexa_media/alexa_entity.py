@@ -652,9 +652,8 @@ def parse_value_from_coordinator(
     if coordinator.data and entity_id in coordinator.data:
         for cap_state in coordinator.data[entity_id]:
             cap_instance = cap_state.get("instance")
-            instance_match = (
-                instance is None
-                or (cap_instance is not None and str(cap_instance) == str(instance))
+            instance_match = instance is None or (
+                cap_instance is not None and str(cap_instance) == str(instance)
             )
             if (
                 cap_state.get("namespace") == namespace

@@ -242,10 +242,6 @@ class AlexaLightEntity(AlexaEntity):
 
 
 class AlexaTemperatureEntity(TypedDict, total=False):
-    id: str
-    appliance_id: str
-    name: str
-    is_hue_v1: bool
     device_serial: str
     is_aiaqm: bool
 

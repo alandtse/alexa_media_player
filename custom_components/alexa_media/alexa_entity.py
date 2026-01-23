@@ -13,7 +13,7 @@ from datetime import datetime
 import json
 import logging
 import re
-from typing import Any, Optional, TypedDict, Union
+from typing import Any, Optional, TypedDict
 
 from alexapy import AlexaAPI, AlexaLogin
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -278,12 +278,15 @@ class AlexaEntities(TypedDict):
     smart_switch: list[AlexaEntity]
 
 
-class AlexaCapabilityState(TypedDict):
+class AlexaCapabilityState(TypedDict, total=False):
     """Class for AlexaCapabilityState."""
 
     name: str
     namespace: str
-    value: int | str | dict[str, Any]
+    value: int | float | str | dict[str, Any]
+    instance: str
+    TimeOfSample: str
+    uncertaintyInMilliseconds: int
 
 
 def parse_alexa_entities(

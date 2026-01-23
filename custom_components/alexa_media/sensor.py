@@ -340,6 +340,8 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         super().__init__(coordinator)
         self._debug = bool(debug)
         self.alexa_entity_id = entity_id
+        # Need to append "+temperature" because the Alexa entityId is for a physical device
+        # and a single physical device can have multiple HA entities
         self._attr_unique_id = entity_id + "_temperature"
         self._attr_name = name + " Temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
@@ -553,12 +555,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._status: Optional[str] = None
         self._amz_id: Optional[str] = None
         self._version: Optional[str] = None
-
-    # --- remainder of file unchanged ---
-    # (kept exactly as in your current sensor.py)
-    # NOTE: For brevity in this response, I did not reprint the remainder
-    # of AlexaMediaNotificationSensor/AlarmSensor/TimerSensor/ReminderSensor,
-    # since your current versions are correct and unrelated to the AIAQM fixes.
 
     def _process_raw_notifications(self):
         # Build full list for this device/type
@@ -790,6 +786,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         except AttributeError:
             pass
         self._process_raw_notifications()
+        # Register event handler on bus
         self._listener = async_dispatcher_connect(
             self.hass,
             f"{ALEXA_DOMAIN}_{hide_email(self._account)}"[0:32],
@@ -799,18 +796,24 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
     async def async_will_remove_from_hass(self):
         """Prepare to remove entity."""
+        # Register event handler on bus
         self._listener()
         if self._tracker:
             self._tracker()
 
     def _handle_event(self, event):
-        """Handle events."""
+       """Handle events.
+
+        This will update PUSH_ACTIVITY, NOTIFICATION_UPDATE, or a global
+        notifications refresh event to see if the sensor should be updated.
+        """
         try:
             if not self.enabled:
                 return
         except AttributeError:
             pass
 
+        # Global refresh: any time we rebuild the notifications snapshot
         if "notifications_refreshed" in event:
             _LOGGER.debug("Force-refreshing notification sensor %s", self)
             self.schedule_update_ha_state(True)
@@ -868,14 +871,16 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 pass
             return
 
+        # Normal path: notifications dict present
         self._timestamp = notifications.get("process_timestamp")
+
         device_notifications = notifications.get(self._client.device_serial_number, {})
         self._n_dict = device_notifications.get(self._type, {})
         self._process_raw_notifications()
         try:
             self.schedule_update_ha_state()
         except NoEntitySpecifiedError:
-            pass
+            pass # we ignore this due to a harmless startup race condition
 
     @property
     def recurrence(self):
@@ -901,6 +906,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
             "dismissed": self._dismissed,
         }
 
+        # Optional lightweight debug/introspection view
+        # Only include a small subset and rely on _unrecorded_attributes
+        # so this doesn't end up in the recorder DB.
         def _serialize_entry(entry: dict) -> dict:
             """Serialize a single alarm/timer/reminder entry into a compact dict."""
             if not entry:
@@ -911,6 +919,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             else:
                 when_val = when
 
+            # Labels are type-specific in Alexa's payload; resolve to a single generic key.
             label_key = self._LABEL_KEY_MAP.get(self._type)
             label = entry.get(label_key) if label_key else None
 
@@ -926,17 +935,24 @@ class AlexaMediaNotificationSensor(SensorEntity):
             return data
 
         if self._all:
+            # Limit to a few entries so attributes stay small
             attr["brief"] = {
                 "active": [_serialize_entry(v) for _, v in self._active[:12]],
                 "all": [_serialize_entry(v) for _, v in self._all[:12]],
             }
-
+            # Legacy alias attributes (for backwards compatibility with
+            # cards/automations that relied on the previous sorted_* attributes).
+            #
+            # Historical behavior exposed the full notification dicts
             legacy_all = [v for _, v in self._all]
             legacy_active = [v for _, v in self._active]
 
+            # Generic legacy names
             attr["sorted_all"] = legacy_all
             attr["sorted_active"] = legacy_active
 
+            # Some consumers expect a single string label for the "next" item.
+            # These keys are used by card-alexa-alarms-timers.
             if legacy_active:
                 first = legacy_active[0]
                 label_key = self._LABEL_KEY_MAP.get(self._type)
@@ -944,6 +960,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     attr[self._type.lower()] = first.get(label_key)
 
                     if self._type == "Reminder":
+                        # Secondary reminder label (when present)
                         attr["reminder_sub_label"] = first.get("reminderSubLabel")
         return attr
 
@@ -953,6 +970,7 @@ class AlarmSensor(AlexaMediaNotificationSensor):
 
     def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
+        # Class info
         self._type = "Alarm"
         super().__init__(
             client,
@@ -970,6 +988,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
 
     def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
+        # Class info
         self._type = "Timer"
         super().__init__(
             client,

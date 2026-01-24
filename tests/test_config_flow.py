@@ -247,3 +247,108 @@ class TestReauthReload:
         flow.async_abort.assert_called_once_with(reason="reauth_successful")
         # Credentials should have been updated
         flow.hass.config_entries.async_update_entry.assert_called_once()
+
+
+class TestConfigFlowInvalidOtpKeyDataSchema:
+    """Tests for handling invalid OTP key errors in config flow.
+
+    These tests verify that when a user provides an invalid 2FA/OTP key,
+    the configuration flow properly displays an error form WITH the data
+    schema so the user can correct their input.
+
+    The bug: async_show_form was called without data_schema parameter when
+    AlexapyPyotpInvalidKey was raised, causing the error form to display
+    without any input fields. Users could see the error but had no way to
+    correct their invalid OTP key.
+
+    The fix: Add data_schema=vol.Schema(self.proxy_schema) to the
+    async_show_form call in the exception handler.
+
+    Related issues: #3254, #3243, #3189
+    """
+
+    def test_bugfix_adds_data_schema_to_exception_handler(self):
+        """Test that the bugfix adds data_schema to the AlexapyPyotpInvalidKey handler.
+
+        This test reads the actual config_flow.py source code and verifies
+        that the exception handler includes data_schema in the async_show_form call.
+        """
+        with open(
+            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
+        ) as f:
+            content = f.read()
+
+        # Check that the exception handler exists
+        assert (
+            "except AlexapyPyotpInvalidKey:" in content
+        ), "AlexapyPyotpInvalidKey exception handler not found in config_flow.py"
+
+        # Find the exception handler block
+        handler_start = content.find("except AlexapyPyotpInvalidKey:")
+        assert handler_start != -1
+
+        # Get the next ~500 characters to capture the full handler
+        handler_block = content[handler_start : handler_start + 500]
+
+        # Verify the handler returns async_show_form
+        assert (
+            "async_show_form" in handler_block
+        ), "async_show_form not found in AlexapyPyotpInvalidKey handler"
+
+        # CRITICAL: Verify data_schema is present in the handler
+        assert "data_schema" in handler_block, (
+            "BUGFIX MISSING: data_schema parameter not found in "
+            "AlexapyPyotpInvalidKey exception handler. "
+            "Without data_schema, users cannot correct their invalid OTP key. "
+            "See issues #3254, #3243, #3189."
+        )
+
+        # Verify it uses proxy_schema
+        assert "proxy_schema" in handler_block, (
+            "proxy_schema not found in AlexapyPyotpInvalidKey handler. "
+            "The handler should use vol.Schema(self.proxy_schema) for data_schema."
+        )
+
+    def test_error_form_includes_2fa_key_invalid_error(self):
+        """Test that the exception handler sets the correct error key."""
+        with open(
+            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
+        ) as f:
+            content = f.read()
+
+        handler_start = content.find("except AlexapyPyotpInvalidKey:")
+        handler_block = content[handler_start : handler_start + 500]
+
+        assert (
+            "2fa_key_invalid" in handler_block
+        ), "Error key '2fa_key_invalid' not found in exception handler"
+
+    def test_error_form_includes_otp_secret_placeholder(self):
+        """Test that the exception handler includes otp_secret in placeholders."""
+        with open(
+            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
+        ) as f:
+            content = f.read()
+
+        handler_start = content.find("except AlexapyPyotpInvalidKey:")
+        handler_block = content[handler_start : handler_start + 500]
+
+        assert "otp_secret" in handler_block, (
+            "otp_secret placeholder not found in exception handler. "
+            "Users should see which OTP key was invalid."
+        )
+
+    def test_handler_returns_user_step(self):
+        """Test that the exception handler returns to the 'user' step."""
+        with open(
+            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
+        ) as f:
+            content = f.read()
+
+        handler_start = content.find("except AlexapyPyotpInvalidKey:")
+        handler_block = content[handler_start : handler_start + 500]
+
+        assert 'step_id="user"' in handler_block, (
+            "step_id='user' not found in exception handler. "
+            "The handler should return users to the user step for correction."
+        )

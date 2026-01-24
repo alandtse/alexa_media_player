@@ -139,10 +139,10 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     # AQM Sensors
     air_quality_sensors = []
-    air_quality_entities = safe_get(account_dict, ["devices", "air_quality"], [])
-    if air_quality_entities:
+    aiaqm_entities = safe_get(account_dict, ["devices", "aiaqm"], [])
+    if aiaqm_entities:
         air_quality_sensors = await create_air_quality_sensors(
-            account_dict, air_quality_entities, debug=debug
+            account_dict, aiaqm_entities, debug=debug
         )
 
     return await add_devices(
@@ -211,9 +211,10 @@ async def create_temperature_sensors(
         # Temperature can be from an Echo OR from an AIAQM endpoint.
         # If it's AIAQM, attach the sensor to the synthetic AIAQM HA device
         # so all AIAQM entities group under one HA device.
-        if temp.get("sensors"):
-            device_ident = (ALEXA_DOMAIN, temp["device_serial"])
-            aiaqm_device_serial = temp["device_serial"]
+        is_aiaqm = bool(temp.get("is_aiaqm"))
+        if is_aiaqm:
+            device_ident = (ALEXA_DOMAIN, serial)
+            aiaqm_device_serial = serial
         else:
             device_ident = lookup_device_info(account_dict, serial)
             aiaqm_device_serial = None

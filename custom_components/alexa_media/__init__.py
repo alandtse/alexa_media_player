@@ -134,6 +134,76 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
+def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
+    """Collect device identifier strings for devices that are backed by entities.
+
+    Alexa Media Player historically prunes stale HA Device Registry entries by comparing
+    device identifiers against the current *media_player* serials. That works for Echoes,
+    but fails for entity-only devices (e.g., Amazon Indoor Air Quality Monitor) which have
+    no media_player entity. Those devices would get pruned unless we also consider the
+    identifiers referenced by entities we created.
+    """
+    identifiers: set[str] = set()
+
+    def _collect_from_device_info(device_info) -> None:
+        if not device_info:
+            return
+        try:
+            # dr.DeviceInfo
+            di_idents = getattr(device_info, "identifiers", None)
+            if di_idents:
+                for ident in di_idents:
+                    if isinstance(ident, tuple) and len(ident) == 2:
+                        identifiers.add(ident[1])
+                return
+        except Exception as exc:  # pylint: disable=broad-except
+            _LOGGER.debug("Could not extract identifiers from device_info: %s", exc)
+        # dict-style device_info
+        if isinstance(device_info, dict):
+            di_idents = device_info.get("identifiers")
+            if di_idents:
+                for ident in di_idents:
+                    if isinstance(ident, tuple) and len(ident) == 2:
+                        identifiers.add(ident[1])
+
+    # Recursively walk nested entity structures (dict/list/tuple/set) and collect any device_info found.
+    def _walk(obj) -> None:
+        if obj is None:
+            return
+
+        # Entity-ish object
+        _collect_from_device_info(getattr(obj, "device_info", None))
+
+        if isinstance(obj, dict):
+            for v in obj.values():
+                _walk(v)
+        elif isinstance(obj, (list, tuple, set)):
+            for v in obj:
+                _walk(v)
+
+    _walk(account_dict.get("entities", {}))
+    return identifiers
+
+
+def _entity_backed_serials(account: dict) -> set[str]:
+    """Return serials that exist only because we created entity-backed devices.
+
+    These serials may not be discoverable via media player inventory, but should
+    still be considered 'current' so we don't prune/ignore them.
+    """
+    serials: set[str] = set()
+    entities = account.get("entities")
+    if not isinstance(entities, dict):
+        return serials
+
+    # Sensors are stored keyed by serial; this is where AIAQM lives.
+    sensors = entities.get("sensor")
+    if isinstance(sensors, dict):
+        serials.update(s for s in sensors.keys() if isinstance(s, str) and s)
+
+    return serials
+
+
 async def async_setup(hass, config):
     """Set up the Alexa domain."""
     integration = await async_get_integration(hass, DOMAIN)
@@ -373,7 +443,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             or login_obj.close_requested
         ):
             return
-        existing_serials = _existing_serials(hass, login_obj)
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+        existing_serials = set(_existing_serials(hass, login_obj))
+        existing_serials |= _entity_backed_serials(account)
         existing_entities = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "media_player"
         ].values()
@@ -400,16 +472,28 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             tasks.append(AlexaAPI.get_authentication(login_obj))
 
         entities_to_monitor = set()
-        for sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
+
+        # Temperature sensors (stored as entities["sensor"][serial]["Temperature"] = sensor)
+        for per_serial in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
             "sensor"
         ].values():
-            temp = sensor.get("Temperature")
+            if not isinstance(per_serial, dict):
+                continue
+
+            temp = per_serial.get("Temperature")
             if temp and temp.enabled:
                 entities_to_monitor.add(temp.alexa_entity_id)
 
-            temp = sensor.get("Air_Quality")
-            if temp and temp.enabled:
-                entities_to_monitor.add(temp.alexa_entity_id)
+            # Air Quality sensors:
+            # entities["sensor"][serial]["Air_Quality"][unique_id] = sensor
+            airq = per_serial.get("Air_Quality")
+            if isinstance(airq, dict):
+                for aq_sensor in airq.values():
+                    if aq_sensor and aq_sensor.enabled:
+                        entities_to_monitor.add(aq_sensor.alexa_entity_id)
+            elif airq and getattr(airq, "enabled", False):
+                # Backwards compat if some installs still have a single sensor stored
+                entities_to_monitor.add(airq.alexa_entity_id)
 
         for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["light"]:
             if light.enabled:
@@ -487,6 +571,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             ):
                                 for entity in entities:
                                     _entities_to_monitor.add(entity.get("id"))
+                                    _LOGGER.debug("Monitoring: %s", entity.get("name"))
                         _LOGGER.debug(
                             "%s: Network Discovery: %s entities will be monitored",
                             hide_email(email),
@@ -667,23 +752,34 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         # prune stale devices
         device_registry = dr.async_get(hass)
+        entity_backed_ids = _entity_backed_device_identifiers(
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+        )
         for device_entry in dr.async_entries_for_config_entry(
             device_registry, config_entry.entry_id
         ):
             for _, identifier in device_entry.identifiers:
-                if identifier in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                    "devices"
-                ]["media_player"].keys() or identifier in map(
-                    lambda x: slugify(f"{x}_{email}"),
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                if (
+                    identifier
+                    in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
                         "media_player"
-                    ].keys(),
+                    ]
+                    or identifier
+                    in map(
+                        lambda x: slugify(f"{x}_{email}"),
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                            "media_player"
+                        ].keys(),
+                    )
+                    or identifier in entity_backed_ids
                 ):
                     break
             else:
                 device_registry.async_remove_device(device_entry.id)
                 _LOGGER.debug(
-                    "%s: Removing stale device %s", hide_email(email), device_entry.name
+                    "%s: Removing stale device %s",
+                    hide_email(email),
+                    device_entry.name,
                 )
 
         await login_obj.save_cookiefile()
@@ -1215,7 +1311,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
                         return
 
-                    existing_serials_local = _existing_serials(hass, login_obj)
+                    existing_serials_local = set(_existing_serials(hass, login_obj))
                     payload = _build_last_called_payload(
                         last, account, existing_serials_local
                     )
@@ -1250,7 +1346,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if isinstance(resource, dict) and "payload" in resource
                 else None
             )
-            existing_serials = _existing_serials(hass, login_obj)
+            existing_serials = set(_existing_serials(hass, login_obj))
             seen_commands = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "http2_commands"
             ]

@@ -300,7 +300,7 @@ def parse_alexa_entities(
     switches: list[AlexaEntity] = []
     guards: list[AlexaEntity] = []
     lights: list[AlexaLightEntity] = []
-    
+
     function_name = "parse_alexa_entities()"
 
     if not network_details:
@@ -327,25 +327,25 @@ def parse_alexa_entities(
 
     for appliance in network_details:
         device_bridge = get_device_bridge(appliance, network_dict)
-    
+
         bridge_label = (
             device_bridge.get("friendlyName") or device_bridge.get("manufacturerName")
             if device_bridge
             else None
         )
-    
+
         appliance_id = str(appliance.get("applianceId", ""))
-        
+
         # Only log a bridge check when:
         # - we found a bridge, OR
         # - ADV debug is enabled AND the appliance looks like a bridge candidate
         if bridge_label is not None or (debug and "#" in appliance_id):
             _LOGGER.debug(
-                '%s: Checking device bridge: %s',
+                "%s: Checking device bridge: %s",
                 appliance.get("friendlyName"),
                 bridge_label or "<none>",
             )
-    
+
         # ADV-only: only log resolution for cases where it might apply
         if debug and "#" in appliance_id:
             bridge_id = device_bridge.get("applianceId") if device_bridge else None

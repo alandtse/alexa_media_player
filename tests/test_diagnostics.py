@@ -85,7 +85,7 @@ def test_maybe_keys_sanitizes_email_keys_and_limits(monkeypatch):
 
     val = {
         "daniel@example.com": 1,
-        "some_token_value_abcdef": 2,  # nosec B105  
+        "some_token_value_abcdef": 2,  # nosec B105
         "ok": 3,
     }
 

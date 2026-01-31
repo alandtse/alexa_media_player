@@ -13,6 +13,7 @@ import datetime
 from datetime import timedelta
 from functools import reduce
 import logging
+import traceback
 from typing import Any, Optional
 
 from aiohttp import ClientConnectionError, ClientSession, InvalidURL, web, web_response
@@ -379,6 +380,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.login,
                     str(URL(self.config.get(CONF_HASS_URL)).with_path(AUTH_PROXY_PATH)),
                 )
+                self.proxy.session_factory = lambda: httpx.AsyncClient(
+                    timeout=httpx.Timeout(
+                        connect=30.0,
+                        read=120.0,
+                        write=30.0,
+                        pool=30.0,
+                    ),
+                )
             except ValueError as ex:
                 return self.async_show_form(
                     step_id="user",
@@ -387,6 +396,17 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
         # Swap the login object
         self.proxy.change_login(self.login)
+        # Increase timeout for Amazon authentication (default 5s is too short)
+        if hasattr(self.proxy, 'session') and self.proxy.session:
+            self.proxy.session.timeout = httpx.Timeout(
+                connect=30.0, read=120.0, write=30.0, pool=30.0,
+            )
+            _LOGGER.warning(
+                "PROXY DEBUG >>> Session timeout set to: %s",
+                self.proxy.session.timeout,
+            )
+        else:
+            _LOGGER.warning("PROXY DEBUG >>> No session found on proxy object. Attrs: %s", dir(self.proxy))
         if not self.proxy_view:
             self.proxy_view = AlexaMediaAuthorizationProxyView(self.proxy.all_handler)
         else:
@@ -1072,8 +1092,23 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 if not success:
                     raise Unauthorized()
                 cls.known_ips[request.remote] = datetime.datetime.now()
+            _LOGGER.warning(
+                "PROXY DEBUG >>> Request: %s %s | Remote: %s | Headers: %s",
+                request.method,
+                request.url,
+                request.remote,
+                dict(request.headers),
+            )
             try:
-                return await cls.handler(request, **kwargs)
+                result = await cls.handler(request, **kwargs)
+                _LOGGER.warning(
+                    "PROXY DEBUG >>> Success: %s %s | Status: %s | Response headers: %s",
+                    request.method,
+                    request.url,
+                    result.status if hasattr(result, 'status') else 'unknown',
+                    dict(result.headers) if hasattr(result, 'headers') else 'unknown',
+                )
+                return result
             except httpx.ConnectError as ex:
                 _LOGGER.warning("Detected Connection error: %s", ex)
                 return web_response.Response(
@@ -1083,17 +1118,25 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
                 )
             except Exception as ex:  # pylint: disable=broad-except
+                tb = traceback.format_exc()
                 _LOGGER.warning(
-                    "Unexpected error handling proxy request to %s: %s - %s",
+                    "PROXY DEBUG >>> EXCEPTION at %s %s\n"
+                    "Type: %s\n"
+                    "Message: %s\n"
+                    "Full traceback:\n%s",
+                    request.method,
                     request.url,
                     type(ex).__name__,
                     ex,
+                    tb,
                 )
                 return web_response.Response(
                     headers={"content-type": "text/html"},
                     text="An unexpected error occurred during login. Please try refreshing. "
                     + "If this persists, please report this error to "
-                    + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{type(ex).__name__}: {ex}</pre>",
+                    + f"<a href={ISSUE_URL}>here</a>:"
+                    + f"<br /><pre>{type(ex).__name__}: {ex}</pre>"
+                    + f"<br /><h3>Full Traceback:</h3><pre>{tb}</pre>",
                 )
 
         return wrapped

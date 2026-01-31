@@ -557,7 +557,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             optional_task_results.pop()
                             entities_to_monitor.clear()
 
-                        alexa_entities = parse_alexa_entities(api_devices)
+                        alexa_entities = parse_alexa_entities(
+                            api_devices,
+                            debug=hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                                "options"
+                            ].get(CONF_DEBUG, False),
+                        )
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
                             alexa_entities
                         )

@@ -1074,13 +1074,26 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 cls.known_ips[request.remote] = datetime.datetime.now()
             try:
                 return await cls.handler(request, **kwargs)
-            except httpx.ConnectError as ex:  # pylyint: disable=broad-except
+            except httpx.ConnectError as ex:
                 _LOGGER.warning("Detected Connection error: %s", ex)
                 return web_response.Response(
                     headers={"content-type": "text/html"},
                     text="Connection Error! Please try refreshing. "
                     + "If this persists, please report this error to "
                     + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
+                )
+            except Exception as ex:  # pylint: disable=broad-except
+                _LOGGER.warning(
+                    "Unexpected error handling proxy request to %s: %s - %s",
+                    request.url,
+                    type(ex).__name__,
+                    ex,
+                )
+                return web_response.Response(
+                    headers={"content-type": "text/html"},
+                    text="An unexpected error occurred during login. Please try refreshing. "
+                    + "If this persists, please report this error to "
+                    + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{type(ex).__name__}: {ex}</pre>",
                 )
 
         return wrapped

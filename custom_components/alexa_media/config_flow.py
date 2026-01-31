@@ -397,16 +397,22 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         # Swap the login object
         self.proxy.change_login(self.login)
         # Increase timeout for Amazon authentication (default 5s is too short)
-        if hasattr(self.proxy, 'session') and self.proxy.session:
+        if hasattr(self.proxy, "session") and self.proxy.session:
             self.proxy.session.timeout = httpx.Timeout(
-                connect=30.0, read=120.0, write=30.0, pool=30.0,
+                connect=30.0,
+                read=120.0,
+                write=30.0,
+                pool=30.0,
             )
             _LOGGER.warning(
                 "PROXY DEBUG >>> Session timeout set to: %s",
                 self.proxy.session.timeout,
             )
         else:
-            _LOGGER.warning("PROXY DEBUG >>> No session found on proxy object. Attrs: %s", dir(self.proxy))
+            _LOGGER.warning(
+                "PROXY DEBUG >>> No session found on proxy object. Attrs: %s",
+                dir(self.proxy),
+            )
         if not self.proxy_view:
             self.proxy_view = AlexaMediaAuthorizationProxyView(self.proxy.all_handler)
         else:
@@ -1105,8 +1111,8 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     "PROXY DEBUG >>> Success: %s %s | Status: %s | Response headers: %s",
                     request.method,
                     request.url,
-                    result.status if hasattr(result, 'status') else 'unknown',
-                    dict(result.headers) if hasattr(result, 'headers') else 'unknown',
+                    result.status if hasattr(result, "status") else "unknown",
+                    dict(result.headers) if hasattr(result, "headers") else "unknown",
                 )
                 return result
             except httpx.ConnectError as ex:

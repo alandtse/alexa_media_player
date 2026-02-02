@@ -12,6 +12,7 @@ from collections import OrderedDict
 import datetime
 from datetime import timedelta
 from functools import reduce
+import html as html_lib
 import logging
 import traceback
 from typing import Any, Optional
@@ -1098,22 +1099,42 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 if not success:
                     raise Unauthorized()
                 cls.known_ips[request.remote] = datetime.datetime.now()
-            _LOGGER.warning(
-                "PROXY DEBUG >>> Request: %s %s | Remote: %s | Headers: %s",
-                request.method,
-                request.url,
-                request.remote,
-                dict(request.headers),
-            )
-            try:
-                result = await cls.handler(request, **kwargs)
-                _LOGGER.warning(
-                    "PROXY DEBUG >>> Success: %s %s | Status: %s | Response headers: %s",
+            _sensitive_keys = {
+                "authorization",
+                "cookie",
+                "set-cookie",
+                "x-amz-security-token",
+            }
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                _safe_req_headers = {
+                    k: ("***" if k.lower() in _sensitive_keys else v)
+                    for k, v in request.headers.items()
+                }
+                _LOGGER.debug(
+                    "PROXY DEBUG >>> Request: %s %s | Remote: %s | Headers: %s",
                     request.method,
                     request.url,
-                    result.status if hasattr(result, "status") else "unknown",
-                    dict(result.headers) if hasattr(result, "headers") else "unknown",
+                    request.remote,
+                    _safe_req_headers,
                 )
+            try:
+                result = await cls.handler(request, **kwargs)
+                if _LOGGER.isEnabledFor(logging.DEBUG):
+                    _safe_resp_headers = (
+                        {
+                            k: ("***" if k.lower() in _sensitive_keys else v)
+                            for k, v in result.headers.items()
+                        }
+                        if hasattr(result, "headers")
+                        else "unknown"
+                    )
+                    _LOGGER.debug(
+                        "PROXY DEBUG >>> Success: %s %s | Status: %s | Response headers: %s",
+                        request.method,
+                        request.url,
+                        result.status if hasattr(result, "status") else "unknown",
+                        _safe_resp_headers,
+                    )
                 return result
             except httpx.ConnectError as ex:
                 _LOGGER.warning("Detected Connection error: %s", ex)
@@ -1121,8 +1142,10 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     headers={"content-type": "text/html"},
                     text="Connection Error! Please try refreshing. "
                     + "If this persists, please report this error to "
-                    + f"<a href={ISSUE_URL}>here</a>:<br /><pre>{ex}</pre>",
+                    + f"<a href={ISSUE_URL}>here</a>.",
                 )
+            except web.HTTPException:
+                raise  # Let aiohttp handle redirects (HTTPFound) and other HTTP exceptions
             except Exception as ex:  # pylint: disable=broad-except
                 tb = traceback.format_exc()
                 _LOGGER.warning(
@@ -1138,11 +1161,11 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 )
                 return web_response.Response(
                     headers={"content-type": "text/html"},
-                    text="An unexpected error occurred during login. Please try refreshing. "
+                    text="An unexpected error occurred during login. "
+                    + "Please try refreshing. "
                     + "If this persists, please report this error to "
                     + f"<a href={ISSUE_URL}>here</a>:"
-                    + f"<br /><pre>{type(ex).__name__}: {ex}</pre>"
-                    + f"<br /><h3>Full Traceback:</h3><pre>{tb}</pre>",
+                    + f"<br /><pre>{html_lib.escape(type(ex).__name__)}</pre>",
                 )
 
         return wrapped

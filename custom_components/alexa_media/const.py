@@ -7,7 +7,17 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+from __future__ import annotations
+
 from datetime import timedelta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+
+    from .runtime_data import AlexaRuntimeData
+
+    type AlexaConfigEntry = ConfigEntry[AlexaRuntimeData]
 
 from homeassistant.const import (
     CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
@@ -52,6 +62,7 @@ CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
 CONF_PROXY = "proxy"
 CONF_PROXY_WARNING = "proxy_warning"
+CONF_SCAN_INTERVAL = "scan_interval"
 CONF_TOTP_REGISTER = "registered"
 CONF_OAUTH = "oauth"
 DATA_LISTENER = "listener"

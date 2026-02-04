@@ -461,3 +461,34 @@ def safe_get(
         if not isinstance(result, type(default)):
             result = default
     return result
+
+
+# New functions added for God Tier optimization
+
+
+async def report_relogin_required(hass: HomeAssistant, login_obj, email: str) -> None:
+    """Report that relogin is required for an account.
+
+    This marks the login as failed and fires a relogin required event.
+
+    Args:
+        hass: Home Assistant instance
+        login_obj: Login object
+        email: Account email
+    """
+    from alexapy import hide_email as alexapy_hide_email
+
+    if login_obj and hasattr(login_obj, "status"):
+        login_obj.status["login_successful"] = False
+
+    hass.bus.async_fire(
+        "alexa_media_relogin_required",
+        event_data={
+            "email": alexapy_hide_email(email) if email else "unknown",
+            "url": login_obj.url if login_obj else "",
+        },
+    )
+    _LOGGER.debug(
+        "%s: Relogin required reported",
+        alexapy_hide_email(email) if email else "unknown",
+    )

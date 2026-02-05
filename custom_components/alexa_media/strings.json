@@ -127,6 +127,51 @@
       }
     }
   },
+  "entity": {
+    "switch": {
+      "do_not_disturb": {
+        "name": "Do not disturb"
+      },
+      "shuffle": {
+        "name": "Shuffle"
+      },
+      "repeat": {
+        "name": "Repeat"
+      }
+    },
+    "sensor": {
+      "temperature": {
+        "name": "Temperature"
+      },
+      "air_quality": {
+        "name": "Air quality"
+      },
+      "air_quality_carbon_monoxide": {
+        "name": "Carbon monoxide"
+      },
+      "air_quality_humidity": {
+        "name": "Humidity"
+      },
+      "air_quality_indoor_air_quality": {
+        "name": "Indoor air quality"
+      },
+      "air_quality_particulate_matter": {
+        "name": "Particulate matter"
+      },
+      "air_quality_volatile_organic_compounds": {
+        "name": "Volatile organic compounds"
+      },
+      "next_alarm": {
+        "name": "Next alarm"
+      },
+      "next_timer": {
+        "name": "Next timer"
+      },
+      "next_reminder": {
+        "name": "Next reminder"
+      }
+    }
+  },
   "issues": {
     "deprecated_yaml_configuration": {
       "title": "YAML configuration is deprecated",

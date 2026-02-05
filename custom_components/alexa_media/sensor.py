@@ -550,6 +550,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         # but entity is not yet added to platform (platform_data is None)
         # Timestamp sensors don't have units, so always return None
         return None
+
     _LABEL_KEY_MAP: ClassVar[dict[str, str]] = {
         "Alarm": "alarmLabel",
         "Timer": "timerLabel",

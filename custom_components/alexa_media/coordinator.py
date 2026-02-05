@@ -15,14 +15,14 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers.debounce import Debouncer
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN, SCAN_INTERVAL
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .runtime_data import AlexaConfigEntry, AlexaRuntimeData
+    from .runtime_data import AlexaRuntimeData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(
         self,
         hass: HomeAssistant,
-        runtime_data: AlexaRuntimeData,
+        runtime_data: AlexaRuntimeData | None,
         update_method: callable,
         scan_interval: float | None = None,
         fast_boot: bool = True,
@@ -66,7 +66,7 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._first_refresh_done = False
 
         # Calculate update interval based on HTTP2 status
-        http2_enabled = runtime_data.http2 is not None
+        http2_enabled = runtime_data.http2 is not None if runtime_data else False
         update_interval = timedelta(
             seconds=self._scan_interval * 10 if http2_enabled else self._scan_interval
         )
@@ -89,6 +89,13 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             request_refresh_debouncer=debouncer,
         )
 
+    @property
+    def _log_name(self) -> str:
+        """Return a safe name for logging."""
+        if self.runtime_data:
+            return self.runtime_data.email
+        return self.name
+
     async def async_config_entry_first_refresh(self) -> None:
         """Perform first refresh with fast boot support.
 
@@ -98,7 +105,7 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._fast_boot and not self._first_refresh_done:
             _LOGGER.debug(
                 "%s: Fast boot enabled - starting background refresh",
-                self.runtime_data.email,
+                self._log_name,
             )
             # Schedule background refresh without awaiting
             self.hass.async_create_background_task(
@@ -119,7 +126,7 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             _LOGGER.debug(
                 "%s: Background first refresh starting",
-                self.runtime_data.email,
+                self._log_name,
             )
             start_time = self.hass.loop.time()
 
@@ -128,14 +135,13 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             elapsed = self.hass.loop.time() - start_time
             _LOGGER.debug(
                 "%s: Background first refresh completed in %.2fs",
-                self.runtime_data.email,
+                self._log_name,
                 elapsed,
             )
-        except Exception as err:
-            _LOGGER.error(
-                "%s: Background first refresh failed: %s",
-                self.runtime_data.email,
-                err,
+        except Exception:
+            _LOGGER.exception(
+                "%s: Background first refresh failed",
+                self._log_name,
             )
 
     def set_http2_status(self, enabled: bool) -> None:
@@ -163,6 +169,8 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             debouncer.async_cancel()
 
 
+# TODO: Use this function for parallel device data fetching in _async_update_data
+# when implementing multi-device refresh optimization
 async def parallel_api_calls(*coros, timeout: float = API_CALL_TIMEOUT) -> tuple:
     """Execute multiple API calls in parallel with timeout.
 

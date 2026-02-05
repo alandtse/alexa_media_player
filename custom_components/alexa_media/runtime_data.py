@@ -7,8 +7,8 @@ instead of the legacy hass.data[DOMAIN] pattern.
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
 from homeassistant.config_entries import ConfigEntry
@@ -25,8 +25,7 @@ if TYPE_CHECKING:
 
     from .alexa_entity import AlexaEntityData
 
-
-type AlexaConfigEntry = ConfigEntry[AlexaRuntimeData]
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -155,7 +154,7 @@ class AlexaRuntimeData:
         devices = self.devices.get(device_type, {})
         if isinstance(devices, dict):
             return devices.get(serial)
-        elif isinstance(devices, list):
+        if isinstance(devices, list):
             for device in devices:
                 if isinstance(device, dict) and device.get("serialNumber") == serial:
                     return device
@@ -172,7 +171,7 @@ class AlexaRuntimeData:
         entities = self.entities.get(entity_type, {})
         if isinstance(entities, dict):
             return entities.get(key)
-        elif isinstance(entities, list):
+        if isinstance(entities, list):
             for entity in entities:
                 if hasattr(entity, "unique_id") and entity.unique_id == key:
                     return entity
@@ -208,11 +207,15 @@ class AlexaRuntimeData:
         for unsub in self.listeners:
             try:
                 unsub()
-            except Exception:  # nosec B110 - Cleanup errors can be silently ignored
-                pass
+            except Exception as err:  # nosec B110 - Cleanup errors can be silently ignored
+                _LOGGER.debug("Listener cleanup failed: %s", err)
         self.listeners.clear()
 
         # Close login connection
         if self.login_obj:
             await self.login_obj.save_cookiefile()
             await self.login_obj.close()
+
+
+# Type alias for config entry with runtime data
+AlexaConfigEntry = ConfigEntry[AlexaRuntimeData]

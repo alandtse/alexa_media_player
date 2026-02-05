@@ -7,8 +7,8 @@ instead of the legacy hass.data[DOMAIN] pattern.
 from __future__ import annotations
 
 import asyncio
-import logging
 from dataclasses import dataclass, field
+import logging
 from typing import TYPE_CHECKING, Any, Callable
 
 from homeassistant.config_entries import ConfigEntry
@@ -207,7 +207,9 @@ class AlexaRuntimeData:
         for unsub in self.listeners:
             try:
                 unsub()
-            except Exception as err:  # nosec B110 - Cleanup errors can be silently ignored
+            except (
+                Exception
+            ) as err:  # nosec B110 - Cleanup errors can be silently ignored
                 _LOGGER.debug("Listener cleanup failed: %s", err)
         self.listeners.clear()
 

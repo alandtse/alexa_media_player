@@ -13,15 +13,12 @@ from typing import TYPE_CHECKING, Any
 
 from alexapy import hide_email
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
-from .const import DOMAIN
 
 if TYPE_CHECKING:
     from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-    from .runtime_data import AlexaConfigEntry, AlexaRuntimeData
+    from .runtime_data import AlexaRuntimeData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,11 +33,11 @@ class AlexaEntity(CoordinatorEntity):
     # __slots__ reduces memory usage by ~50% per entity instance
     # compared to regular __dict__-based classes
     __slots__ = (
-        "_runtime_data",
         "_account_email",
-        "_device_serial",
-        "_attr_unique_id",
         "_attr_device_info",
+        "_attr_unique_id",
+        "_device_serial",
+        "_runtime_data",
     )
 
     _attr_has_entity_name = True

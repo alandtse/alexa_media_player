@@ -209,8 +209,12 @@ def get_device_bridge(
     if not isinstance(appliance_id, str) or "#" not in appliance_id:
         return None
 
-    # HA Matter Hub bridged endpoints are identified by applianceId prefixes
-    # of the form AAA_SonarCloudService_<bridgeId>#<childId>.
+    # This change intentionally avoids over-validating the applianceId. In Amazon device IDs, # only appears
+    # for bridged devices, and HA Matter Hub bridged endpoints consistently use the
+    # AAA_SonarCloudService_…#… prefix. The previous regex added unnecessary constraints and risked false
+    # negatives; the current logic reflects the actual invariant.
+    # This function is not a general applianceId validator; it only answers “does this look like an HA Matter-
+    # bridged endpoint, and if so, what is its bridge?”
     bridge_id, _sep, _child = appliance_id.partition("#")
 
     if not bridge_id.startswith("AAA_SonarCloudService_"):

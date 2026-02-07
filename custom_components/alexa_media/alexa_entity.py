@@ -764,4 +764,3 @@ def is_cap_state_still_acceptable(
         return False
 
     return time_of_sample >= since
-    

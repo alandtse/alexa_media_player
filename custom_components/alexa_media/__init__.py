@@ -502,24 +502,26 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             if light.enabled:
                 entities_to_monitor.add(light.alexa_entity_id)
 
-        for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
-            "binary_sensor", []
-        ):
+        for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "entities"
+        ].get("binary_sensor", []):
             if binary_sensor.enabled:
                 entities_to_monitor.add(binary_sensor.alexa_entity_id)
 
-        for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
-            "alarm_control_panel", {}
-        ).values():
+        for guard in (
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]
+            .get("alarm_control_panel", {})
+            .values()
+        ):
             if guard.enabled:
                 entities_to_monitor.add(guard.unique_id)
 
-        for smart_switch in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
-            "smart_switch", []
-        ):
+        for smart_switch in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "entities"
+        ].get("smart_switch", []):
             if smart_switch.enabled:
                 entities_to_monitor.add(smart_switch.alexa_entity_id)
-        
+
         if entities_to_monitor:
             tasks.append(get_entity_data(login_obj, list(entities_to_monitor)))
 
@@ -1790,7 +1792,9 @@ async def async_unload_entry(hass, entry) -> bool:
     )
     if debouncer:
         debouncer.async_cancel()
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["confirm_refresh_debouncer"] = None
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "confirm_refresh_debouncer"
+        ] = None
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

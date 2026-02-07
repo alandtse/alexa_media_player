@@ -47,6 +47,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import UnknownFlow
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
@@ -495,19 +496,27 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 # Backwards compat if some installs still have a single sensor stored
                 entities_to_monitor.add(airq.alexa_entity_id)
 
-        for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]["light"]:
+        for smart_switch in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
+            "smart_switch", []
+        ):
+            if smart_switch.enabled:
+                entities_to_monitor.add(smart_switch.alexa_entity_id)
+        
+        for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
+            "light", []
+        ):
             if light.enabled:
                 entities_to_monitor.add(light.alexa_entity_id)
 
-        for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
-            "binary_sensor"
-        ]:
+        for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
+            "binary_sensor", []
+        ):
             if binary_sensor.enabled:
                 entities_to_monitor.add(binary_sensor.alexa_entity_id)
 
-        for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
-            "alarm_control_panel"
-        ].values():
+        for guard in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
+            "alarm_control_panel", {}
+        ).values():
             if guard.enabled:
                 entities_to_monitor.add(guard.unique_id)
 
@@ -557,12 +566,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             optional_task_results.pop()
                             entities_to_monitor.clear()
 
-                        alexa_entities = parse_alexa_entities(
-                            api_devices,
-                            debug=hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                                "options"
-                            ].get(CONF_DEBUG, False),
-                        )
+                        alexa_entities = parse_alexa_entities(api_devices)
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
                             alexa_entities
                         )
@@ -1719,6 +1723,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         coordinator.update_interval = timedelta(
             seconds=scan_interval * 10 if http2_enabled else scan_interval
         )
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    if "confirm_refresh_debouncer" not in account:
+        account["confirm_refresh_debouncer"] = Debouncer(
+            hass,
+            _LOGGER,
+            cooldown=2.0,
+            immediate=False,
+            function=coordinator.async_request_refresh,
+        )
     # Fetch initial data so we have data when entities subscribe
     _LOGGER.debug("%s: setup_alexa: Refreshing coordinator", hide_email(email))
     await coordinator.async_refresh()
@@ -1766,6 +1779,13 @@ async def async_unload_entry(hass, entry) -> bool:
                 err,
             )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called_probe_task"] = None
+
+    debouncer = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+        "confirm_refresh_debouncer"
+    )
+    if debouncer:
+        debouncer.async_cancel()
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["confirm_refresh_debouncer"] = None
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

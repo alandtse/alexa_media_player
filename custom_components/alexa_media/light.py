@@ -282,7 +282,7 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         if account:
             debouncer = account.get("confirm_refresh_debouncer")
             if debouncer:
-                debouncer.async_call()
+                await debouncer.async_call()
 
     async def async_turn_on(self, **kwargs):
         """Turn on."""

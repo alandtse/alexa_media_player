@@ -7,7 +7,6 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
-from collections.abc import Callable
 import datetime
 import logging
 from math import sqrt

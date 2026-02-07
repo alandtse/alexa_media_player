@@ -171,17 +171,19 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
     """Representation of a Alexa Media switch."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         client,
         switch_property: str,
         switch_function: str,
-        name="Alexa",
+        unique_id_suffix: str = "switch",
     ):
         """Initialize the Alexa Switch device."""
         # Class info
         self._client = client
-        self._name = name
+        self._unique_id_suffix = unique_id_suffix
         self._switch_property = switch_property
         self._switch_function = switch_function
         super().__init__(client, client._login)
@@ -244,7 +246,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
             _LOGGER.debug(
                 "Requesting update of %s due to %s switch to %s",
                 self._client,
-                self._name,
+                self._unique_id_suffix,
                 state,
             )
             await self._client.async_update()
@@ -278,12 +280,7 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
     @property
     def unique_id(self):
         """Return the unique ID."""
-        return self._client.unique_id + "_" + self._name
-
-    @property
-    def name(self):
-        """Return the name of the switch."""
-        return f"{self._client.name} {self._name} switch"
+        return self._client.unique_id + "_" + self._unique_id_suffix
 
     @property
     def device_class(self):
@@ -333,6 +330,8 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
 class DNDSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Do Not Disturb switch."""
 
+    _attr_translation_key = "do_not_disturb"
+
     def __init__(self, client):
         """Initialize the Alexa Switch."""
         # Class info
@@ -340,7 +339,7 @@ class DNDSwitch(AlexaMediaSwitch):
             client,
             "dnd_state",
             "set_dnd_state",
-            "do not disturb",
+            "do not disturb",  # Keep original suffix for backward compatibility
         )
 
     @property
@@ -379,6 +378,8 @@ class DNDSwitch(AlexaMediaSwitch):
 class ShuffleSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Shuffle switch."""
 
+    _attr_translation_key = "shuffle"
+
     def __init__(self, client):
         """Initialize the Alexa Switch."""
         # Class info
@@ -397,6 +398,8 @@ class ShuffleSwitch(AlexaMediaSwitch):
 
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""
+
+    _attr_translation_key = "repeat"
 
     def __init__(self, client):
         """Initialize the Alexa Switch."""

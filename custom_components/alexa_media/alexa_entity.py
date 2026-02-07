@@ -203,22 +203,21 @@ def get_device_serial(appliance: dict[str, Any]) -> str | None:
 def get_device_bridge(
     appliance: dict[str, Any], appliances: dict[str, dict[str, Any]]
 ) -> dict[str, Any] | None:
-    """Find the bridge device for an appliance connected through e.g. a Matter bridge"""
-    if not appliance.get("connectedVia"):
-        # The appliance cannot be Matter if it does not connect to an Echo device
+    """Find the bridge device for an appliance connected through e.g. a Matter bridge."""
+
+    appliance_id = appliance.get("applianceId")
+    if not isinstance(appliance_id, str) or "#" not in appliance_id:
         return None
 
-    # We expect the bridged devices to look like "AAA_SonarCloudService_UUID#DEVICENUM"
-    bridged_device_pattern = re.compile(
-        "(AAA_SonarCloudService_[a-f0-9\\-]+)#[0-9]+", flags=re.I
-    )
+    # HA Matter Hub bridged endpoints are identified by applianceId prefixes
+    # of the form AAA_SonarCloudService_<bridgeId>#<childId>.
+    bridge_id, _sep, _child = appliance_id.partition("#")
 
-    match = bridged_device_pattern.fullmatch(appliance.get("applianceId", ""))
-    if match is None:
+    if not bridge_id.startswith("AAA_SonarCloudService_"):
         return None
 
-    # We expect the bridge to share the prefix without the device num
-    return appliances.get(match.group(1))
+    bridge = appliances.get(bridge_id)
+    return bridge if isinstance(bridge, dict) else None
 
 
 AlexaEntityData = dict[str, list["AlexaCapabilityState"]]
@@ -302,6 +301,8 @@ def parse_alexa_entities(
     guards: list[AlexaEntity] = []
     lights: list[AlexaLightEntity] = []
 
+    function_name = "parse_alexa_entities()"
+
     if not network_details:
         return {
             "light": lights,
@@ -314,7 +315,11 @@ def parse_alexa_entities(
         }
 
     network_dict: dict[str, dict[str, Any]] = {}
-    _LOGGER.debug("Processing network_details")
+    if debug:
+        _LOGGER.debug("Processing network_details")
+
+    # Build an applianceId → appliance map first so bridged devices
+    # can resolve their bridge regardless of list ordering.
     for appliance in network_details:
         appliance_id = appliance.get("applianceId")
         if appliance_id:
@@ -322,8 +327,53 @@ def parse_alexa_entities(
 
     for appliance in network_details:
         device_bridge = get_device_bridge(appliance, network_dict)
+
+        bridge_label = (
+            device_bridge.get("friendlyName") or device_bridge.get("manufacturerName")
+            if device_bridge
+            else None
+        )
+
+        appliance_id = str(appliance.get("applianceId", ""))
+
+        # Only log a bridge check when:
+        # - we found a bridge, OR
+        # - ADV debug is enabled AND the appliance looks like a bridge candidate
+        if bridge_label is not None or (debug and "#" in appliance_id):
+            _LOGGER.debug(
+                "%s: Checking device bridge: %s",
+                appliance.get("friendlyName"),
+                bridge_label or "<none>",
+            )
+
+        # ADV-only: only log resolution for cases where it might apply
+        if debug and "#" in appliance_id:
+            bridge_id = device_bridge.get("applianceId") if device_bridge else None
+            _LOGGER.debug(
+                "[%s] [ADV] Matter bridge resolution: appliance=%s → bridge=%s (connectedVia=%s, bridge=%s)",
+                function_name,
+                appliance_id,
+                bridge_id,
+                appliance.get("connectedVia"),
+                bridge_label,
+            )
+
         if is_known_ha_bridge(device_bridge):
-            _LOGGER.debug("Found Home Assistant bridge, skipping %s", appliance)
+            if debug:
+                _LOGGER.debug(
+                    '[%s] [ADV] Skipping bridged Matter device "%s" (%s) via known bridge: %s (%s)',
+                    function_name,
+                    appliance.get("friendlyName"),
+                    appliance.get("applianceId"),
+                    bridge_label,
+                    device_bridge.get("applianceId") if device_bridge else None,
+                )
+            else:
+                _LOGGER.debug(
+                    'Skipping bridged Matter device "%s" via known bridge "%s"',
+                    appliance.get("friendlyName"),
+                    bridge_label or "<unknown>",
+                )
             continue
 
         processed_appliance: AlexaEntity = {

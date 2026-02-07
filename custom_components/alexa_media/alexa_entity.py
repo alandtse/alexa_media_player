@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import re
@@ -21,6 +21,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .helpers import safe_get
 
 _LOGGER = logging.getLogger(__name__)
+
+# How long we keep "requested state" protected from stale coordinator values
+# when capabilityStates do not include a usable timeOfSample.
+_REQUESTED_STATE_TTL = timedelta(seconds=15)
 
 
 def has_capability(
@@ -203,21 +207,22 @@ def get_device_serial(appliance: dict[str, Any]) -> str | None:
 def get_device_bridge(
     appliance: dict[str, Any], appliances: dict[str, dict[str, Any]]
 ) -> dict[str, Any] | None:
-    """Find the bridge device for an appliance connected through e.g. a Matter bridge."""
-
-    appliance_id = appliance.get("applianceId")
-    if not isinstance(appliance_id, str) or "#" not in appliance_id:
+    """Find the bridge device for an appliance connected through e.g. a Matter bridge"""
+    if not appliance.get("connectedVia"):
+        # The appliance cannot be Matter if it does not connect to an Echo device
         return None
 
-    # HA Matter Hub bridged endpoints are identified by applianceId prefixes
-    # of the form AAA_SonarCloudService_<bridgeId>#<childId>.
-    bridge_id, _sep, _child = appliance_id.partition("#")
+    # We expect the bridged devices to look like "AAA_SonarCloudService_UUID#DEVICENUM"
+    bridged_device_pattern = re.compile(
+        "(AAA_SonarCloudService_[a-f0-9\\-]+)#[0-9]+", flags=re.I
+    )
 
-    if not bridge_id.startswith("AAA_SonarCloudService_"):
+    match = bridged_device_pattern.fullmatch(appliance.get("applianceId", ""))
+    if match is None:
         return None
 
-    bridge = appliances.get(bridge_id)
-    return bridge if isinstance(bridge, dict) else None
+    # We expect the bridge to share the prefix without the device num
+    return appliances.get(match.group(1))
 
 
 AlexaEntityData = dict[str, list["AlexaCapabilityState"]]
@@ -301,8 +306,6 @@ def parse_alexa_entities(
     guards: list[AlexaEntity] = []
     lights: list[AlexaLightEntity] = []
 
-    function_name = "parse_alexa_entities()"
-
     if not network_details:
         return {
             "light": lights,
@@ -315,11 +318,7 @@ def parse_alexa_entities(
         }
 
     network_dict: dict[str, dict[str, Any]] = {}
-    if debug:
-        _LOGGER.debug("Processing network_details")
-
-    # Build an applianceId → appliance map first so bridged devices
-    # can resolve their bridge regardless of list ordering.
+    _LOGGER.debug("Processing network_details")
     for appliance in network_details:
         appliance_id = appliance.get("applianceId")
         if appliance_id:
@@ -327,53 +326,8 @@ def parse_alexa_entities(
 
     for appliance in network_details:
         device_bridge = get_device_bridge(appliance, network_dict)
-
-        bridge_label = (
-            device_bridge.get("friendlyName") or device_bridge.get("manufacturerName")
-            if device_bridge
-            else None
-        )
-
-        appliance_id = str(appliance.get("applianceId", ""))
-
-        # Only log a bridge check when:
-        # - we found a bridge, OR
-        # - ADV debug is enabled AND the appliance looks like a bridge candidate
-        if bridge_label is not None or (debug and "#" in appliance_id):
-            _LOGGER.debug(
-                "%s: Checking device bridge: %s",
-                appliance.get("friendlyName"),
-                bridge_label or "<none>",
-            )
-
-        # ADV-only: only log resolution for cases where it might apply
-        if debug and "#" in appliance_id:
-            bridge_id = device_bridge.get("applianceId") if device_bridge else None
-            _LOGGER.debug(
-                "[%s] [ADV] Matter bridge resolution: appliance=%s → bridge=%s (connectedVia=%s, bridge=%s)",
-                function_name,
-                appliance_id,
-                bridge_id,
-                appliance.get("connectedVia"),
-                bridge_label,
-            )
-
         if is_known_ha_bridge(device_bridge):
-            if debug:
-                _LOGGER.debug(
-                    '[%s] [ADV] Skipping bridged Matter device "%s" (%s) via known bridge: %s (%s)',
-                    function_name,
-                    appliance.get("friendlyName"),
-                    appliance.get("applianceId"),
-                    bridge_label,
-                    device_bridge.get("applianceId") if device_bridge else None,
-                )
-            else:
-                _LOGGER.debug(
-                    'Skipping bridged Matter device "%s" via known bridge "%s"',
-                    appliance.get("friendlyName"),
-                    bridge_label or "<unknown>",
-                )
+            _LOGGER.debug("Found Home Assistant bridge, skipping %s", appliance)
             continue
 
         processed_appliance: AlexaEntity = {
@@ -608,7 +562,7 @@ def parse_air_quality_from_coordinator(
 
 
 def parse_brightness_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> int | None:
     """Get the brightness in the range 0-100."""
     return parse_value_from_coordinator(
@@ -621,7 +575,7 @@ def parse_brightness_from_coordinator(
 
 
 def parse_color_temp_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> int | None:
     """Get the color temperature in kelvin."""
     return parse_value_from_coordinator(
@@ -634,7 +588,7 @@ def parse_color_temp_from_coordinator(
 
 
 def parse_color_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> tuple[float, float, float] | None:
     """Get the color as a tuple of (hue, saturation, brightness)."""
     value = parse_value_from_coordinator(
@@ -648,7 +602,7 @@ def parse_color_from_coordinator(
 
 
 def parse_power_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> str | None:
     """Get the power state of the entity."""
     return parse_value_from_coordinator(
@@ -690,6 +644,7 @@ def parse_value_from_coordinator(
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
+        found_match = False
         for cap_state in coordinator.data[entity_id]:
             cap_instance = cap_state.get("instance")
             instance_match = instance is None or (
@@ -700,14 +655,27 @@ def parse_value_from_coordinator(
                 and cap_state.get("name") == name
                 and instance_match
             ):
+                found_match = True
                 if is_cap_state_still_acceptable(cap_state, since):
                     return cap_state.get("value")
                 if debug:
                     _LOGGER.debug(
-                        "Coordinator data for %s is too old to be returned.",
+                        "Coordinator data for %s (%s/%s instance=%s) is too old; checking other matches.",
                         entity_id,
+                        namespace,
+                        name,
+                        instance,
                     )
-                return None
+                # Keep searching in case a newer matching cap_state exists later.
+                continue
+        if debug and found_match:
+            _LOGGER.debug(
+                "No acceptable coordinator data found for %s (%s/%s instance=%s).",
+                entity_id,
+                namespace,
+                name,
+                instance,
+            )
     else:
         if debug:
             _LOGGER.debug(
@@ -724,14 +692,25 @@ def is_cap_state_still_acceptable(
     cap_state: dict[str, Any], since: datetime | None
 ) -> bool:
     """Determine if a particular capability state is still usable given its age."""
-    if since is not None:
-        formatted_time_of_sample = cap_state.get("timeOfSample")
-        if formatted_time_of_sample:
-            try:
-                time_of_sample = datetime.strptime(
-                    formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S%z"
-                )
-                return time_of_sample >= since
-            except ValueError:
-                pass
-    return True
+    if since is None:
+        return True
+
+    # Don't protect requested state forever; after TTL fall back to coordinator
+    # even if timeOfSample is missing/unparseable.
+    if datetime.now(timezone.utc) - since > _REQUESTED_STATE_TTL:
+        return True
+
+    formatted_time_of_sample = cap_state.get("timeOfSample")
+    if not formatted_time_of_sample:
+        # If we can't prove the sample is newer than the requested state,
+        # do not allow it to override optimistic/requested values.
+        return False
+
+    try:
+        time_of_sample = datetime.strptime(
+            formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S%z"
+        )
+    except ValueError:
+        return False
+
+    return time_of_sample >= since

@@ -53,6 +53,51 @@
       }
     }
   },
+  "entity": {
+    "sensor": {
+      "air_quality": {
+        "name": "Jakość powietrza"
+      },
+      "air_quality_carbon_monoxide": {
+        "name": "Tlenek węgla"
+      },
+      "air_quality_humidity": {
+        "name": "Wilgotność"
+      },
+      "air_quality_indoor_air_quality": {
+        "name": "Jakość powietrza w pomieszczeniach"
+      },
+      "air_quality_particulate_matter": {
+        "name": "Cząstki stałe"
+      },
+      "air_quality_volatile_organic_compounds": {
+        "name": "Lotne związki organiczne"
+      },
+      "next_alarm": {
+        "name": "Następny alarm"
+      },
+      "next_reminder": {
+        "name": "Następne przypomnienie"
+      },
+      "next_timer": {
+        "name": "Następnym razem"
+      },
+      "temperature": {
+        "name": "Temperatura"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Nie przeszkadzać"
+      },
+      "repeat": {
+        "name": "Powtarzać"
+      },
+      "shuffle": {
+        "name": "Człapać"
+      }
+    }
+  },
   "issues": {
     "deprecated_yaml_configuration": {
       "description": "Konfiguracja YAML odtwarzacza multimedialnego Alexa jest przestarzała.\nUsuń „alexa_media” z konfiguracji, uruchom ponownie Asystenta Domowego i skonfiguruj go za pomocą interfejsu użytkownika.\nUstawienia > Urządzenia i usługi > Integracje > DODAJ INTEGRACJĘ",

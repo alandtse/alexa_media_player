@@ -53,6 +53,51 @@
       }
     }
   },
+  "entity": {
+    "sensor": {
+      "air_quality": {
+        "name": "Qualità dell'aria"
+      },
+      "air_quality_carbon_monoxide": {
+        "name": "monossido di carbonio"
+      },
+      "air_quality_humidity": {
+        "name": "Umidità"
+      },
+      "air_quality_indoor_air_quality": {
+        "name": "Qualità dell'aria interna"
+      },
+      "air_quality_particulate_matter": {
+        "name": "particolato"
+      },
+      "air_quality_volatile_organic_compounds": {
+        "name": "Composti organici volatili"
+      },
+      "next_alarm": {
+        "name": "Prossimo allarme"
+      },
+      "next_reminder": {
+        "name": "Prossimo promemoria"
+      },
+      "next_timer": {
+        "name": "Prossimo timer"
+      },
+      "temperature": {
+        "name": "Temperatura"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Non disturbare"
+      },
+      "repeat": {
+        "name": "Ripetere"
+      },
+      "shuffle": {
+        "name": "Mescolare"
+      }
+    }
+  },
   "issues": {
     "deprecated_yaml_configuration": {
       "description": "La configurazione YAML di Alexa Media Player è obsoleta.\nRimuovi `alexa_media` dalla configurazione, riavvia Home Assistant e utilizza l'interfaccia utente per configurarla.\nImpostazioni > Dispositivi e servizi > Integrazioni > AGGIUNGI INTEGRAZIONE",

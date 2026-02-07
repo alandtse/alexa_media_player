@@ -54,17 +54,6 @@
     }
   },
   "entity": {
-    "switch": {
-      "do_not_disturb": {
-        "name": "Do not disturb"
-      },
-      "repeat": {
-        "name": "Repeat"
-      },
-      "shuffle": {
-        "name": "Shuffle"
-      }
-    },
     "sensor": {
       "air_quality": {
         "name": "Air quality"
@@ -84,17 +73,28 @@
       "air_quality_volatile_organic_compounds": {
         "name": "Volatile organic compounds"
       },
-      "temperature": {
-        "name": "Temperature"
-      },
       "next_alarm": {
         "name": "Next alarm"
+      },
+      "next_reminder": {
+        "name": "Next reminder"
       },
       "next_timer": {
         "name": "Next timer"
       },
-      "next_reminder": {
-        "name": "Next reminder"
+      "temperature": {
+        "name": "Temperature"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Do not disturb"
+      },
+      "repeat": {
+        "name": "Repeat"
+      },
+      "shuffle": {
+        "name": "Shuffle"
       }
     }
   },

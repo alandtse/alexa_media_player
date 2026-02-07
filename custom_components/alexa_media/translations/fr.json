@@ -39,7 +39,7 @@
           "extended_entity_discovery": "Inclure les capteurs, interrupteurs et lumières additionnels",
           "hass_url": "URL du réseau local pour accéder à Home Assistant",
           "include_devices": "Inclure uniquement ces appareils (séparés par des virgules)",
-          "otp_secret": "Clé d'application d'authentification de 52 caractères pour Amazon 2SV",
+          "otp_secret": "Clé d'authentification à 52 caractères pour Amazon 2SV",
           "password": "Mot de passe",
           "public_url": "URL publique partagée avec les services externes hébergés",
           "queue_delay": "Délai pour regrouper plusieurs commandes (secondes)",
@@ -50,6 +50,51 @@
         },
         "description": "* Champs obligatoires",
         "title": "Alexa Media Player - Configuration"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "air_quality": {
+        "name": "qualité de l'air"
+      },
+      "air_quality_carbon_monoxide": {
+        "name": "Monoxyde de carbone"
+      },
+      "air_quality_humidity": {
+        "name": "Humidité"
+      },
+      "air_quality_indoor_air_quality": {
+        "name": "qualité de l'air intérieur"
+      },
+      "air_quality_particulate_matter": {
+        "name": "Matières particulaires"
+      },
+      "air_quality_volatile_organic_compounds": {
+        "name": "Composés organiques volatils"
+      },
+      "next_alarm": {
+        "name": "Prochaine alarme"
+      },
+      "next_reminder": {
+        "name": "Prochain rappel"
+      },
+      "next_timer": {
+        "name": "La prochaine fois"
+      },
+      "temperature": {
+        "name": "Température"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Ne pas déranger"
+      },
+      "repeat": {
+        "name": "Répéter"
+      },
+      "shuffle": {
+        "name": "Mélanger"
       }
     }
   },

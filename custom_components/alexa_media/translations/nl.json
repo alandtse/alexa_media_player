@@ -53,6 +53,51 @@
       }
     }
   },
+  "entity": {
+    "sensor": {
+      "air_quality": {
+        "name": "Luchtkwaliteit"
+      },
+      "air_quality_carbon_monoxide": {
+        "name": "Koolmonoxide"
+      },
+      "air_quality_humidity": {
+        "name": "Vochtigheid"
+      },
+      "air_quality_indoor_air_quality": {
+        "name": "Binnenluchtkwaliteit"
+      },
+      "air_quality_particulate_matter": {
+        "name": "Fijnstof"
+      },
+      "air_quality_volatile_organic_compounds": {
+        "name": "Vluchtige organische verbindingen"
+      },
+      "next_alarm": {
+        "name": "Volgende alarm"
+      },
+      "next_reminder": {
+        "name": "Volgende herinnering"
+      },
+      "next_timer": {
+        "name": "Volgende keer"
+      },
+      "temperature": {
+        "name": "Temperatuur"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Niet storen"
+      },
+      "repeat": {
+        "name": "Herhalen"
+      },
+      "shuffle": {
+        "name": "Schudden"
+      }
+    }
+  },
   "issues": {
     "deprecated_yaml_configuration": {
       "description": "De YAML-configuratie van Alexa Media Player is verouderd.\n\nVerwijder `alexa_media` uit uw configuratie, herstart Home Assistant en gebruik in plaats daarvan de gebruikersinterface om het te configureren.\n\nInstellingen > Apparaten en services > Integraties > INTEGRATIE TOEVOEGEN",

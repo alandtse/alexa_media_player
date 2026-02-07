@@ -493,7 +493,7 @@ def rgb_to_alexa_color(
     rgb: tuple[int, int, int],
 ) -> tuple[Optional[tuple[float, float]], Optional[str]]:
     """Convert a given RGB value into the closest Alexa color."""
-    (name, alexa_rgb) = min(
+    name, alexa_rgb = min(
         ALEXA_COLORS.items(),
         key=lambda alexa_color: red_mean(alexa_color[1], rgb),
     )

@@ -1954,7 +1954,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         _LOGGER.debug("%s: setup_alexa: Reusing coordinator", hide_email(email))
         # Use the optimized set_http2_status method if available
         if isinstance(coordinator, AlexaMediaCoordinator):
-            coordinator.set_http2_status(http2_enabled)
+            coordinator.set_http2_status(bool(http2_enabled))
         else:
             coordinator.update_interval = timedelta(
                 seconds=scan_interval * 10 if http2_enabled else scan_interval

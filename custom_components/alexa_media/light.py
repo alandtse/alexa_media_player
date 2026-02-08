@@ -250,6 +250,8 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             color_temperature_name=color_temperature_name,
             color_name=color_name,
         )
+        if not isinstance(response, dict):
+            return await self.coordinator.async_request_refresh()
         control_responses = response.get("controlResponses", [])
         for response in control_responses:
             if not response.get("code") == "SUCCESS":
@@ -260,7 +262,7 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             brightness if brightness is not None else self.brightness
         )
         self._requested_kelvin = (
-            adjusted_kelvin if adjusted_kelvin is not None else self.color_temp
+            adjusted_kelvin if adjusted_kelvin is not None else self.color_temp_kelvin
         )
         if adjusted_hs is not None:
             self._requested_hs = adjusted_hs
@@ -273,6 +275,13 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             datetime.timezone.utc
         )  # must be set last so that previous getters work properly
         self.schedule_update_ha_state()
+
+        # Confirm quickly, but debounce to avoid spamming during slider drags.
+        account = self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(self._login.email)
+        if account:
+            debouncer = account.get("confirm_refresh_debouncer")
+            if debouncer:
+                await debouncer.async_call()
 
     async def async_turn_on(self, **kwargs):
         """Turn on."""

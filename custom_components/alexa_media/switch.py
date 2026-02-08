@@ -461,22 +461,37 @@ class SmartSwitch(CoordinatorEntity, SwitchDevice):
         )
         return not last_refresh_success
 
-    async def _set_state(self, power_on):
+    async def _set_state(self, power_on: bool) -> None:
         response = await AlexaAPI.set_light_state(
             self._login,
             self.alexa_entity_id,
             power_on,
         )
+
+        if not isinstance(response, dict):
+            # If something failed any state is possible, fallback to a full refresh
+            await self.coordinator.async_request_refresh()
+            return
+
         control_responses = response.get("controlResponses", [])
-        for response in control_responses:
-            if not response.get("code") == "SUCCESS":
+        for ctrl_resp in control_responses:
+            if ctrl_resp.get("code") != "SUCCESS":
                 # If something failed any state is possible, fallback to a full refresh
-                return await self.coordinator.async_request_refresh()
+                await self.coordinator.async_request_refresh()
+                return
+
         self._requested_power = power_on
         self._requested_state_at = datetime.datetime.now(
             datetime.timezone.utc
         )  # must be set last so that previous getters work properly
         self.schedule_update_ha_state()
+
+        # Confirm quickly, but debounce to avoid spamming across multiple entities.
+        account = self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(self._login.email)
+        if account:
+            debouncer = account.get("confirm_refresh_debouncer")
+            if debouncer:
+                await debouncer.async_call()
 
     async def async_turn_on(self, **kwargs):
         """Turn on."""

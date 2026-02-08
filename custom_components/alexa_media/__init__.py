@@ -705,8 +705,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     # Record API call metrics
                     if metrics:
                         metrics.record_api_call("initial_fetch", fetch_time)
-                        # Cache the devices for faster next boot
-                        metrics.api_cache.set(f"{cache_key_prefix}_devices", devices)
+                        # Cache the devices for faster next boot (only freshly fetched)
+                        if not _used_cached_devices:
+                            metrics.api_cache.set(
+                                f"{cache_key_prefix}_devices", devices
+                            )
 
                     _t_post = time.monotonic()
                     if should_get_network and optional_task_results:
@@ -820,7 +823,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     async def _bg_process_notifications():
                         try:
                             await process_notifications(login_obj)
-                        except Exception:
+                        except (
+                            AlexapyConnectionError,
+                            AlexapyLoginError,
+                            asyncio.TimeoutError,
+                            JSONDecodeError,
+                        ):
                             _LOGGER.debug(
                                 "%s: Background notifications failed, retrying once",
                                 hide_email(email),
@@ -828,7 +836,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             try:
                                 await asyncio.sleep(5)
                                 await process_notifications(login_obj)
-                            except Exception:
+                            except (
+                                AlexapyConnectionError,
+                                AlexapyLoginError,
+                                asyncio.TimeoutError,
+                                JSONDecodeError,
+                            ):
                                 _LOGGER.debug(
                                     "%s: Background notifications retry failed",
                                     hide_email(email),
@@ -840,10 +853,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         _bg_process_notifications(),
                         f"{DOMAIN}_notifications_init",
                     )
-            else:
-                _LOGGER.debug(
-                    "%s: Using cached data, skipping API fetch", hide_email(email)
-                )
 
         except (AlexapyLoginError, JSONDecodeError):
             _LOGGER.debug(

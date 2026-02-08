@@ -748,10 +748,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
                         # Use shorter timeout for entity data to avoid blocking
                         _t_ed = time.monotonic()
-                        entity_state = await asyncio.wait_for(
-                            get_entity_data(login_obj, list(_entities_to_monitor)),
-                            timeout=10.0,
-                        )
+                        try:
+                            entity_state = await asyncio.wait_for(
+                                get_entity_data(login_obj, list(_entities_to_monitor)),
+                                timeout=10.0,
+                            )
+                        except asyncio.TimeoutError:
+                            _LOGGER.warning(
+                                "%s: get_entity_data timed out after 10s, "
+                                "entity states will be fetched on next cycle",
+                                hide_email(email),
+                            )
                         _LOGGER.debug("[BOOT] get_entity_data (network) in %.2fs", time.monotonic() - _t_ed)
 
                 if entities_to_monitor and optional_task_results:
@@ -796,7 +803,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 hide_email(email),
                             )
 
-                hass.async_create_background_task(
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                    "notifications_init_task"
+                ] = hass.async_create_background_task(
                     _bg_process_notifications(),
                     f"{DOMAIN}_notifications_init",
                 )
@@ -1169,8 +1178,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         stored_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
         if (
             force
-            or "last_called" in stored_data
-            and last_called != stored_data["last_called"]
+            or ("last_called" in stored_data and last_called != stored_data["last_called"])
         ) or ("last_called" not in stored_data and last_called is not None):
             _LOGGER.debug(
                 "%s: last_called changed: %s to %s",
@@ -1975,16 +1983,14 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry"""
     email = entry.data["email"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
-    refresh_task = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-        "notifications_refresh_task"
-    )
-    if refresh_task and not refresh_task.done():
-        refresh_task.cancel()
-        try:
-            await refresh_task
-        except asyncio.CancelledError:
-            # Task cancellation is expected during unload; ignore this exception.
-            pass
+    for task_key in ("notifications_refresh_task", "notifications_init_task"):
+        task = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(task_key)
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
     last_called_task = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
         "last_called_probe_task"
     )

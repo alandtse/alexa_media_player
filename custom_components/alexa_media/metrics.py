@@ -28,7 +28,7 @@ class BootMetrics:
         """Record a boot stage completion."""
         elapsed = time.monotonic() - self.start_time
         self.stages[stage_name] = elapsed
-        _LOGGER.info(
+        _LOGGER.debug(
             "[BOOT METRICS] %s completed in %.3fs",
             stage_name,
             elapsed,
@@ -49,14 +49,16 @@ class DataCache:
     Reduces redundant API calls during startup and normal operation.
     """
 
-    def __init__(self, ttl_seconds: float = 30.0) -> None:
+    def __init__(self, ttl_seconds: float = 30.0, max_entries: int = 128) -> None:
         """Initialize cache with TTL.
 
         Args:
             ttl_seconds: Time-to-live for cached entries
+            max_entries: Maximum number of entries before evicting oldest
         """
         self._cache: dict[str, tuple[Any, float]] = {}
         self._ttl = ttl_seconds
+        self._max_entries = max_entries
         self._hits = 0
         self._misses = 0
 
@@ -86,10 +88,16 @@ class DataCache:
     def set(self, key: str, value: Any) -> None:
         """Store value in cache.
 
+        Note: Stores a direct reference (not a copy) for performance.
+        Callers should not mutate cached values.
+
         Args:
             key: Cache key
             value: Value to cache
         """
+        if len(self._cache) >= self._max_entries and key not in self._cache:
+            oldest_key = min(self._cache, key=lambda k: self._cache[k][1])
+            del self._cache[oldest_key]
         self._cache[key] = (value, time.monotonic())
 
     def invalidate(self, key: str) -> None:
@@ -127,7 +135,7 @@ class AlexaMetrics:
     def start_boot_tracking(self) -> None:
         """Start tracking boot performance."""
         self.boot_metrics = BootMetrics()
-        _LOGGER.info("[BOOT METRICS] Started tracking")
+        _LOGGER.debug("[BOOT METRICS] Started tracking")
 
     def record_boot_stage(self, stage_name: str) -> None:
         """Record a boot stage completion."""

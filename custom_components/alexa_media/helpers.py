@@ -468,5 +468,3 @@ def safe_get(
         if not isinstance(result, type(default)):
             result = default
     return result
-
-

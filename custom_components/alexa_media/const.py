@@ -54,7 +54,9 @@ CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
 CONF_PROXY = "proxy"
 CONF_PROXY_WARNING = "proxy_warning"
-CONF_SCAN_INTERVAL = "scan_interval"  # local definition; HA's CONF_SCAN_INTERVAL is deprecated
+CONF_SCAN_INTERVAL = (
+    "scan_interval"  # local definition; HA's CONF_SCAN_INTERVAL is deprecated
+)
 CONF_TOTP_REGISTER = "registered"
 CONF_OAUTH = "oauth"
 DATA_LISTENER = "listener"

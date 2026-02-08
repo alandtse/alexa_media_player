@@ -110,6 +110,7 @@ def _valid_voice_summary(summary: object) -> bool:
     summary = summary.strip()
     return bool(summary) and any(ch.isalnum() for ch in summary)
 
+
 ACCOUNT_CONFIG_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_EMAIL): cv.string,
@@ -272,7 +273,10 @@ async def _async_update_last_called_global(
                 last_called = await AlexaAPI.get_last_device_serial(login_obj)
         except AlexapyLoginError:
             from .helpers import report_relogin_required
-            _LOGGER.debug("%s: Login error during last_called update", hide_email(email))
+
+            _LOGGER.debug(
+                "%s: Login error during last_called update", hide_email(email)
+            )
             report_relogin_required(hass, login_obj, email)
             return
         except TypeError:
@@ -759,7 +763,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 "entity states will be fetched on next cycle",
                                 hide_email(email),
                             )
-                        _LOGGER.debug("[BOOT] get_entity_data (network) in %.2fs", time.monotonic() - _t_ed)
+                        _LOGGER.debug(
+                            "[BOOT] get_entity_data (network) in %.2fs",
+                            time.monotonic() - _t_ed,
+                        )
 
                 if entities_to_monitor and optional_task_results:
                     entity_state = optional_task_results.pop()
@@ -784,7 +791,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                 # Process notifications in background to avoid blocking boot
                 # (process_notifications has a 4s sleep + API call)
-                _LOGGER.debug("[BOOT] post-fetch processing in %.2fs", time.monotonic() - _t_post)
+                _LOGGER.debug(
+                    "[BOOT] post-fetch processing in %.2fs", time.monotonic() - _t_post
+                )
 
                 async def _bg_process_notifications():
                     try:
@@ -1178,7 +1187,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         stored_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
         if (
             force
-            or ("last_called" in stored_data and last_called != stored_data["last_called"])
+            or (
+                "last_called" in stored_data
+                and last_called != stored_data["last_called"]
+            )
         ) or ("last_called" not in stored_data and last_called is not None):
             _LOGGER.debug(
                 "%s: last_called changed: %s to %s",

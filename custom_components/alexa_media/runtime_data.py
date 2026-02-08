@@ -51,7 +51,7 @@ class AlexaRuntimeData:
     )
 
     # Device storage
-    devices: dict[str, dict[str, Any]] = field(
+    devices: dict[str, Any] = field(
         default_factory=lambda: {
             "media_player": {},
             "switch": {},
@@ -62,7 +62,7 @@ class AlexaRuntimeData:
             "smart_switch": [],
         }
     )
-    entities: dict[str, dict[str, Any]] = field(
+    entities: dict[str, Any] = field(
         default_factory=lambda: {
             "media_player": {},
             "switch": {},

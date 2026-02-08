@@ -807,29 +807,39 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     "[BOOT] post-fetch processing in %.2fs", time.monotonic() - _t_post
                 )
 
-                async def _bg_process_notifications():
-                    try:
-                        await process_notifications(login_obj)
-                    except Exception:
-                        _LOGGER.debug(
-                            "%s: Background notifications failed, retrying once",
-                            hide_email(email),
-                        )
+                existing_notif_task = hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    email
+                ].get("notifications_init_task")
+                if existing_notif_task and not existing_notif_task.done():
+                    _LOGGER.debug(
+                        "%s: Notifications background task already running, skipping",
+                        hide_email(email),
+                    )
+                else:
+
+                    async def _bg_process_notifications():
                         try:
-                            await asyncio.sleep(5)
                             await process_notifications(login_obj)
                         except Exception:
                             _LOGGER.debug(
-                                "%s: Background notifications retry failed",
+                                "%s: Background notifications failed, retrying once",
                                 hide_email(email),
                             )
+                            try:
+                                await asyncio.sleep(5)
+                                await process_notifications(login_obj)
+                            except Exception:
+                                _LOGGER.debug(
+                                    "%s: Background notifications retry failed",
+                                    hide_email(email),
+                                )
 
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                    "notifications_init_task"
-                ] = hass.async_create_background_task(
-                    _bg_process_notifications(),
-                    f"{DOMAIN}_notifications_init",
-                )
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "notifications_init_task"
+                    ] = hass.async_create_background_task(
+                        _bg_process_notifications(),
+                        f"{DOMAIN}_notifications_init",
+                    )
             else:
                 _LOGGER.debug(
                     "%s: Using cached data, skipping API fetch", hide_email(email)

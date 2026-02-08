@@ -53,6 +53,51 @@
       }
     }
   },
+  "entity": {
+    "sensor": {
+      "air_quality": {
+        "name": "Luftkvalitet"
+      },
+      "air_quality_carbon_monoxide": {
+        "name": "Karbonmonoksid"
+      },
+      "air_quality_humidity": {
+        "name": "Fuktighet"
+      },
+      "air_quality_indoor_air_quality": {
+        "name": "Innendørs luftkvalitet"
+      },
+      "air_quality_particulate_matter": {
+        "name": "Partikkelformet materiale"
+      },
+      "air_quality_volatile_organic_compounds": {
+        "name": "Flyktige organiske forbindelser"
+      },
+      "next_alarm": {
+        "name": "Neste alarm"
+      },
+      "next_reminder": {
+        "name": "Neste påminnelse"
+      },
+      "next_timer": {
+        "name": "Neste timer"
+      },
+      "temperature": {
+        "name": "Temperatur"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Ikke forstyrr"
+      },
+      "repeat": {
+        "name": "Gjenta"
+      },
+      "shuffle": {
+        "name": "Bland"
+      }
+    }
+  },
   "issues": {
     "deprecated_yaml_configuration": {
       "description": "YAML-konfigurasjonen av Alexa Media Player er utdatert.\nFjern `alexa_media` fra konfigurasjonen din, start Home Assistant på nytt og bruk brukergrensesnittet til å konfigurere den i stedet.\nInnstillinger > Enheter og tjenester > Integrasjoner > LEGG TIL INTEGRASJON",

@@ -53,6 +53,51 @@
       }
     }
   },
+  "entity": {
+    "sensor": {
+      "air_quality": {
+        "name": "Качество воздуха"
+      },
+      "air_quality_carbon_monoxide": {
+        "name": "Оксид углерода"
+      },
+      "air_quality_humidity": {
+        "name": "Влажность"
+      },
+      "air_quality_indoor_air_quality": {
+        "name": "Качество воздуха в помещении"
+      },
+      "air_quality_particulate_matter": {
+        "name": "Твердые частицы"
+      },
+      "air_quality_volatile_organic_compounds": {
+        "name": "Летучие органические соединения"
+      },
+      "next_alarm": {
+        "name": "Следующий будильник"
+      },
+      "next_reminder": {
+        "name": "Следующее напоминание"
+      },
+      "next_timer": {
+        "name": "В следующий раз"
+      },
+      "temperature": {
+        "name": "Температура"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Просьба не беспокоить"
+      },
+      "repeat": {
+        "name": "Повторить"
+      },
+      "shuffle": {
+        "name": "Перетасовка"
+      }
+    }
+  },
   "issues": {
     "deprecated_yaml_configuration": {
       "description": "Конфигурация Alexa Media Player в формате YAML устарела.\nУдалите `alexa_media` из конфигурации, перезапустите Home Assistant и используйте пользовательский интерфейс для настройки.\nНастройки > Устройства и сервисы > Интеграции > ДОБАВИТЬ ИНТЕГРАЦИЮ",

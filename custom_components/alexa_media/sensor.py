@@ -338,6 +338,9 @@ def lookup_device_info(account_dict, device_serial):
 class TemperatureSensor(SensorEntity, CoordinatorEntity):
     """A temperature sensor reported by an Echo or an AIAQM endpoint."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "temperature"
+
     def __init__(
         self,
         coordinator,
@@ -352,10 +355,10 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         super().__init__(coordinator)
         self._debug = bool(debug)
         self.alexa_entity_id = entity_id
+        self._device_name = name
         # Need to append "+temperature" because the Alexa entityId is for a physical device
         # and a single physical device can have multiple HA entities
         self._attr_unique_id = entity_id + "_temperature"
-        self._attr_name = name + " Temperature"
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         value_and_scale: Optional[dict] = parse_temperature_from_coordinator(
@@ -387,7 +390,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         else:
             self._attr_device_info = None
 
-        _LOGGER.debug("Coordinator init: %s", self._attr_name)
+        _LOGGER.debug("Coordinator init: %s Temperature", self._device_name)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -404,8 +407,8 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         )
         unit_str = self._attr_native_unit_of_measurement or ""
         _LOGGER.debug(
-            "Coordinator update: %s: %s%s",
-            self._attr_name,
+            "Coordinator update: %s Temperature: %s%s",
+            self._device_name,
             value_str,
             unit_str,
         )
@@ -431,8 +434,20 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         return None
 
 
+# Mapping from Alexa AirQuality sensor types to translation keys
+AIR_QUALITY_TRANSLATION_KEYS = {
+    "Alexa.AirQuality.CarbonMonoxide": "air_quality_carbon_monoxide",
+    "Alexa.AirQuality.Humidity": "air_quality_humidity",
+    "Alexa.AirQuality.IndoorAirQuality": "air_quality_indoor_air_quality",
+    "Alexa.AirQuality.ParticulateMatter": "air_quality_particulate_matter",
+    "Alexa.AirQuality.VolatileOrganicCompounds": "air_quality_volatile_organic_compounds",
+}
+
+
 class AirQualitySensor(SensorEntity, CoordinatorEntity):
     """An air quality sensor reported by an Amazon indoor air quality monitor."""
+
+    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -450,13 +465,17 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         super().__init__(coordinator)
         self._debug = bool(debug)
         self.alexa_entity_id = entity_id
-        self._sensor_name = sensor_name
-        # tidy up name
-        self._sensor_name = self._sensor_name.replace("Alexa.AirQuality.", "")
+        self._device_name = name
+        self._sensor_type = sensor_name
+        # Set translation key based on sensor type
+        self._attr_translation_key = AIR_QUALITY_TRANSLATION_KEYS.get(
+            sensor_name, "air_quality"
+        )
+        # tidy up name for unique_id and logging
+        self._sensor_name = sensor_name.replace("Alexa.AirQuality.", "")
         self._sensor_name = "".join(
             " " + char if char.isupper() else char.strip() for char in self._sensor_name
         ).strip()
-        self._attr_name = name + " " + self._sensor_name
         self._attr_device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS.get(sensor_name)
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_value: Optional[int | float | str] = (
@@ -490,7 +509,7 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             self._attr_device_info = None
 
         self._instance = instance
-        _LOGGER.debug("Coordinator init: %s", self._attr_name)
+        _LOGGER.debug("Coordinator init: %s %s", self._device_name, self._sensor_name)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -503,13 +522,14 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         )
         unit_str = self._attr_native_unit_of_measurement or ""
         fmt = (
-            "Coordinator update: %s: %s%s"
+            "Coordinator update: %s %s: %s%s"
             if unit_str in ("", "%")
-            else "Coordinator update: %s: %s %s"
+            else "Coordinator update: %s %s: %s %s"
         )
         _LOGGER.debug(
             fmt,
-            self._attr_name,
+            self._device_name,
+            self._sensor_name,
             value_str,
             unit_str,
         )
@@ -519,7 +539,23 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
 class AlexaMediaNotificationSensor(SensorEntity):
     """Representation of Alexa Media sensors."""
 
+    _attr_has_entity_name = True
+    _attr_native_unit_of_measurement = None
     _unrecorded_attributes = frozenset({"brief", "sorted_active", "sorted_all"})
+
+    # Guard for internal HA API - only override if base class has this property
+    if hasattr(SensorEntity, "_unit_of_measurement_translation_key"):
+
+        @property
+        def _unit_of_measurement_translation_key(self) -> str | None:
+            """Return None to prevent unit translation lookup before platform registration.
+
+            This override is necessary because HA tries to resolve unit translation
+            when translation_key is set, but platform_data is None before entity
+            registration. Timestamp sensors have no units, so we can safely return None.
+            """
+            return None
+
     _LABEL_KEY_MAP: ClassVar[dict[str, str]] = {
         "Alarm": "alarmLabel",
         "Timer": "timerLabel",
@@ -542,12 +578,10 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._attr_device_class = SensorDeviceClass.TIMESTAMP
         self._attr_state_class = None
         self._attr_native_value: Optional[datetime.datetime] = None
-        self._attr_name = f"{client.name} {name}"
         self._attr_unique_id = f"{client.unique_id}_{name}"
         self._attr_icon = icon
         self._attr_device_info = {
             "identifiers": {(ALEXA_DOMAIN, client.unique_id)},
-            "via_device": (ALEXA_DOMAIN, client.unique_id),
         }
         self._attr_assumed_state = client.assumed_state
         self._attr_available = client.available
@@ -979,6 +1013,8 @@ class AlexaMediaNotificationSensor(SensorEntity):
 class AlarmSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Alarm sensor."""
 
+    _attr_translation_key = "next_alarm"
+
     def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
         # Class info
@@ -988,7 +1024,7 @@ class AlarmSensor(AlexaMediaNotificationSensor):
             n_json,
             "date_time",
             account,
-            f"next {self._type}",
+            "Next alarm",
             "mdi:alarm",
             debug=debug,
         )
@@ -996,6 +1032,8 @@ class AlarmSensor(AlexaMediaNotificationSensor):
 
 class TimerSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Timer sensor."""
+
+    _attr_translation_key = "next_timer"
 
     def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
@@ -1006,7 +1044,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
             n_json,
             "remainingTime",
             account,
-            f"next {self._type}",
+            "Next timer",
             (
                 "mdi:timer-outline"
                 if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
@@ -1058,6 +1096,8 @@ class TimerSensor(AlexaMediaNotificationSensor):
 class ReminderSensor(AlexaMediaNotificationSensor):
     """Representation of a Alexa Reminder sensor."""
 
+    _attr_translation_key = "next_reminder"
+
     def __init__(self, client, n_json, account, debug: bool = False):
         """Initialize the Alexa sensor."""
         self._type = "Reminder"
@@ -1066,7 +1106,7 @@ class ReminderSensor(AlexaMediaNotificationSensor):
             n_json,
             "alarmTime",
             account,
-            f"next {self._type}",
+            "Next reminder",
             "mdi:reminder",
             debug=debug,
         )

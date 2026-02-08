@@ -53,6 +53,51 @@
       }
     }
   },
+  "entity": {
+    "sensor": {
+      "air_quality": {
+        "name": "Air quality"
+      },
+      "air_quality_carbon_monoxide": {
+        "name": "Carbon monoxide"
+      },
+      "air_quality_humidity": {
+        "name": "Humidity"
+      },
+      "air_quality_indoor_air_quality": {
+        "name": "Indoor air quality"
+      },
+      "air_quality_particulate_matter": {
+        "name": "Particulate matter"
+      },
+      "air_quality_volatile_organic_compounds": {
+        "name": "Volatile organic compounds"
+      },
+      "next_alarm": {
+        "name": "Next alarm"
+      },
+      "next_reminder": {
+        "name": "Next reminder"
+      },
+      "next_timer": {
+        "name": "Next timer"
+      },
+      "temperature": {
+        "name": "Temperature"
+      }
+    },
+    "switch": {
+      "do_not_disturb": {
+        "name": "Do not disturb"
+      },
+      "repeat": {
+        "name": "Repeat"
+      },
+      "shuffle": {
+        "name": "Shuffle"
+      }
+    }
+  },
   "issues": {
     "deprecated_yaml_configuration": {
       "description": "Alexa Media PlayerのYAML設定は非推奨であり、バージョン4.14.0で削除される予定です。 この設定の自動インポートは行われません。 設定から削除し、Home Assistantを再起動して、代わりにUIを使用して設定してください。 [設定] -> [デバイスとサービス] -> [統合] -> [統合を追加]",

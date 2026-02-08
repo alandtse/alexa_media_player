@@ -86,6 +86,7 @@ from .helpers import (
     alarm_just_dismissed,
     calculate_uuid,
     hide_email,
+    report_relogin_required,
     safe_get,
 )
 from .metrics import AlexaMetrics, get_metrics
@@ -254,6 +255,38 @@ async def async_setup(hass, config):
     return True
 
 
+def _store_and_dispatch_last_called(
+    hass: HomeAssistant,
+    email: str,
+    last_called: dict,
+    force: bool = False,
+) -> None:
+    """Store last_called data and dispatch change event if needed.
+
+    Shared helper used by both the closure-based update_last_called
+    and the module-level _async_update_last_called_global.
+    """
+    accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
+    if email not in accounts:
+        _LOGGER.debug("%s: Account removed during update, skipping", hide_email(email))
+        return
+    stored_data = accounts[email]
+    if (
+        force
+        or ("last_called" in stored_data and last_called != stored_data["last_called"])
+    ) or ("last_called" not in stored_data and last_called is not None):
+        _LOGGER.debug(
+            "%s: last_called changed",
+            hide_email(email),
+        )
+        async_dispatcher_send(
+            hass,
+            f"{DOMAIN}_{hide_email(email)}"[0:32],
+            {"last_called_change": last_called},
+        )
+    stored_data["last_called"] = last_called
+
+
 async def _async_update_last_called_global(
     hass: HomeAssistant,
     login_obj,
@@ -264,16 +297,13 @@ async def _async_update_last_called_global(
     """Update the last called device globally (standalone function).
 
     This version is defined at module level for use in background tasks.
+    It delegates storage/dispatch to _store_and_dispatch_last_called.
     """
-    from alexapy import AlexaAPI
-
     if not isinstance(last_called, dict) or not last_called.get("summary"):
         try:
             async with async_timeout.timeout(10):
                 last_called = await AlexaAPI.get_last_device_serial(login_obj)
         except AlexapyLoginError:
-            from .helpers import report_relogin_required
-
             _LOGGER.debug(
                 "%s: Login error during last_called update", hide_email(email)
             )
@@ -304,25 +334,7 @@ async def _async_update_last_called_global(
     _LOGGER.debug(
         "%s: Updated last_called: %s", hide_email(email), hide_serial(last_called)
     )
-    accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
-    if email not in accounts:
-        _LOGGER.debug("%s: Account removed during update, skipping", hide_email(email))
-        return
-    stored_data = accounts[email]
-    if (
-        force
-        or ("last_called" in stored_data and last_called != stored_data["last_called"])
-    ) or ("last_called" not in stored_data and last_called is not None):
-        _LOGGER.debug(
-            "%s: last_called changed",
-            hide_email(email),
-        )
-        async_dispatcher_send(
-            hass,
-            f"{DOMAIN}_{hide_email(email)}"[0:32],
-            {"last_called_change": last_called},
-        )
-    stored_data["last_called"] = last_called
+    _store_and_dispatch_last_called(hass, email, last_called, force)
 
 
 # @retry_async(limit=5, delay=5, catch_exceptions=True)
@@ -1148,7 +1160,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         """Update the last called device for the login_obj.
 
         This will store the last_called in hass.data and also fire an event
-        to notify listeners.
+        to notify listeners. Delegates storage/dispatch to the module-level
+        _store_and_dispatch_last_called helper.
         """
 
         if not isinstance(last_called, dict) or not last_called.get("summary"):
@@ -1172,40 +1185,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 return
 
         # ---- Central voice-only gate (covers both passed-in and fetched cases) ----
-        summary = last_called.get("summary")
-        if not _valid_voice_summary(summary):
+        if not _valid_voice_summary(last_called.get("summary")):
             _LOGGER.debug(
                 "%s: Ignoring last_called with invalid/non-voice summary: %s",
                 hide_email(email),
-                repr(summary),
+                repr(last_called.get("summary")),
             )
             return
 
         _LOGGER.debug(
             "%s: Updated last_called: %s", hide_email(email), hide_serial(last_called)
         )
-        stored_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-        if (
-            force
-            or (
-                "last_called" in stored_data
-                and last_called != stored_data["last_called"]
-            )
-        ) or ("last_called" not in stored_data and last_called is not None):
-            _LOGGER.debug(
-                "%s: last_called changed: %s to %s",
-                hide_email(email),
-                hide_serial(
-                    stored_data["last_called"] if "last_called" in stored_data else None
-                ),
-                hide_serial(last_called),
-            )
-            async_dispatcher_send(
-                hass,
-                f"{DOMAIN}_{hide_email(email)}"[0:32],
-                {"last_called_change": last_called},
-            )
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called"] = last_called
+        _store_and_dispatch_last_called(hass, email, last_called, force)
 
     @_catch_login_errors
     async def update_bluetooth_state(login_obj, device_serial):
@@ -1963,7 +1954,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     # Update last_called in background to avoid blocking
     _LOGGER.debug("%s: setup_alexa: Scheduling last_called update", hide_email(email))
-    hass.async_create_background_task(
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+        "last_called_init_task"
+    ] = hass.async_create_background_task(
         _async_update_last_called_background(hass, login_obj, email),
         f"{DOMAIN}_last_called_init",
     )
@@ -1995,7 +1988,11 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry"""
     email = entry.data["email"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
-    for task_key in ("notifications_refresh_task", "notifications_init_task"):
+    for task_key in (
+        "notifications_refresh_task",
+        "notifications_init_task",
+        "last_called_init_task",
+    ):
         task = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(task_key)
         if task and not task.done():
             task.cancel()

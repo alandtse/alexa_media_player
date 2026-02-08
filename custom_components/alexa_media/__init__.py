@@ -807,9 +807,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     "[BOOT] post-fetch processing in %.2fs", time.monotonic() - _t_post
                 )
 
-                existing_notif_task = hass.data[DATA_ALEXAMEDIA]["accounts"][
-                    email
-                ].get("notifications_init_task")
+                existing_notif_task = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+                    "notifications_init_task"
+                )
                 if existing_notif_task and not existing_notif_task.done():
                     _LOGGER.debug(
                         "%s: Notifications background task already running, skipping",

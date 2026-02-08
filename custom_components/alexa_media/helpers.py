@@ -37,8 +37,14 @@ async def add_devices(
     exclude_filter: Optional[list[str]] = None,
 ) -> bool:
     """Add devices using add_devices_callback."""
-    include_filter = include_filter or []
-    exclude_filter = exclude_filter or []
+    if isinstance(include_filter, str):
+        include_filter = [x.strip() for x in include_filter.split(",") if x.strip()]
+    else:
+        include_filter = include_filter or []
+    if isinstance(exclude_filter, str):
+        exclude_filter = [x.strip() for x in exclude_filter.split(",") if x.strip()]
+    else:
+        exclude_filter = exclude_filter or []
 
     def _device_name(dev: Entity) -> str | None:
         """Best-effort name before entity_id is assigned."""
@@ -72,8 +78,9 @@ async def add_devices(
     for device in devices:
         dev_name = _device_name(device)
 
-        if (include_filter and dev_name not in include_filter) or (
-            exclude_filter and dev_name in exclude_filter
+        if dev_name and (
+            (include_filter and dev_name not in include_filter)
+            or (exclude_filter and dev_name in exclude_filter)
         ):
             _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
             continue
@@ -461,3 +468,5 @@ def safe_get(
         if not isinstance(result, type(default)):
             result = default
     return result
+
+

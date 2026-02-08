@@ -36,9 +36,9 @@ class AlexaRuntimeData:
     All fields are type-safe and properly initialized.
     """
 
-    # Core components
-    login_obj: AlexaLogin
-    config_entry: ConfigEntry
+    # Core components (optional to support partial initialisation)
+    login_obj: AlexaLogin | None = None
+    config_entry: ConfigEntry | None = None
     coordinator: DataUpdateCoordinator[AlexaEntityData] | None = None
 
     # HTTP2 Push connection

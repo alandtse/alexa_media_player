@@ -1954,11 +1954,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     # Update last_called in background to avoid blocking
     _LOGGER.debug("%s: setup_alexa: Scheduling last_called update", hide_email(email))
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-        "last_called_init_task"
-    ] = hass.async_create_background_task(
-        _async_update_last_called_background(hass, login_obj, email),
-        f"{DOMAIN}_last_called_init",
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called_init_task"] = (
+        hass.async_create_background_task(
+            _async_update_last_called_background(hass, login_obj, email),
+            f"{DOMAIN}_last_called_init",
+        )
     )
 
     return True

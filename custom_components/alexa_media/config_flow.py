@@ -1152,6 +1152,7 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     request.url,
                     type(ex).__name__,
                     ex,
+                    exc_info=True,
                 )
                 return web_response.Response(
                     headers={"content-type": "text/html"},

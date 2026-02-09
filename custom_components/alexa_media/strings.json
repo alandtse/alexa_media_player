@@ -25,7 +25,7 @@
           "email": "Email Address",
           "password": "Password",
           "securitycode": "One-time password (OTP)",
-          "otp_secret": "52-character Authenticator App Key for Amazon 2SV",
+          "otp_secret": "Authenticator App Key for Amazon 2SV",
           "hass_url": "Local network URL to access Home Assistant",
           "public_url": "Public URL shared with external hosted services",
           "include_devices": "Only include these devices (comma separated)",
@@ -34,7 +34,11 @@
           "queue_delay": "Delay to queue multiple commands together (seconds)",
           "should_get_network": "Discover Alexa network",
           "extended_entity_discovery": "Include additional sensors, switches and lights",
-          "debug": "Advanced debugging"
+          "debug": "Advanced debug"
+        },
+        "data_description": {
+          "otp_secret": "Example: OH6E 45XJ 4NYX URNR 5OY7 P5CP R8P3 NZRA AGPU GRC9 CI5H FDNV O2WA",
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting. Not recommended for normal operation due to increased log volume. Ensure logger levels are set to DEBUG for full output."
         }
       },
       "proxy_warning": {
@@ -56,8 +60,8 @@
   "options": {
     "step": {
       "init": {
-        "title": "Alexa Media Player - Reconfiguration",
-        "description": "* Required entry",
+        "title": "Alexa Media Player",
+        "description": "Reconfigure options",
         "data": {
           "public_url": "Public URL shared with external hosted services",
           "include_devices": "Only include these devices (comma separated)",
@@ -66,7 +70,10 @@
           "queue_delay": "Delay to queue multiple commands together (seconds)",
           "should_get_network": "Discover Alexa network",
           "extended_entity_discovery": "Include additional sensors, switches and lights",
-          "debug": "Advanced debugging"
+          "debug": "Advanced debug"
+        },
+        "data_description": {
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting. Not recommended for normal operation due to increased log volume. Ensure logger levels are set to DEBUG for full output."
         }
       }
     }

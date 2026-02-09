@@ -9,7 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import re
@@ -21,6 +21,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .helpers import safe_get
 
 _LOGGER = logging.getLogger(__name__)
+
+# How long we keep "requested state" protected from stale coordinator values
+# when capabilityStates do not include a usable timeOfSample.
+_REQUESTED_STATE_TTL = timedelta(seconds=15)
 
 
 def has_capability(
@@ -608,7 +612,7 @@ def parse_air_quality_from_coordinator(
 
 
 def parse_brightness_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> int | None:
     """Get the brightness in the range 0-100."""
     return parse_value_from_coordinator(
@@ -621,7 +625,7 @@ def parse_brightness_from_coordinator(
 
 
 def parse_color_temp_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> int | None:
     """Get the color temperature in kelvin."""
     return parse_value_from_coordinator(
@@ -634,7 +638,7 @@ def parse_color_temp_from_coordinator(
 
 
 def parse_color_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> tuple[float, float, float] | None:
     """Get the color as a tuple of (hue, saturation, brightness)."""
     value = parse_value_from_coordinator(
@@ -648,7 +652,7 @@ def parse_color_from_coordinator(
 
 
 def parse_power_from_coordinator(
-    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime
+    coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> str | None:
     """Get the power state of the entity."""
     return parse_value_from_coordinator(
@@ -690,6 +694,7 @@ def parse_value_from_coordinator(
 ) -> Any:
     """Parse out values from coordinator for Alexa Entities."""
     if coordinator.data and entity_id in coordinator.data:
+        found_match = False
         for cap_state in coordinator.data[entity_id]:
             cap_instance = cap_state.get("instance")
             instance_match = instance is None or (
@@ -700,14 +705,27 @@ def parse_value_from_coordinator(
                 and cap_state.get("name") == name
                 and instance_match
             ):
+                found_match = True
                 if is_cap_state_still_acceptable(cap_state, since):
                     return cap_state.get("value")
                 if debug:
                     _LOGGER.debug(
-                        "Coordinator data for %s is too old to be returned.",
+                        "Coordinator data for %s (%s/%s instance=%s) is too old; checking other matches.",
                         entity_id,
+                        namespace,
+                        name,
+                        instance,
                     )
-                return None
+                # Keep searching in case a newer matching cap_state exists later.
+                continue
+        if debug and found_match:
+            _LOGGER.debug(
+                "No acceptable coordinator data found for %s (%s/%s instance=%s).",
+                entity_id,
+                namespace,
+                name,
+                instance,
+            )
     else:
         if debug:
             _LOGGER.debug(
@@ -724,14 +742,25 @@ def is_cap_state_still_acceptable(
     cap_state: dict[str, Any], since: datetime | None
 ) -> bool:
     """Determine if a particular capability state is still usable given its age."""
-    if since is not None:
-        formatted_time_of_sample = cap_state.get("timeOfSample")
-        if formatted_time_of_sample:
-            try:
-                time_of_sample = datetime.strptime(
-                    formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S%z"
-                )
-                return time_of_sample >= since
-            except ValueError:
-                pass
-    return True
+    if since is None:
+        return True
+
+    # Don't protect requested state forever; after TTL fall back to coordinator
+    # even if timeOfSample is missing/unparsable.
+    if datetime.now(timezone.utc) - since > _REQUESTED_STATE_TTL:
+        return True
+
+    formatted_time_of_sample = cap_state.get("timeOfSample")
+    if not formatted_time_of_sample:
+        # If we can't prove the sample is newer than the requested state,
+        # do not allow it to override optimistic/requested values.
+        return False
+
+    try:
+        time_of_sample = datetime.strptime(
+            formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S%z"
+        )
+    except ValueError:
+        return False
+
+    return time_of_sample >= since

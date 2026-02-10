@@ -1024,7 +1024,7 @@ class AlarmSensor(AlexaMediaNotificationSensor):
             n_json,
             "date_time",
             account,
-            "Next alarm",
+            f"next {self._type}",
             "mdi:alarm",
             debug=debug,
         )
@@ -1044,7 +1044,7 @@ class TimerSensor(AlexaMediaNotificationSensor):
             n_json,
             "remainingTime",
             account,
-            "Next timer",
+            f"next {self._type}",
             (
                 "mdi:timer-outline"
                 if (version.parse(HA_VERSION) >= version.parse("0.113.0"))
@@ -1106,7 +1106,7 @@ class ReminderSensor(AlexaMediaNotificationSensor):
             n_json,
             "alarmTime",
             account,
-            "Next reminder",
+            f"next {self._type}",
             "mdi:reminder",
             debug=debug,
         )

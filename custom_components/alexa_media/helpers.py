@@ -11,6 +11,7 @@ import asyncio
 import functools
 import hashlib
 import logging
+from collections.abc import Iterable, Mapping
 from typing import Any, Callable, Optional, TypeVar, overload
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
@@ -37,8 +38,31 @@ async def add_devices(
     exclude_filter: Optional[list[str]] = None,
 ) -> bool:
     """Add devices using add_devices_callback."""
-    include_filter = include_filter or []
-    exclude_filter = exclude_filter or []
+    def _normalize_filter(value: Any) -> set[str]:
+        """Normalize include/exclude filters to a set[str].
+
+        Some configs/options can yield a single string, None, or other iterables.
+        We only keep non-empty string values to avoid TypeErrors and substring semantics.
+        """
+        if not value:
+            return set()
+        if isinstance(value, str):
+            return {value} if value else set()
+        if isinstance(value, Mapping):
+            # Defensive: if something stored a dict, prefer its values (typically display names)
+            items = value.values()
+        elif isinstance(value, Iterable):
+            items = value
+        else:
+            return set()
+        out: set[str] = set()
+        for item in items:
+            if isinstance(item, str) and item:
+                out.add(item)
+        return out
+
+    include_filter = _normalize_filter(include_filter)
+    exclude_filter = _normalize_filter(exclude_filter)
 
     def _device_name(dev: Entity) -> str | None:
         """Best-effort name before entity_id is assigned."""
@@ -72,13 +96,16 @@ async def add_devices(
     for device in devices:
         dev_name = _device_name(device)
 
-        if (include_filter and dev_name not in include_filter) or (
-            exclude_filter and dev_name in exclude_filter
-        ):
+        # If include_filter is set, we must have a name and it must match.
+        if include_filter and (not dev_name or dev_name not in include_filter):
+             _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
+             continue
+        # Exclude only when name is present and matches.
+        if exclude_filter and dev_name and dev_name in exclude_filter:
             _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
             continue
 
-        new_devices.append(device)
+         new_devices.append(device)
 
     devices = new_devices
     if not devices:

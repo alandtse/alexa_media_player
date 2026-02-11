@@ -14,7 +14,6 @@ from datetime import timedelta
 from functools import reduce
 import html as html_lib
 import logging
-import traceback
 from typing import Any, Optional
 
 from aiohttp import ClientConnectionError, ClientSession, InvalidURL, web, web_response
@@ -405,13 +404,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 write=30.0,
                 pool=30.0,
             )
-            _LOGGER.warning(
-                "PROXY DEBUG >>> Session timeout set to: %s",
+            _LOGGER.debug(
+                "Proxy session timeout set to: %s",
                 self.proxy.session.timeout,
             )
         else:
             _LOGGER.warning(
-                "PROXY DEBUG >>> No session found on proxy object. Attrs: %s",
+                "Proxy: No session found on proxy object. Attrs: %s",
                 dir(self.proxy),
             )
         if not self.proxy_view:
@@ -1111,7 +1110,7 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     for k, v in request.headers.items()
                 }
                 _LOGGER.debug(
-                    "PROXY DEBUG >>> Request: %s %s | Remote: %s | Headers: %s",
+                    "Proxy request: %s %s | Remote: %s | Headers: %s",
                     request.method,
                     request.url,
                     request.remote,
@@ -1129,7 +1128,7 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                         else "unknown"
                     )
                     _LOGGER.debug(
-                        "PROXY DEBUG >>> Success: %s %s | Status: %s | Response headers: %s",
+                        "Proxy response: %s %s | Status: %s | Response headers: %s",
                         request.method,
                         request.url,
                         result.status if hasattr(result, "status") else "unknown",
@@ -1147,17 +1146,13 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
             except web.HTTPException:
                 raise  # Let aiohttp handle redirects (HTTPFound) and other HTTP exceptions
             except Exception as ex:  # pylint: disable=broad-except
-                tb = traceback.format_exc()
                 _LOGGER.warning(
-                    "PROXY DEBUG >>> EXCEPTION at %s %s\n"
-                    "Type: %s\n"
-                    "Message: %s\n"
-                    "Full traceback:\n%s",
+                    "Proxy exception at %s %s: %s - %s",
                     request.method,
                     request.url,
                     type(ex).__name__,
                     ex,
-                    tb,
+                    exc_info=True,
                 )
                 return web_response.Response(
                     headers={"content-type": "text/html"},

@@ -8,10 +8,10 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
+from collections.abc import Iterable, Mapping
 import functools
 import hashlib
 import logging
-from collections.abc import Iterable, Mapping
 from typing import Any, Callable, Optional, TypeVar, overload
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
@@ -99,8 +99,10 @@ async def add_devices(
 
         # If include_filter is set, we must have a name and it must match.
         if include_filter and (not dev_name or dev_name not in include_filter):
-             _LOGGER.debug("%s: Not including device: %s", account, _device_label(device))
-             continue
+            _LOGGER.debug(
+                "%s: Not including device: %s", account, _device_label(device)
+            )
+            continue
         # Exclude only when name is present and matches.
         if exclude_filter and dev_name and dev_name in exclude_filter:
             _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))

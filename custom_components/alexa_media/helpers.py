@@ -38,6 +38,7 @@ async def add_devices(
     exclude_filter: Optional[list[str]] = None,
 ) -> bool:
     """Add devices using add_devices_callback."""
+
     def _normalize_filter(value: Any) -> set[str]:
         """Normalize include/exclude filters to a set[str].
 
@@ -98,14 +99,14 @@ async def add_devices(
 
         # If include_filter is set, we must have a name and it must match.
         if include_filter and (not dev_name or dev_name not in include_filter):
-             _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
+             _LOGGER.debug("%s: Not including device: %s", account, _device_label(device))
              continue
         # Exclude only when name is present and matches.
         if exclude_filter and dev_name and dev_name in exclude_filter:
             _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
             continue
 
-         new_devices.append(device)
+        new_devices.append(device)
 
     devices = new_devices
     if not devices:

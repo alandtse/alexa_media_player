@@ -72,9 +72,14 @@ async def add_devices(
     for device in devices:
         dev_name = _device_name(device)
 
-        if (include_filter and dev_name not in include_filter) or (
-            exclude_filter and dev_name in exclude_filter
-        ):
+        # If include_filter is set, we must have a name and it must match.
+        if include_filter and (not dev_name or dev_name not in include_filter):
+            _LOGGER.debug(
+                "%s: Not including device: %s", account, _device_label(device)
+            )
+            continue
+        # Exclude only when name is present and matches.
+        if exclude_filter and dev_name and dev_name in exclude_filter:
             _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
             continue
 

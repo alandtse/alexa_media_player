@@ -757,9 +757,7 @@ def is_cap_state_still_acceptable(
         return False
 
     try:
-        time_of_sample = datetime.strptime(
-            formatted_time_of_sample, "%Y-%m-%dT%H:%M:%S%z"
-        )
+        time_of_sample = datetime.fromisoformat(formatted_time_of_sample)
     except ValueError:
         return False
 

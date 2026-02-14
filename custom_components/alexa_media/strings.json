@@ -68,7 +68,7 @@
           "otp_secret": "52-character Authenticator App Key for Amazon 2SV",
           "public_url": "Public URL shared with external hosted services",
           "queue_delay": "Delay to queue multiple commands together (seconds)",
-          "scan_interval": "Scheduled polling frequency (seconds)",
+          "scan_interval": "Scheduled polling interval (seconds)",
           "should_get_network": "Discover Alexa network"
         },
         "data_description": {

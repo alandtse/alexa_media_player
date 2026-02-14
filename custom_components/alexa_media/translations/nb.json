@@ -48,8 +48,10 @@
           "should_get_network": "Oppdag Alexa-nettverket",
           "url": "Amazon-regiondomenet (f.eks. Amazon.co.uk)"
         },
-        "description": "* Obligatoriske oppføringer",
-        "title": "Alexa Media Player - Konfigurasjon"
+        "data_description": {
+          "debug": "Muliggjør svært detaljert logging på spornivå for avansert feilsøking. \n Anbefales ikke for normal drift på grunn av økt loggvolum. \n Sørg for at loggnivåene er satt til DEBUG for full utdata.",
+          "otp_secret": "Eksempel: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "eller Ekskluder disse enhetene fra alle (kommaseparert)",
           "extended_entity_discovery": "Inkluder ekstra sensorer, brytere og lys",
           "include_devices": "Inkluder bare disse enhetene (kommaseparert)",
+          "otp_secret": "52-tegns nøkkel fra autentiseringsappen for Amazon 2SV",
           "public_url": "Offentlig URL delt med eksterne vertsbaserte tjenester",
           "queue_delay": "Forsinkelse for å sette flere kommandoer sammen i kø (sekunder)",
           "scan_interval": "Planlagt avstemningsfrekvens (sekunder)",
           "should_get_network": "Oppdag Alexa-nettverket"
+        },
+        "data_description": {
+          "debug": "Muliggjør svært detaljert logging på spornivå for avansert feilsøking. \n Anbefales ikke for normal drift på grunn av økt loggvolum. \n Sørg for at loggnivåene er satt til DEBUG for full utdata.",
+          "otp_secret": "Eksempel: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Obligatoriske oppføringer",
         "title": "Alexa Media Player – Rekonfigurasjon"

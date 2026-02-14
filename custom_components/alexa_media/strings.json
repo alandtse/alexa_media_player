@@ -18,8 +18,6 @@
     },
     "step": {
       "user": {
-        "title": "Alexa Media Player - Configuration",
-        "description": "* Required entry",
         "data": {
           "url": "Amazon region domain (e.g., amazon.co.uk)",
           "email": "Email Address",
@@ -34,7 +32,11 @@
           "queue_delay": "Delay to queue multiple commands together (seconds)",
           "should_get_network": "Discover Alexa network",
           "extended_entity_discovery": "Include additional sensors, switches and lights",
-          "debug": "Advanced debugging"
+          "debug": "Advanced debug"
+        },
+        "data_description": {
+          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA",
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output."
         }
       },
       "proxy_warning": {
@@ -66,7 +68,11 @@
           "queue_delay": "Delay to queue multiple commands together (seconds)",
           "should_get_network": "Discover Alexa network",
           "extended_entity_discovery": "Include additional sensors, switches and lights",
-          "debug": "Advanced debugging"
+          "debug": "Advanced debug"
+        },
+        "data_description": {
+          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA",
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output."
         }
       }
     }

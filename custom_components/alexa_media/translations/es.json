@@ -48,8 +48,10 @@
           "should_get_network": "Descubra la red Alexa",
           "url": "Región del dominio de Amazon (por ejemplo, amazon.es)"
         },
-        "description": "* Entradas obligatorias",
-        "title": "Alexa Media Player - Configuración"
+        "data_description": {
+          "debug": "Habilita un registro de nivel de seguimiento muy detallado para la resolución de problemas avanzada. \n No se recomienda para el funcionamiento normal debido al aumento del volumen de registro. \n Asegúrese de que los niveles del registrador estén configurados en DEBUG para obtener una salida completa.",
+          "otp_secret": "Ejemplo: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "o Excluir estos dispositivos de todos (separados por comas)",
           "extended_entity_discovery": "Incluye sensores, interruptores y luces adicionales.",
           "include_devices": "Incluya solo estos dispositivos (separados por comas)",
+          "otp_secret": "Clave de aplicación de autenticación de 52 caracteres para la verificación en dos pasos de Amazon",
           "public_url": "URL pública compartida con servicios alojados externos",
           "queue_delay": "Retraso para poner en cola varios comandos juntos (segundos)",
           "scan_interval": "Frecuencia de sondeo programada (segundos)",
           "should_get_network": "Descubra la red Alexa"
+        },
+        "data_description": {
+          "debug": "Habilita un registro de nivel de seguimiento muy detallado para la resolución de problemas avanzada. \n No se recomienda para el funcionamiento normal debido al aumento del volumen de registro. \n Asegúrese de que los niveles del registrador estén configurados en DEBUG para obtener una salida completa.",
+          "otp_secret": "Ejemplo: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Entradas obligatorias",
         "title": "Alexa Media Player - Reconfiguración"

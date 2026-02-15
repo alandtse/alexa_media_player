@@ -48,8 +48,10 @@
           "should_get_network": "Odkryj sieć Alexa",
           "url": "Region/domena Amazon (np. amazon.co.uk)"
         },
-        "description": "* Wymagane wpisy",
-        "title": "Alexa Media Player — konfiguracja"
+        "data_description": {
+          "debug": "Włącza bardzo szczegółowe rejestrowanie na poziomie śledzenia w celu zaawansowanego rozwiązywania problemów. \n Niezalecane do normalnego użytkowania ze względu na zwiększoną objętość dziennika. \n Upewnij się, że poziomy rejestratora są ustawione na DEBUG, aby uzyskać pełny wynik.",
+          "otp_secret": "Przykład: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -94,7 +96,7 @@
         "name": "Powtarzać"
       },
       "shuffle": {
-        "name": "Człapać"
+        "name": "Odtwarzanie losowe"
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "lub Wyklucz te urządzenia ze wszystkich (rozdzielone przecinkami)",
           "extended_entity_discovery": "Dodaj dodatkowe czujniki, przełączniki i światła",
           "include_devices": "Uwzględnij tylko te urządzenia (rozdzielone przecinkami)",
+          "otp_secret": "52-znakowy klucz aplikacji uwierzytelniającej dla Amazon 2SV",
           "public_url": "Publiczny adres URL udostępniany zewnętrznym usługom hostowanym",
           "queue_delay": "Opóźnienie w kolejkowaniu wielu poleceń (sekundy)",
           "scan_interval": "Interwał skanowania (sekundy)",
           "should_get_network": "Odkryj sieć Alexa"
+        },
+        "data_description": {
+          "debug": "Włącza bardzo szczegółowe rejestrowanie na poziomie śledzenia w celu zaawansowanego rozwiązywania problemów. \n Niezalecane do normalnego użytkowania ze względu na zwiększoną objętość dziennika. \n Upewnij się, że poziomy rejestratora są ustawione na DEBUG, aby uzyskać pełny wynik.",
+          "otp_secret": "Przykład: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Wymagane wpisy",
         "title": "Odtwarzacz multimedialny Alexa – rekonfiguracja"

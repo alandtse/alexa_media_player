@@ -48,8 +48,10 @@
           "should_get_network": "Ontdek het Alexa-netwerk",
           "url": "Domeinnaam van Amazon regio (bijv: amazon.nl)"
         },
-        "description": "* Vereiste invoer",
-        "title": "Alexa Mediaspeler - Configuratie"
+        "data_description": {
+          "debug": "Schakelt zeer gedetailleerde logboekregistratie op traceniveau in voor geavanceerde probleemoplossing. \n Niet aanbevolen voor normaal gebruik vanwege het toegenomen logvolume. \n Zorg ervoor dat de logniveaus zijn ingesteld op DEBUG voor volledige uitvoer.",
+          "otp_secret": "Voorbeeld: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "of Sluit deze apparaten uit van alles (gescheiden door komma's)",
           "extended_entity_discovery": "Voeg extra sensoren, schakelaars en lampen toe",
           "include_devices": "Vermeld alleen deze apparaten (gescheiden door komma's)",
+          "otp_secret": "52-karakter Authenticator-appsleutel voor Amazon 2SV",
           "public_url": "Openbare URL gedeeld met externe hostingdiensten",
           "queue_delay": "Vertraging om meerdere opdrachten tegelijk in de wachtrij te plaatsen (seconden)",
           "scan_interval": "Geplande pollingfrequentie (seconden)",
           "should_get_network": "Ontdek het Alexa-netwerk"
+        },
+        "data_description": {
+          "debug": "Schakelt zeer gedetailleerde logboekregistratie op traceniveau in voor geavanceerde probleemoplossing. \n Niet aanbevolen voor normaal gebruik vanwege het toegenomen logvolume. \n Zorg ervoor dat de logniveaus zijn ingesteld op DEBUG voor volledige uitvoer.",
+          "otp_secret": "Voorbeeld: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Vereiste invoer",
         "title": "Alexa Mediaspeler - Herconfiguratie"

@@ -48,8 +48,10 @@
           "should_get_network": "Scopri la rete Alexa",
           "url": "Regione del dominio Amazon (ad es., amazon.it)"
         },
-        "description": "* Voci obbligatorie",
-        "title": "Alexa Media Player - Configurazione"
+        "data_description": {
+          "debug": "Abilita la registrazione molto dettagliata a livello di traccia per la risoluzione avanzata dei problemi. \n Non consigliato per il normale funzionamento a causa dell'aumento del volume di registro. \n Assicurarsi che i livelli del logger siano impostati su DEBUG per un output completo.",
+          "otp_secret": "Esempio: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "o Escludi questi dispositivi da tutti (separati da virgole)",
           "extended_entity_discovery": "Includere sensori, interruttori e luci aggiuntivi",
           "include_devices": "Includi solo questi dispositivi (separati da virgole)",
+          "otp_secret": "Chiave da 52 caratteri dell'app Authenticator per il 2SV di Amazon",
           "public_url": "URL pubblico condiviso con servizi ospitati esterni",
           "queue_delay": "Ritardo per mettere in coda più comandi contemporaneamente (secondi)",
           "scan_interval": "Frequenza di sondaggio pianificata (secondi)",
           "should_get_network": "Scopri la rete Alexa"
+        },
+        "data_description": {
+          "debug": "Abilita la registrazione molto dettagliata a livello di traccia per la risoluzione avanzata dei problemi. \n Non consigliato per il normale funzionamento a causa dell'aumento del volume di registro. \n Assicurarsi che i livelli del logger siano impostati su DEBUG per un output completo.",
+          "otp_secret": "Esempio: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Voci obbligatorie",
         "title": "Alexa Media Player - Riconfigurazione"

@@ -48,8 +48,10 @@
           "should_get_network": "Découvrir le réseau Alexa",
           "url": "Domaine de la région Amazon (ex : amazon.fr)"
         },
-        "description": "* Champs obligatoires",
-        "title": "Alexa Media Player - Configuration"
+        "data_description": {
+          "debug": "Active une journalisation très détaillée, au niveau de la trace, pour un dépannage avancé. \n Non recommandé en fonctionnement normal en raison de l'augmentation du volume des journaux. \n Assurez-vous que le niveau de journalisation est défini sur DEBUG pour obtenir une sortie complète.",
+          "otp_secret": "Exemple : 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "ou Exclure ces appareils (séparés par des virgules)",
           "extended_entity_discovery": "Inclure les capteurs, interrupteurs et lumières additionnels",
           "include_devices": "Inclure uniquement ces appareils (séparés par des virgules)",
+          "otp_secret": "Clé d'authentification à 52 caractères pour Amazon 2SV",
           "public_url": "URL publique partagée avec les services externes hébergés",
           "queue_delay": "Délai pour regrouper plusieurs commandes (secondes)",
           "scan_interval": "Fréquence d'interrogation programmée (secondes)",
           "should_get_network": "Découvrir le réseau Alexa"
+        },
+        "data_description": {
+          "debug": "Active une journalisation très détaillée, au niveau de la trace, pour un dépannage avancé. \n Non recommandé en fonctionnement normal en raison de l'augmentation du volume des journaux. \n Assurez-vous que le niveau de journalisation est défini sur DEBUG pour obtenir une sortie complète.",
+          "otp_secret": "Exemple : 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Champs obligatoires",
         "title": "Alexa Media Player - Reconfiguration"

@@ -951,7 +951,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         if not isinstance(last_called, dict) or not last_called.get("summary"):
             try:
-                async with async_timeout.timeout(10):
+                async with async_timeout.timeout(20):
                     last_called = await AlexaAPI.get_last_device_serial(login_obj)
             except TypeError:
                 _LOGGER.debug(

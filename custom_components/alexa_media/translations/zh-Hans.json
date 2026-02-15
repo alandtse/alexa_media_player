@@ -48,8 +48,10 @@
           "should_get_network": "发现 Alexa 网络",
           "url": "亚马逊区域域名（例如 amazon.co.uk）"
         },
-        "description": "* 必填项",
-        "title": "Alexa Media Player-配置"
+        "data_description": {
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output.",
+          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "或者将这些设备从所有列表中排除（以逗号分隔）",
           "extended_entity_discovery": "增加额外的传感器、开关和灯",
           "include_devices": "仅包含以下设备（以逗号分隔）",
+          "otp_secret": "52-character Authenticator App Key for Amazon 2SV",
           "public_url": "与外部托管服务共享的公共 URL",
           "queue_delay": "将多个命令排队的延迟时间（秒）",
           "scan_interval": "计划轮询频率（秒）",
           "should_get_network": "发现 Alexa 网络"
+        },
+        "data_description": {
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output.",
+          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* 必填项",
         "title": "Alexa 媒体播放器 - 重新配置"

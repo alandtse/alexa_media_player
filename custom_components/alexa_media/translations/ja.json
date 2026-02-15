@@ -48,8 +48,10 @@
           "should_get_network": "Alexaネットワークを探索",
           "url": "Amazon 地域ドメイン (例: amazon.co.jp)"
         },
-        "description": "以下の情報を確認してください。レガシー構成の場合は、`Use Login Proxy method`オプションを無効にしてください。",
-        "title": "Alexa Media Player - 設定"
+        "data_description": {
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output.",
+          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "除外するデバイス（カンマ区切り）",
           "extended_entity_discovery": "Alexaデバイスに接続された追加のセンサー、スイッチ、ライトを含める",
           "include_devices": "含まれるデバイス（カンマ区切り）",
+          "otp_secret": "52-character Authenticator App Key for Amazon 2SV",
           "public_url": "Home Assistant にアクセスするための公開URL (末尾の '/' を含む)",
           "queue_delay": "コマンドをキューにまとめて待機させる秒数",
           "scan_interval": "スキャン間隔秒数",
           "should_get_network": "Alexaネットワークを探索"
+        },
+        "data_description": {
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output.",
+          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* 必須エントリ\n注: **拡張エンティティ検出** を使用するには、**Alexa ネットワークの探索** を有効にする必要があります。",
         "title": "Alexa Media Player - 再設定"

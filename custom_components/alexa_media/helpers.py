@@ -53,7 +53,7 @@ def _coerce_filter(value: Any) -> set[str]:
 
     # Legacy/back-compat: allow comma-separated string
     if isinstance(value, str):
-        out: set[str] = set()
+        out = set()
         for part in value.split(","):
             token = _norm_filter_token(part)
             if token:
@@ -61,7 +61,7 @@ def _coerce_filter(value: Any) -> set[str]:
         return out
 
     if isinstance(value, (list, set, tuple)):
-        out: set[str] = set()
+        out = set()
         for v in value:
             token = _norm_filter_token(v)
             if token:
@@ -76,12 +76,24 @@ async def add_devices(
     account: str,
     devices: list[Entity],
     add_devices_callback: Callable[[list[Entity], bool], None],
-    include_filter: Any = None,
-    exclude_filter: Any = None,
+    include_filter: str | list[str] | set[str] | tuple[str, ...] | None = None,
+    exclude_filter: str | list[str] | set[str] | tuple[str, ...] | None = None,
 ) -> bool:
     """Add devices using add_devices_callback."""
     include_filter_set = _coerce_filter(include_filter)
     exclude_filter_set = _coerce_filter(exclude_filter)
+    if include_filter_set:
+        _LOGGER.debug(
+            "%s: include_filter_set: %s",
+            account,
+            include_filter_set or "(none)",
+        )
+    if exclude_filter_set:
+        _LOGGER.debug(
+            "%s: exclude_filter_set: %s",
+            account,
+            exclude_filter_set or "(none)",
+        )
 
     def _device_name(dev: Entity) -> str | None:
         """Best-effort name before entity_id is assigned.

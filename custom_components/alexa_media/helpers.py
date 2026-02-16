@@ -122,12 +122,12 @@ async def add_devices(
 
         if client and suffix:
             client_dict = getattr(client, "__dict__", {})
-             base = (
-                 client_dict.get("name")
-                 or client_dict.get("_attr_name")
-                 or client_dict.get("_name")
-+                or client_dict.get("_device_name")
-             )
+            base = (
+                client_dict.get("name")
+                or client_dict.get("_attr_name")
+                or client_dict.get("_name")
+                or client_dict.get("_device_name")
+            )
             if base:
                 return f"{base} {suffix} switch"
 

@@ -1,6 +1,13 @@
 FROM mcr.microsoft.com/devcontainers/python:2-3.13-bookworm
 
 RUN \
+    rm -f /etc/apt/sources.list.d/*yarn* && \
+    apt update && \
+    apt install -y iptables iproute2 libturbojpeg0-dev ffmpeg libpcap0.8 curl && \
+    update-alternatives --set iptables /usr/sbin/iptables-legacy
+
+
+RUN \
     apt update && \
     apt install -y iptables iproute2 libturbojpeg0-dev ffmpeg libpcap0.8 curl && \
     update-alternatives --set iptables /usr/sbin/iptables-legacy

@@ -150,41 +150,58 @@ async def add_devices(
         suffix = f" …(+{len(devs) - max_items} more)" if len(devs) > max_items else ""
         return ", ".join(labels) + suffix
 
-    new_devices: list[Entity] = []
-    for device in devices:
-        raw_name = _device_name(device)
-        dev_name = _norm_filter_token(raw_name)
+    def _filter_devices(
+        devs: list[Entity],
+        include_set: set[str],
+        exclude_set: set[str],
+    ) -> list[Entity]:
+        selected: list[Entity] = []
 
-        # If include_filter is set, we must have a name and it must match.
-        if include_filter_set and (not dev_name or dev_name not in include_filter_set):
-            if not dev_name:
+        include_mode = bool(include_set)
+        if include_mode and exclude_set:
+            _LOGGER.debug(
+                "%s: include_devices set; ignoring exclude_devices per documented precedence",
+                account,
+            )
+
+        for dev in devs:
+            dev_name = _norm_filter_token(_device_name(dev))
+
+            # INCLUDE MODE: only include explicitly listed names
+            if include_mode:
+                if dev_name and dev_name in include_set:
+                    selected.append(dev)
+                else:
+                    if not dev_name:
+                        _LOGGER.debug(
+                            "%s: Not including device (no name yet): %s",
+                            account,
+                            _device_label(dev),
+                        )
+                    else:
+                        _LOGGER.debug(
+                            "%s: Not including device: %s (match key=%r)",
+                            account,
+                            _device_label(dev),
+                            dev_name,
+                        )
+                continue
+
+            # EXCLUDE MODE: exclude listed names
+            if exclude_set and dev_name and dev_name in exclude_set:
                 _LOGGER.debug(
-                    "%s: Not including device (no name yet): %s",
+                    "%s: Excluding device: %s (match key=%r)",
                     account,
-                    _device_label(device),
-                )
-            else:
-                _LOGGER.debug(
-                    "%s: Not including device: %s (match key=%r)",
-                    account,
-                    _device_label(device),
+                    _device_label(dev),
                     dev_name,
                 )
-            continue
+                continue
 
-        # Exclude only when name is present and matches.
-        if exclude_filter_set and dev_name and dev_name in exclude_filter_set:
-            _LOGGER.debug(
-                "%s: Excluding device: %s (match key=%r)",
-                account,
-                _device_label(device),
-                dev_name,
-            )
-            continue
+            selected.append(dev)
 
-        new_devices.append(device)
+        return selected
 
-    devices = new_devices
+    devices = _filter_devices(devices, include_filter_set, exclude_filter_set)
     if not devices:
         return True
 
@@ -338,7 +355,7 @@ async def _catch_login_errors(func, instance, args, kwargs) -> Any:
             email = login.email
             if await login.test_loggedin():
                 _LOGGER.info(
-                    "%s.%s: Successfully re-login after a login error for %s",
+                    "%s.%s: Successful re-login after a login error for %s",
                     func.__module__[func.__module__.find(".") + 1 :],
                     func.__name__,
                     hide_email(email),

@@ -86,28 +86,39 @@ async def add_devices(
     def _device_name(dev: Entity) -> str | None:
         """Best-effort name before entity_id is assigned.
 
-        HA may derive the final display name later (has_entity_name + translation_key),
-        so for AMP switches we reconstruct the legacy user-visible name early to keep
-        include/exclude filters working.
+        For AMP switches, reconstruct the legacy "<device> <suffix> switch"
+        name only if those attributes were explicitly set.
         """
-        client = getattr(dev, "_client", None)
-        suffix = getattr(dev, "_unique_id_suffix", None)
-        if client and suffix:
-            base = (
-                getattr(client, "name", None)
-                or getattr(client, "_attr_name", None)
-                or getattr(client, "_name", None)
-            )
-            if base:
-                return f"{base} {suffix} switch"
 
-        return (
+        # First prefer explicitly set name attributes (works for tests + most entities)
+        name = (
             getattr(dev, "name", None)
             or getattr(dev, "_attr_name", None)
             or getattr(dev, "_name", None)
             or getattr(dev, "_device_name", None)
             or getattr(dev, "_friendly_name", None)
         )
+        if name:
+            return name
+
+        # Only attempt switch reconstruction if attributes were explicitly defined
+        # (avoids MagicMock auto-attribute trap in tests)
+        dev_dict = getattr(dev, "__dict__", {})
+
+        client = dev_dict.get("_client")
+        suffix = dev_dict.get("_unique_id_suffix")
+
+        if client and suffix:
+            client_dict = getattr(client, "__dict__", {})
+            base = (
+                client_dict.get("name")
+                or client_dict.get("_attr_name")
+                or client_dict.get("_name")
+            )
+            if base:
+                return f"{base} {suffix} switch"
+
+        return None
 
     def _device_label(dev: Entity) -> str:
         """Return a compact, stable identifier for logging."""

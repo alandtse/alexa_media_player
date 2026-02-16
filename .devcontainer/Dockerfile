@@ -8,12 +8,6 @@ RUN \
 
 
 RUN \
-    apt update && \
-    apt install -y iptables iproute2 libturbojpeg0-dev ffmpeg libpcap0.8 curl && \
-    update-alternatives --set iptables /usr/sbin/iptables-legacy
-
-
-RUN \
     case "$(uname -m)" in \
     x86_64) go2rtc_suffix="amd64" ;; \
     aarch64) go2rtc_suffix="arm64" ;; \

@@ -1577,9 +1577,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
                 ):
                     _LOGGER.debug("Discovered new media_player %s", hide_serial(serial))
-                    (hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"]) = (
-                        True
-                    )
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = True
                     if coordinator:
                         await coordinator.async_request_refresh()
 

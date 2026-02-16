@@ -86,13 +86,13 @@ async def add_devices(
         _LOGGER.debug(
             "%s: include_filter_set: %s",
             account,
-            include_filter_set or "(none)",
+            include_filter_set,
         )
     if exclude_filter_set:
         _LOGGER.debug(
             "%s: exclude_filter_set: %s",
             account,
-            exclude_filter_set or "(none)",
+            exclude_filter_set,
         )
 
     def _device_name(dev: Entity) -> str | None:

@@ -179,7 +179,7 @@ class TestAddDevices:
         )
 
         assert result is True
-        add_devices_callback.assert_called_once_with([device1], False)
+        add_devices_callback.assert_called_once_with([device1, device2], False)
 
     @pytest.mark.asyncio
     async def test_add_devices_with_exclude_filter(self):

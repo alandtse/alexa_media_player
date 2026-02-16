@@ -83,8 +83,6 @@ async def add_devices(
     include_filter_set = _coerce_filter(include_filter)
     exclude_filter_set = _coerce_filter(exclude_filter)
 
-    _LOGGER.debug("[TRACE] Exclude filter: %s", exclude_filter_set)
-
     def _device_name(dev: Entity) -> str | None:
         """Best-effort name before entity_id is assigned.
 

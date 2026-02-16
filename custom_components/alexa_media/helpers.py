@@ -29,19 +29,80 @@ _LOGGER = logging.getLogger(__name__)
 ArgType = TypeVar("ArgType")
 
 
+def _norm_filter_token(value: Any) -> str | None:
+    """Normalize a single filter token for reliable matching."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    return s.casefold()
+
+
+def _coerce_filter(value: Any) -> set[str]:
+    """Coerce include/exclude filter input into a normalized set[str].
+
+    Accepts:
+    - None / empty -> empty set
+    - comma-separated str -> split on commas
+    - list/set/tuple -> per-item normalization
+    - anything else -> single token (best effort)
+    """
+    if not value:
+        return set()
+
+    # Legacy/back-compat: allow comma-separated string
+    if isinstance(value, str):
+        out: set[str] = set()
+        for part in value.split(","):
+            token = _norm_filter_token(part)
+            if token:
+                out.add(token)
+        return out
+
+    if isinstance(value, (list, set, tuple)):
+        out: set[str] = set()
+        for v in value:
+            token = _norm_filter_token(v)
+            if token:
+                out.add(token)
+        return out
+
+    token = _norm_filter_token(value)
+    return {token} if token else set()
+
+
 async def add_devices(
     account: str,
     devices: list[Entity],
     add_devices_callback: Callable[[list[Entity], bool], None],
-    include_filter: Optional[list[str]] = None,
-    exclude_filter: Optional[list[str]] = None,
+    include_filter: Any = None,
+    exclude_filter: Any = None,
 ) -> bool:
     """Add devices using add_devices_callback."""
-    include_filter = include_filter or []
-    exclude_filter = exclude_filter or []
+    include_filter_set = _coerce_filter(include_filter)
+    exclude_filter_set = _coerce_filter(exclude_filter)
+
+    _LOGGER.debug("[TRACE] Exclude filter: %s", exclude_filter_set)
 
     def _device_name(dev: Entity) -> str | None:
-        """Best-effort name before entity_id is assigned."""
+        """Best-effort name before entity_id is assigned.
+
+        HA may derive the final display name later (has_entity_name + translation_key),
+        so for AMP switches we reconstruct the legacy user-visible name early to keep
+        include/exclude filters working.
+        """
+        client = getattr(dev, "_client", None)
+        suffix = getattr(dev, "_unique_id_suffix", None)
+        if client and suffix:
+            base = (
+                getattr(client, "name", None)
+                or getattr(client, "_attr_name", None)
+                or getattr(client, "_name", None)
+            )
+            if base:
+                return f"{base} {suffix} switch"
+
         return (
             getattr(dev, "name", None)
             or getattr(dev, "_attr_name", None)
@@ -70,17 +131,34 @@ async def add_devices(
 
     new_devices: list[Entity] = []
     for device in devices:
-        dev_name = _device_name(device)
+        raw_name = _device_name(device)
+        dev_name = _norm_filter_token(raw_name)
 
         # If include_filter is set, we must have a name and it must match.
-        if include_filter and (not dev_name or dev_name not in include_filter):
-            _LOGGER.debug(
-                "%s: Not including device: %s", account, _device_label(device)
-            )
+        if include_filter_set and (not dev_name or dev_name not in include_filter_set):
+            if not dev_name:
+                _LOGGER.debug(
+                    "%s: Not including device (no name yet): %s",
+                    account,
+                    _device_label(device),
+                )
+            else:
+                _LOGGER.debug(
+                    "%s: Not including device: %s (match key=%r)",
+                    account,
+                    _device_label(device),
+                    dev_name,
+                )
             continue
+
         # Exclude only when name is present and matches.
-        if exclude_filter and dev_name and dev_name in exclude_filter:
-            _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
+        if exclude_filter_set and dev_name and dev_name in exclude_filter_set:
+            _LOGGER.debug(
+                "%s: Excluding device: %s (match key=%r)",
+                account,
+                _device_label(device),
+                dev_name,
+            )
             continue
 
         new_devices.append(device)

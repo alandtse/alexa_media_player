@@ -322,7 +322,7 @@ MODEL_IDS = {
     "A3CY98NH016S5F": "Facebook Portal Mini",
     "A3D4YURNTARP5K": "Facebook Portal TV",
     "A3EH2E0YZ30OD6": "Echo Spot (Gen2)",
-    "A3EVMLQTU6WL1W": "Fire TV (GenX)",
+    "A3EVMLQTU6WL1W": "Fire TV Stick 4K Max (Gen1)",
     "A3F1S88NTZZXS9": "Dash Wand",
     "A3FX4UWTP28V1P": "Echo (Gen3)",
     "A3GFRGUNIGG1I5": "Samsung TV QN50Q60CAGXZD",

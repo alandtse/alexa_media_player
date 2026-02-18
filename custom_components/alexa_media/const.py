@@ -227,6 +227,7 @@ MODEL_IDS = {
     "A18X8OBWBCSLD8": "Samsung Soundbar",
     "A195TXHV1M5D4A": "Echo Auto",
     "A1C66CX2XD756O": "Fire Tablet HD",
+    "A1D54LQEG0OXJ2": "Denon Home 250",
     "A1EIANJ7PNB0Q7": "Echo Show 15 (Gen1)",
     "A1ENT81UXFMNNO": "Unknown",
     "A1ETW4IXK2PYBP": "Talk to Alexa",
@@ -238,6 +239,7 @@ MODEL_IDS = {
     "A1L4KDRIILU6N9": "Sony Speaker",
     "A1LOQ8ZHF4G510": "Samsung Soundbar Q990B",
     "A1M0A9L9HDBID3": "One-Link Safe and Sound",
+    "A1MKGHX5VQBDWX": "Denon Home 150",
     "A1MUORL8FP149X": "Unknown",
     "A1N9SW0I0LUX5Y": "Ford/Lincoln Alexa App",
     "A1NL4BVLQ4L3N3": "Echo Show (Gen1)",
@@ -381,6 +383,4 @@ MODEL_IDS = {
     "AVN2TMX8MU2YM": "Bose Home Speaker 500",
     "AVU7CPPF2ZRAS": "Fire Tablet HD 8",
     "AWZZ5CVHX2CD": "Echo Show (Gen2)",
-    "A1MKGHX5VQBDWX": "Denon Home 150",
-    "A1D54LQEG0OXJ2": "Denon Home 250",
 }

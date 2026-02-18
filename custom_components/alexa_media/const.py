@@ -381,4 +381,6 @@ MODEL_IDS = {
     "AVN2TMX8MU2YM": "Bose Home Speaker 500",
     "AVU7CPPF2ZRAS": "Fire Tablet HD 8",
     "AWZZ5CVHX2CD": "Echo Show (Gen2)",
+    "A1MKGHX5VQBDWX": "Denon Home 150",
+    "A1D54LQEG0OXJ2": "Denon Home 250",
 }

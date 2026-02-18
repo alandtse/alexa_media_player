@@ -241,7 +241,7 @@ class TestAddDevices:
         )
 
         assert result is True
-        add_devices_callback.assert_called_once_with([device1], False)
+        add_devices_callback.assert_called_once_with([device1, device2], False)
 
 
 class TestAddDevicesFilterDefaults:

@@ -29,26 +29,109 @@ _LOGGER = logging.getLogger(__name__)
 ArgType = TypeVar("ArgType")
 
 
+def _norm_filter_token(value: Any) -> str | None:
+    """Normalize a single filter token for reliable matching."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    return s.casefold()
+
+
+def _coerce_filter(value: Any) -> set[str]:
+    """Coerce include/exclude filter input into a normalized set[str].
+
+    Accepts:
+    - None / empty -> empty set
+    - comma-separated str -> split on commas
+    - list/set/tuple -> per-item normalization
+    - anything else -> single token (best effort)
+    """
+    if not value:
+        return set()
+
+    # Legacy/back-compat: allow comma-separated string
+    if isinstance(value, str):
+        out = set()
+        for part in value.split(","):
+            token = _norm_filter_token(part)
+            if token:
+                out.add(token)
+        return out
+
+    if isinstance(value, (list, set, tuple)):
+        out = set()
+        for v in value:
+            token = _norm_filter_token(v)
+            if token:
+                out.add(token)
+        return out
+
+    token = _norm_filter_token(value)
+    return {token} if token else set()
+
+
 async def add_devices(
     account: str,
     devices: list[Entity],
     add_devices_callback: Callable[[list[Entity], bool], None],
-    include_filter: Optional[list[str]] = None,
-    exclude_filter: Optional[list[str]] = None,
+    include_filter: str | list[str] | set[str] | tuple[str, ...] | None = None,
+    exclude_filter: str | list[str] | set[str] | tuple[str, ...] | None = None,
 ) -> bool:
     """Add devices using add_devices_callback."""
-    include_filter = include_filter or []
-    exclude_filter = exclude_filter or []
+    include_filter_set = _coerce_filter(include_filter)
+    exclude_filter_set = _coerce_filter(exclude_filter)
+    if include_filter_set:
+        _LOGGER.debug(
+            "%s: include_filter_set: %s",
+            account,
+            include_filter_set,
+        )
+    if exclude_filter_set:
+        _LOGGER.debug(
+            "%s: exclude_filter_set: %s",
+            account,
+            exclude_filter_set,
+        )
 
     def _device_name(dev: Entity) -> str | None:
-        """Best-effort name before entity_id is assigned."""
-        return (
+        """Best-effort name before entity_id is assigned.
+
+        For AMP switches, reconstruct the legacy "<device> <suffix> switch"
+        name only if those attributes were explicitly set.
+        """
+
+        # First prefer explicitly set name attributes (works for tests + most entities)
+        name = (
             getattr(dev, "name", None)
             or getattr(dev, "_attr_name", None)
             or getattr(dev, "_name", None)
             or getattr(dev, "_device_name", None)
             or getattr(dev, "_friendly_name", None)
         )
+        if name:
+            return name
+
+        # Only attempt switch reconstruction if attributes were explicitly defined
+        # (avoids MagicMock auto-attribute trap in tests)
+        dev_dict = getattr(dev, "__dict__", {})
+
+        client = dev_dict.get("_client")
+        suffix = dev_dict.get("_unique_id_suffix")
+
+        if client and suffix:
+            client_dict = getattr(client, "__dict__", {})
+            base = (
+                client_dict.get("name")
+                or client_dict.get("_attr_name")
+                or client_dict.get("_name")
+                or client_dict.get("_device_name")
+            )
+            if base:
+                return f"{base} {suffix} switch"
+
+        return None
 
     def _device_label(dev: Entity) -> str:
         """Return a compact, stable identifier for logging."""
@@ -68,24 +151,58 @@ async def add_devices(
         suffix = f" …(+{len(devs) - max_items} more)" if len(devs) > max_items else ""
         return ", ".join(labels) + suffix
 
-    new_devices: list[Entity] = []
-    for device in devices:
-        dev_name = _device_name(device)
+    def _filter_devices(
+        devs: list[Entity],
+        include_set: set[str],
+        exclude_set: set[str],
+    ) -> list[Entity]:
+        selected: list[Entity] = []
 
-        # If include_filter is set, we must have a name and it must match.
-        if include_filter and (not dev_name or dev_name not in include_filter):
+        include_mode = bool(include_set)
+        if include_mode and exclude_set:
             _LOGGER.debug(
-                "%s: Not including device: %s", account, _device_label(device)
+                "%s: include_devices set; ignoring exclude_devices per documented precedence",
+                account,
             )
-            continue
-        # Exclude only when name is present and matches.
-        if exclude_filter and dev_name and dev_name in exclude_filter:
-            _LOGGER.debug("%s: Excluding device: %s", account, _device_label(device))
-            continue
 
-        new_devices.append(device)
+        for dev in devs:
+            dev_name = _norm_filter_token(_device_name(dev))
 
-    devices = new_devices
+            # INCLUDE MODE: only include explicitly listed names
+            if include_mode:
+                if dev_name and dev_name in include_set:
+                    selected.append(dev)
+                else:
+                    if not dev_name:
+                        _LOGGER.debug(
+                            "%s: Not including device (no name yet): %s",
+                            account,
+                            _device_label(dev),
+                        )
+                    else:
+                        _LOGGER.debug(
+                            "%s: Not including device: %s (match key=%r)",
+                            account,
+                            _device_label(dev),
+                            dev_name,
+                        )
+                continue
+
+            # EXCLUDE MODE: exclude listed names
+            if exclude_set and dev_name and dev_name in exclude_set:
+                _LOGGER.debug(
+                    "%s: Excluding device: %s (match key=%r)",
+                    account,
+                    _device_label(dev),
+                    dev_name,
+                )
+                continue
+
+            selected.append(dev)
+
+        return selected
+
+    devices = _filter_devices(devices, include_filter_set, exclude_filter_set)
     if not devices:
         return True
 
@@ -239,7 +356,7 @@ async def _catch_login_errors(func, instance, args, kwargs) -> Any:
             email = login.email
             if await login.test_loggedin():
                 _LOGGER.info(
-                    "%s.%s: Successfully re-login after a login error for %s",
+                    "%s.%s: Successful re-login after a login error for %s",
                     func.__module__[func.__module__.find(".") + 1 :],
                     func.__name__,
                     hide_email(email),

@@ -277,6 +277,7 @@ MODEL_IDS = {
     "A2J0R2SD7G9LPA": "Lenovo SmartTab M10",
     "A2JKHJ0PX4J3L3": "Fire TV Cube (Gen2)",
     "A2LH725P8DQR2A": "Fabriq Riff",
+    "A2LLN0UXRW4N50": "Echo Show 11 (Gen1)",
     "A2LWARUGJLBYEW": "Fire TV Stick (Gen2)",
     "A2M35JJZWCQOMZ": "Echo Plus (Gen1)",
     "A2M4YX06LWP8WI": "Fire Tablet",

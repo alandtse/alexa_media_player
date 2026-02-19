@@ -48,8 +48,10 @@
           "should_get_network": "Entdecken Sie das Alexa-Netzwerk",
           "url": "Amazon Region (z.B. amazon.de)"
         },
-        "description": "* Erforderliche Angaben",
-        "title": "Alexa Media Player - Konfiguration"
+        "data_description": {
+          "debug": "Ermöglicht eine sehr ausführliche Protokollierung auf Trace-Ebene für die erweiterte Fehlerbehebung. \n Aufgrund des erhöhten Protokollvolumens wird dies für den Normalbetrieb nicht empfohlen. \n Stellen Sie sicher, dass die Protokollierungsstufe auf DEBUG eingestellt ist, um die vollständige Ausgabe zu erhalten.",
+          "otp_secret": "Beispiel: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -80,7 +82,7 @@
         "name": "Nächste Erinnerung"
       },
       "next_timer": {
-        "name": "Nächster Teilnehmer"
+        "name": "Nächster Timer"
       },
       "temperature": {
         "name": "Temperatur"
@@ -112,10 +114,15 @@
           "exclude_devices": "oder Diese Geräte von allen ausschließen (durch Komma getrennt)",
           "extended_entity_discovery": "Fügen Sie zusätzliche Sensoren, Schalter und Leuchten hinzu.",
           "include_devices": "Nur diese Geräte angeben (durch Komma getrennt)",
+          "otp_secret": "52-stelliger Authenticator-App Schlüssel für Amazon 2SV",
           "public_url": "Öffentliche URL, die mit externen gehosteten Diensten geteilt wird",
           "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in die Warteschlange (Sekunden)",
           "scan_interval": "Geplante Abfragehäufigkeit (Sekunden)",
           "should_get_network": "Entdecken Sie das Alexa-Netzwerk"
+        },
+        "data_description": {
+          "debug": "Ermöglicht eine sehr ausführliche Protokollierung auf Trace-Ebene für die erweiterte Fehlerbehebung. \n Aufgrund des erhöhten Protokollvolumens wird dies für den Normalbetrieb nicht empfohlen. \n Stellen Sie sicher, dass die Protokollierungsstufe auf DEBUG eingestellt ist, um die vollständige Ausgabe zu erhalten.",
+          "otp_secret": "Beispiel: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Erforderliche Angaben",
         "title": "Alexa Media Player - Rekonfiguration"

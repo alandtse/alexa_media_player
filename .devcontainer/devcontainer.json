@@ -1,21 +1,20 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.224.3/containers/python-3
 {
   "name": "Python 3",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "..",
     "args": {
-      // Options
       "NODE_VERSION": "none"
     }
   },
-
-  // Set *default* container specific settings.json values on container create.
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.13"
+    }
+  },
   "customizations": {
     "vscode": {
       "settings": {},
-      // Add the IDs of extensions you want installed when the container is created.
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
@@ -24,12 +23,6 @@
       ]
     }
   },
-
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
-
-  // Use 'postCreateCommand' to run commands after the container is created.
-  // "postCreateCommand": "pip3 install --user -r requirements.txt",
   "postCreateCommand": "poetry install && poetry run pre-commit install",
   "containerUser": "vscode",
   "updateRemoteUserUID": true,

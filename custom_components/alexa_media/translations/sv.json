@@ -33,7 +33,7 @@
       },
       "user": {
         "data": {
-          "debug": "Advanced debugging",
+          "debug": "Advanced debug",
           "email": "Email Address",
           "exclude_devices": "or Exclude these devices from all (comma separated)",
           "extended_entity_discovery": "Include additional sensors, switches and lights",
@@ -48,8 +48,10 @@
           "should_get_network": "Discover Alexa network",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
-        "description": "* Required entry",
-        "title": "Alexa Media Player - Configuration"
+        "data_description": {
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output.",
+          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -108,14 +110,19 @@
     "step": {
       "init": {
         "data": {
-          "debug": "Advanced debugging",
+          "debug": "Advanced debug",
           "exclude_devices": "or Exclude these devices from all (comma separated)",
           "extended_entity_discovery": "Include additional sensors, switches and lights",
           "include_devices": "Only include these devices (comma separated)",
+          "otp_secret": "52-character Authenticator App Key for Amazon 2SV",
           "public_url": "Public URL shared with external hosted services",
           "queue_delay": "Delay to queue multiple commands together (seconds)",
-          "scan_interval": "Scheduled polling frequency (seconds)",
+          "scan_interval": "Scheduled polling interval (seconds)",
           "should_get_network": "Discover Alexa network"
+        },
+        "data_description": {
+          "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output.",
+          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Required entry",
         "title": "Alexa Media Player - Reconfiguration"

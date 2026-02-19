@@ -48,8 +48,10 @@
           "should_get_network": "Descubra a rede Alexa",
           "url": "Domínio regional da Amazon (ex: amazon.co.uk)"
         },
-        "description": "* Entradas obrigatórias",
-        "title": "Alexa Media Player - Configurações"
+        "data_description": {
+          "debug": "Habilita o registro detalhado em nível de rastreamento para solução de problemas avançada. \n Não recomendado para operação normal devido ao aumento do volume de logs. \n Certifique-se de que os níveis de registro estejam definidos como DEBUG para obter a saída completa.",
+          "otp_secret": "Exemplo: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
+        }
       }
     }
   },
@@ -112,10 +114,15 @@
           "exclude_devices": "ou Excluir esses dispositivos de todos (separados por vírgula)",
           "extended_entity_discovery": "Inclua sensores, interruptores e luzes adicionais.",
           "include_devices": "Inclua apenas estes dispositivos (separados por vírgula)",
+          "otp_secret": "Chave de 52 caracteres do App Autenticador para 2SV da Amazon",
           "public_url": "URL pública compartilhada com serviços hospedados externamente",
           "queue_delay": "Tempo de espera para enfileirar vários comandos (em segundos)",
           "scan_interval": "Frequência de sondagem programada (segundos)",
           "should_get_network": "Descubra a rede Alexa"
+        },
+        "data_description": {
+          "debug": "Habilita o registro detalhado em nível de rastreamento para solução de problemas avançada. \n Não recomendado para operação normal devido ao aumento do volume de logs. \n Certifique-se de que os níveis de registro estejam definidos como DEBUG para obter a saída completa.",
+          "otp_secret": "Exemplo: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
         "description": "* Entradas obrigatórias",
         "title": "Alexa Media Player - Reconfiguração"

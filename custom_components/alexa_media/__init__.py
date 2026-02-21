@@ -1185,8 +1185,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         if not isinstance(last_called, dict) or not last_called.get("summary"):
             try:
-                async with async_timeout.timeout(20):
+                async with async_timeout.timeout(10):
                     last_called = await AlexaAPI.get_last_device_serial(login_obj)
+            except asyncio.CancelledError:
+                return
             except TypeError:
                 _LOGGER.debug(
                     "%s: Error updating last_called: %s",
@@ -1487,7 +1489,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         def _cancel_last_called_probe() -> None:
             task = account.get("last_called_probe_task")
             if task and not task.done():
+                _LOGGER.debug("Cancelling last_called probe")
                 task.cancel()
+            account["last_called_probe_task"] = None
 
         def _schedule_last_called_probe(trigger_command: str) -> None:
             """Debounce + throttle a voice-history probe to update last_called."""

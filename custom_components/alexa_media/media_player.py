@@ -1895,7 +1895,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         targets = notify.targets
 
         entity_name = (self.entity_id or "").split(".", 1)[-1]
-        suffix = f"_{self._login.email}" if entity_name and entity_name[-1].isdigit() else ""
+        suffix = (
+            f"_{self._login.email}" if entity_name and entity_name[-1].isdigit() else ""
+        )
         last_called_key = f"last_called{suffix}"
         last_called_uid = targets.get(last_called_key)
 

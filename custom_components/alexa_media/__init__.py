@@ -1488,7 +1488,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         # ---------------------------------------------------------------------
         # Near-real-time last_called probing (customer history), single worker
         # ---------------------------------------------------------------------
-        account.setdefault("last_called_customer_history_ts", 0)  # ms epoch (last applied)
+        account.setdefault(
+            "last_called_customer_history_ts", 0
+        )  # ms epoch (last applied)
         account.setdefault("last_called_probe_lock", asyncio.Lock())
         account.setdefault("last_called_probe_task", None)
         account.setdefault("last_called_probe_event", asyncio.Event())
@@ -1496,18 +1498,24 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         account.setdefault("last_called_probe_trigger_cmd", "")
         account.setdefault("last_called_probe_next_allowed", 0.0)  # monotonic seconds
         account.setdefault("last_called_probe_backoff_s", 0.0)
-        account.setdefault("last_volumes", {})    # serial -> {"volumeSetting": int|None, "isMuted": bool|None, "updated": int(ms)}
-        account.setdefault("last_equalizer", {})  # serial -> {"bass": int|None, "midrange": int|None, "treble": int|None, "updated": int(ms)}
+        account.setdefault(
+            "last_volumes", {}
+        )  # serial -> {"volumeSetting": int|None, "isMuted": bool|None, "updated": int(ms)}
+        account.setdefault(
+            "last_equalizer", {}
+        )  # serial -> {"bass": int|None, "midrange": int|None, "treble": int|None, "updated": int(ms)}
 
         # keep these local to the handler for now.
-        _LC_DEBOUNCE_S = 0.12          # coalesce bursty pushes, but stay snappy
-        _LC_RETRY_DELAY_S = 0.28       # quick retry cadence (usually <2s total)
-        _LC_RETRY_LIMIT = 5            # total attempts = 1 + retries (max 6 calls per burst)
-        _LC_STALE_FUDGE_MS = 5_000     # allow some clock/ordering jitter
-        _LC_SUCCESS_PACE_S = 1.0       # post-success pacing to avoid hammering
+        _LC_DEBOUNCE_S = 0.12  # coalesce bursty pushes, but stay snappy
+        _LC_RETRY_DELAY_S = 0.28  # quick retry cadence (usually <2s total)
+        _LC_RETRY_LIMIT = 5  # total attempts = 1 + retries (max 6 calls per burst)
+        _LC_STALE_FUDGE_MS = 5_000  # allow some clock/ordering jitter
+        _LC_SUCCESS_PACE_S = 1.0  # post-success pacing to avoid hammering
         _LC_LOOKBACK_MS = 60_000
         _LC_ITEMS = 10
-        _LC_SPAM_STALE_AFTER_S = 15.0  # only allow spammy pokes if last_called hasn't updated recently
+        _LC_SPAM_STALE_AFTER_S = (
+            15.0  # only allow spammy pokes if last_called hasn't updated recently
+        )
         _COALESCE_WINDOW_MS = 2000
 
         def _now_ms() -> int:
@@ -1531,22 +1539,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             """Mirror alexa-remote.ts PUSH_VOLUME_CHANGE -> simulateActivity() conditions."""
             last_volumes: dict = account["last_volumes"]
             last_equalizer: dict = account["last_equalizer"]
-        
+
             vol = json_payload.get("volumeSetting")
             muted = json_payload.get("isMuted")
-        
+
             prev = last_volumes.get(serial)
             eq_prev = last_equalizer.get(serial)
-        
+
             should_simulate = (
                 (prev is None)
-                or (
-                    prev.get("volumeSetting") == vol
-                    and prev.get("isMuted") == muted
-                )
+                or (prev.get("volumeSetting") == vol and prev.get("isMuted") == muted)
                 or (
                     eq_prev is not None
-                    and abs(_now_ms() - int(eq_prev.get("updated", 0))) < _COALESCE_WINDOW_MS
+                    and abs(_now_ms() - int(eq_prev.get("updated", 0)))
+                    < _COALESCE_WINDOW_MS
                 )
             )
 
@@ -1584,7 +1590,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 )
                 or (
                     vol_prev is not None
-                    and abs(_now_ms() - int(vol_prev.get("updated", 0))) < _COALESCE_WINDOW_MS
+                    and abs(_now_ms() - int(vol_prev.get("updated", 0)))
+                    < _COALESCE_WINDOW_MS
                 )
             )
 
@@ -1635,7 +1642,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 # Respect any pacing/backoff window; but allow new triggers to preempt.
                 async with account["last_called_probe_lock"]:
                     now = time.monotonic()
-                    next_allowed = float(account.get("last_called_probe_next_allowed", 0.0))
+                    next_allowed = float(
+                        account.get("last_called_probe_next_allowed", 0.0)
+                    )
                     delay = max(0.0, next_allowed - now)
 
                 if delay > 0:
@@ -1650,7 +1659,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         pass
 
                 trigger_ts = int(account.get("last_called_probe_trigger_ts", 0))
-                trigger_cmd = str(account.get("last_called_probe_trigger_cmd") or "push")
+                trigger_cmd = str(
+                    account.get("last_called_probe_trigger_cmd") or "push"
+                )
 
                 # In-task retry loop (NO reschedule, NO cancel)
                 for attempt in range(_LC_RETRY_LIMIT + 1):
@@ -1658,7 +1669,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     if account["last_called_probe_event"].is_set():
                         break
 
-                    get_recent = getattr(AlexaAPI, "get_last_device_serial_recent", None)
+                    get_recent = getattr(
+                        AlexaAPI, "get_last_device_serial_recent", None
+                    )
 
                     try:
                         if callable(get_recent):
@@ -1678,7 +1691,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                     except AlexapyTooManyRequestsError:
                         async with account["last_called_probe_lock"]:
-                            prev = float(account.get("last_called_probe_backoff_s", 0.0))
+                            prev = float(
+                                account.get("last_called_probe_backoff_s", 0.0)
+                            )
                             backoff = (
                                 _LAST_CALLED_429_BACKOFF_INITIAL_S
                                 if prev <= 0.0
@@ -1723,7 +1738,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                     existing_serials_local = set(_existing_serials(hass, login_obj))
                     existing_serials_local |= _entity_backed_serials(account)
-                    payload = _build_last_called_payload(last, account, existing_serials_local)
+                    payload = _build_last_called_payload(
+                        last, account, existing_serials_local
+                    )
                     if not payload:
                         # Nothing usable (non-voice/invalid/older/unknown serial). Don’t spin.
                         break
@@ -1800,7 +1817,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 else None
             )
 
-            seen_commands = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_commands"]
+            seen_commands = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                "http2_commands"
+            ]
 
             if command and json_payload:
                 _LOGGER.debug(
@@ -1813,7 +1832,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 serial = None
                 command_time = time.time()
                 if command not in seen_commands:
-                    _LOGGER.debug("Adding %s to seen_commands: %s", command, seen_commands)
+                    _LOGGER.debug(
+                        "Adding %s to seen_commands: %s", command, seen_commands
+                    )
                 seen_commands[command] = command_time
 
                 if (
@@ -1839,7 +1860,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     "NotifyNowPlayingUpdated",
                 ):
                     if serial and serial in existing_serials:
-                        _LOGGER.debug("Updating media_player: %s", hide_serial(json_payload))
+                        _LOGGER.debug(
+                            "Updating media_player: %s", hide_serial(json_payload)
+                        )
                         async_dispatcher_send(
                             hass,
                             f"{DOMAIN}_{hide_email(email)}"[0:32],
@@ -1897,7 +1920,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         ts_ms = int(ts) if ts else None
 
                         if serial and isinstance(json_payload, dict):
-                            _handle_equalizer_change_activity(serial, json_payload, ts_ms)
+                            _handle_equalizer_change_activity(
+                                serial, json_payload, ts_ms
+                            )
 
                     except Exception:
                         _LOGGER.exception(
@@ -1918,8 +1943,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
 
                 elif command == "PUSH_BLUETOOTH_STATE_CHANGE":
-                    bt_event = json_payload.get("bluetoothEvent") if isinstance(json_payload, dict) else None
-                    bt_success = json_payload.get("bluetoothEventSuccess") if isinstance(json_payload, dict) else None
+                    bt_event = (
+                        json_payload.get("bluetoothEvent")
+                        if isinstance(json_payload, dict)
+                        else None
+                    )
+                    bt_success = (
+                        json_payload.get("bluetoothEventSuccess")
+                        if isinstance(json_payload, dict)
+                        else None
+                    )
                     if (
                         serial
                         and serial in existing_serials
@@ -1931,8 +1964,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             "Updating media_player bluetooth %s",
                             hide_serial(json_payload),
                         )
-                        bluetooth_state = await update_bluetooth_state(login_obj, serial)
-                        _LOGGER.debug("bluetooth_state %s", hide_serial(bluetooth_state))
+                        bluetooth_state = await update_bluetooth_state(
+                            login_obj, serial
+                        )
+                        _LOGGER.debug(
+                            "bluetooth_state %s", hide_serial(bluetooth_state)
+                        )
                         if bluetooth_state:
                             async_dispatcher_send(
                                 hass,
@@ -1977,7 +2014,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 elif command in ["PUSH_LIST_CHANGE", "PUSH_LIST_ITEM_CHANGE"]:
                     pass
 
-                elif command in ["PUSH_CONTENT_FOCUS_CHANGE", "PUSH_DEVICE_SETUP_STATE_CHANGE"]:
+                elif command in [
+                    "PUSH_CONTENT_FOCUS_CHANGE",
+                    "PUSH_DEVICE_SETUP_STATE_CHANGE",
+                ]:
                     pass
 
                 elif command in ["PUSH_MEDIA_PREFERENCE_CHANGE"]:
@@ -1996,7 +2036,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                 # Preserve existing http2 activity tracking + new-device discovery
                 if serial in existing_serials:
-                    history = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_activity"]["serials"].get(serial)
+                    history = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "http2_activity"
+                    ]["serials"].get(serial)
                     if history is None or (
                         history and command_time - history[len(history) - 1][1] > 2
                     ):
@@ -2004,15 +2046,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     else:
                         history.append([command, command_time])
 
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_activity"]["serials"][serial] = history
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_activity"][
+                        "serials"
+                    ][serial] = history
 
                     events = []
                     for old_command, old_command_time in history:
                         if (
-                            old_command in {"PUSH_VOLUME_CHANGE", "PUSH_EQUALIZER_STATE_CHANGE"}
+                            old_command
+                            in {"PUSH_VOLUME_CHANGE", "PUSH_EQUALIZER_STATE_CHANGE"}
                             and command_time - old_command_time < 0.25
                         ):
-                            events.append((old_command, round(command_time - old_command_time, 2)))
+                            events.append(
+                                (old_command, round(command_time - old_command_time, 2))
+                            )
                         elif old_command in {"PUSH_AUDIO_PLAYER_STATE"}:
                             events = []
 
@@ -2028,7 +2075,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if (
                     serial
                     and serial not in existing_serials
-                    and serial not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"].keys()
+                    and serial
+                    not in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "excluded"
+                    ].keys()
                 ):
                     _LOGGER.debug("Discovered new media_player %s", hide_serial(serial))
                     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = True

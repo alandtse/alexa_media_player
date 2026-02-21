@@ -78,7 +78,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("%s: Loading sensors", hide_email(account))
     if "sensor" not in account_dict["entities"]:
-        (hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["sensor"]) = {}
+        hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["sensor"] = {}
     for key, device in account_dict["devices"]["media_player"].items():
         if key not in account_dict["entities"]["media_player"]:
             _LOGGER.debug(
@@ -88,7 +88,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             )
             raise ConfigEntryNotReady
         if key not in (account_dict["entities"]["sensor"]):
-            (account_dict["entities"]["sensor"][key]) = {}
+            account_dict["entities"]["sensor"][key] = {}
             for n_type, class_ in SENSOR_TYPES.items():
                 notifications = account_dict.get("notifications") or {}
                 key_notifications = notifications.get(key, {})
@@ -121,7 +121,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     alexa_client.state,
                 )
                 devices.append(alexa_client)
-                (account_dict["entities"]["sensor"][key][n_type]) = alexa_client
+                account_dict["entities"]["sensor"][key][n_type] = alexa_client
         else:
             for alexa_client in account_dict["entities"]["sensor"][key].values():
                 _LOGGER.debug(

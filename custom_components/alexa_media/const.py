@@ -7,6 +7,8 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+from __future__ import annotations
+
 from datetime import timedelta
 
 from homeassistant.const import (
@@ -52,6 +54,9 @@ CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
 CONF_PROXY = "proxy"
 CONF_PROXY_WARNING = "proxy_warning"
+CONF_SCAN_INTERVAL = (
+    "scan_interval"  # local definition; HA's CONF_SCAN_INTERVAL is deprecated
+)
 CONF_TOTP_REGISTER = "registered"
 CONF_OAUTH = "oauth"
 DATA_LISTENER = "listener"
@@ -227,6 +232,7 @@ MODEL_IDS = {
     "A18X8OBWBCSLD8": "Samsung Soundbar",
     "A195TXHV1M5D4A": "Echo Auto",
     "A1C66CX2XD756O": "Fire Tablet HD",
+    "A1D54LQEG0OXJ2": "Denon Home 250",
     "A1EIANJ7PNB0Q7": "Echo Show 15 (Gen1)",
     "A1ENT81UXFMNNO": "Unknown",
     "A1ETW4IXK2PYBP": "Talk to Alexa",
@@ -238,6 +244,7 @@ MODEL_IDS = {
     "A1L4KDRIILU6N9": "Sony Speaker",
     "A1LOQ8ZHF4G510": "Samsung Soundbar Q990B",
     "A1M0A9L9HDBID3": "One-Link Safe and Sound",
+    "A1MKGHX5VQBDWX": "Denon Home 150",
     "A1MUORL8FP149X": "Unknown",
     "A1N9SW0I0LUX5Y": "Ford/Lincoln Alexa App",
     "A1NL4BVLQ4L3N3": "Echo Show (Gen1)",
@@ -320,7 +327,7 @@ MODEL_IDS = {
     "A3CY98NH016S5F": "Facebook Portal Mini",
     "A3D4YURNTARP5K": "Facebook Portal TV",
     "A3EH2E0YZ30OD6": "Echo Spot (Gen2)",
-    "A3EVMLQTU6WL1W": "Fire TV (GenX)",
+    "A3EVMLQTU6WL1W": "Fire TV Stick 4K Max (Gen1)",
     "A3F1S88NTZZXS9": "Dash Wand",
     "A3FX4UWTP28V1P": "Echo (Gen3)",
     "A3GFRGUNIGG1I5": "Samsung TV QN50Q60CAGXZD",

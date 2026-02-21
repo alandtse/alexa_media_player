@@ -283,14 +283,14 @@ tzdata = ">=2024.1"
 
 [[package]]
 name = "alexapy"
-version = "1.29.16"
+version = "1.29.17"
 description = "Python API to control Amazon Echo Devices Programmatically."
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "alexapy-1.29.16-py3-none-any.whl", hash = "sha256:e39ee84a31073db8a4c9777e4b5cc838a32a72df61f1ffcc0102e18b27629c18"},
-    {file = "alexapy-1.29.16.tar.gz", hash = "sha256:f7632974da5f729e824b782663d1038ee8acdf5a12af742964b0be3619148c9b"},
+    {file = "alexapy-1.29.17-py3-none-any.whl", hash = "sha256:0e544c2bc48f5da3c81805f90a035cbde21344385296b5fda2869cd5b470f3d3"},
+    {file = "alexapy-1.29.17.tar.gz", hash = "sha256:f601830eae1a24d6bc8d97bba471f3c0ccc0262bcda7af04bd2d987280f36ce4"},
 ]
 
 [package.dependencies]
@@ -3025,14 +3025,14 @@ xmp = ["defusedxml"]
 
 [[package]]
 name = "pip"
-version = "25.3"
+version = "26.0"
 description = "The PyPA recommended tool for installing Python packages."
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "pip-25.3-py3-none-any.whl", hash = "sha256:9655943313a94722b7774661c21049070f6bbb0a1516bf02f7c8d5d9201514cd"},
-    {file = "pip-25.3.tar.gz", hash = "sha256:8d0538dbbd7babbd207f261ed969c65de439f6bc9e5dbd3b3b9a77f25d95f343"},
+    {file = "pip-26.0-py3-none-any.whl", hash = "sha256:98436feffb9e31bc9339cf369fd55d3331b1580b6a6f1173bacacddcf9c34754"},
+    {file = "pip-26.0.tar.gz", hash = "sha256:3ce220a0a17915972fbf1ab451baae1521c4539e778b28127efa79b974aff0fa"},
 ]
 
 [[package]]
@@ -5946,4 +5946,4 @@ ifaddr = ">=0.1.7"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "e71635b8fcd2ce5f2977b0d9ecfe7074feb08536ea9ecb86a80b55f615c1a1cd"
+content-hash = "dc582ca2f7b51f41f051b65e9e8c37b9f74252692d8fd9b471c2acea31b25008"

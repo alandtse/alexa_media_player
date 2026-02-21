@@ -507,7 +507,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 != event["last_called_change"]["timestamp"]
             ):
                 _LOGGER.debug(
-                    "%s: %s is last_called: %s",
+                    "%s: last_called is %s (%s)",
                     hide_email(self._login.email),
                     self,
                     hide_serial(self.device_serial_number),
@@ -1876,32 +1876,50 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     async def _update_notify_targets(self) -> None:
         """Update notification service targets."""
-        if self.hass.data[DATA_ALEXAMEDIA].get("notify_service"):
-            notify = self.hass.data[DATA_ALEXAMEDIA].get("notify_service")
-            if hasattr(notify, "registered_targets"):
-                _LOGGER.debug(
-                    "%s: Refreshing notify targets",
-                    hide_email(self._login.email),
-                )
-                await notify.async_register_services()
-                entity_name_last_called = f"{ALEXA_DOMAIN}_last_called{'_' + self._login.email if self.unique_id[-1:].isdigit() else ''}"
-                await asyncio.sleep(2)
-                if (
-                    notify.last_called
-                    and notify.registered_targets.get(entity_name_last_called)
-                    != self.unique_id
-                ):
-                    _LOGGER.debug(
-                        "%s: Changing notify.targets is not supported by HA version < 2021.2.0; using toggle method",
-                        hide_email(self._login.email),
-                    )
-                    notify.last_called = False
-                    await notify.async_register_services()
-                    await asyncio.sleep(2)
-                    notify.last_called = True
-                    await notify.async_register_services()
-            else:
-                _LOGGER.debug(
-                    "%s: Unable to refresh notify targets; notify not ready",
-                    hide_email(self._login.email),
-                )
+        notify = self.hass.data[DATA_ALEXAMEDIA].get("notify_service")
+        if not notify:
+            return
+
+        if not hasattr(notify, "registered_targets"):
+            _LOGGER.debug(
+                "%s: Unable to refresh notify targets; notify not ready",
+                hide_email(self._login.email),
+            )
+            return
+
+        email = hide_email(self._login.email)
+
+        _LOGGER.debug("%s: Refreshing notify targets", email)
+
+        # Evaluate once for logging (HA legacy registration may evaluate again internally)
+        targets = notify.targets
+
+        entity_name = (self.entity_id or "").split(".", 1)[-1]
+        suffix = f"_{self._login.email}" if entity_name and entity_name[-1].isdigit() else ""
+        last_called_key = f"last_called{suffix}"
+        last_called_uid = targets.get(last_called_key)
+
+        _LOGGER.debug(
+            "%s: Computed %d notify targets; %s -> %s",
+            email,
+            len(targets),
+            last_called_key,
+            hide_serial(last_called_uid),
+        )
+
+        await notify.async_register_services()
+
+        prefix = notify._target_service_name_prefix
+        service_key = slugify(f"{prefix}_{last_called_key}")
+        mapped = notify.registered_targets.get(service_key)
+
+        if notify.last_called and mapped != self.unique_id:
+            _LOGGER.debug(
+                "%s: notify last_called mapping mismatch: %s=%s; %s -> %s (expected %s)",
+                email,
+                last_called_key,
+                hide_serial(last_called_uid),
+                service_key,
+                mapped,
+                self.unique_id,
+            )

@@ -78,6 +78,7 @@ SERVICE_FORCE_LOGOUT = "force_logout"
 SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 
 LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0
+LAST_CALLED_429_BACKOFF_MAX_S = 15 * 60.0
 LAST_CALLED_DEBOUNCE_S = 0.12  # coalesce bursty pushes, but stay snappy
 LAST_CALLED_RETRY_DELAY_S = 0.28  # quick retry cadence (usually <2s total)
 LAST_CALLED_RETRY_LIMIT = 5  # total attempts = 1 + retries (max 6 calls per burst)

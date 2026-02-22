@@ -89,7 +89,8 @@ class DataCache:
         """Store value in cache.
 
         Note: Stores a direct reference (not a copy) for performance.
-        Callers should not mutate cached values.
+        Callers should treat cached values as read-only unless they *own* the data
+        lifecycle and intentionally enrich it in-place.
 
         Args:
             key: Cache key

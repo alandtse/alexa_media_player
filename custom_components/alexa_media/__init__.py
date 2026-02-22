@@ -54,6 +54,10 @@ import voluptuous as vol
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .const import (
+    _LAST_CALLED_429_BACKOFF_INITIAL_S,
+    _LAST_CALLED_429_BACKOFF_MAX_S,
+    _LAST_CALLED_CONN_BACKOFF_S,
+    _LAST_CALLED_LOGIN_BACKOFF_S,
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
     CONF_DEBUG,
@@ -76,16 +80,13 @@ from .const import (
     ISSUE_URL,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
-    SCAN_INTERVAL,
-    STARTUP_MESSAGE,
-    _LAST_CALLED_LOGIN_BACKOFF_S,
-    _LAST_CALLED_CONN_BACKOFF_S,
-    _LAST_CALLED_429_BACKOFF_INITIAL_S,
-    _LAST_CALLED_429_BACKOFF_MAX_S = 15,
     NOTIFICATION_COOLDOWN,
     NOTIFY_REFRESH_BACKOFF,
     NOTIFY_REFRESH_MAX_RETRIES,
-
+    SCAN_INTERVAL,
+    STARTUP_MESSAGE,
+    15,
+    =,
 )
 from .coordinator import AlexaMediaCoordinator
 from .exceptions import TimeoutException

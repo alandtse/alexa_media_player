@@ -75,6 +75,15 @@ from .const import (
     DOMAIN,
     ISSUE_URL,
     LAST_CALLED_429_BACKOFF_INITIAL_S,
+    LAST_CALLED_DEBOUNCE_S,
+    LAST_CALLED_RETRY_DELAY_S,
+    LAST_CALLED_RETRY_LIMIT,
+    LAST_CALLED_STALE_FUDGE_MS,
+    LAST_CALLED_SUCCESS_PACE_S,
+    LAST_CALLED_LOOKBACK_MS,
+    LAST_CALLED_ITEMS,
+    LAST_CALLED_COALESCE_WINDOW_MS,
+
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
     NOTIFICATION_COOLDOWN,
@@ -1468,7 +1477,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     @callback
     async def http2_handler(message_obj):
-        # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+        # pylint: disable=too-many-branches,too-many-statements
         """Handle http2 push messages.
 
         This allows push notifications from Alexa to update last_called and media state.
@@ -1496,19 +1505,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         account.setdefault(
             "last_equalizer", {}
         )  # serial -> {"bass": int|None, "midrange": int|None, "treble": int|None, "updated": int(ms)}
-
-        # keep these local to the handler for now.
-        _LC_DEBOUNCE_S = 0.12  # coalesce bursty pushes, but stay snappy
-        _LC_RETRY_DELAY_S = 0.28  # quick retry cadence (usually <2s total)
-        _LC_RETRY_LIMIT = 5  # total attempts = 1 + retries (max 6 calls per burst)
-        _LC_STALE_FUDGE_MS = 5_000  # allow some clock/ordering jitter
-        _LC_SUCCESS_PACE_S = 1.0  # post-success pacing to avoid hammering
-        _LC_LOOKBACK_MS = 60_000
-        _LC_ITEMS = 10
-        _LC_SPAM_STALE_AFTER_S = (
-            15.0  # only allow spammy pokes if last_called hasn't updated recently
-        )
-        _COALESCE_WINDOW_MS = 2000
 
         def _now_ms() -> int:
             return int(time.time() * 1000)
@@ -1544,7 +1540,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 or (
                     eq_prev is not None
                     and abs(_now_ms() - int(eq_prev.get("updated", 0)))
-                    < _COALESCE_WINDOW_MS
+                    < LAST_CALLED_COALESCE_WINDOW_MS 
                 )
             )
 
@@ -1583,7 +1579,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 or (
                     vol_prev is not None
                     and abs(_now_ms() - int(vol_prev.get("updated", 0)))
-                    < _COALESCE_WINDOW_MS
+                    < LAST_CALLED_COALESCE_WINDOW_MS 
                 )
             )
 
@@ -1627,7 +1623,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 account["last_called_probe_event"].clear()
 
                 # Debounce push bursts (coalesce). If another trigger arrives, restart.
-                await asyncio.sleep(_LC_DEBOUNCE_S)
+                await asyncio.sleep(LAST_CALLED_DEBOUNCE_S)
                 if account["last_called_probe_event"].is_set():
                     continue
 
@@ -1656,7 +1652,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 )
 
                 # In-task retry loop (NO reschedule, NO cancel)
-                for attempt in range(_LC_RETRY_LIMIT + 1):
+                for attempt in range(LAST_CALLED_RETRY_LIMIT + 1):
                     # If new triggers arrived mid-loop, restart outer loop to re-debounce/coalesce.
                     if account["last_called_probe_event"].is_set():
                         break
@@ -1669,13 +1665,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if callable(get_recent):
                             last = await get_recent(
                                 login_obj,
-                                lookback_ms=_LC_LOOKBACK_MS,
-                                items=_LC_ITEMS,
+                                lookback_ms=LAST_CALLED_LOOKBACK_MS ,
+                                items=LAST_CALLED_ITEMS ,
                             )
                         else:
                             last = await AlexaAPI.get_last_device_serial(
                                 login_obj,
-                                items=_LC_ITEMS,
+                                items=LAST_CALLED_ITEMS ,
                             )
 
                     except asyncio.CancelledError:
@@ -1741,9 +1737,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     if (
                         trigger_ts
                         and returned_ts
-                        and returned_ts < (trigger_ts - _LC_STALE_FUDGE_MS)
+                        and returned_ts < (trigger_ts - LAST_CALLED_STALE_FUDGE_MS )
                     ):
-                        if attempt < _LC_RETRY_LIMIT:
+                        if attempt < LAST_CALLED_RETRY_LIMIT:
                             _LOGGER.debug(
                                 "%s: last_called probe returned stale history (%s): "
                                 "got %s < trigger %s; retry %s/%s",
@@ -1752,9 +1748,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 returned_ts,
                                 trigger_ts,
                                 attempt + 1,
-                                _LC_RETRY_LIMIT,
+                                LAST_CALLED_RETRY_LIMIT,
                             )
-                            await asyncio.sleep(_LC_RETRY_DELAY_S)
+                            await asyncio.sleep(LAST_CALLED_RETRY_DELAY_S )
                             continue
                         break
 
@@ -1762,7 +1758,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     async with account["last_called_probe_lock"]:
                         account["last_called_probe_backoff_s"] = 0.0
                         account["last_called_probe_next_allowed"] = (
-                            time.monotonic() + _LC_SUCCESS_PACE_S
+                            time.monotonic() + LAST_CALLED_SUCCESS_PACE_S 
                         )
 
                     trigger_serial = account.get("last_called_probe_trigger_serial")
@@ -1777,13 +1773,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     account["last_called_customer_history_ts"] = payload["timestamp"]
 
                     # If we satisfied the trigger, clear it.
-                    if trigger_ts and returned_ts >= (trigger_ts - _LC_STALE_FUDGE_MS):
+                    if trigger_ts and returned_ts >= (trigger_ts - LAST_CALLED_STALE_FUDGE_MS ):
                         account["last_called_probe_trigger_ts"] = 0
 
                     break
 
         # ---------------------------------------------------------------------
-        # Existing http2push parsing / dispatch
+        # Main http2push parsing / dispatch
         # ---------------------------------------------------------------------
         updates = (
             message_obj.get("directive", {})

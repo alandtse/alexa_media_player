@@ -596,6 +596,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         if cached_devices and not new_devices:
             _LOGGER.debug("%s: Using cached devices data", hide_email(email))
+            # NOTE: DataCache returns direct references. We intentionally enrich device dicts
+            # in-place each refresh cycle (bluetooth_state/locale/dnd/etc.).
             devices = cached_devices
             _used_cached_devices = True
             # Still need fresh bluetooth, preferences, and DND

@@ -54,10 +54,10 @@ import voluptuous as vol
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .const import (
-    _LAST_CALLED_429_BACKOFF_INITIAL_S,
-    _LAST_CALLED_429_BACKOFF_MAX_S,
-    _LAST_CALLED_CONN_BACKOFF_S,
-    _LAST_CALLED_LOGIN_BACKOFF_S,
+    LAST_CALLED_429_BACKOFF_INITIAL_S,
+    LAST_CALLED_429_BACKOFF_INITIAL_S,
+    LAST_CALLED_429_BACKOFF_INITIAL_S,
+    LAST_CALLED_429_BACKOFF_INITIAL_S,
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
     CONF_DEBUG,
@@ -1690,9 +1690,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 account.get("last_called_probe_backoff_s", 0.0)
                             )
                             backoff = (
-                                _LAST_CALLED_429_BACKOFF_INITIAL_S
+                                LAST_CALLED_429_BACKOFF_INITIAL_S
                                 if prev <= 0.0
-                                else min(prev * 2.0, _LAST_CALLED_429_BACKOFF_MAX_S)
+                                else min(prev * 2.0, LAST_CALLED_429_BACKOFF_INITIAL_S)
                             )
                             account["last_called_probe_backoff_s"] = backoff
                             account["last_called_probe_next_allowed"] = (
@@ -1709,7 +1709,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     except AlexapyLoginError:
                         async with account["last_called_probe_lock"]:
                             account["last_called_probe_next_allowed"] = (
-                                time.monotonic() + _LAST_CALLED_LOGIN_BACKOFF_S
+                                time.monotonic() + LAST_CALLED_429_BACKOFF_INITIAL_S
                             )
                         _LOGGER.debug(
                             "%s: last_called probe login error (%s); skipping",
@@ -1721,7 +1721,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     except AlexapyConnectionError as exc:
                         async with account["last_called_probe_lock"]:
                             account["last_called_probe_next_allowed"] = (
-                                time.monotonic() + _LAST_CALLED_CONN_BACKOFF_S
+                                time.monotonic() + LAST_CALLED_429_BACKOFF_INITIAL_S
                             )
                         _LOGGER.debug(
                             "%s: last_called probe connection error (%s): %s",

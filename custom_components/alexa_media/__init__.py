@@ -78,6 +78,14 @@ from .const import (
     MIN_TIME_BETWEEN_SCANS,
     SCAN_INTERVAL,
     STARTUP_MESSAGE,
+    _LAST_CALLED_LOGIN_BACKOFF_S,
+    _LAST_CALLED_CONN_BACKOFF_S,
+    _LAST_CALLED_429_BACKOFF_INITIAL_S,
+    _LAST_CALLED_429_BACKOFF_MAX_S = 15,
+    NOTIFICATION_COOLDOWN,
+    NOTIFY_REFRESH_BACKOFF,
+    NOTIFY_REFRESH_MAX_RETRIES,
+
 )
 from .coordinator import AlexaMediaCoordinator
 from .exceptions import TimeoutException
@@ -96,20 +104,6 @@ from .runtime_data import AlexaRuntimeData
 from .services import AlexaMediaServices
 
 _LOGGER = logging.getLogger(__name__)
-
-# Simple cooldown in seconds; tweak if needed
-NOTIFICATION_COOLDOWN = 60
-# seconds between retries when API says "Rate exceeded"/None
-NOTIFY_REFRESH_BACKOFF = 15.0
-# Maximum number of retries
-NOTIFY_REFRESH_MAX_RETRIES = 3
-
-# last_called probe pacing / backoff tuning
-_LAST_CALLED_LOGIN_BACKOFF_S = 30.0
-_LAST_CALLED_CONN_BACKOFF_S = 10.0
-_LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0
-_LAST_CALLED_429_BACKOFF_MAX_S = 15 * 60.0
-
 
 def _valid_voice_summary(summary: object) -> bool:
     """Return True if summary looks like a real spoken utterance."""

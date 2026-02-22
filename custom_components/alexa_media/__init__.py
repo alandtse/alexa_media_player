@@ -75,6 +75,7 @@ from .const import (
     DOMAIN,
     ISSUE_URL,
     LAST_CALLED_429_BACKOFF_INITIAL_S,
+    LAST_CALLED_429_BACKOFF_MAX_S
     LAST_CALLED_COALESCE_WINDOW_MS,
     LAST_CALLED_DEBOUNCE_S,
     LAST_CALLED_ITEMS,
@@ -1684,7 +1685,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             backoff = (
                                 LAST_CALLED_429_BACKOFF_INITIAL_S
                                 if prev <= 0.0
-                                else min(prev * 2.0, LAST_CALLED_429_BACKOFF_INITIAL_S)
+                                else min(prev * 2.0, LAST_CALLED_429_BACKOFF_MAX_S)
                             )
                             account["last_called_probe_backoff_s"] = backoff
                             account["last_called_probe_next_allowed"] = (

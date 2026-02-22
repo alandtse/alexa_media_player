@@ -91,8 +91,6 @@ from .const import (
     NOTIFY_REFRESH_MAX_RETRIES,
     SCAN_INTERVAL,
     STARTUP_MESSAGE,
-    15,
-    =,
 )
 from .coordinator import AlexaMediaCoordinator
 from .exceptions import TimeoutException

@@ -23,7 +23,7 @@ from .const import (
 if TYPE_CHECKING:
     from alexapy import AlexaLogin, HTTP2EchoClient
 
-    from .alexa_entity import AlexaMediaCoordinator
+    from .coordinator import AlexaMediaCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -110,6 +110,7 @@ from .services import AlexaMediaServices
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def _valid_voice_summary(summary: object) -> bool:
     """Return True if summary looks like a real spoken utterance."""
     if not isinstance(summary, str):
@@ -1538,7 +1539,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 or (
                     eq_prev is not None
                     and abs(_now_ms() - int(eq_prev.get("updated", 0)))
-                    < LAST_CALLED_COALESCE_WINDOW_MS 
+                    < LAST_CALLED_COALESCE_WINDOW_MS
                 )
             )
 
@@ -1577,7 +1578,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 or (
                     vol_prev is not None
                     and abs(_now_ms() - int(vol_prev.get("updated", 0)))
-                    < LAST_CALLED_COALESCE_WINDOW_MS 
+                    < LAST_CALLED_COALESCE_WINDOW_MS
                 )
             )
 
@@ -1663,13 +1664,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if callable(get_recent):
                             last = await get_recent(
                                 login_obj,
-                                lookback_ms=LAST_CALLED_LOOKBACK_MS ,
-                                items=LAST_CALLED_ITEMS ,
+                                lookback_ms=LAST_CALLED_LOOKBACK_MS,
+                                items=LAST_CALLED_ITEMS,
                             )
                         else:
                             last = await AlexaAPI.get_last_device_serial(
                                 login_obj,
-                                items=LAST_CALLED_ITEMS ,
+                                items=LAST_CALLED_ITEMS,
                             )
 
                     except asyncio.CancelledError:
@@ -1735,7 +1736,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     if (
                         trigger_ts
                         and returned_ts
-                        and returned_ts < (trigger_ts - LAST_CALLED_STALE_FUDGE_MS )
+                        and returned_ts < (trigger_ts - LAST_CALLED_STALE_FUDGE_MS)
                     ):
                         if attempt < LAST_CALLED_RETRY_LIMIT:
                             _LOGGER.debug(
@@ -1748,7 +1749,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 attempt + 1,
                                 LAST_CALLED_RETRY_LIMIT,
                             )
-                            await asyncio.sleep(LAST_CALLED_RETRY_DELAY_S )
+                            await asyncio.sleep(LAST_CALLED_RETRY_DELAY_S)
                             continue
                         break
 
@@ -1756,7 +1757,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     async with account["last_called_probe_lock"]:
                         account["last_called_probe_backoff_s"] = 0.0
                         account["last_called_probe_next_allowed"] = (
-                            time.monotonic() + LAST_CALLED_SUCCESS_PACE_S 
+                            time.monotonic() + LAST_CALLED_SUCCESS_PACE_S
                         )
 
                     trigger_serial = account.get("last_called_probe_trigger_serial")
@@ -1771,7 +1772,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     account["last_called_customer_history_ts"] = payload["timestamp"]
 
                     # If we satisfied the trigger, clear it.
-                    if trigger_ts and returned_ts >= (trigger_ts - LAST_CALLED_STALE_FUDGE_MS ):
+                    if trigger_ts and returned_ts >= (
+                        trigger_ts - LAST_CALLED_STALE_FUDGE_MS
+                    ):
                         account["last_called_probe_trigger_ts"] = 0
 
                     break

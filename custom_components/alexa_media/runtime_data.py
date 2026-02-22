@@ -23,7 +23,7 @@ from .const import (
 if TYPE_CHECKING:
     from alexapy import AlexaLogin, HTTP2EchoClient
 
-    from .alexa_entity import AlexaEntityData
+    from .alexa_entity import AlexaMediaCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class AlexaRuntimeData:
     # Core components (optional to support partial initialisation)
     login_obj: AlexaLogin | None = None
     config_entry: ConfigEntry | None = None
-    coordinator: DataUpdateCoordinator[AlexaEntityData] | None = None
+    coordinator: AlexaMediaCoordinator | None = None
 
     # HTTP2 Push connection
     http2: HTTP2EchoClient | None = None

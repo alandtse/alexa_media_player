@@ -54,10 +54,6 @@ import voluptuous as vol
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .const import (
-    LAST_CALLED_429_BACKOFF_INITIAL_S,
-    LAST_CALLED_429_BACKOFF_INITIAL_S,
-    LAST_CALLED_429_BACKOFF_INITIAL_S,
-    LAST_CALLED_429_BACKOFF_INITIAL_S,
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
     CONF_DEBUG,
@@ -78,6 +74,7 @@ from .const import (
     DEPENDENT_ALEXA_COMPONENTS,
     DOMAIN,
     ISSUE_URL,
+    LAST_CALLED_429_BACKOFF_INITIAL_S,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
     NOTIFICATION_COOLDOWN,

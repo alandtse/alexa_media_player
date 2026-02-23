@@ -89,8 +89,9 @@ class DataCache:
         """Store value in cache.
 
         Note: Stores a direct reference (not a copy) for performance.
-        Callers should treat cached values as read-only unless they *own* the data
-        lifecycle and intentionally enrich it in-place.
+        Callers should treat cached values as read-only unless the caller created
+        the cached object, is solely responsible for all mutations, and intentionally
+        enriches it in-place (e.g., the device-dict refresh in async_update_data).
 
         Args:
             key: Cache key

@@ -41,7 +41,7 @@ repos:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.13.7
+    rev: v4.13.8
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -50,14 +50,14 @@ repos:
   - hooks:
       - id: black
     repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 26.1.0
   - repo: https://github.com/pre-commit/mirrors-prettier
     hooks:
       - id: prettier
         exclude: ^custom_components/alexa_media/translations|CHANGELOG.md
     rev: v4.0.0-alpha.8
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.20.0
+    rev: v3.21.2
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
@@ -71,7 +71,7 @@ repos:
       - id: bandit
         args: ["-c", "pyproject.toml"]
   - repo: https://github.com/PyCQA/isort
-    rev: 7.0.0
+    rev: 8.0.0
     hooks:
       - id: isort
   #  - repo: local

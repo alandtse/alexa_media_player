@@ -76,6 +76,8 @@ from .const import (
     ISSUE_URL,
     LAST_CALLED_429_BACKOFF_INITIAL_S,
     LAST_CALLED_429_BACKOFF_MAX_S,
+    LAST_CALLED_CONN_BACKOFF_S,
+    LAST_CALLED_LOGIN_BACKOFF_S,
     LAST_CALLED_COALESCE_WINDOW_MS,
     LAST_CALLED_DEBOUNCE_S,
     LAST_CALLED_ITEMS,
@@ -1699,7 +1701,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     except AlexapyLoginError:
                         async with account["last_called_probe_lock"]:
                             account["last_called_probe_next_allowed"] = (
-                                time.monotonic() + LAST_CALLED_429_BACKOFF_INITIAL_S
+                                time.monotonic() + LAST_CALLED_LOGIN_BACKOFF_S
                             )
                         _LOGGER.debug(
                             "%s: last_called probe login error (%s); skipping",
@@ -1711,7 +1713,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     except AlexapyConnectionError as exc:
                         async with account["last_called_probe_lock"]:
                             account["last_called_probe_next_allowed"] = (
-                                time.monotonic() + LAST_CALLED_429_BACKOFF_INITIAL_S
+                                time.monotonic() + LAST_CALLED_CONN_BACKOFF_S
                             )
                         _LOGGER.debug(
                             "%s: last_called probe connection error (%s): %s",

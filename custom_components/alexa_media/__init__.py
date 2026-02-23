@@ -1892,6 +1892,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
 
                 elif command == "PUSH_DOPPLER_CONNECTION_CHANGE":
+                    # Player availability update
                     if serial and serial in existing_serials:
                         _LOGGER.debug(
                             "Updating media_player availability %s",
@@ -1904,6 +1905,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
 
                 elif command == "PUSH_EQUALIZER_STATE_CHANGE":
+                    # Player equalizer update
                     try:
                         ts = resource.get("timeStamp")
                         ts_ms = int(ts) if ts else None
@@ -1932,6 +1934,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
 
                 elif command == "PUSH_BLUETOOTH_STATE_CHANGE":
+                    # Player bluetooth update
                     bt_event = (
                         json_payload.get("bluetoothEvent")
                         if isinstance(json_payload, dict)
@@ -1967,6 +1970,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             )
 
                 elif command == "PUSH_MEDIA_QUEUE_CHANGE":
+                    # Player availability update
                     if serial and serial in existing_serials:
                         _LOGGER.debug(
                             "Updating media_player queue %s",
@@ -1979,6 +1983,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
 
                 elif command == "PUSH_NOTIFICATION_CHANGE":
+                    # Notification/alarm state changed on this device.
+                    # Queue a refresh with backoff to ride out alexa-side cooldowns.
                     _schedule_notifications_refresh(
                         hass,
                         email,
@@ -1997,22 +2003,37 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             {"notification_update": json_payload},
                         )
 
-                elif command in ["PUSH_DELETE_DOPPLER_ACTIVITIES"]:
-                    pass
-
-                elif command in ["PUSH_LIST_CHANGE", "PUSH_LIST_ITEM_CHANGE"]:
-                    pass
-
                 elif command in [
-                    "PUSH_CONTENT_FOCUS_CHANGE",
-                    "PUSH_DEVICE_SETUP_STATE_CHANGE",
+                    "PUSH_DELETE_DOPPLER_ACTIVITIES",  # Delete Alexa history,
                 ]:
                     pass
 
-                elif command in ["PUSH_MEDIA_PREFERENCE_CHANGE"]:
+                elif command in [
+                    "PUSH_TODO_CHANGE",  # Update To-Do List
+                    "PUSH_LIST_CHANGE",  # Clear a shopping list https://github.com/alandtse/alexa_media_player/issues/1190
+                    "PUSH_LIST_ITEM_CHANGE",  # Update shopping list
+                ]:
+                    # To-do
+                    _LOGGER.debug("%s currently not supported", command)
                     pass
 
-                elif command in ["MATTER_SETUP_NOTIFICATION"]:
+                elif command in [
+                    "PUSH_CONTENT_FOCUS_CHANGE",  # Likely prime related refocus
+                    "PUSH_DEVICE_SETUP_STATE_CHANGE",  # Likely device changes mid setup
+                ]:
+                    _LOGGER.debug("%s currently not supported", command)
+                    pass
+
+                elif command in [
+                    "PUSH_MEDIA_PREFERENCE_CHANGE",  # Disliking or liking songs, https://github.com/alandtse/alexa_media_player/issues/1599
+                ]:
+                    _LOGGER.debug("%s currently not supported", command)
+                    pass
+
+                elif command in [
+                    "MATTER_SETUP_NOTIFICATION",  # New command observed 2026-02-20
+                ]:
+                    _LOGGER.debug("%s: New command; currently not supported", command)
                     pass
 
                 else:

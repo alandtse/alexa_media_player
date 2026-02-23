@@ -1534,8 +1534,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             eq_prev = last_equalizer.get(serial)
 
             should_simulate = (
-                (prev is None)
-                or (prev.get("volumeSetting") == vol and prev.get("isMuted") == muted)
+                (
+                    prev is not None
+                    and prev.get("volumeSetting") == vol
+                    and prev.get("isMuted") == muted
+                )
                 or (
                     eq_prev is not None
                     and abs(_now_ms() - int(eq_prev.get("updated", 0)))
@@ -1569,9 +1572,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             vol_prev = last_volumes.get(serial)
 
             should_simulate = (
-                (prev is None)
-                or (
-                    prev.get("bass") == bass
+                (
+                    prev is not None
+                    and prev.get("bass") == bass
                     and prev.get("treble") == treble
                     and prev.get("midrange") == midrange
                 )

@@ -1195,7 +1195,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 async with async_timeout.timeout(10):
                     last_called = await AlexaAPI.get_last_device_serial(login_obj)
             except asyncio.CancelledError:
-                “Task cancelled during unload/shutdown; propagate cancellation.”
+                # Task cancelled during unload/shutdown; propagate cancellation.
                 raise
             except TypeError:
                 _LOGGER.debug(

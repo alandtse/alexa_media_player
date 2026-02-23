@@ -1925,3 +1925,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 mapped,
                 self.unique_id,
             )
+            # Reset stale last_called target mapping and re-register notify services.
+            try:
+                notify.last_called.pop(last_called_key, None)
+                await notify.async_register_services()
+                _LOGGER.debug("notify.last_called reset for %s; re-registered notify services", last_called_key)
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Failed to reset notify.last_called for %s", last_called_key)

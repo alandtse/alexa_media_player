@@ -77,8 +77,11 @@ SERVICE_GET_HISTORY_RECORDS = "get_history_records"
 SERVICE_FORCE_LOGOUT = "force_logout"
 SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 
+# Backoff durations for the last-called probe worker
 LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0
 LAST_CALLED_429_BACKOFF_MAX_S = 15 * 60.0
+
+# Tuning constants for the per-account last-called probe worker
 LAST_CALLED_DEBOUNCE_S = 0.12  # coalesce bursty pushes, but stay snappy
 LAST_CALLED_RETRY_DELAY_S = 0.28  # quick retry cadence (usually <2s total)
 LAST_CALLED_RETRY_LIMIT = 5  # total attempts = 1 + retries (max 6 calls per burst)
@@ -88,6 +91,7 @@ LAST_CALLED_LOOKBACK_MS = 60_000
 LAST_CALLED_ITEMS = 10
 LAST_CALLED_COALESCE_WINDOW_MS = 2000
 
+# Tuning constants for notification retries
 NOTIFICATION_COOLDOWN = 60
 NOTIFY_REFRESH_BACKOFF = 15.0
 NOTIFY_REFRESH_MAX_RETRIES = 3

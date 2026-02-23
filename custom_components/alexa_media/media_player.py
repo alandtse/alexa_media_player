@@ -1911,7 +1911,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
         await notify.async_register_services()
 
-        prefix = notify._target_service_name_prefix
+        prefix = getattr(notify, "_target_service_name_prefix", ALEXA_DOMAIN)
         service_key = slugify(f"{prefix}_{last_called_key}")
         mapped = notify.registered_targets.get(service_key)
 

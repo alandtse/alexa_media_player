@@ -1265,8 +1265,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 _LOGGER.debug(
                     "Executing scheduled forced DND update for %s", hide_email(email)
                 )
-                # Assume login_obj can be retrieved or passed appropriately
-                login_obj = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"]
+                login_obj = (
+                    hass.data.get(DATA_ALEXAMEDIA, {})
+                    .get("accounts", {})
+                    .get(email, {})
+                    .get("login_obj")
+                )
+                if not login_obj:
+                    _LOGGER.debug(
+                        "Skipping scheduled forced DND update for %s; login_obj missing",
+                        hide_email(email),
+                    )
+                    return
                 await update_dnd_state(login_obj)
 
     @_catch_login_errors

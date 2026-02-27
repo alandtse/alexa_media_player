@@ -1277,7 +1277,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         async with dnd_update_lock:
             last_run = last_dnd_update_times.get(email)
-            cooldown = timedelta(seconds=MIN_TIME_BETWEEN_SCANS)
+            cooldown = MIN_TIME_BETWEEN_SCANS
 
             if last_run and (now - last_run) < cooldown:
                 # If within cooldown, mark a pending update if not already marked

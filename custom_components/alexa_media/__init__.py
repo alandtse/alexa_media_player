@@ -1258,7 +1258,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     async def schedule_update_dnd_state(email: str):
         """Schedule an update_dnd_state call after MIN_TIME_BETWEEN_FORCED_SCANS."""
-        await asyncio.sleep(MIN_TIME_BETWEEN_FORCED_SCANS)
+        await asyncio.sleep(MIN_TIME_BETWEEN_FORCED_SCANS.total_seconds())
         async with dnd_update_lock:
             if pending_dnd_updates.get(email, False):
                 pending_dnd_updates[email] = False

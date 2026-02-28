@@ -1979,7 +1979,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
 
             if should_simulate:
-                simulate_activity(serial, "PUSH_VOLUME_CHANGE", trigger_ts_ms)
+                simulate_activity(serial, "PUSH_VOLUME_CHANGE", None)
 
             last_volumes[serial] = {
                 "volumeSetting": vol,
@@ -2015,7 +2015,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
 
             if should_simulate:
-                simulate_activity(serial, "PUSH_EQUALIZER_STATE_CHANGE", trigger_ts_ms)
+                simulate_activity(serial, "PUSH_EQUALIZER_STATE_CHANGE", None)
 
             last_equalizer[serial] = {
                 "bass": bass,

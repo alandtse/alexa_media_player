@@ -183,8 +183,8 @@ def _push_healthy(account: dict) -> bool:
                 return True
             # If ping is *very* stale, treat as suspicious but not definitive.
             # Don't force False here unless you also have other negative signals.
-        except Exception:
-            pass
+        except Exception as exc:  # pylint: disable=broad-except
+            _LOGGER.debug("Could not evaluate http2 ping age: %s", exc)
 
     # Unknown state: object exists and client isn't closed -> assume usable.
     return True
@@ -1333,9 +1333,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     def _init_last_called_probe_worker(account: dict) -> None:
         """Initialize per-account last_called probe worker trigger function."""
         account.setdefault("last_called_api_lock", asyncio.Lock())
-        account.setdefault(
-            "last_called_customer_history_ts", 0
-        )  # ms epoch last applied
+        account.setdefault("last_called_customer_history_ts", 0)  # ms epoch last applied
         account.setdefault("last_called_probe_backoff_s", 0.0)
         account.setdefault("last_called_probe_event", asyncio.Event())
         account.setdefault("last_called_probe_lock", asyncio.Lock())
@@ -1345,245 +1343,207 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         account.setdefault("last_called_probe_trigger_serial", None)
         account.setdefault("last_called_probe_trigger_ts", 0)  # newest push ts (ms)
         account.setdefault("trigger_last_called_probe", None)
-
+    
         account.setdefault("last_volumes", {})
         account.setdefault("last_equalizer", {})
-
+    
         if callable(account.get("trigger_last_called_probe")):
             return
-
+    
+        async def _last_called_probe_worker() -> None:
+            """Single worker per account: debounce bursts, then quick-retry until history >= trigger_ts."""
+            get_recent = getattr(AlexaAPI, "get_last_device_serial_recent", None)
+            skip_debounce = False
+    
+            while True:
+                accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
+                account_live = accounts.get(email)
+                if not account_live:
+                    return
+    
+                login_live = account_live.get("login_obj")
+                if not login_live or not _network_allowed(login_live):
+                    await asyncio.sleep(5)
+                    continue    
+                await account_live["last_called_probe_event"].wait()
+                account_live["last_called_probe_event"].clear()
+    
+                if not skip_debounce:
+                    await asyncio.sleep(
+                        LAST_CALLED_DEBOUNCE_S + random.uniform(0.0, 0.05)  # nosec B311
+                    )
+                    if account_live["last_called_probe_event"].is_set():
+                        continue
+                skip_debounce = False
+    
+                preempted = False
+                while True:
+                    now = time.monotonic()
+                    next_allowed = float(account_live.get("last_called_probe_next_allowed", 0.0) or 0.0)
+                    delay = max(0.0, next_allowed - now)
+                    if delay <= 0:
+                        break
+                    try:
+                        await asyncio.wait_for(account_live["last_called_probe_event"].wait(), timeout=delay)
+                        account_live["last_called_probe_event"].clear()
+                        preempted = True
+                        break
+                    except asyncio.TimeoutError:
+                        break
+                if preempted:
+                    continue
+    
+                trigger_ts = int(account_live.get("last_called_probe_trigger_ts", 0) or 0)
+                trigger_cmd = str(account_live.get("last_called_probe_trigger_cmd") or "push")
+    
+                for attempt in range(LAST_CALLED_RETRY_LIMIT + 1):
+                    if account_live["last_called_probe_event"].is_set():
+                        break
+    
+                    try:
+                        async with account_live["last_called_api_lock"]:
+                            if callable(get_recent):
+                                last = await get_recent(
+                                    login_live,
+                                    lookback_ms=LAST_CALLED_LOOKBACK_MS,
+                                    items=LAST_CALLED_ITEMS,
+                                )
+                            else:
+                                last = await AlexaAPI.get_last_device_serial(
+                                    login_live,
+                                    items=LAST_CALLED_ITEMS,
+                                )
+                    except asyncio.CancelledError:
+                        raise
+                    except AlexapyTooManyRequestsError:
+                        uk_floor = random.uniform(30.0, 63.0)  # nosec B311
+                        prev = float(account_live.get("last_called_probe_backoff_s", 0.0) or 0.0)
+                        backoff = (
+                            LAST_CALLED_429_BACKOFF_INITIAL_S
+                            if prev <= 0.0
+                            else min(prev * 2.0, LAST_CALLED_429_BACKOFF_MAX_S)
+                        )
+                        backoff = max(backoff, uk_floor)
+                        jitter = random.uniform(0.0, min(5.0, backoff * 0.1))  # nosec B311
+    
+                        account_live["last_called_probe_backoff_s"] = backoff
+                        account_live["last_called_probe_next_allowed"] = time.monotonic() + backoff + jitter
+    
+                        _LOGGER.debug(
+                            "%s: last_called probe rate-limited (%s); backing off %.1fs (%.1fs jitter) then self-retry",
+                            hide_email(email),
+                            trigger_cmd,
+                            backoff,
+                            jitter,
+                        )
+                        skip_debounce = True
+                        account_live["last_called_probe_event"].set()
+                        break
+                    except AlexapyLoginError:
+                        account_live["last_called_probe_next_allowed"] = time.monotonic() + LAST_CALLED_LOGIN_BACKOFF_S
+                        _LOGGER.debug("%s: last_called probe login error (%s); skipping", hide_email(email), trigger_cmd)
+                        break
+                    except AlexapyConnectionError as exc:
+                        account_live["last_called_probe_next_allowed"] = time.monotonic() + LAST_CALLED_CONN_BACKOFF_S
+                        _LOGGER.debug(
+                            "%s: last_called probe connection error (%s): %s",
+                            hide_email(email),
+                            trigger_cmd,
+                            exc,
+                        )
+                        break
+    
+                    existing_serials_local = set(_existing_serials(hass, login_live))
+                    existing_serials_local |= _entity_backed_serials(account_live)
+    
+                    payload = _build_last_called_payload(last, account_live, existing_serials_local)
+    
+                    if not payload:
+                        if trigger_cmd in ("GLOBAL_REFRESH", "SERVICE_REFRESH", "POLL_REFRESH"):
+                            account_live["last_called_probe_trigger_ts"] = 0
+                        break
+    
+                    returned_ts = int(payload.get("timestamp", 0) or 0)
+                    if trigger_ts and returned_ts < (trigger_ts - LAST_CALLED_STALE_FUDGE_MS):
+                        if attempt < LAST_CALLED_RETRY_LIMIT:
+                            _LOGGER.debug(
+                                "%s: last_called probe stale (%s): got %s < trigger %s; retry %s/%s",
+                                hide_email(email),
+                                trigger_cmd,
+                                returned_ts,
+                                trigger_ts,
+                                attempt + 1,
+                                LAST_CALLED_RETRY_LIMIT,
+                            )
+                            await asyncio.sleep(
+                                LAST_CALLED_RETRY_DELAY_S + random.uniform(0.0, 0.5)  # nosec B311
+                            )
+                            continue
+                        break
+    
+                    account_live["last_called_probe_backoff_s"] = 0.0
+                    account_live["last_called_probe_next_allowed"] = (
+                        time.monotonic()
+                        + LAST_CALLED_SUCCESS_PACE_S
+                        + random.uniform(0.0, 0.25)  # nosec B311
+                    )
+    
+                    trigger_serial = account_live.get("last_called_probe_trigger_serial")
+                    _LOGGER.debug(
+                        "%s: Updating last_called via %s (triggered by %s): %s",
+                        hide_email(email),
+                        trigger_cmd,
+                        hide_serial(trigger_serial) if trigger_serial else "unknown",
+                        hide_serial(payload["serialNumber"]),
+                    )
+                    await update_last_called(login_live, payload)
+    
+                    account_live["last_called_probe_trigger_ts"] = 0
+                    break
+            
         def _trigger_last_called_probe(
             trigger_command: str,
             trigger_ts_ms: int | None,
         ) -> None:
             """Record newest trigger + wake worker. Does NOT cancel running worker."""
+
+            accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
+            account_live = accounts.get(email)
+            if not account_live:
+                return
+
             if trigger_ts_ms is not None:
                 try:
                     ts = int(trigger_ts_ms)
                 except (TypeError, ValueError):
                     ts = 0
-                prev = int(account.get("last_called_probe_trigger_ts") or 0)
+
+                prev = int(account_live.get("last_called_probe_trigger_ts") or 0)
                 if ts > prev:
-                    account["last_called_probe_trigger_ts"] = ts
-                account["last_called_probe_trigger_cmd"] = trigger_command
+                    account_live["last_called_probe_trigger_ts"] = ts
+
+                account_live["last_called_probe_trigger_cmd"] = trigger_command
             else:
                 # Manual refresh triggers clear any push watermark
-                if trigger_command in (
-                    "GLOBAL_REFRESH",
-                    "SERVICE_REFRESH",
-                    "POLL_REFRESH",
-                ):
-                    account["last_called_probe_trigger_ts"] = 0
-                    account["last_called_probe_trigger_serial"] = None
-                account["last_called_probe_trigger_cmd"] = trigger_command
+                if trigger_command in ("GLOBAL_REFRESH", "SERVICE_REFRESH", "POLL_REFRESH"):
+                    account_live["last_called_probe_trigger_ts"] = 0
+                    account_live["last_called_probe_trigger_serial"] = None
 
-            task = account.get("last_called_probe_task")
+                account_live["last_called_probe_trigger_cmd"] = trigger_command
+
+            task = account_live.get("last_called_probe_task")
             if task is None or task.done():
-                account["last_called_probe_task"] = hass.async_create_task(
+                account_live["last_called_probe_task"] = hass.async_create_task(
                     _last_called_probe_worker(),
                     name=f"{DOMAIN}_last_called_probe_{hide_email(email)}",
                 )
 
             # Wake worker
-            account["last_called_probe_event"].set()
+            account_live["last_called_probe_event"].set()
 
+        # Store the trigger on the live account as well (so reload swaps don’t strand it)
         account["trigger_last_called_probe"] = _trigger_last_called_probe
-
-    async def _last_called_probe_worker() -> None:
-        """Single worker per account: debounce bursts, then quick-retry until history >= trigger_ts."""
-        get_recent = getattr(AlexaAPI, "get_last_device_serial_recent", None)
-
-        # When we self-wake for a scheduled retry (429), skip debounce once
-        skip_debounce = False
-
-        while True:
-            # Re-resolve account/login every cycle (reload/unload safe)
-            accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
-            account = accounts.get(email)
-            if not account:
-                return
-
-            login_obj = account.get("login_obj")
-            if not login_obj or not _network_allowed(login_obj):
-                return
-
-            # Wait for any trigger (push/service/poll/self-wake)
-            await account["last_called_probe_event"].wait()
-            account["last_called_probe_event"].clear()
-
-            # Coalesce bursts unless this is an internal retry wake
-            if not skip_debounce:
-                await asyncio.sleep(LAST_CALLED_DEBOUNCE_S + random.uniform(0.0, 0.05))
-                if account["last_called_probe_event"].is_set():
-                    # Another trigger arrived during debounce; restart to coalesce
-                    continue
-            skip_debounce = False
-
-            # Respect pacing/backoff window, but allow new triggers to preempt
-            preempted = False
-            while True:
-                now = time.monotonic()
-                next_allowed = float(
-                    account.get("last_called_probe_next_allowed", 0.0) or 0.0
-                )
-                delay = max(0.0, next_allowed - now)
-                if delay <= 0:
-                    break
-
-                try:
-                    await asyncio.wait_for(
-                        account["last_called_probe_event"].wait(),
-                        timeout=delay,
-                    )
-                    # New trigger arrived while waiting -> restart outer loop (and debounce)
-                    account["last_called_probe_event"].clear()
-                    preempted = True
-                    break
-                except asyncio.TimeoutError:
-                    break
-
-            if preempted:
-                continue
-
-            trigger_ts = int(account.get("last_called_probe_trigger_ts", 0) or 0)
-            trigger_cmd = str(account.get("last_called_probe_trigger_cmd") or "push")
-
-            for attempt in range(LAST_CALLED_RETRY_LIMIT + 1):
-                # New triggers preempt the retry loop
-                if account["last_called_probe_event"].is_set():
-                    break
-
-                try:
-                    async with account["last_called_api_lock"]:
-                        if callable(get_recent):
-                            last = await get_recent(
-                                login_obj,
-                                lookback_ms=LAST_CALLED_LOOKBACK_MS,
-                                items=LAST_CALLED_ITEMS,
-                            )
-                        else:
-                            last = await AlexaAPI.get_last_device_serial(
-                                login_obj,
-                                items=LAST_CALLED_ITEMS,
-                            )
-
-                except asyncio.CancelledError:
-                    raise
-
-                except AlexapyTooManyRequestsError:
-                    # Exponential backoff with floor + jitter
-                    uk_floor = random.uniform(30.0, 63.0)
-                    prev = float(account.get("last_called_probe_backoff_s", 0.0) or 0.0)
-                    backoff = (
-                        LAST_CALLED_429_BACKOFF_INITIAL_S
-                        if prev <= 0.0
-                        else min(prev * 2.0, LAST_CALLED_429_BACKOFF_MAX_S)
-                    )
-                    backoff = max(backoff, uk_floor)
-                    jitter = random.uniform(0.0, min(5.0, backoff * 0.1))
-
-                    account["last_called_probe_backoff_s"] = backoff
-                    account["last_called_probe_next_allowed"] = (
-                        time.monotonic() + backoff + jitter
-                    )
-
-                    _LOGGER.debug(
-                        "%s: last_called probe rate-limited (%s); backing off %.1fs (%.1fs jitter) then self-retry",
-                        hide_email(email),
-                        trigger_cmd,
-                        backoff,
-                        jitter,
-                    )
-
-                    # Self-retry after backoff even if no new pushes arrive
-                    skip_debounce = True
-                    account["last_called_probe_event"].set()
-                    break
-
-                except AlexapyLoginError:
-                    account["last_called_probe_next_allowed"] = (
-                        time.monotonic() + LAST_CALLED_LOGIN_BACKOFF_S
-                    )
-                    _LOGGER.debug(
-                        "%s: last_called probe login error (%s); skipping",
-                        hide_email(email),
-                        trigger_cmd,
-                    )
-                    break
-
-                except AlexapyConnectionError as exc:
-                    account["last_called_probe_next_allowed"] = (
-                        time.monotonic() + LAST_CALLED_CONN_BACKOFF_S
-                    )
-                    _LOGGER.debug(
-                        "%s: last_called probe connection error (%s): %s",
-                        hide_email(email),
-                        trigger_cmd,
-                        exc,
-                    )
-                    break
-
-                # Build current serial set AFTER the API call (keeps it fresh)
-                existing_serials_local = set(_existing_serials(hass, login_obj))
-                existing_serials_local |= _entity_backed_serials(account)
-
-                payload = _build_last_called_payload(
-                    last, account, existing_serials_local
-                )
-
-                # Don't clear push watermark on invalid payload (unless manual trigger)
-                if not payload:
-                    if trigger_cmd in (
-                        "GLOBAL_REFRESH",
-                        "SERVICE_REFRESH",
-                        "POLL_REFRESH",
-                    ):
-                        account["last_called_probe_trigger_ts"] = 0
-                    break
-
-                returned_ts = int(payload.get("timestamp", 0) or 0)
-                if trigger_ts and returned_ts < (
-                    trigger_ts - LAST_CALLED_STALE_FUDGE_MS
-                ):
-                    if attempt < LAST_CALLED_RETRY_LIMIT:
-                        _LOGGER.debug(
-                            "%s: last_called probe stale (%s): got %s < trigger %s; retry %s/%s",
-                            hide_email(email),
-                            trigger_cmd,
-                            returned_ts,
-                            trigger_ts,
-                            attempt + 1,
-                            LAST_CALLED_RETRY_LIMIT,
-                        )
-                        await asyncio.sleep(
-                            LAST_CALLED_RETRY_DELAY_S + random.uniform(0.0, 0.5)
-                        )
-                        continue
-                    break
-
-                # Success: clear 429 backoff + set small success pace
-                account["last_called_probe_backoff_s"] = 0.0
-                account["last_called_probe_next_allowed"] = (
-                    time.monotonic()
-                    + LAST_CALLED_SUCCESS_PACE_S
-                    + random.uniform(0.0, 0.25)
-                )
-
-                trigger_serial = account.get("last_called_probe_trigger_serial")
-                _LOGGER.debug(
-                    "%s: Updating last_called via %s (triggered by %s): %s",
-                    hide_email(email),
-                    trigger_cmd,
-                    hide_serial(trigger_serial) if trigger_serial else "unknown",
-                    hide_serial(payload["serialNumber"]),
-                )
-
-                await update_last_called(login_obj, payload)
-
-                # satisfied
-                account["last_called_probe_trigger_ts"] = 0
-                break
-
+        
     @_catch_login_errors
     async def update_last_called(login_obj, last_called=None, force=False):
         """Update the last called device for the login_obj.

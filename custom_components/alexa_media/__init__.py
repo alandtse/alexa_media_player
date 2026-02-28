@@ -328,8 +328,12 @@ def _store_and_dispatch_last_called(
         return
     stored_data = accounts[email]
     prev = stored_data.get("last_called")
-    changed = (prev != last_called)
-    if force or (prev is None and last_called is not None) or (prev is not None and changed):
+    changed = prev != last_called
+    if (
+        force
+        or (prev is None and last_called is not None)
+        or (prev is not None and changed)
+    ):
         _LOGGER.debug(
             "%s: last_called changed",
             hide_email(email),
@@ -687,7 +691,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         account = accounts.get(email)
         if not account:
             return None
-        
+
         login_obj = account.get("login_obj")
         if not login_obj or not _network_allowed(login_obj):
             return None
@@ -1329,7 +1333,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     def _init_last_called_probe_worker(account: dict) -> None:
         """Initialize per-account last_called probe worker trigger function."""
         account.setdefault("last_called_api_lock", asyncio.Lock())
-        account.setdefault("last_called_customer_history_ts", 0)  # ms epoch last applied
+        account.setdefault(
+            "last_called_customer_history_ts", 0
+        )  # ms epoch last applied
         account.setdefault("last_called_probe_backoff_s", 0.0)
         account.setdefault("last_called_probe_event", asyncio.Event())
         account.setdefault("last_called_probe_lock", asyncio.Lock())
@@ -1362,7 +1368,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 account["last_called_probe_trigger_cmd"] = trigger_command
             else:
                 # Manual refresh triggers clear any push watermark
-                if trigger_command in ("GLOBAL_REFRESH", "SERVICE_REFRESH", "POLL_REFRESH"):
+                if trigger_command in (
+                    "GLOBAL_REFRESH",
+                    "SERVICE_REFRESH",
+                    "POLL_REFRESH",
+                ):
                     account["last_called_probe_trigger_ts"] = 0
                     account["last_called_probe_trigger_serial"] = None
                 account["last_called_probe_trigger_cmd"] = trigger_command
@@ -1413,7 +1423,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             preempted = False
             while True:
                 now = time.monotonic()
-                next_allowed = float(account.get("last_called_probe_next_allowed", 0.0) or 0.0)
+                next_allowed = float(
+                    account.get("last_called_probe_next_allowed", 0.0) or 0.0
+                )
                 delay = max(0.0, next_allowed - now)
                 if delay <= 0:
                     break
@@ -1515,16 +1527,24 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 existing_serials_local = set(_existing_serials(hass, login_obj))
                 existing_serials_local |= _entity_backed_serials(account)
 
-                payload = _build_last_called_payload(last, account, existing_serials_local)
+                payload = _build_last_called_payload(
+                    last, account, existing_serials_local
+                )
 
                 # Don't clear push watermark on invalid payload (unless manual trigger)
                 if not payload:
-                    if trigger_cmd in ("GLOBAL_REFRESH", "SERVICE_REFRESH", "POLL_REFRESH"):
+                    if trigger_cmd in (
+                        "GLOBAL_REFRESH",
+                        "SERVICE_REFRESH",
+                        "POLL_REFRESH",
+                    ):
                         account["last_called_probe_trigger_ts"] = 0
                     break
 
                 returned_ts = int(payload.get("timestamp", 0) or 0)
-                if trigger_ts and returned_ts < (trigger_ts - LAST_CALLED_STALE_FUDGE_MS):
+                if trigger_ts and returned_ts < (
+                    trigger_ts - LAST_CALLED_STALE_FUDGE_MS
+                ):
                     if attempt < LAST_CALLED_RETRY_LIMIT:
                         _LOGGER.debug(
                             "%s: last_called probe stale (%s): got %s < trigger %s; retry %s/%s",
@@ -1574,7 +1594,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if not isinstance(last_called, dict) or not last_called.get("summary"):
             try:
                 # Serialize calls per account to avoid parallel rate-limited requests.
-                account = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email, {})
+                account = (
+                    hass.data.get(DATA_ALEXAMEDIA, {})
+                    .get("accounts", {})
+                    .get(email, {})
+                )
                 api_lock = account.get("last_called_api_lock") if account else None
 
                 if api_lock is None:
@@ -1918,7 +1942,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         def _now_ms() -> int:
             return int(time.time() * 1000)
 
-        def simulate_activity(device_serial: str, trigger_command: str, trigger_ts_ms: int | None) -> None:
+        def simulate_activity(
+            device_serial: str, trigger_command: str, trigger_ts_ms: int | None
+        ) -> None:
             """Schedule last_called refresh based on push heuristics."""
             account["last_called_probe_trigger_serial"] = device_serial
             trigger = account.get("trigger_last_called_probe")

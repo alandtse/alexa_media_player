@@ -85,11 +85,13 @@ class DataCache:
         self._hits += 1
         return value
 
-    def set(self, key: str, value: Any) -> None:
+    def cache_set(self, key: str, value: Any) -> None:
         """Store value in cache.
 
         Note: Stores a direct reference (not a copy) for performance.
-        Callers should not mutate cached values.
+        Callers should treat cached values as read-only unless the caller created
+        the cached object, is solely responsible for all mutations, and intentionally
+        enriches it in-place (e.g., the device-dict refresh in async_update_data).
 
         Args:
             key: Cache key

@@ -182,16 +182,31 @@ class AlexaMediaServices:
                 continue
 
             login_obj = account_dict["login_obj"]
-            try:
-                await update_last_called(login_obj)
-            except AlexapyLoginError:
-                report_relogin_required(self.hass, login_obj, email)
-            except AlexapyConnectionError:
-                _LOGGER.error(
-                    "Unable to connect to Alexa for %s;"
-                    " check your network connection and try again",
-                    hide_email(email),
-                )
+
+            async def _run_update_last_called(email: str, login_obj) -> None:
+                try:
+                    await update_last_called(login_obj)
+                except asyncio.CancelledError:
+                    raise
+                except AlexapyLoginError:
+                    report_relogin_required(self.hass, login_obj, email)
+                except AlexapyConnectionError:
+                    _LOGGER.error(
+                        "Unable to connect to Alexa for %s;"
+                        " check your network connection and try again",
+                        hide_email(email),
+                    )
+                except Exception:  # pragma: no cover
+                    _LOGGER.exception(
+                        "Unexpected error updating last_called for %s",
+                        hide_email(email),
+                    )
+
+            # Fire-and-forget: do not block the websocket service call on network/backoff delays.
+            self.hass.async_create_task(
+                _run_update_last_called(email, login_obj),
+                name=f"alexa_media.update_last_called.{hide_email(email)}",
+            )
 
     async def restore_volume(self, call: ServiceCall) -> bool:
         """Handle restore volume service request.

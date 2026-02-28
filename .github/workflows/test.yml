@@ -14,14 +14,19 @@ jobs:
   tests:
     runs-on: "ubuntu-latest"
     name: Run tests
+
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+
       - uses: ./.github/workflows/poetry-composite-action
+
       - name: Prepare test env
         run: bash tests/setup.sh
+
       - name: Install poetry
         run: poetry install
+
       - name: Run tests
         run: |
           poetry run pytest \
@@ -34,9 +39,21 @@ jobs:
             -o console_output_style=count \
             -p no:sugar \
             tests
+
           poetry run coverage lcov
+
+      # Keep coverage file even if Coveralls is down
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage.lcov
+
+      # Do NOT fail CI if Coveralls is temporarily down
       - name: Upload Coverage Results
         uses: coverallsapp/github-action@v2
+        continue-on-error: true
         with:
-          github-token: ${{ secrets.github_token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.lcov
+          fail-on-error: false

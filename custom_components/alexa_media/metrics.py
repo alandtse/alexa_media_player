@@ -85,7 +85,7 @@ class DataCache:
         self._hits += 1
         return value
 
-    def set(self, key: str, value: Any) -> None:
+    def cache_set(self, key: str, value: Any) -> None:
         """Store value in cache.
 
         Note: Stores a direct reference (not a copy) for performance.

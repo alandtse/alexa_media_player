@@ -709,7 +709,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         metrics.record_api_call("initial_fetch", fetch_time)
                         # Cache the devices for faster next boot (only freshly fetched)
                         if not _used_cached_devices:
-                            metrics.api_cache.set(
+                            metrics.api_cache.cache_set(
                                 f"{cache_key_prefix}_devices", devices
                             )
 

@@ -1539,49 +1539,40 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     account_live["last_called_probe_trigger_ts"] = 0
                     break
 
-        def _trigger_last_called_probe(
-            trigger_command: str,
-            trigger_ts_ms: int | None,
-        ) -> None:
+        def _trigger_last_called_probe(trigger_command: str, trigger_ts_ms: int | None) -> None:
             """Record newest trigger + wake worker. Does NOT cancel running worker."""
-
             accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
             account_live = accounts.get(email)
             if not account_live:
                 return
-
+        
             if trigger_ts_ms is not None:
                 try:
                     ts = int(trigger_ts_ms)
                 except (TypeError, ValueError):
                     ts = 0
-
+        
                 prev = int(account_live.get("last_called_probe_trigger_ts") or 0)
                 if ts > prev:
                     account_live["last_called_probe_trigger_ts"] = ts
-
                 account_live["last_called_probe_trigger_cmd"] = trigger_command
             else:
                 # Manual refresh triggers clear any push watermark
-                if trigger_command in (
-                    "GLOBAL_REFRESH",
-                    "SERVICE_REFRESH",
-                    "POLL_REFRESH",
-                ):
+                if trigger_command in ("GLOBAL_REFRESH", "SERVICE_REFRESH", "POLL_REFRESH"):
                     account_live["last_called_probe_trigger_ts"] = 0
                     account_live["last_called_probe_trigger_serial"] = None
-
                 account_live["last_called_probe_trigger_cmd"] = trigger_command
-
+        
             task = account_live.get("last_called_probe_task")
             if task is None or task.done():
-                account_live["last_called_probe_task"] = hass.async_create_task(
+                account_live["last_called_probe_task"] = hass.async_create_background_task(
                     _last_called_probe_worker(),
                     name=f"{DOMAIN}_last_called_probe_{hide_email(email)}",
                 )
-
-            # Wake worker
+        
             account_live["last_called_probe_event"].set()
+        
+        account["trigger_last_called_probe"] = _trigger_last_called_probe
 
         # Store the trigger on the live account as well (so reload swaps don’t strand it)
         account["trigger_last_called_probe"] = _trigger_last_called_probe

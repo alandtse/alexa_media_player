@@ -572,6 +572,7 @@ async def async_setup_entry(hass, config_entry):
             "auth_info": None,
             "second_account_index": 0,
             "should_get_network": True,
+            "first_run": True,
             "notifications": {},  # already used for the raw notifications dict
             "notifications_pending": set(),  # doppler serials that need a refresh
             "notifications_refresh_task": None,  # running task or None
@@ -708,6 +709,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         ].get(CONF_EXTENDED_ENTITY_DISCOVERY)
         should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "should_get_network"
+        ]
+        first_run = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "first_run"
         ]
         devices = {}
         bluetooth = {}
@@ -1187,7 +1191,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 },
             )
 
-        if not _push_healthy(account):
+        if first_run or not _push_healthy(account):
             if _network_allowed(login_obj):
                 trigger = account.get("trigger_last_called_probe")
                 if callable(trigger):
@@ -1198,6 +1202,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         _async_update_last_called_global(hass, login_obj, email),
                         f"{DOMAIN}_last_called_poll_{hide_email(email)}",
                     )
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                    "first_run"
+                ] = False
 
         return entity_state
 

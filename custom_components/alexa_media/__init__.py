@@ -710,9 +710,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "should_get_network"
         ]
-        first_run = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "first_run"
-        ]
+        first_run = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["first_run"]
         devices = {}
         bluetooth = {}
         preferences = {}
@@ -1202,9 +1200,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         _async_update_last_called_global(hass, login_obj, email),
                         f"{DOMAIN}_last_called_poll_{hide_email(email)}",
                     )
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                    "first_run"
-                ] = False
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["first_run"] = False
 
         return entity_state
 

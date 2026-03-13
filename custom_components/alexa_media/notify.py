@@ -193,7 +193,7 @@ class AlexaNotificationService(BaseNotificationService):
 
     async def async_send_message(self, message="", **kwargs):
         # pylint: disable=too-many-branches
-        """Send a message to a Alexa device."""
+        """Send a message to an Alexa device."""
         _LOGGER.debug("Message: %s, kwargs: %s", message, kwargs)
         _LOGGER.debug("Target type: %s", type(kwargs.get(ATTR_TARGET)))
         kwargs["message"] = message

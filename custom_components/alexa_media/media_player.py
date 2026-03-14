@@ -775,9 +775,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._last_called_summary = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self._login.email
                 ]["last_called"].get("summary")
-                self._last_called_response = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                    self._login.email
-                ]["last_called"]["response"]
+                self._last_called_response = self.hass.data[DATA_ALEXAMEDIA][
+                    "accounts"
+                ][self._login.email]["last_called"]["response"]
                 _LOGGER.debug("[refresh] Updating notify targets")
                 await self._update_notify_targets()
             if skip_api and self.hass:
@@ -1953,10 +1953,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 "summary": self._last_called_summary,
                 "response": self._last_called_response,
             }
-        
+
             _LOGGER.debug("Firing alexa_media_last_called_event")
             self.hass.bus.async_fire("alexa_media_last_called_event", event_data)
-        
+
         _LOGGER.debug("Scheduling alexa_media_last_called_event")
         # Defer to the next loop iteration so downstream consumers see updated state.
         async_call_later(self.hass, 0, _fire_last_called_event)

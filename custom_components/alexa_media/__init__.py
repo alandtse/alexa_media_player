@@ -797,10 +797,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # pylint: disable=too-many-statements,too-many-locals
     """Set up a alexa api based on host parameter."""
 
+    debug = config_entry.data.get(CONF_DEBUG, False)
+
     # Record metrics
     metrics = get_metrics(hass)
     email = login_obj.email
-    debug = config_entry.data.get(CONF_DEBUG, False)
     if metrics:
         metrics.record_boot_stage(f"setup_alexa_start_{hide_email(email)}")
 
@@ -1472,8 +1473,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     account_live = accounts.get(email)
                     if not account_live:
                         return
-
-                    debug = account_live.get("options", {}).get(CONF_DEBUG, False)
 
                     def _debug(msg, *args):
                         if debug:

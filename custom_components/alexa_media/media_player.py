@@ -777,7 +777,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 ]["last_called"].get("summary")
                 self._last_called_response = self.hass.data[DATA_ALEXAMEDIA][
                     "accounts"
-                ][self._login.email]["last_called"]["response"]
+                ][self._login.email]["last_called"].get("response")
                 _LOGGER.debug("[refresh] Updating notify targets")
                 await self._update_notify_targets()
             if skip_api and self.hass:

@@ -212,7 +212,8 @@ def _remove_last_called_activity_queue_entries(
         if (
             item.get("serial"),
             item.get("customer_id"),
-        ) not in resolved_keys
+        )
+        not in resolved_keys
     ]
 
 
@@ -395,17 +396,17 @@ def _select_last_called_payload_from_records(
         for key, queued in queue_by_key.items():
             queued_serial, queued_customer = key
             queued_ts = int(queued.get("activity_ts") or 0)
-        
+
             if serial != queued_serial:
                 continue
-        
+
             # Future enhancement: customer/user matching.
             # The push payload includes destinationUserId, but the current
             # get_customer_history_records() helper does not expose a matching
             # user identifier from the raw RVH records, so this check is currently
             # ineffective. Leave in place in case the API helper is extended later.
             #
-            #if queued_customer and record.get("customerId") not in (None, queued_customer):
+            # if queued_customer and record.get("customerId") not in (None, queued_customer):
             #    continue
 
             if queued_ts and ts < (queued_ts - LAST_CALLED_STALE_FUDGE_MS):
@@ -481,25 +482,25 @@ def _store_and_dispatch_last_called(
     stored_data = accounts[email]
     prev = stored_data.get("last_called")
     changed = prev != last_called
-    
+
     payload = last_called if isinstance(last_called, dict) else {}
     ts_raw = payload.get("timestamp")
     try:
         ts = int(ts_raw or 0)
     except (TypeError, ValueError):
         ts = 0
-    
+
     if 0 < ts < 10_000_000_000:
         ts *= 1000
-    
+
     if ts > 0:
         stored_data["last_called_customer_history_ts"] = max(
             int(stored_data.get("last_called_customer_history_ts") or 0),
             ts,
         )
-    
+
     stored_data["last_called"] = last_called
-    
+
     if (
         force
         or (prev is None and last_called is not None)
@@ -1162,9 +1163,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 app["serialNumber"]
                             ]
                         ) = device
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][serial] = (
-                    device
-                )
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
+                    serial
+                ] = device
                 continue
             if exclude and dev_name in exclude:
                 exclude_filter.append(dev_name)
@@ -1175,9 +1176,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 app["serialNumber"]
                             ]
                         ) = device
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][serial] = (
-                    device
-                )
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["excluded"][
+                    serial
+                ] = device
                 continue
 
             if (
@@ -1483,20 +1484,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         continue
                     await account_live["last_called_probe_event"].wait()
                     account_live["last_called_probe_event"].clear()
-    
+
                     if not skip_debounce:
                         await asyncio.sleep(
-                            LAST_CALLED_DEBOUNCE_S + random.uniform(0.0, 0.05)  # nosec B311
+                            LAST_CALLED_DEBOUNCE_S
+                            + random.uniform(0.0, 0.05)  # nosec B311
                         )
                         if account_live["last_called_probe_event"].is_set():
                             continue
                     skip_debounce = False
-    
+
                     preempted = False
                     while True:
                         now = time.monotonic()
                         next_allowed = float(
-                            account_live.get("last_called_probe_next_allowed", 0.0) or 0.0
+                            account_live.get("last_called_probe_next_allowed", 0.0)
+                            or 0.0
                         )
                         delay = max(0.0, next_allowed - now)
                         if delay <= 0:
@@ -1513,26 +1516,42 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             break
                     if preempted:
                         continue
-    
+
                     trigger_cmd = str(
                         account_live.get("last_called_probe_trigger_cmd") or "push"
                     )
-    
+
                     for attempt in range(LAST_CALLED_RETRY_LIMIT + 1):
                         if account_live["last_called_probe_event"].is_set():
                             break
-    
+
                         try:
                             async with account_live["last_called_api_lock"]:
-                                queue_snapshot = _snapshot_last_called_activity_queue(account_live)
+                                queue_snapshot = _snapshot_last_called_activity_queue(
+                                    account_live
+                                )
                                 if not queue_snapshot:
-                                    if trigger_cmd in ("GLOBAL_REFRESH", "SERVICE_REFRESH", "POLL_REFRESH"):
-                                        last_called = await AlexaAPI.get_last_device_serial(login_live, items=LAST_CALLED_ITEMS)
-                                        if isinstance(last_called, dict) and _valid_voice_summary(last_called.get("summary")):
-                                            await update_last_called(login_live, last_called)
+                                    if trigger_cmd in (
+                                        "GLOBAL_REFRESH",
+                                        "SERVICE_REFRESH",
+                                        "POLL_REFRESH",
+                                    ):
+                                        last_called = (
+                                            await AlexaAPI.get_last_device_serial(
+                                                login_live, items=LAST_CALLED_ITEMS
+                                            )
+                                        )
+                                        if isinstance(
+                                            last_called, dict
+                                        ) and _valid_voice_summary(
+                                            last_called.get("summary")
+                                        ):
+                                            await update_last_called(
+                                                login_live, last_called
+                                            )
                                         account_live["last_called_probe_trigger_ts"] = 0
                                     break
-    
+
                                 earliest_ts = min(
                                     (
                                         int(item.get("activity_ts") or 0)
@@ -1541,26 +1560,30 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                     ),
                                     default=0,
                                 )
-    
-                                rvh_window_ms = max(LAST_CALLED_LOOKBACK_MS, 15 * 60 * 1000)
+
+                                rvh_window_ms = max(
+                                    LAST_CALLED_LOOKBACK_MS, 15 * 60 * 1000
+                                )
                                 start_time = (
                                     max(0, earliest_ts - rvh_window_ms)
                                     if earliest_ts
                                     else int((time.time() * 1000) - rvh_window_ms)
                                 )
                                 end_time = int(time.time() * 1000) + rvh_window_ms
-                                max_record_size = max(LAST_CALLED_ITEMS, len(queue_snapshot) + 2)
-                            
+                                max_record_size = max(
+                                    LAST_CALLED_ITEMS, len(queue_snapshot) + 2
+                                )
+
                                 records = await AlexaAPI.get_customer_history_records(
                                     login_live,
                                     start_time=start_time,
                                     end_time=end_time,
                                     max_record_size=max_record_size,
                                 )
-                            
+
                             if records is None:
                                 records = []
-    
+
                             # 🔎 DEBUG: inspect raw history result
                             _LOGGER.debug(
                                 "%s: last_called probe retrieved %s history records",
@@ -1573,7 +1596,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                     trigger_cmd,
                                     [
                                         {
-                                            "summary": (item.get("description") or {}).get("summary"),
+                                            "summary": (
+                                                item.get("description") or {}
+                                            ).get("summary"),
                                             "response": item.get("alexaResponse"),
                                             "serial": item.get("deviceSerialNumber"),
                                             "ts": item.get("creationTimestamp"),
@@ -1595,7 +1620,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         except AlexapyTooManyRequestsError:
                             uk_floor = random.uniform(30.0, 63.0)  # nosec B311
                             prev = float(
-                                account_live.get("last_called_probe_backoff_s", 0.0) or 0.0
+                                account_live.get("last_called_probe_backoff_s", 0.0)
+                                or 0.0
                             )
                             backoff = (
                                 LAST_CALLED_429_BACKOFF_INITIAL_S
@@ -1603,13 +1629,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 else min(prev * 2.0, LAST_CALLED_429_BACKOFF_MAX_S)
                             )
                             backoff = max(backoff, uk_floor)
-                            jitter = random.uniform(0.0, min(5.0, backoff * 0.1))  # nosec B311
-    
+                            jitter = random.uniform(
+                                0.0, min(5.0, backoff * 0.1)
+                            )  # nosec B311
+
                             account_live["last_called_probe_backoff_s"] = backoff
                             account_live["last_called_probe_next_allowed"] = (
                                 time.monotonic() + backoff + jitter
                             )
-    
+
                             _LOGGER.debug(
                                 "%s: last_called probe rate-limited (%s); backing off %.1fs (%.1fs jitter) then self-retry",
                                 hide_email(email),
@@ -1641,17 +1669,21 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 exc,
                             )
                             break
-    
-                        existing_serials_local = set(_existing_serials(hass, login_live))
-                        existing_serials_local |= _entity_backed_serials(account_live)
-    
-                        payload, resolved_keys = _select_last_called_payload_from_records(
-                            records,
-                            queue_snapshot,
-                            account_live,
-                            existing_serials_local,
+
+                        existing_serials_local = set(
+                            _existing_serials(hass, login_live)
                         )
-    
+                        existing_serials_local |= _entity_backed_serials(account_live)
+
+                        payload, resolved_keys = (
+                            _select_last_called_payload_from_records(
+                                records,
+                                queue_snapshot,
+                                account_live,
+                                existing_serials_local,
+                            )
+                        )
+
                         _debug(
                             "last_called queue match (%s): queued=%s matched=%s resolved=%s",
                             trigger_cmd,
@@ -1676,12 +1708,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             ),
                             sorted(resolved_keys),
                         )
-    
+
                         if not payload:
                             if attempt < LAST_CALLED_RETRY_LIMIT:
                                 await asyncio.sleep(LAST_CALLED_RETRY_DELAY_S)
                                 continue
-                        
+
                             if trigger_cmd in (
                                 "GLOBAL_REFRESH",
                                 "SERVICE_REFRESH",
@@ -1691,7 +1723,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                     "%s: queued activity unresolved after retries; falling back to direct refresh",
                                     hide_email(email),
                                 )
-                        
+
                                 unresolved_keys = {
                                     (item.get("serial"), item.get("customer_id"))
                                     for item in queue_snapshot
@@ -1706,23 +1738,23 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                         login_live,
                                         items=LAST_CALLED_ITEMS,
                                     )
-                                if isinstance(last_called, dict) and _valid_voice_summary(
-                                    last_called.get("summary")
-                                ):
+                                if isinstance(
+                                    last_called, dict
+                                ) and _valid_voice_summary(last_called.get("summary")):
                                     await update_last_called(login_live, last_called)
-                        
+
                                 account_live["last_called_probe_trigger_ts"] = 0
                                 account_live["last_called_probe_event"].clear()
-                        
+
                             break
-    
+
                         account_live["last_called_probe_backoff_s"] = 0.0
                         account_live["last_called_probe_next_allowed"] = (
                             time.monotonic()
                             + LAST_CALLED_SUCCESS_PACE_S
                             + random.uniform(0.0, 0.25)  # nosec B311
                         )
-    
+
                         trigger_serial = account_live.get(
                             "last_called_probe_trigger_serial"
                         )
@@ -1730,19 +1762,27 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             "%s: Updating last_called via %s (triggered by %s): %s",
                             hide_email(email),
                             trigger_cmd,
-                            hide_serial(trigger_serial) if trigger_serial else "unknown",
+                            (
+                                hide_serial(trigger_serial)
+                                if trigger_serial
+                                else "unknown"
+                            ),
                             hide_serial(payload["serialNumber"]),
                         )
-    
+
                         await update_last_called(login_live, payload)
-                        account_live["last_called_last_pushed_activity"][payload["serialNumber"]] = payload["timestamp"]
-                        _remove_last_called_activity_queue_entries(account_live, resolved_keys)
+                        account_live["last_called_last_pushed_activity"][
+                            payload["serialNumber"]
+                        ] = payload["timestamp"]
+                        _remove_last_called_activity_queue_entries(
+                            account_live, resolved_keys
+                        )
                         account_live["last_called_probe_trigger_ts"] = 0
                         account_live["last_called_probe_event"].clear()
                         break
             except asyncio.CancelledError:
                 raise
-        
+
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception(
                     "%s: last_called probe worker crashed",
@@ -2483,14 +2523,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ]:
                     pass
 
-                elif (
-                    command
-                    in [
-                        "PUSH_TODO_CHANGE",  # Update To-Do List
-                        "PUSH_LIST_CHANGE",  # Clear a shopping list https://github.com/alandtse/alexa_media_player/issues/1190
-                        "PUSH_LIST_ITEM_CHANGE",  # Update shopping list
-                    ]
-                ):
+                elif command in [
+                    "PUSH_TODO_CHANGE",  # Update To-Do List
+                    "PUSH_LIST_CHANGE",  # Clear a shopping list https://github.com/alandtse/alexa_media_player/issues/1190
+                    "PUSH_LIST_ITEM_CHANGE",  # Update shopping list
+                ]:
                     # To-do
                     _LOGGER.debug("%s currently not supported", command)
                     pass
@@ -2502,12 +2539,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     _LOGGER.debug("%s currently not supported", command)
                     pass
 
-                elif (
-                    command
-                    in [
-                        "PUSH_MEDIA_PREFERENCE_CHANGE",  # Disliking or liking songs, https://github.com/alandtse/alexa_media_player/issues/1599
-                    ]
-                ):
+                elif command in [
+                    "PUSH_MEDIA_PREFERENCE_CHANGE",  # Disliking or liking songs, https://github.com/alandtse/alexa_media_player/issues/1599
+                ]:
                     _LOGGER.debug("%s currently not supported", command)
                     pass
 
@@ -2582,9 +2616,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         email: str = login_obj.email
         _LOGGER.debug("%s: HTTP2push successfully connected", hide_email(email))
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = (
-            0  # set errors to 0
-        )
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "http2error"
+        ] = 0  # set errors to 0
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_lastattempt"] = time.time()
 
     @callback
@@ -2622,9 +2656,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 errors,
                 delay,
             )
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_lastattempt"] = (
-                time.time()
-            )
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                "http2_lastattempt"
+            ] = time.time()
             http2_client = await http2_connect()
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = http2_client
             http2_enabled = bool(http2_client)
@@ -2705,9 +2739,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     _init_last_called_probe_worker(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
 
     _t = time.monotonic()
-    http2_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-        "http2"
-    ] = await http2_connect()
+    http2_enabled = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = (
+        await http2_connect()
+    )
     _LOGGER.debug("[BOOT] http2_connect in %.2fs", time.monotonic() - _t)
     coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
 
@@ -2832,9 +2866,9 @@ async def async_unload_entry(hass, entry) -> bool:
     )
     if debouncer:
         debouncer.async_cancel()
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["confirm_refresh_debouncer"] = (
-            None
-        )
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+            "confirm_refresh_debouncer"
+        ] = None
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:
@@ -2987,7 +3021,9 @@ async def test_login_status(hass, config_entry, login) -> bool:
     account = config_entry.data
     _LOGGER.debug("Logging in: %s %s", obfuscate(account), in_progress_instances(hass))
     _LOGGER.debug("Login stats: %s", login.stats)
-    message: str = f"Reauthenticate {login.email} on the [Integrations](/config/integrations) page. "
+    message: str = (
+        f"Reauthenticate {login.email} on the [Integrations](/config/integrations) page. "
+    )
     if login.stats.get("login_timestamp") != datetime(1, 1, 1):
         elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
         api_calls: int = login.stats.get("api_calls")

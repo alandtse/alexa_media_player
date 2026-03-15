@@ -158,9 +158,9 @@ class AlexaNotificationService(BaseNotificationService):
                     continue
                 entity_name = (entity.entity_id).split(".")[1]
                 devices[entity_name] = entity.unique_id
-                 if self.last_called and entity.extra_state_attributes.get(
-                     "last_called"
-                 ):
+                if self.last_called and entity.extra_state_attributes.get(
+                    "last_called"
+                ):
                     attrs = entity.extra_state_attributes
                     try:
                         ts = int(attrs.get("last_called_timestamp") or 0)

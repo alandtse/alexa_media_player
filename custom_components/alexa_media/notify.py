@@ -158,18 +158,24 @@ class AlexaNotificationService(BaseNotificationService):
                     continue
                 entity_name = (entity.entity_id).split(".")[1]
                 devices[entity_name] = entity.unique_id
-                if self.last_called and entity.extra_state_attributes.get(
-                    "last_called"
-                ):
-                    attrs = entity.extra_state_attributes
-                    ts = attrs.get("last_called_timestamp") or 0
-                    if last_called_entity is None:
-                        last_called_entity = entity
-                    else:
-                        best_attrs = last_called_entity.extra_state_attributes
-                        best_ts = best_attrs.get("last_called_timestamp") or 0
-                        if ts > best_ts:
-                            last_called_entity = entity
+                 if self.last_called and entity.extra_state_attributes.get(
+                     "last_called"
+                 ):
+                     attrs = entity.extra_state_attributes
+                    try:
+                        ts = int(attrs.get("last_called_timestamp") or 0)
+                    except (TypeError, ValueError):
+                        ts = 0
+                     if last_called_entity is None:
+                         last_called_entity = entity
+                     else:
+                         best_attrs = last_called_entity.extra_state_attributes
+                        try:
+                            best_ts = int(best_attrs.get("last_called_timestamp") or 0)
+                        except (TypeError, ValueError):
+                            best_ts = 0
+                         if ts > best_ts:
+                             last_called_entity = entity
             if last_called_entity is not None:
                 entity_name = (last_called_entity.entity_id).split(".")[1]
                 entity_name_last_called = (

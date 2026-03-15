@@ -800,6 +800,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # Record metrics
     metrics = get_metrics(hass)
     email = login_obj.email
+    debug = config_entry.data.get(CONF_DEBUG, False)
     if metrics:
         metrics.record_boot_stage(f"setup_alexa_start_{hide_email(email)}")
 

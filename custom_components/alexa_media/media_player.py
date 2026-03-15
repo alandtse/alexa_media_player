@@ -775,9 +775,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._last_called_summary = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self._login.email
                 ]["last_called"].get("summary")
-                self._last_called_response = self.hass.data[DATA_ALEXAMEDIA][
-                    "accounts"
-                ][self._login.email]["last_called"]["response"]
+                self._last_called_response = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
+                    self._login.email
+                ]["last_called"]["response"]
                 _LOGGER.debug("[refresh] Updating notify targets")
                 await self._update_notify_targets()
             if skip_api and self.hass:
@@ -1931,6 +1931,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
             # Reset stale last_called target mapping and re-register notify services.
             try:
+                previous_last_called = notify.last_called
                 notify.last_called = False
                 await notify.async_register_services()
                 notify.last_called = True
@@ -1943,6 +1944,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 _LOGGER.exception(
                     "Failed to reset notify.last_called for %s", last_called_key
                 )
+            finally:
+                notify.last_called = previous_last_called
 
         def _fire_last_called_event(_now) -> None:
             """Fire after yielding once so entity/service state has settled."""
@@ -1953,10 +1956,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 "summary": self._last_called_summary,
                 "response": self._last_called_response,
             }
-
+        
             _LOGGER.debug("Firing alexa_media_last_called_event")
-            self.hass.bus.async_fire("alexa_media_last_called_event", event_data)
-
+            self.hass.bus.fire("alexa_media_last_called_event", event_data)
+        
         _LOGGER.debug("Scheduling alexa_media_last_called_event")
         # Defer to the next loop iteration so downstream consumers see updated state.
         async_call_later(self.hass, 0, _fire_last_called_event)

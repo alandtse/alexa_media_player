@@ -72,6 +72,7 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass,
             _LOGGER,
             name=DOMAIN,
+            config_entry=runtime_data.config_entry if runtime_data else None,
             update_method=update_method,
             update_interval=update_interval,
             request_refresh_debouncer=debouncer,

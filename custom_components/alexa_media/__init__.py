@@ -486,10 +486,8 @@ def _store_and_dispatch_last_called(
         _LOGGER.debug("%s: Account removed during update, skipping", hide_email(email))
         return
     stored_data = accounts[email]
-    prev = stored_data.get("last_called")
-    changed = prev != last_called
+    payload = dict(last_called) if isinstance(last_called, dict) else {}
 
-    payload = last_called if isinstance(last_called, dict) else {}
     ts_raw = payload.get("timestamp")
     try:
         ts = int(ts_raw or 0)
@@ -498,6 +496,11 @@ def _store_and_dispatch_last_called(
 
     if 0 < ts < 10_000_000_000:
         ts *= 1000
+        if ts > 0:
+        payload["timestamp"] = ts
+
+    prev = stored_data.get("last_called")
+    changed = prev != payload
 
     if ts > 0:
         stored_data["last_called_customer_history_ts"] = max(
@@ -505,7 +508,7 @@ def _store_and_dispatch_last_called(
             ts,
         )
 
-    stored_data["last_called"] = last_called
+    stored_data["last_called"] = payload
 
     if (
         force
@@ -519,7 +522,7 @@ def _store_and_dispatch_last_called(
         async_dispatcher_send(
             hass,
             f"{DOMAIN}_{hide_email(email)}"[0:32],
-            {"last_called_change": last_called},
+            {"last_called_change": payload},
         )
 
 

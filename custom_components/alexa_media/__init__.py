@@ -2335,12 +2335,19 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if isinstance(resource, dict) and "command" in resource
                 else None
             )
-            json_payload = (
-                loads(resource["payload"])
-                if isinstance(resource, dict) and "payload" in resource
-                else None
-            )
-
+            try:
+                json_payload = (
+                    loads(resource["payload"])
+                    if isinstance(resource, dict) and "payload" in resource
+                    else None
+                )
+            except (JSONDecodeError, TypeError):
+                _LOGGER.debug(
+                    "%s: Skipping malformed push payload for command %s",
+                    hide_email(email),
+                    command,
+                )
+                continue
             seen_commands = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                 "http2_commands"
             ]

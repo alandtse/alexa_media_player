@@ -1893,7 +1893,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
         email = hide_email(self._login.email)
 
-        _LOGGER.debug("%s: Refreshing notify targets", hide_email(email))
+        _LOGGER.debug("%s: Refreshing notify targets", email)
 
         # Evaluate once for logging (HA legacy registration may evaluate again internally)
         targets = notify.targets

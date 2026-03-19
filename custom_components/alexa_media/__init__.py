@@ -370,9 +370,15 @@ def _select_last_called_payload_from_records(
         except (ValueError, TypeError):
             return 0
 
+    def _record_ts(record: dict) -> int:
+        try:
+            return int(record.get("creationTimestamp") or 0)
+        except (TypeError, ValueError):
+            return 0
+
     sorted_records = sorted(
         (r for r in records if isinstance(r, dict)),
-        key=safe_ts,
+        key=_record_ts,
         reverse=True,
     )
 

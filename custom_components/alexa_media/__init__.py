@@ -1735,16 +1735,29 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                     account_live, unresolved_keys
                                 )
 
-                                async with account_live["last_called_api_lock"]:
-                                    last_called = await AlexaAPI.get_last_device_serial(
-                                        login_live,
-                                        items=LAST_CALLED_ITEMS,
+                                try:
+                                    async with account_live["last_called_api_lock"]:
+                                        last_called = await AlexaAPI.get_last_device_serial(
+                                            login_live,
+                                            items=LAST_CALLED_ITEMS,
+                                        )
+                                    if isinstance(
+                                        last_called, dict
+                                    ) and _valid_voice_summary(last_called.get("summary")):
+                                        await update_last_called(login_live, last_called)
+                                except asyncio.CancelledError:
+                                    raise
+                                except (
+                                    AlexapyTooManyRequestsError,
+                                    AlexapyLoginError,
+                                    AlexapyConnectionError,
+                                ) as exc:
+                                    _LOGGER.debug(
+                                        "%s: fallback last_called refresh failed (%s): %s",
+                                        hide_email(email),
+                                        trigger_cmd,
+                                        exc,
                                     )
-                                if isinstance(
-                                    last_called, dict
-                                ) and _valid_voice_summary(last_called.get("summary")):
-                                    await update_last_called(login_live, last_called)
-
                                 account_live["last_called_probe_trigger_ts"] = 0
                                 account_live["last_called_probe_event"].clear()
 

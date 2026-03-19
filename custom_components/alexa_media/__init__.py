@@ -1737,14 +1737,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                                 try:
                                     async with account_live["last_called_api_lock"]:
-                                        last_called = await AlexaAPI.get_last_device_serial(
-                                            login_live,
-                                            items=LAST_CALLED_ITEMS,
+                                        last_called = (
+                                            await AlexaAPI.get_last_device_serial(
+                                                login_live,
+                                                items=LAST_CALLED_ITEMS,
+                                            )
                                         )
                                     if isinstance(
                                         last_called, dict
-                                    ) and _valid_voice_summary(last_called.get("summary")):
-                                        await update_last_called(login_live, last_called)
+                                    ) and _valid_voice_summary(
+                                        last_called.get("summary")
+                                    ):
+                                        await update_last_called(
+                                            login_live, last_called
+                                        )
                                 except asyncio.CancelledError:
                                     raise
                                 except (

@@ -2705,6 +2705,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             http2_client = await http2_connect()
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = http2_client
             http2_enabled = bool(http2_client)
+            if http2_enabled:
+                break
             errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = (
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] + 1
             )

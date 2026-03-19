@@ -394,7 +394,7 @@ def _select_last_called_payload_from_records(
             continue
 
         for key, queued in queue_by_key.items():
-            queued_serial, queued_customer = key
+            queued_serial, _queued_customer = key
             queued_ts = int(queued.get("activity_ts") or 0)
 
             if serial != queued_serial:
@@ -1851,7 +1851,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
             account_live["last_called_probe_event"].set()
 
-        # Store the trigger on the live account as well (so reload swaps don’t strand it)
+        # Store the trigger on the live account as well (so reload swaps don't strand it)
         account["last_called_probe_trigger"] = _trigger_last_called_probe
 
     @_catch_login_errors

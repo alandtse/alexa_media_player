@@ -364,9 +364,15 @@ def _select_last_called_payload_from_records(
         if item.get("serial")
     }
 
+    def safe_ts(record):
+        try:
+            return int(record.get("creationTimestamp") or 0)
+        except (ValueError, TypeError):
+            return 0
+
     sorted_records = sorted(
         (r for r in records if isinstance(r, dict)),
-        key=lambda r: int(r.get("creationTimestamp") or 0),
+        key=safe_ts,
         reverse=True,
     )
 

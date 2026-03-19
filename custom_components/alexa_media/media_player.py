@@ -1930,8 +1930,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.unique_id,
             )
             # Reset stale last_called target mapping and re-register notify services.
+            previous_last_called = notify.last_called
             try:
-                previous_last_called = notify.last_called
                 notify.last_called = False
                 await notify.async_register_services()
                 notify.last_called = True

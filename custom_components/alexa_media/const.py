@@ -86,7 +86,7 @@ LAST_CALLED_LOGIN_BACKOFF_S = 30.0
 # Tuning constants for the per-account last-called probe worker
 LAST_CALLED_DEBOUNCE_S = 3.5  # coalesce bursty pushes, but stay snappy
 LAST_CALLED_RETRY_DELAY_S = 4.0  # wider retry cadence for delayed routine history
-LAST_CALLED_RETRY_LIMIT = 2  # total attempts = 1 + retries (max 7 calls per burst)
+LAST_CALLED_RETRY_LIMIT = 2  # total attempts = 1 + retries (3 attempts)
 LAST_CALLED_STALE_FUDGE_MS = 5_000  # allow some clock/ordering jitter
 LAST_CALLED_SUCCESS_PACE_S = 4.0  # post-success pacing to avoid hammering
 LAST_CALLED_LOOKBACK_MS = 60_000

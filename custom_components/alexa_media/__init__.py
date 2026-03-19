@@ -1488,7 +1488,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     if not skip_debounce:
                         await asyncio.sleep(
                             LAST_CALLED_DEBOUNCE_S
-                            + random.uniform(0.0, 0.05)  # nosec B311
+                            + random.uniform(0.0, 0.05)  # nosec B311  # noqa: S311
                         )
                         if account_live["last_called_probe_event"].is_set():
                             continue
@@ -1618,7 +1618,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         except asyncio.CancelledError:
                             raise
                         except AlexapyTooManyRequestsError:
-                            uk_floor = random.uniform(30.0, 63.0)  # nosec B311
+                            uk_floor = random.uniform(30.0, 63.0)  # nosec B311  # noqa: S311
                             prev = float(
                                 account_live.get("last_called_probe_backoff_s", 0.0)
                                 or 0.0
@@ -1629,7 +1629,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 else min(prev * 2.0, LAST_CALLED_429_BACKOFF_MAX_S)
                             )
                             backoff = max(backoff, uk_floor)
-                            jitter = random.uniform(
+                            jitter = random.uniform(  # noqa: S311
                                 0.0, min(5.0, backoff * 0.1)
                             )  # nosec B311
 
@@ -1752,7 +1752,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         account_live["last_called_probe_next_allowed"] = (
                             time.monotonic()
                             + LAST_CALLED_SUCCESS_PACE_S
-                            + random.uniform(0.0, 0.25)  # nosec B311
+                            + random.uniform(0.0, 0.25)  # nosec B311  # noqa: S311
                         )
 
                         trigger_serial = account_live.get(

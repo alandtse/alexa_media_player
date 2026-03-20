@@ -364,12 +364,6 @@ def _select_last_called_payload_from_records(
         if item.get("serial")
     }
 
-    def safe_ts(record):
-        try:
-            return int(record.get("creationTimestamp") or 0)
-        except (ValueError, TypeError):
-            return 0
-
     def _record_ts(record: dict) -> int:
         try:
             return int(record.get("creationTimestamp") or 0)

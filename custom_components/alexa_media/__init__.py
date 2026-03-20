@@ -502,7 +502,7 @@ def _store_and_dispatch_last_called(
 
     if 0 < ts < 10_000_000_000:
         ts *= 1000
-        if ts > 0:
+    if ts > 0:
         payload["timestamp"] = ts
 
     prev = stored_data.get("last_called")

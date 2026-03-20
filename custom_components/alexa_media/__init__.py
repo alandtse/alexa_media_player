@@ -1633,9 +1633,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         except asyncio.CancelledError:
                             raise
                         except AlexapyTooManyRequestsError:
-                            uk_floor = random.uniform(
+                            uk_floor = random.uniform(  # noqa: S311
                                 30.0, 63.0
-                            )  # nosec B311  # noqa: S311
+                            )  # nosec B311
                             prev = float(
                                 account_live.get("last_called_probe_backoff_s", 0.0)
                                 or 0.0

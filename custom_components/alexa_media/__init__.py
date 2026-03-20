@@ -2112,7 +2112,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         try:
             retries = 0
             while (
-                account.get("notifications_pending", {})
+                account.get("notifications_pending", set())
                 and retries <= NOTIFY_REFRESH_MAX_RETRIES
             ):
                 try:

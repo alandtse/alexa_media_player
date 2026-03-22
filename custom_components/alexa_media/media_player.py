@@ -283,6 +283,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._last_called = None
         self._last_called_timestamp = None
         self._last_called_summary = None
+        self._last_called_response = None
         # Do not Disturb state
         self._dnd = None
         # Polling state
@@ -507,7 +508,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 != event["last_called_change"]["timestamp"]
             ):
                 _LOGGER.debug(
-                    "%s: %s is last_called: %s",
+                    "%s: last_called is %s (%s)",
                     hide_email(self._login.email),
                     self,
                     hide_serial(self.device_serial_number),
@@ -515,23 +516,21 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._last_called = True
                 self._last_called_timestamp = event["last_called_change"]["timestamp"]
                 self._last_called_summary = event["last_called_change"].get("summary")
+                self._last_called_response = event["last_called_change"].get("response")
                 if self.hass and self.schedule_update_ha_state:
                     self.schedule_update_ha_state()
+                _LOGGER.debug("[handle event] Updating notify targets")
                 await self._update_notify_targets()
             else:
                 self._last_called = False
             if self.hass and self.async_schedule_update_ha_state:
                 force_refresh = not is_http2_enabled(self.hass, self._login.email)
-                self.async_schedule_update_ha_state(force_refresh=force_refresh)
-            if self._last_called:
-                self.hass.bus.async_fire(
-                    "alexa_media_last_called_event",
-                    {
-                        "last_called": self.device_serial_number,
-                        "timestamp": self._last_called_timestamp,
-                        "summary": self._last_called_summary,
-                    },
+                _LOGGER.debug(
+                    "%s: scheduling ha_state update(force_refresh: %s)",
+                    hide_email(self._login.email),
+                    not is_http2_enabled(self.hass, self._login.email),
                 )
+                self.async_schedule_update_ha_state(force_refresh=force_refresh)
         elif "bluetooth_change" in event:
             if event_serial == self.device_serial_number:
                 _LOGGER.debug(
@@ -776,6 +775,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._last_called_summary = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self._login.email
                 ]["last_called"].get("summary")
+                self._last_called_response = self.hass.data[DATA_ALEXAMEDIA][
+                    "accounts"
+                ][self._login.email]["last_called"].get("response")
+                _LOGGER.debug("[refresh] Updating notify targets")
                 await self._update_notify_targets()
             if skip_api and self.hass:
                 self.schedule_update_ha_state()
@@ -1012,7 +1015,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         except (TypeError, KeyError):
             last_called_serial = None
         _LOGGER.debug(
-            "%s: %s: Last_called check: self: %s reported: %s",
+            "%s: %s: Last_called check: self: %s; reported: %s",
             hide_email(self._login.email),
             self._device_name,
             hide_serial(self._device_serial_number),
@@ -1837,6 +1840,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "last_called": self._last_called,
             "last_called_timestamp": self._last_called_timestamp,
             "last_called_summary": self._last_called_summary,
+            "last_called_response": self._last_called_response,
             "connected_bluetooth": self._connected_bluetooth,
             "bluetooth_list": self._bluetooth_list,
             "history_records": self._history_records,
@@ -1876,32 +1880,86 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
     async def _update_notify_targets(self) -> None:
         """Update notification service targets."""
-        if self.hass.data[DATA_ALEXAMEDIA].get("notify_service"):
-            notify = self.hass.data[DATA_ALEXAMEDIA].get("notify_service")
-            if hasattr(notify, "registered_targets"):
-                _LOGGER.debug(
-                    "%s: Refreshing notify targets",
-                    hide_email(self._login.email),
-                )
+        notify = self.hass.data[DATA_ALEXAMEDIA].get("notify_service")
+        if not notify:
+            return
+
+        if not hasattr(notify, "registered_targets"):
+            _LOGGER.debug(
+                "%s: Unable to refresh notify targets; notify not ready",
+                hide_email(self._login.email),
+            )
+            return
+
+        email = hide_email(self._login.email)
+
+        _LOGGER.debug("%s: Refreshing notify targets", email)
+
+        # Evaluate once for logging (HA legacy registration may evaluate again internally)
+        targets = notify.targets
+
+        entity_name = (self.entity_id or "").split(".", 1)[-1]
+        suffix = (
+            f"_{self._login.email}" if entity_name and entity_name[-1].isdigit() else ""
+        )
+        last_called_key = f"last_called{suffix}"
+        last_called_uid = targets.get(last_called_key)
+
+        _LOGGER.debug(
+            "%s: Computed %d notify targets; %s -> %s",
+            email,
+            len(targets),
+            last_called_key,
+            hide_serial(last_called_uid),
+        )
+
+        await notify.async_register_services()
+
+        prefix = getattr(notify, "_target_service_name_prefix", ALEXA_DOMAIN)
+        service_key = slugify(f"{prefix}_{last_called_key}")
+        mapped = notify.registered_targets.get(service_key)
+
+        if notify.last_called and mapped != self.unique_id:
+            _LOGGER.debug(
+                "%s: notify last_called mapping mismatch: %s=%s; %s -> %s (expected %s)",
+                email,
+                last_called_key,
+                hide_serial(last_called_uid),
+                service_key,
+                mapped,
+                self.unique_id,
+            )
+            # Reset stale last_called target mapping and re-register notify services.
+            previous_last_called = notify.last_called
+            try:
+                notify.last_called = False
                 await notify.async_register_services()
-                entity_name_last_called = f"{ALEXA_DOMAIN}_last_called{'_' + self._login.email if self.unique_id[-1:].isdigit() else ''}"
-                await asyncio.sleep(2)
-                if (
-                    notify.last_called
-                    and notify.registered_targets.get(entity_name_last_called)
-                    != self.unique_id
-                ):
-                    _LOGGER.debug(
-                        "%s: Changing notify.targets is not supported by HA version < 2021.2.0; using toggle method",
-                        hide_email(self._login.email),
-                    )
-                    notify.last_called = False
-                    await notify.async_register_services()
-                    await asyncio.sleep(2)
-                    notify.last_called = True
-                    await notify.async_register_services()
-            else:
+                notify.last_called = True
+                await notify.async_register_services()
                 _LOGGER.debug(
-                    "%s: Unable to refresh notify targets; notify not ready",
-                    hide_email(self._login.email),
+                    "notify.last_called toggled for %s; re-registered notify services",
+                    last_called_key,
                 )
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception(
+                    "Failed to reset notify.last_called for %s", last_called_key
+                )
+            finally:
+                notify.last_called = previous_last_called
+
+        def _fire_last_called_event(_now) -> None:
+            """Fire after yielding once so entity/service state has settled."""
+            event_data = {
+                "last_called": self.device_serial_number,
+                "name": self._device_name,
+                "timestamp": self._last_called_timestamp,
+                "summary": self._last_called_summary,
+                "response": self._last_called_response,
+            }
+
+            _LOGGER.debug("Firing alexa_media_last_called_event")
+            self.hass.bus.fire("alexa_media_last_called_event", event_data)
+
+        _LOGGER.debug("Scheduling alexa_media_last_called_event")
+        # Defer to the next loop iteration so downstream consumers see updated state.
+        async_call_later(self.hass, 0, _fire_last_called_event)

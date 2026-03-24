@@ -1668,7 +1668,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 hide_email(email),
                                 trigger_cmd,
                             )
-                            report_relogin_required(hass, login_live, account_live or account)
+                            report_relogin_required(
+                                hass, login_live, account_live or account
+                            )
                             break
                         except AlexapyConnectionError as exc:
                             account_live["last_called_probe_next_allowed"] = (
@@ -1770,7 +1772,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                         trigger_cmd,
                                         exc,
                                     )
-                                    report_relogin_required(hass, login_live, account_live or account)
+                                    report_relogin_required(
+                                        hass, login_live, account_live or account
+                                    )
                                 except (
                                     AlexapyTooManyRequestsError,
                                     AlexapyConnectionError,

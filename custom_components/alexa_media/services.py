@@ -201,12 +201,24 @@ class AlexaMediaServices:
                         "Unexpected error updating last_called for %s",
                         hide_email(email),
                     )
+                finally:
+                    # Clean up task reference when done
+                    if email in self.hass.data[DATA_ALEXAMEDIA]["accounts"]:
+                        self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop(
+                            "service_update_last_called_task", None
+                        )
 
-            # Fire-and-forget: do not block the websocket service call on network/backoff delays.
-            self.hass.async_create_task(
+            # Cancel any existing task for this account before creating a new one
+            existing_task = account_dict.get("service_update_last_called_task")
+            if existing_task and not existing_task.done():
+                existing_task.cancel()
+
+            # Store task handle for proper cleanup on unload
+            task = self.hass.async_create_task(
                 _run_update_last_called(email, login_obj),
                 name=f"alexa_media.update_last_called.{hide_email(email)}",
             )
+            account_dict["service_update_last_called_task"] = task
 
     async def restore_volume(self, call: ServiceCall) -> bool:
         """Handle restore volume service request.

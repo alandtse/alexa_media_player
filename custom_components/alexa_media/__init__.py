@@ -1668,6 +1668,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 hide_email(email),
                                 trigger_cmd,
                             )
+                            report_relogin_required(hass, login_live, account_live or account)
                             break
                         except AlexapyConnectionError as exc:
                             account_live["last_called_probe_next_allowed"] = (
@@ -1762,9 +1763,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                         )
                                 except asyncio.CancelledError:
                                     raise
+                                except AlexapyLoginError as exc:
+                                    _LOGGER.debug(
+                                        "%s: fallback last_called refresh failed (%s): %s",
+                                        hide_email(email),
+                                        trigger_cmd,
+                                        exc,
+                                    )
+                                    report_relogin_required(hass, login_live, account_live or account)
                                 except (
                                     AlexapyTooManyRequestsError,
-                                    AlexapyLoginError,
                                     AlexapyConnectionError,
                                 ) as exc:
                                     _LOGGER.debug(
@@ -1970,8 +1978,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         return None
 
     async def schedule_update_dnd_state(email: str):
-        """Schedule an update_dnd_state call after MIN_TIME_BETWEEN_FORCED_SCANS."""
-        await asyncio.sleep(MIN_TIME_BETWEEN_FORCED_SCANS.total_seconds())
+        """Schedule an update_dnd_state call after MIN_TIME_BETWEEN_SCANS."""
+        await asyncio.sleep(MIN_TIME_BETWEEN_SCANS.total_seconds())
         async with dnd_update_lock:
             if pending_dnd_updates.get(email, False):
                 pending_dnd_updates[email] = False
@@ -2869,6 +2877,7 @@ async def async_unload_entry(hass, entry) -> bool:
         "notifications_refresh_task",
         "notifications_init_task",
         "last_called_init_task",
+        "service_update_last_called_task",
     ):
         accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
         account = accounts.get(email)

@@ -94,6 +94,9 @@ from .const import (
     NOTIFY_REFRESH_MAX_RETRIES,
     SCAN_INTERVAL,
     STARTUP_MESSAGE,
+    HTTP2_ERROR_THRESHOLD,
+    LAST_PUSH_INACTIVITY_SECONDS,
+    LAST_PING_MAX_AGE_SECONDS,
 )
 from .coordinator import AlexaMediaCoordinator
 from .exceptions import TimeoutException
@@ -241,11 +244,11 @@ def _push_healthy(account: dict) -> bool:
         return False
 
     # If alexapy has already driven error count to "give up", treat as down.
-    if int(account.get("http2error") or 0) >= 5:
+    if int(account.get("http2error") or 0) >= HTTP2_ERROR_THRESHOLD:
         return False
 
     last_push = float(account.get("last_push_activity") or 0.0)
-    if last_push and (time.time() - last_push) > 600.0:
+    if last_push and (time.time() - last_push) > LAST_PUSH_INACTIVITY_SECONDS:
         return False
 
     # If we have a recent ping, that's a strong positive.
@@ -254,7 +257,7 @@ def _push_healthy(account: dict) -> bool:
         try:
             age = time.time() - last_ping_dt.timestamp()
             # ping is ~299s; allow generous slack for scheduler jitter.
-            if age <= 900.0:
+            if age <= LAST_PING_MAX_AGE_SECONDS:
                 return True
             # If ping is *very* stale, treat as suspicious but not definitive.
             # Don't force False here unless you also have other negative signals.

@@ -1866,6 +1866,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         # Store the trigger on the live account as well (so reload swaps don't strand it)
         account["last_called_probe_trigger"] = _trigger_last_called_probe
 
+    def _is_dnd_voice_toggle(last_called: dict) -> bool:
+        summary = " ".join(((last_called.get("summary") or "").strip().lower()).split())
+        response = " ".join(((last_called.get("response") or "").strip().lower()).split())
+    
+        return (
+            "do not disturb" in summary
+            or "won’t disturb you" in response
+            or "do not disturb is now off" in response
+        )
+
     @_catch_login_errors
     async def update_last_called(login_obj, last_called=None, force=False):
         """Update the last called device for the login_obj.
@@ -1944,6 +1954,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             "%s: Updated last_called: %s", hide_email(email), hide_serial(last_called)
         )
         _store_and_dispatch_last_called(hass, email, last_called, force)
+
+        if _is_dnd_voice_toggle(last_called):
+            _LOGGER.debug("%s: last_called indicates DND voice toggle", hide_email(email))
+            await update_dnd_state(login_obj)
 
     @_catch_login_errors
     async def update_bluetooth_state(login_obj, device_serial):

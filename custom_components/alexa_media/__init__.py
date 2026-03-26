@@ -2020,7 +2020,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                     last_run = last_dnd_update_times.get(email)
                     now = datetime.utcnow()
-                    if last_run is not None and (now - last_run) < MIN_TIME_BETWEEN_SCANS:
+                    if (
+                        last_run is not None
+                        and (now - last_run) < MIN_TIME_BETWEEN_SCANS
+                    ):
                         # Another update snuck in or timing was slightly early; loop and re-evaluate.
                         continue
 
@@ -2068,7 +2071,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             if last_run is not None and (now - last_run) < MIN_TIME_BETWEEN_SCANS:
                 pending_dnd_updates[email] = True
 
-                if email not in scheduled_dnd_tasks or scheduled_dnd_tasks[email].done():
+                if (
+                    email not in scheduled_dnd_tasks
+                    or scheduled_dnd_tasks[email].done()
+                ):
                     _LOGGER.debug(
                         "%s: Throttling active; scheduling deferred DND update.",
                         hide_email(email),

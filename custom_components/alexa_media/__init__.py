@@ -1872,9 +1872,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             ((last_called.get("response") or "").strip().lower()).split()
         )
 
+        # Normalize apostrophes (replace smart quotes with ASCII)
+        summary = summary.replace("\u2019", "'").replace("\u2018", "'")
+        response = response.replace("\u2019", "'").replace("\u2018", "'")
+
         return (
             "do not disturb" in summary
-            or "won’t disturb you" in response
+            or "won't disturb you" in response
             or "do not disturb is now off" in response
         )
 

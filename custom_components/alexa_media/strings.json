@@ -134,6 +134,13 @@
       }
     }
   },
+  "dnd_detection": {
+    "keywords": {
+      "summary": "do not disturb",
+      "response_on": "won't disturb you",
+      "response_off": "do not disturb is now off"
+    }
+  },
   "entity": {
     "switch": {
       "do_not_disturb": {

@@ -818,9 +818,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         metrics.record_boot_stage(f"setup_alexa_start_{hide_email(email)}")
 
     # Initialize throttling state and lock
+    dnd_update_lock = asyncio.Lock()
     last_dnd_update_times: dict[str, datetime] = {}
     pending_dnd_updates: dict[str, bool] = {}
-    dnd_update_lock = asyncio.Lock()
+    scheduled_dnd_tasks: dict[str, asyncio.Task] = {}
 
     async def async_update_data() -> Optional[AlexaEntityData]:
         # noqa pylint: disable=too-many-branches
@@ -1671,6 +1672,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 hide_email(email),
                                 trigger_cmd,
                             )
+                            report_relogin_required(
+                                hass, login_live, account_live or account
+                            )
                             break
                         except AlexapyConnectionError as exc:
                             account_live["last_called_probe_next_allowed"] = (
@@ -1765,9 +1769,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                         )
                                 except asyncio.CancelledError:
                                     raise
+                                except AlexapyLoginError as exc:
+                                    _LOGGER.debug(
+                                        "%s: fallback last_called refresh failed (%s): %s",
+                                        hide_email(email),
+                                        trigger_cmd,
+                                        exc,
+                                    )
+                                    report_relogin_required(
+                                        hass, login_live, account_live or account
+                                    )
                                 except (
                                     AlexapyTooManyRequestsError,
-                                    AlexapyLoginError,
                                     AlexapyConnectionError,
                                 ) as exc:
                                     _LOGGER.debug(
@@ -1972,15 +1985,51 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         )
         return None
 
-    async def schedule_update_dnd_state(email: str):
-        """Schedule an update_dnd_state call after MIN_TIME_BETWEEN_FORCED_SCANS."""
-        await asyncio.sleep(MIN_TIME_BETWEEN_FORCED_SCANS.total_seconds())
-        async with dnd_update_lock:
-            if pending_dnd_updates.get(email, False):
-                pending_dnd_updates[email] = False
-                _LOGGER.debug(
-                    "Executing scheduled forced DND update for %s", hide_email(email)
-                )
+    async def schedule_update_dnd_state(email: str) -> None:
+        """Run one deferred DND refresh after the cooldown expires."""
+        try:
+            while True:
+                async with dnd_update_lock:
+                    if not pending_dnd_updates.get(email, False):
+                        scheduled_dnd_tasks.pop(email, None)
+                        return
+
+                    last_run = last_dnd_update_times.get(email)
+                    now = datetime.utcnow()
+
+                    remaining = 0.0
+                    if last_run is not None:
+                        elapsed = now - last_run
+                        if elapsed < MIN_TIME_BETWEEN_SCANS:
+                            remaining = (
+                                MIN_TIME_BETWEEN_SCANS - elapsed
+                            ).total_seconds()
+
+                if remaining > 0:
+                    _LOGGER.debug(
+                        "%s: Deferred DND update sleeping %.3fs until cooldown expires",
+                        hide_email(email),
+                        remaining,
+                    )
+                    await asyncio.sleep(remaining)
+
+                async with dnd_update_lock:
+                    if not pending_dnd_updates.get(email, False):
+                        scheduled_dnd_tasks.pop(email, None)
+                        return
+
+                    last_run = last_dnd_update_times.get(email)
+                    now = datetime.utcnow()
+                    if (
+                        last_run is not None
+                        and (now - last_run) < MIN_TIME_BETWEEN_SCANS
+                    ):
+                        # Another update snuck in or timing was slightly early; loop and re-evaluate.
+                        continue
+
+                    pending_dnd_updates[email] = False
+                    scheduled_dnd_tasks.pop(email, None)
+
                 login_obj = (
                     hass.data.get(DATA_ALEXAMEDIA, {})
                     .get("accounts", {})
@@ -1989,11 +2038,26 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 )
                 if not login_obj:
                     _LOGGER.debug(
-                        "Skipping scheduled forced DND update for %s; login_obj missing",
+                        "%s: Skipping scheduled forced DND update: login_obj missing",
                         hide_email(email),
                     )
                     return
+
+                _LOGGER.debug(
+                    "%s: Executing scheduled forced DND update",
+                    hide_email(email),
+                )
                 await update_dnd_state(login_obj)
+                return
+
+        except asyncio.CancelledError:
+            _LOGGER.debug("%s: Deferred DND update task cancelled", hide_email(email))
+            raise
+        finally:
+            async with dnd_update_lock:
+                task = scheduled_dnd_tasks.get(email)
+                if task is asyncio.current_task():
+                    scheduled_dnd_tasks.pop(email, None)
 
     @_catch_login_errors
     async def update_dnd_state(login_obj) -> None:
@@ -2003,45 +2067,47 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         async with dnd_update_lock:
             last_run = last_dnd_update_times.get(email)
-            cooldown = MIN_TIME_BETWEEN_SCANS
 
-            if last_run and (now - last_run) < cooldown:
-                # If within cooldown, mark a pending update if not already marked
-                if not pending_dnd_updates.get(email, False):
-                    pending_dnd_updates[email] = True
+            if last_run is not None and (now - last_run) < MIN_TIME_BETWEEN_SCANS:
+                pending_dnd_updates[email] = True
+
+                if (
+                    email not in scheduled_dnd_tasks
+                    or scheduled_dnd_tasks[email].done()
+                ):
                     _LOGGER.debug(
-                        "Throttling active for %s, scheduling a forced DND update.",
+                        "%s: Throttling active; scheduling deferred DND update.",
                         hide_email(email),
                     )
-                    asyncio.create_task(schedule_update_dnd_state(email))
+                    scheduled_dnd_tasks[email] = asyncio.create_task(
+                        schedule_update_dnd_state(email)
+                    )
                 else:
                     _LOGGER.debug(
-                        "Throttling active for %s, forced DND update already scheduled.",
+                        "%s: Throttling active; deferred DND update already scheduled.",
                         hide_email(email),
                     )
                 return
 
-            # Update the last run time
             last_dnd_update_times[email] = now
 
-        _LOGGER.debug("Updating DND state for %s", hide_email(email))
+        _LOGGER.debug("%s: Updating DND state", hide_email(email))
         try:
-            # Fetch the DND state using the Alexa API
             dnd = await AlexaAPI.get_dnd_state(login_obj)
         except asyncio.TimeoutError:
             _LOGGER.error(
-                "Timeout occurred while fetching DND state for %s", hide_email(email)
+                "%s: Timeout occurred while fetching DND state",
+                hide_email(email),
             )
             return
-        except Exception as e:
+        except Exception as err:  # pylint: disable=broad-except
             _LOGGER.error(
-                "Unexpected error while fetching DND state for %s: %s",
+                "%s: Unexpected error while fetching DND state: %s",
                 hide_email(email),
-                e,
+                err,
             )
             return
 
-        # Check if DND data is valid and dispatch an update event
         if dnd is not None and "doNotDisturbDeviceStatusList" in dnd:
             async_dispatcher_send(
                 hass,
@@ -2049,8 +2115,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 {"dnd_update": dnd["doNotDisturbDeviceStatusList"]},
             )
             return
-        else:
-            _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
+
+        _LOGGER.debug("%s: get_dnd_state failed: dnd:%s", hide_email(email), dnd)
 
     def _schedule_notifications_refresh(
         hass,
@@ -2872,6 +2938,7 @@ async def async_unload_entry(hass, entry) -> bool:
         "notifications_refresh_task",
         "notifications_init_task",
         "last_called_init_task",
+        "service_update_last_called_task",
     ):
         accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
         account = accounts.get(email)

@@ -77,6 +77,32 @@ SERVICE_GET_HISTORY_RECORDS = "get_history_records"
 SERVICE_FORCE_LOGOUT = "force_logout"
 SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 
+# Backoff durations for the last-called probe worker
+LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0
+LAST_CALLED_429_BACKOFF_MAX_S = 15 * 60.0
+LAST_CALLED_CONN_BACKOFF_S = 10.0
+LAST_CALLED_LOGIN_BACKOFF_S = 30.0
+
+# Tuning constants for the per-account last-called probe worker
+LAST_CALLED_DEBOUNCE_S = 3.5  # coalesce bursty pushes, but stay snappy
+LAST_CALLED_RETRY_DELAY_S = 4.0  # wider retry cadence for delayed routine history
+LAST_CALLED_RETRY_LIMIT = 2  # total attempts = 1 + retries (3 attempts)
+LAST_CALLED_STALE_FUDGE_MS = 5_000  # allow some clock/ordering jitter
+LAST_CALLED_SUCCESS_PACE_S = 4.0  # post-success pacing to avoid hammering
+LAST_CALLED_LOOKBACK_MS = 60_000
+LAST_CALLED_ITEMS = 10
+LAST_CALLED_COALESCE_WINDOW_MS = 2000
+
+# Tuning constants for notification retries
+NOTIFICATION_COOLDOWN = 60
+NOTIFY_REFRESH_BACKOFF = 15.0
+NOTIFY_REFRESH_MAX_RETRIES = 3
+
+# push-health magic numbers
+HTTP2_ERROR_THRESHOLD = 5
+LAST_PUSH_INACTIVITY_SECONDS = 600.0
+LAST_PING_MAX_AGE_SECONDS = 900.0
+
 RECURRING_PATTERN = {
     None: "Never Repeat",
     "P1D": "Every day",

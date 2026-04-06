@@ -1685,6 +1685,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 exc,
                             )
                             break
+                        except TypeError as exc:
+                            account_live["last_called_probe_next_allowed"] = (
+                                time.monotonic() + LAST_CALLED_CONN_BACKOFF_S
+                            )
+                            _LOGGER.debug(
+                                "%s: last_called probe type error (%s): %s",
+                                hide_email(email),
+                                trigger_cmd,
+                                exc,
+                            )
+                            break
 
                         existing_serials_local = set(
                             _existing_serials(hass, login_live)

@@ -12,6 +12,7 @@ import functools
 import hashlib
 import logging
 from typing import Any, Callable, Optional, TypeVar, overload
+from unittest.mock import Mock
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
@@ -95,6 +96,15 @@ async def add_devices(
             exclude_filter_set,
         )
 
+    def _explicit_attr(obj: object, attr: str):
+        """Return an explicitly stored attribute, avoiding MagicMock synthesis."""
+        obj_dict = getattr(obj, "__dict__", {})
+        if attr in obj_dict:
+            value = obj_dict[attr]
+            if not isinstance(value, Mock):
+                return value
+        return None
+
     def _device_name(dev: Entity) -> str | None:
         """Best-effort name before entity_id is assigned.
 
@@ -135,23 +145,32 @@ async def add_devices(
 
     def _device_base_name(dev: Entity) -> str | None:
         """Return the parent/base device name for derived AMP entities."""
-        client = getattr(dev, "_client", None)
+        client = _explicit_attr(dev, "_client")
         if client is None:
-            client = getattr(dev, "__dict__", {}).get("_client")
+            client = getattr(dev, "_client", None)
 
-        if not client:
+        if not client or isinstance(client, Mock):
             return None
 
         base = (
-            getattr(client, "name", None)
-            or getattr(client, "_attr_name", None)
-            or getattr(client, "_name", None)
-            or getattr(client, "_device_name", None)
+            _explicit_attr(client, "name")
+            or _explicit_attr(client, "_attr_name")
+            or _explicit_attr(client, "_name")
+            or _explicit_attr(client, "_device_name")
         )
-        if base:
-            return str(base)
 
-        return None
+        if base is None:
+            base = (
+                getattr(client, "name", None)
+                or getattr(client, "_attr_name", None)
+                or getattr(client, "_name", None)
+                or getattr(client, "_device_name", None)
+            )
+
+        if not base or isinstance(base, Mock):
+            return None
+
+        return str(base)
 
     def _device_label(dev: Entity) -> str:
         """Return a compact, stable identifier for logging."""
@@ -192,8 +211,9 @@ async def add_devices(
             # INCLUDE MODE:
             # include exact entity matches OR children of an included parent device
             if include_mode:
-                if (dev_name and dev_name in include_set) or (
-                    base_name and base_name in include_set
+                if (
+                    (dev_name and dev_name in include_set)
+                    or (base_name and base_name in include_set)
                 ):
                     selected.append(dev)
                 else:

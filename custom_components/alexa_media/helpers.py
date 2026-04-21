@@ -109,6 +109,29 @@ async def add_devices(
             or getattr(dev, "_name", None)
             or getattr(dev, "_device_name", None)
             or getattr(dev, "_friendly_name", None)
+        )
+        if name:
+            return name
+
+        # Only attempt switch reconstruction if attributes were explicitly defined
+        # (avoids MagicMock auto-attribute trap in tests)
+        dev_dict = getattr(dev, "__dict__", {})
+
+        client = dev_dict.get("_client")
+        suffix = dev_dict.get("_unique_id_suffix")
+
+        if client and suffix:
+            client_dict = getattr(client, "__dict__", {})
+            base = (
+                client_dict.get("name")
+                or client_dict.get("_attr_name")
+                or client_dict.get("_name")
+                or client_dict.get("_device_name")
+            )
+            if base:
+                return f"{base} {suffix} switch"
+
+        return None
 
     def _device_base_name(dev: Entity) -> str | None:
         """Return the parent/base device name for derived AMP entities."""
@@ -177,8 +200,9 @@ async def add_devices(
             # INCLUDE MODE:
             # include exact entity matches OR children of an included parent device
             if include_mode:
-                if (dev_name and dev_name in include_set) or (
-                    base_name and base_name in include_set
+                if (
+                    (dev_name and dev_name in include_set)
+                    or (base_name and base_name in include_set)
                 ):
                     selected.append(dev)
                 else:

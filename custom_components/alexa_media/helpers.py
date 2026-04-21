@@ -192,9 +192,8 @@ async def add_devices(
             # INCLUDE MODE:
             # include exact entity matches OR children of an included parent device
             if include_mode:
-                if (
-                    (dev_name and dev_name in include_set)
-                    or (base_name and base_name in include_set)
+                if (dev_name and dev_name in include_set) or (
+                    base_name and base_name in include_set
                 ):
                     selected.append(dev)
                 else:

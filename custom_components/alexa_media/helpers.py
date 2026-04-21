@@ -200,18 +200,32 @@ async def add_devices(
             # INCLUDE MODE:
             # include exact entity matches OR children of an included parent device
             if include_mode:
-                if (dev_name and dev_name in include_set) or (
-                    base_name and base_name in include_set
-                ):
+                if dev_name and dev_name in include_set:
                     selected.append(dev)
-                else:
+                elif base_name and base_name in include_set:
                     _LOGGER.debug(
-                        "%s: Not including device: %s (match key=%r, base=%r)",
+                        "%s: Including device via parent match: %s (match key=%r, base=%r)",
                         account,
                         _device_label(dev),
                         dev_name,
                         base_name,
                     )
+                    selected.append(dev)
+                else:
+                    if not dev_name:
+                        _LOGGER.debug(
+                            "%s: Not including device (no name yet): %s",
+                            account,
+                            _device_label(dev),
+                        )
+                    else:
+                        _LOGGER.debug(
+                            "%s: Not including device: %s (match key=%r, base=%r)",
+                            account,
+                            _device_label(dev),
+                            dev_name,
+                            base_name,
+                        )
                 continue
 
             # EXCLUDE MODE:

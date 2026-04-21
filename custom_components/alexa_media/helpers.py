@@ -12,7 +12,6 @@ import functools
 import hashlib
 import logging
 from typing import Any, Callable, Optional, TypeVar, overload
-from unittest.mock import Mock
 
 from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
@@ -96,50 +95,31 @@ async def add_devices(
             exclude_filter_set,
         )
 
-    def _explicit_attr(obj: object, attr: str):
-        """Return an explicitly stored attribute, avoiding MagicMock synthesis."""
-        obj_dict = getattr(obj, "__dict__", {})
-        if attr in obj_dict:
-            value = obj_dict[attr]
-            if not isinstance(value, Mock):
-                return value
-        return None
-
-    def _device_name(dev: Entity) -> str | None:
-        """Best-effort name before entity_id is assigned.
-
-        For AMP switches, reconstruct the legacy "<device> <suffix> switch"
-        name only if those attributes were explicitly set.
-        """
-
-        # First prefer explicitly set name attributes (works for tests + most entities)
-        name = (
-            getattr(dev, "name", None)
-            or getattr(dev, "_attr_name", None)
-            or getattr(dev, "_name", None)
-            or getattr(dev, "_device_name", None)
-            or getattr(dev, "_friendly_name", None)
-        )
-        if name:
-            return name
-
-        # Only attempt switch reconstruction if attributes were explicitly defined
-        # (avoids MagicMock auto-attribute trap in tests)
+    def _device_base_name(dev: Entity) -> str | None:
+        """Return the parent/base device name for derived AMP entities."""
+        # Prefer __dict__ first to avoid MagicMock auto-attribute traps in tests,
+        # then fall back to getattr for real entities (descriptors / properties / slots).
         dev_dict = getattr(dev, "__dict__", {})
-
         client = dev_dict.get("_client")
-        suffix = dev_dict.get("_unique_id_suffix")
+        if client is None:
+            client = getattr(dev, "_client", None)
 
-        if client and suffix:
-            client_dict = getattr(client, "__dict__", {})
-            base = (
-                client_dict.get("name")
-                or client_dict.get("_attr_name")
-                or client_dict.get("_name")
-                or client_dict.get("_device_name")
-            )
-            if base:
-                return f"{base} {suffix} switch"
+        if client is None:
+            return None
+
+        client_dict = getattr(client, "__dict__", {})
+        base = (
+            client_dict.get("name")
+            or client_dict.get("_attr_name")
+            or client_dict.get("_name")
+            or client_dict.get("_device_name")
+            or getattr(client, "name", None)
+            or getattr(client, "_attr_name", None)
+            or getattr(client, "_name", None)
+            or getattr(client, "_device_name", None)
+        )
+        if base:
+            return str(base)
 
         return None
 
@@ -211,8 +191,9 @@ async def add_devices(
             # INCLUDE MODE:
             # include exact entity matches OR children of an included parent device
             if include_mode:
-                if (dev_name and dev_name in include_set) or (
-                    base_name and base_name in include_set
+                if (
+                    (dev_name and dev_name in include_set)
+                    or (base_name and base_name in include_set)
                 ):
                     selected.append(dev)
                 else:

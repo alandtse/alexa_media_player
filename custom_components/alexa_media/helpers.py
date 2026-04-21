@@ -95,6 +95,21 @@ async def add_devices(
             exclude_filter_set,
         )
 
+    def _device_name(dev: Entity) -> str | None:
+        """Best-effort name before entity_id is assigned.
+
+        For AMP switches, reconstruct the legacy "<device> <suffix> switch"
+        name only if those attributes were explicitly set.
+        """
+
+        # First prefer explicitly set name attributes (works for tests + most entities)
+        name = (
+            getattr(dev, "name", None)
+            or getattr(dev, "_attr_name", None)
+            or getattr(dev, "_name", None)
+            or getattr(dev, "_device_name", None)
+            or getattr(dev, "_friendly_name", None)
+
     def _device_base_name(dev: Entity) -> str | None:
         """Return the parent/base device name for derived AMP entities."""
         # Prefer __dict__ first to avoid MagicMock auto-attribute traps in tests,
@@ -122,35 +137,6 @@ async def add_devices(
             return str(base)
 
         return None
-
-    def _device_base_name(dev: Entity) -> str | None:
-        """Return the parent/base device name for derived AMP entities."""
-        client = _explicit_attr(dev, "_client")
-        if client is None:
-            client = getattr(dev, "_client", None)
-
-        if not client or isinstance(client, Mock):
-            return None
-
-        base = (
-            _explicit_attr(client, "name")
-            or _explicit_attr(client, "_attr_name")
-            or _explicit_attr(client, "_name")
-            or _explicit_attr(client, "_device_name")
-        )
-
-        if base is None:
-            base = (
-                getattr(client, "name", None)
-                or getattr(client, "_attr_name", None)
-                or getattr(client, "_name", None)
-                or getattr(client, "_device_name", None)
-            )
-
-        if not base or isinstance(base, Mock):
-            return None
-
-        return str(base)
 
     def _device_label(dev: Entity) -> str:
         """Return a compact, stable identifier for logging."""

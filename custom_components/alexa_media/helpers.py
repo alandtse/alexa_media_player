@@ -133,6 +133,26 @@ async def add_devices(
 
         return None
 
+    def _device_base_name(dev: Entity) -> str | None:
+        """Return the parent/base device name for derived AMP entities."""
+        client = getattr(dev, "_client", None)
+        if client is None:
+            client = getattr(dev, "__dict__", {}).get("_client")
+
+        if not client:
+            return None
+
+        base = (
+            getattr(client, "name", None)
+            or getattr(client, "_attr_name", None)
+            or getattr(client, "_name", None)
+            or getattr(client, "_device_name", None)
+        )
+        if base:
+            return str(base)
+
+        return None
+
     def _device_label(dev: Entity) -> str:
         """Return a compact, stable identifier for logging."""
         name = _device_name(dev)
@@ -167,28 +187,28 @@ async def add_devices(
 
         for dev in devs:
             dev_name = _norm_filter_token(_device_name(dev))
+            base_name = _norm_filter_token(_device_base_name(dev))
 
-            # INCLUDE MODE: only include explicitly listed names
+            # INCLUDE MODE:
+            # include exact entity matches OR children of an included parent device
             if include_mode:
-                if dev_name and dev_name in include_set:
+                if (
+                    (dev_name and dev_name in include_set)
+                    or (base_name and base_name in include_set)
+                ):
                     selected.append(dev)
                 else:
-                    if not dev_name:
-                        _LOGGER.debug(
-                            "%s: Not including device (no name yet): %s",
-                            account,
-                            _device_label(dev),
-                        )
-                    else:
-                        _LOGGER.debug(
-                            "%s: Not including device: %s (match key=%r)",
-                            account,
-                            _device_label(dev),
-                            dev_name,
-                        )
+                    _LOGGER.debug(
+                        "%s: Not including device: %s (match key=%r, base=%r)",
+                        account,
+                        _device_label(dev),
+                        dev_name,
+                        base_name,
+                    )
                 continue
 
-            # EXCLUDE MODE: exclude listed names
+            # EXCLUDE MODE:
+            # preserve exact-match semantics so users can exclude individual entities
             if exclude_set and dev_name and dev_name in exclude_set:
                 _LOGGER.debug(
                     "%s: Excluding device: %s (match key=%r)",

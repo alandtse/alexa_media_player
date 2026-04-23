@@ -601,6 +601,61 @@ class AlexaMediaNotificationSensor(SensorEntity):
         self._amz_id: Optional[str] = None
         self._version: Optional[str] = None
 
+    def _coerce_datetime(self, value) -> Optional[datetime.datetime]:
+        """Best-effort conversion of Alexa datetime-ish values to aware datetime."""
+        if isinstance(value, datetime.datetime):
+            return value
+
+        if value in (None, ""):
+            return None
+
+        if isinstance(value, (int, float)):
+            ts = value / 1000 if value > 10_000_000_000 else value
+            return datetime.datetime.fromtimestamp(ts, tz=LOCAL_TIMEZONE)
+
+        if isinstance(value, str):
+            parsed = dt.parse_datetime(value)
+            if parsed is None:
+                return None
+            if parsed.tzinfo is None:
+                timezone = dt.get_time_zone(
+                    self._client._timezone  # pylint: disable=protected-access
+                )
+                if timezone:
+                    parsed = parsed.replace(tzinfo=timezone)
+                else:
+                    parsed = parsed.replace(tzinfo=LOCAL_TIMEZONE)
+            return parsed
+
+        return None
+
+    def _normalize_alarm_snooze_state(self, value):
+        """Normalize snoozed alarm state before sorting/selecting next."""
+        if self._type != "Alarm" or not value:
+            return value
+
+        next_item = value[1]
+        if not isinstance(next_item, dict):
+            return value
+
+        status = next_item.get("status")
+        snoozed_to = self._coerce_datetime(next_item.get("snoozedToTime"))
+        alarm_when = self._coerce_datetime(next_item.get(self._sensor_property))
+        now = dt.now()
+
+        if snoozed_to and snoozed_to > now:
+            next_item["status"] = "SNOOZED"
+            next_item["snoozedToTime"] = snoozed_to
+            next_item[self._sensor_property] = snoozed_to
+            return value
+
+        if status == "SNOOZED" and snoozed_to is None and alarm_when is not None:
+            next_item["snoozedToTime"] = alarm_when
+            next_item[self._sensor_property] = alarm_when
+            return value
+
+        return value
+
     def _process_raw_notifications(self):
         # Build full list for this device/type
         self._all = (
@@ -608,6 +663,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             if self._n_dict
             else []
         )
+        self._all = list(map(self._normalize_alarm_snooze_state, self._all))
         self._all = list(map(self._update_recurring_alarm, self._all))
         self._all = sorted(self._all, key=lambda x: x[1][self._sensor_property])
 
@@ -619,6 +675,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                         "id": v.get("id"),
                         "status": v.get("status"),
                         self._sensor_property: v.get(self._sensor_property),
+                        "snoozedToTime": v.get("snoozedToTime"),
                         "lastUpdatedDate": v.get("lastUpdatedDate"),
                         "type": v.get("type"),
                     }
@@ -661,6 +718,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                         "id": v.get("id"),
                         "status": v.get("status"),
                         self._sensor_property: v.get(self._sensor_property),
+                        "snoozedToTime": v.get("snoozedToTime"),
                         "lastUpdatedDate": v.get("lastUpdatedDate"),
                         "type": v.get("type"),
                     }
@@ -784,7 +842,18 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     datetime.datetime.fromtimestamp(alarm / 1000, tz=LOCAL_TIMEZONE)
                 )
             )
-        alarm_on = next_item["status"] == "ON"
+        alarm_status = next_item.get("status")
+        alarm_on = alarm_status == "ON"
+        alarm_snoozed = alarm_status == "SNOOZED"
+
+        # Preserve snoozed alarms exactly as normalized above.
+        if alarm_snoozed:
+            if reminder:
+                alarm = dt.as_timestamp(alarm) * 1000
+            if alarm != next_item[self._sensor_property]:
+                next_item[self._sensor_property] = alarm
+            return value
+
         r_rule_data = next_item.get("rRuleData")
         if r_rule_data:
             next_trigger_times = r_rule_data.get("nextTriggerTimes")

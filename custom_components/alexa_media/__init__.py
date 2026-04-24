@@ -1695,6 +1695,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 trigger_cmd,
                                 exc,
                             )
+                            skip_debounce = True
+                            account_live["last_called_probe_event"].set()
                             break
 
                         existing_serials_local = set(

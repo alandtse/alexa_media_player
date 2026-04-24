@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C \"c:/Users/aawar/OneDrive - Microsoft/Documents/GitHub/alexa_media_player\" show HEAD -- \"custom_components/alexa_media/__init__.py\")"
+      "Bash(git show HEAD -- \"custom_components/alexa_media/__init__.py\")"
     ]
   }
 }

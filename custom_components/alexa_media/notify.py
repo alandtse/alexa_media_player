@@ -240,11 +240,10 @@ class AlexaNotificationService(BaseNotificationService):
         # swallowed — it never successfully expanded anything.
         expanded_targets = []
         for target in processed_targets:
-            state = self.hass.states.get(target)
             if (
-                state is not None
-                and isinstance(target, str)
+                isinstance(target, str)
                 and target.startswith("media_player.")
+                and (state := self.hass.states.get(target)) is not None
                 and "entity_id" in state.attributes
             ):
                 # This is a media_player group — expand to its member entity IDs
@@ -252,7 +251,16 @@ class AlexaNotificationService(BaseNotificationService):
                 _LOGGER.debug(
                     "Expanding media_player group %s to members: %s", target, members
                 )
-                expanded_targets.extend(members)
+                if isinstance(members, (list, tuple)):
+                    expanded_targets.extend(members)
+                else:
+                    _LOGGER.debug(
+                        "Skipping expansion for media_player group %s: "
+                        "entity_id attribute is not a list (%s), using group as-is",
+                        target,
+                        type(members).__name__,
+                    )
+                    expanded_targets.append(target)
             else:
                 expanded_targets.append(target)
         processed_targets = expanded_targets

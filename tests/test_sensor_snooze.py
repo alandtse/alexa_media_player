@@ -158,7 +158,7 @@ class TestIsActiveNotification:
 
     NOW = datetime.datetime(2024, 6, 1, 8, 0, 0, tzinfo=UTC)
 
-    `@staticmethod`
+    @staticmethod
     def _is_active(sensor, item, now):
         """Mirror the _is_active_notification closure from _process_raw_notifications."""
         status = item[1].get("status")

@@ -225,11 +225,46 @@ class AlexaNotificationService(BaseNotificationService):
                         map(lambda x: x.strip(), target.split(","))
                     )
                     _LOGGER.debug("Processed Target by string: %s", processed_targets)
+        # Expand media_player group entities into their member entity IDs before
+        # passing to convert(). The convert() method only resolves alexa-specific
+        # identifiers (entity_id, name, serial); it has no knowledge of HA groups.
+        # We expand here — before convert() — where targets are still plain strings.
+        #
+        # Scope: media_player groups only (identified by a media_player.* entity_id
+        # whose state contains an "entity_id" attribute listing member entities).
+        # Areas, floors, and generic group.* entities are intentionally out of scope.
+        #
+        # Note: The expand_entity_ids() call that previously appeared after convert()
+        # has been removed. It operated on already-converted alexa objects (not entity
+        # ID strings), causing it to throw ValueError on every call, which was silently
+        # swallowed — it never successfully expanded anything.
+        expanded_targets = []
+        for target in processed_targets:
+            if (
+                isinstance(target, str)
+                and target.startswith("media_player.")
+                and (state := self.hass.states.get(target)) is not None
+                and "entity_id" in state.attributes
+            ):
+                # This is a media_player group — expand to its member entity IDs
+                members = state.attributes["entity_id"]
+                _LOGGER.debug(
+                    "Expanding media_player group %s to members: %s", target, members
+                )
+                if isinstance(members, (list, tuple)):
+                    expanded_targets.extend(members)
+                else:
+                    _LOGGER.debug(
+                        "Skipping expansion for media_player group %s: "
+                        "entity_id attribute is not a list (%s), using group as-is",
+                        target,
+                        type(members).__name__,
+                    )
+                    expanded_targets.append(target)
+            else:
+                expanded_targets.append(target)
+        processed_targets = expanded_targets
         entities = self.convert(processed_targets, type_="entities")
-        try:
-            entities.extend(expand_entity_ids(self.hass, entities))
-        except ValueError:
-            _LOGGER.debug("Invalid Home Assistant entity in %s", entities)
         tasks = []
         for account, account_dict in self.hass.data[DATA_ALEXAMEDIA][
             "accounts"

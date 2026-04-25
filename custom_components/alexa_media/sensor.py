@@ -703,8 +703,10 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 summary,
             )
 
-        return future_active[0][1] if future_active else (
-            self._active[0][1] if self._active else None
+        return (
+            future_active[0][1]
+            if future_active
+            else (self._active[0][1] if self._active else None)
         )
 
     def _process_raw_notifications(self):

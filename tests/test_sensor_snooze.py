@@ -7,8 +7,6 @@ filter logic introduced in PR `#3440`.
 import datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from custom_components.alexa_media.sensor import AlexaMediaNotificationSensor
 
 UTC = datetime.timezone.utc
@@ -23,7 +21,7 @@ def _make_alarm_sensor():
     """Return a bare AlexaMediaNotificationSensor wired for Alarm type."""
     sensor = object.__new__(AlexaMediaNotificationSensor)
     sensor._type = "Alarm"
-    sensor._sensor_property = "alarmTime"
+    sensor._sensor_property = "date_time"
     client = MagicMock()
     client._timezone = "UTC"
     sensor._client = client
@@ -36,7 +34,7 @@ def _alarm_value(status, alarm_time, snoozed_to=None):
         "test_alarm_id",
         {
             "status": status,
-            "alarmTime": alarm_time,
+            "date_time": alarm_time,
             "snoozedToTime": snoozed_to,
             "type": "Alarm",
         },
@@ -46,6 +44,89 @@ def _alarm_value(status, alarm_time, snoozed_to=None):
 # ---------------------------------------------------------------------------
 # 1. _normalize_alarm_snooze_state — four states
 # ---------------------------------------------------------------------------
+
+
+class TestCoerceDatetime:
+    """Unit tests for _coerce_datetime."""
+
+    UTC = datetime.timezone.utc
+
+    def test_aware_datetime_passes_through_unchanged(self):
+        """Aware datetimes should be returned unchanged."""
+        sensor = _make_alarm_sensor()
+
+        aware = datetime.datetime(2024, 6, 1, 8, 0, tzinfo=self.UTC)
+
+        result = sensor._coerce_datetime(aware)
+
+        assert result is aware
+
+    def test_epoch_seconds_converted_correctly(self):
+        """Epoch timestamps in seconds should convert correctly."""
+        sensor = _make_alarm_sensor()
+
+        epoch_seconds = 1717228800  # 2024-06-01 08:00:00 UTC
+
+        result = sensor._coerce_datetime(epoch_seconds)
+
+        expected = datetime.datetime.fromtimestamp(
+            epoch_seconds, tz=self.UTC
+        )
+
+        assert result == expected
+        assert result.tzinfo == self.UTC
+
+    def test_epoch_milliseconds_converted_correctly(self):
+        """Epoch timestamps in milliseconds should convert correctly."""
+        sensor = _make_alarm_sensor()
+
+        epoch_ms = 1717228800000  # 2024-06-01 08:00:00 UTC
+
+        result = sensor._coerce_datetime(epoch_ms)
+
+        expected = datetime.datetime.fromtimestamp(
+            epoch_ms / 1000, tz=self.UTC
+        )
+
+        assert result == expected
+        assert result.tzinfo == self.UTC
+
+    def test_iso_datetime_string_parsed_correctly(self):
+        """ISO datetime strings should parse into aware datetimes."""
+        sensor = _make_alarm_sensor()
+
+        result = sensor._coerce_datetime("2024-06-01T08:00:00+00:00")
+
+        expected = datetime.datetime(
+            2024, 6, 1, 8, 0, tzinfo=self.UTC
+        )
+
+        assert result == expected
+
+    def test_none_returns_none(self):
+        """None should short-circuit to None."""
+        sensor = _make_alarm_sensor()
+
+        assert sensor._coerce_datetime(None) is None
+
+    def test_empty_string_returns_none(self):
+        """Empty string should short-circuit to None."""
+        sensor = _make_alarm_sensor()
+
+        assert sensor._coerce_datetime("") is None
+
+    def test_naive_datetime_made_aware_using_sensor_timezone(self):
+        """Naive datetimes should be localized using sensor timezone."""
+        sensor = _make_alarm_sensor()
+
+        naive = datetime.datetime(2024, 6, 1, 8, 0)
+
+        result = sensor._coerce_datetime(naive)
+
+        expected = naive.replace(tzinfo=self.UTC)
+
+        assert result == expected
+        assert result.tzinfo == self.UTC
 
 
 class TestNormalizeAlarmSnoozeState:
@@ -67,14 +148,14 @@ class TestNormalizeAlarmSnoozeState:
             result = sensor._normalize_alarm_snooze_state(value)
 
         assert result[1]["status"] == "ON"
-        assert result[1]["alarmTime"] == alarm_at
+        assert result[1]["date_time"] == alarm_at
         assert result[1]["snoozedToTime"] is None
 
     # --- State 2: SNOOZED with future snoozedToTime ---
 
     def test_future_snoozed_to_time_sets_status_and_updates_timestamp(self):
         """When snoozedToTime is in the future, status must become SNOOZED
-        and alarmTime must be updated to the snooze time."""
+        and date_time must be updated to the snooze time."""
         sensor = _make_alarm_sensor()
         original_alarm = self.NOW - datetime.timedelta(minutes=5)  # already rang
         snooze_until = self.NOW + datetime.timedelta(minutes=9)  # snooze active
@@ -86,7 +167,7 @@ class TestNormalizeAlarmSnoozeState:
             result = sensor._normalize_alarm_snooze_state(value)
 
         assert result[1]["status"] == "SNOOZED"
-        assert result[1]["alarmTime"] == snooze_until
+        assert result[1]["date_time"] == snooze_until
         assert result[1]["snoozedToTime"] == snooze_until
 
     def test_future_snoozed_to_time_overrides_existing_snoozed_status(self):
@@ -103,13 +184,14 @@ class TestNormalizeAlarmSnoozeState:
             result = sensor._normalize_alarm_snooze_state(value)
 
         assert result[1]["status"] == "SNOOZED"
-        assert result[1]["alarmTime"] == snooze_until
+        assert result[1]["date_time"] == snooze_until
+        assert result[1]["snoozedToTime"] == snooze_until
 
     # --- State 3: SNOOZED with missing snoozedToTime ---
 
     def test_snoozed_missing_snooze_time_backfills_from_alarm_time(self):
         """SNOOZED alarm whose snoozedToTime is None must have snoozedToTime
-        backfilled from alarmTime."""
+        backfilled from date_time."""
         sensor = _make_alarm_sensor()
         alarm_at = self.NOW + datetime.timedelta(minutes=5)
         value = _alarm_value("SNOOZED", alarm_at, snoozed_to=None)
@@ -121,7 +203,7 @@ class TestNormalizeAlarmSnoozeState:
 
         assert result[1]["status"] == "SNOOZED"
         assert result[1]["snoozedToTime"] == alarm_at
-        assert result[1]["alarmTime"] == alarm_at
+        assert result[1]["date_time"] == alarm_at
 
     # --- State 4: expired SNOOZED ---
 
@@ -141,7 +223,7 @@ class TestNormalizeAlarmSnoozeState:
         # normalize does not touch expired snooze; filtering is done elsewhere
         assert result[1]["status"] == "SNOOZED"
         assert result[1]["snoozedToTime"] == expired_snooze
-        assert result[1]["alarmTime"] == original_alarm
+        assert result[1]["date_time"] == original_alarm
 
     # --- Non-Alarm type guard ---
 
@@ -179,7 +261,7 @@ class TestIsActiveNotification:
         assert sensor._is_active_notification(item, self.NOW) is True
 
     def test_on_alarm_is_active_even_if_in_past(self):
-        """ON alarm is active regardless of whether alarmTime is past."""
+        """ON alarm is active regardless of whether date_time is past."""
         sensor = _make_alarm_sensor()
         item = _alarm_value("ON", self.NOW - datetime.timedelta(hours=2))
         assert sensor._is_active_notification(item, self.NOW) is True

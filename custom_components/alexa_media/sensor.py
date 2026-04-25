@@ -45,6 +45,7 @@ from .const import (
     ALEXA_ICON_DEFAULT,
     ALEXA_UNIT_CONVERSION,
     CONF_DEBUG,
+    EPOCH_MS_THRESHOLD,
     RECURRING_DAY,
     RECURRING_PATTERN,
     RECURRING_PATTERN_ISO_SET,
@@ -619,7 +620,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             return None
 
         if isinstance(value, (int, float)):
-            ts = value / 1000 if value > 10_000_000_000 else value
+            ts = value / 1000 if value > EPOCH_MS_THRESHOLD else value
             return datetime.datetime.fromtimestamp(ts, tz=LOCAL_TIMEZONE)
 
         if isinstance(value, str):

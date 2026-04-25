@@ -42,7 +42,7 @@ def _alarm_value(status, alarm_time, snoozed_to=None):
 
 
 # ---------------------------------------------------------------------------
-# 1. _normalize_alarm_snooze_state — four states
+# 1. _coerce_datetime
 # ---------------------------------------------------------------------------
 
 
@@ -123,6 +123,11 @@ class TestCoerceDatetime:
         assert result == expected
         assert result.utcoffset() == datetime.timedelta(0)
         assert result.tzinfo is not None
+
+
+# ---------------------------------------------------------------------------
+# 2. _normalize_alarm_snooze_state — four states
+# ---------------------------------------------------------------------------
 
 
 class TestNormalizeAlarmSnoozeState:
@@ -239,7 +244,7 @@ class TestNormalizeAlarmSnoozeState:
 
 
 # ---------------------------------------------------------------------------
-# 2. Active-notification filter
+# 3. Active-notification filter
 # ---------------------------------------------------------------------------
 
 

@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git show HEAD -- \"custom_components/alexa_media/__init__.py\")"
-    ]
-  }
-}

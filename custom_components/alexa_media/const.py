@@ -70,6 +70,8 @@ DEFAULT_PUBLIC_URL = ""
 DEFAULT_QUEUE_DELAY = 1.5
 DEFAULT_SCAN_INTERVAL = 60
 
+EPOCH_MS_THRESHOLD = 10_000_000_000
+
 # Service name constants used by services.py SERVICE_DEFS
 SERVICE_UPDATE_LAST_CALLED = "update_last_called"
 SERVICE_RESTORE_VOLUME = "restore_volume"

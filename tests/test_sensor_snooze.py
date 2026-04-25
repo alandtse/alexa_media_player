@@ -123,6 +123,7 @@ class TestCoerceDatetime:
         assert result.utcoffset() == datetime.timedelta(0)
         assert result.tzinfo is not None
 
+
 class TestNormalizeAlarmSnoozeState:
     """Unit tests for _normalize_alarm_snooze_state."""
 

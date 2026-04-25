@@ -603,8 +603,16 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
     def _coerce_datetime(self, value) -> Optional[datetime.datetime]:
         """Best-effort conversion of Alexa datetime-ish values to aware datetime."""
+        def _ensure_aware(parsed: datetime.datetime) -> datetime.datetime:
+            if parsed.tzinfo is not None and parsed.utcoffset() is not None:
+                return parsed
+            timezone = dt.get_time_zone(
+                self._client._timezone  # pylint: disable=protected-access
+            )
+            return parsed.replace(tzinfo=timezone or LOCAL_TIMEZONE)
+
         if isinstance(value, datetime.datetime):
-            return value
+            return _ensure_aware(value)
 
         if value in (None, ""):
             return None
@@ -617,15 +625,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             parsed = dt.parse_datetime(value)
             if parsed is None:
                 return None
-            if parsed.tzinfo is None:
-                timezone = dt.get_time_zone(
-                    self._client._timezone  # pylint: disable=protected-access
-                )
-                if timezone:
-                    parsed = parsed.replace(tzinfo=timezone)
-                else:
-                    parsed = parsed.replace(tzinfo=LOCAL_TIMEZONE)
-            return parsed
+            return _ensure_aware(parsed)
 
         return None
 

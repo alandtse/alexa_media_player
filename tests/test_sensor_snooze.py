@@ -161,30 +161,13 @@ class TestNormalizeAlarmSnoozeState:
 
 
 # ---------------------------------------------------------------------------
-# 2. Active-notification filter — replicates _is_active_notification closure
+# 2. Active-notification filter
 # ---------------------------------------------------------------------------
 
 
 class TestIsActiveNotification:
-    """Unit tests for the _is_active_notification logic in _process_raw_notifications.
-
-    Because _is_active_notification is a nested closure, its logic is replicated
-    here using the public _coerce_datetime method so the behaviour is tested
-    without requiring a full HA environment setup.
-    """
-
+    """Unit tests for _is_active_notification."""
     NOW = datetime.datetime(2024, 6, 1, 8, 0, 0, tzinfo=UTC)
-
-    @staticmethod
-    def _is_active(sensor, item, now):
-        """Mirror the _is_active_notification closure from _process_raw_notifications."""
-        status = item[1].get("status")
-        if status == "ON":
-            return True
-        if status != "SNOOZED":
-            return False
-        snoozed_to = sensor._coerce_datetime(item[1].get("snoozedToTime"))
-        return snoozed_to is None or snoozed_to > now
 
     # --- State 1: ON ---
 
@@ -192,13 +175,13 @@ class TestIsActiveNotification:
         """ON alarm must always be considered active."""
         sensor = _make_alarm_sensor()
         item = _alarm_value("ON", self.NOW + datetime.timedelta(hours=1))
-        assert self._is_active(sensor, item, self.NOW) is True
+        assert sensor._is_active_notification(item, self.NOW) is True
 
     def test_on_alarm_is_active_even_if_in_past(self):
         """ON alarm is active regardless of whether alarmTime is past."""
         sensor = _make_alarm_sensor()
         item = _alarm_value("ON", self.NOW - datetime.timedelta(hours=2))
-        assert self._is_active(sensor, item, self.NOW) is True
+        assert sensor._is_active_notification(item, self.NOW) is True
 
     # --- State 2: SNOOZED with future snoozedToTime ---
 
@@ -207,7 +190,7 @@ class TestIsActiveNotification:
         sensor = _make_alarm_sensor()
         snooze_until = self.NOW + datetime.timedelta(minutes=9)
         item = _alarm_value("SNOOZED", self.NOW, snoozed_to=snooze_until)
-        assert self._is_active(sensor, item, self.NOW) is True
+        assert sensor._is_active_notification(item, self.NOW) is True
 
     # --- State 3: SNOOZED with missing snoozedToTime ---
 
@@ -217,7 +200,7 @@ class TestIsActiveNotification:
         item = _alarm_value(
             "SNOOZED", self.NOW + datetime.timedelta(hours=1), snoozed_to=None
         )
-        assert self._is_active(sensor, item, self.NOW) is True
+        assert sensor._is_active_notification(item, self.NOW) is True
 
     # --- State 4: expired SNOOZED ---
 
@@ -228,13 +211,13 @@ class TestIsActiveNotification:
         item = _alarm_value(
             "SNOOZED", self.NOW - datetime.timedelta(hours=1), snoozed_to=expired_snooze
         )
-        assert self._is_active(sensor, item, self.NOW) is False
+        assert sensor._is_active_notification(item, self.NOW) is False
 
     def test_expired_snooze_at_exact_boundary_is_not_active(self):
         """snoozedToTime == now (not strictly greater) is treated as expired."""
         sensor = _make_alarm_sensor()
         item = _alarm_value("SNOOZED", self.NOW, snoozed_to=self.NOW)
-        assert self._is_active(sensor, item, self.NOW) is False
+        assert sensor._is_active_notification(item, self.NOW) is False
 
     # --- Unrelated statuses ---
 
@@ -242,4 +225,4 @@ class TestIsActiveNotification:
         """OFF alarm must never be active."""
         sensor = _make_alarm_sensor()
         item = _alarm_value("OFF", self.NOW + datetime.timedelta(hours=1))
-        assert self._is_active(sensor, item, self.NOW) is False
+        assert sensor._is_active_notification(item, self.NOW) is False

@@ -683,18 +683,15 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 skipped_past.append((item, when))
 
         if self._debug and skipped_past:
-            try:
-                summary = [
-                    {
-                        "id": v.get("id"),
-                        "status": v.get("status"),
-                        self._sensor_property: when,
-                        "snoozedToTime": v.get("snoozedToTime"),
-                    }
-                    for (_, v), when in skipped_past
-                ]
-            except (KeyError, TypeError, AttributeError) as exc:
-                summary = f"<error building skipped_past summary: {exc}>"
+            summary = [
+                {
+                    "id": v.get("id"),
+                    "status": v.get("status"),
+                    self._sensor_property: when,
+                    "snoozedToTime": v.get("snoozedToTime"),
+                }
+                for (_, v), when in skipped_past
+            ]
 
             _LOGGER.debug(
                 "%s: %s %s skipped past notifications: %s",

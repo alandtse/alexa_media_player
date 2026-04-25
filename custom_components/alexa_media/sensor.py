@@ -718,9 +718,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
         # Filter ACTIVE (ON / SNOOZED, excluding expired snoozes)
         self._active = (
-            list(filter(_is_active_notification, self._all))
-            if self._all
-            else []
+            list(filter(_is_active_notification, self._all)) if self._all else []
         )
 
         def _coerced_when(item):
@@ -750,7 +748,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 ]
             except Exception as exc:
                 summary = f"<error building skipped_past summary: {exc}>"
-        
+
             _LOGGER.debug(
                 "%s: %s %s skipped past notifications: %s",
                 hide_email(self._account),
@@ -758,7 +756,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 self._type,
                 summary,
             )
-        
+
         if self._type == "Alarm":
             self._next = (
                 future_active[0][1]

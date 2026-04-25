@@ -603,6 +603,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
     def _coerce_datetime(self, value) -> Optional[datetime.datetime]:
         """Best-effort conversion of Alexa datetime-ish values to aware datetime."""
+
         def _ensure_aware(parsed: datetime.datetime) -> datetime.datetime:
             if parsed.tzinfo is not None and parsed.utcoffset() is not None:
                 return parsed

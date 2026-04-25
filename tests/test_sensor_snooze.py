@@ -49,13 +49,11 @@ def _alarm_value(status, alarm_time, snoozed_to=None):
 class TestCoerceDatetime:
     """Unit tests for _coerce_datetime."""
 
-    UTC = datetime.timezone.utc
-
     def test_aware_datetime_passes_through_unchanged(self):
         """Aware datetimes should be returned unchanged."""
         sensor = _make_alarm_sensor()
 
-        aware = datetime.datetime(2024, 6, 1, 8, 0, tzinfo=self.UTC)
+        aware = datetime.datetime(2024, 6, 1, 8, 0, tzinfo=UTC)
 
         result = sensor._coerce_datetime(aware)
 
@@ -69,7 +67,7 @@ class TestCoerceDatetime:
 
         result = sensor._coerce_datetime(epoch_seconds)
 
-        expected = datetime.datetime.fromtimestamp(epoch_seconds, tz=self.UTC)
+        expected = datetime.datetime.fromtimestamp(epoch_seconds, tz=UTC)
 
         assert result == expected  # equality compares instants
         assert result.tzinfo is not None
@@ -83,7 +81,7 @@ class TestCoerceDatetime:
 
         result = sensor._coerce_datetime(epoch_ms)
 
-        expected = datetime.datetime.fromtimestamp(epoch_ms / 1000, tz=self.UTC)
+        expected = datetime.datetime.fromtimestamp(epoch_ms / 1000, tz=UTC)
 
         assert result == expected
         assert result.tzinfo is not None
@@ -94,7 +92,7 @@ class TestCoerceDatetime:
 
         result = sensor._coerce_datetime("2024-06-01T08:00:00+00:00")
 
-        expected = datetime.datetime(2024, 6, 1, 8, 0, tzinfo=self.UTC)
+        expected = datetime.datetime(2024, 6, 1, 8, 0, tzinfo=UTC)
 
         assert result == expected
 
@@ -110,19 +108,23 @@ class TestCoerceDatetime:
 
         assert sensor._coerce_datetime("") is None
 
-    def test_naive_datetime_made_aware_using_sensor_timezone(self):
+    def test_naive_datetime_made_aware_using_sensor_timezone(self, monkeypatch):
         """Naive datetimes should be localized using sensor timezone."""
         sensor = _make_alarm_sensor()
+        monkeypatch.setattr(
+            "custom_components.alexa_media.sensor.dt.get_time_zone",
+            lambda _: UTC,
+        )
 
         naive = datetime.datetime(2024, 6, 1, 8, 0)
 
         result = sensor._coerce_datetime(naive)
 
-        expected = naive.replace(tzinfo=result.tzinfo)
+        expected = naive.replace(tzinfo=UTC)
 
         assert result == expected
-        assert result.utcoffset() == datetime.timedelta(0)
         assert result.tzinfo is not None
+        assert result.utcoffset() is not None
 
 
 # ---------------------------------------------------------------------------

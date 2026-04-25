@@ -703,13 +703,70 @@ class AlexaMediaNotificationSensor(SensorEntity):
         # Previous "next" for change detection
         self._prior_value = self._next if self._active else None
 
-        # Filter ACTIVE (ON / SNOOZED)
+        now = dt.now()
+
+        def _is_active_notification(item):
+            status = item[1].get("status")
+            if status == "ON":
+                return True
+
+            if status != "SNOOZED":
+                return False
+
+            snoozed_to = self._coerce_datetime(item[1].get("snoozedToTime"))
+            return snoozed_to is None or snoozed_to > now
+
+        # Filter ACTIVE (ON / SNOOZED, excluding expired snoozes)
         self._active = (
-            list(filter(lambda x: x[1]["status"] in ("ON", "SNOOZED"), self._all))
+            list(filter(_is_active_notification, self._all))
             if self._all
             else []
         )
-        self._next = self._active[0][1] if self._active else None
+
+        def _coerced_when(item):
+            return self._coerce_datetime(item[1].get(self._sensor_property))
+
+        future_active = []
+        skipped_past = []
+
+        for x in self._active:
+            when = _coerced_when(x)
+            if when is not None and when > now:
+                future_active.append(x)
+            else:
+                skipped_past.append((x, when))
+
+        # Debug: log anything we skipped for being in the past
+        if self._type == "Alarm" and self._debug and skipped_past:
+            try:
+                summary = [
+                    {
+                        "id": v.get("id"),
+                        "status": v.get("status"),
+                        self._sensor_property: when,
+                        "snoozedToTime": v.get("snoozedToTime"),
+                    }
+                    for (_, v), when in skipped_past
+                ]
+            except Exception as exc:
+                summary = f"<error building skipped_past summary: {exc}>"
+        
+            _LOGGER.debug(
+                "%s: %s %s skipped past notifications: %s",
+                hide_email(self._account),
+                hide_serial(self._client.device_serial_number),
+                self._type,
+                summary,
+            )
+        
+        if self._type == "Alarm":
+            self._next = (
+                future_active[0][1]
+                if future_active
+                else (self._active[0][1] if self._active else None)
+            )
+        else:
+            self._next = self._active[0][1] if self._active else None
 
         # DEBUG: log ACTIVE set and which one we picked as next
         if self._debug and self._active:

@@ -721,20 +721,16 @@ class AlexaMediaNotificationSensor(SensorEntity):
             list(filter(_is_active_notification, self._all)) if self._all else []
         )
 
-        def _coerced_when(item):
-            return self._coerce_datetime(item[1].get(self._sensor_property))
+        future_active: list = []
+        skipped_past: list = []
+        if self._type == "Alarm":
+            for x in self._active:
+                when = self._coerce_datetime(x[1].get(self._sensor_property))
+                if when is not None and when > now:
+                    future_active.append(x)
+                else:
+                    skipped_past.append((x, when))
 
-        future_active = []
-        skipped_past = []
-
-        for x in self._active:
-            when = _coerced_when(x)
-            if when is not None and when > now:
-                future_active.append(x)
-            else:
-                skipped_past.append((x, when))
-
-        # Debug: log anything we skipped for being in the past
         if self._type == "Alarm" and self._debug and skipped_past:
             try:
                 summary = [
@@ -746,7 +742,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                     }
                     for (_, v), when in skipped_past
                 ]
-            except Exception as exc:
+            except (KeyError, TypeError, AttributeError) as exc:
                 summary = f"<error building skipped_past summary: {exc}>"
 
             _LOGGER.debug(

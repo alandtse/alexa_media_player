@@ -69,9 +69,7 @@ class TestCoerceDatetime:
 
         result = sensor._coerce_datetime(epoch_seconds)
 
-        expected = datetime.datetime.fromtimestamp(
-            epoch_seconds, tz=self.UTC
-        )
+        expected = datetime.datetime.fromtimestamp(epoch_seconds, tz=self.UTC)
 
         assert result == expected
         assert result.tzinfo == self.UTC
@@ -84,9 +82,7 @@ class TestCoerceDatetime:
 
         result = sensor._coerce_datetime(epoch_ms)
 
-        expected = datetime.datetime.fromtimestamp(
-            epoch_ms / 1000, tz=self.UTC
-        )
+        expected = datetime.datetime.fromtimestamp(epoch_ms / 1000, tz=self.UTC)
 
         assert result == expected
         assert result.tzinfo == self.UTC
@@ -97,9 +93,7 @@ class TestCoerceDatetime:
 
         result = sensor._coerce_datetime("2024-06-01T08:00:00+00:00")
 
-        expected = datetime.datetime(
-            2024, 6, 1, 8, 0, tzinfo=self.UTC
-        )
+        expected = datetime.datetime(2024, 6, 1, 8, 0, tzinfo=self.UTC)
 
         assert result == expected
 

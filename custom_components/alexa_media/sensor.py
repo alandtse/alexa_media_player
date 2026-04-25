@@ -657,6 +657,18 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
         return value
 
+    def _is_active_notification(self, item, now):
+        """Return whether a notification should be considered active."""
+        status = item[1].get("status")
+        if status == "ON":
+            return True
+
+        if status != "SNOOZED":
+            return False
+
+        snoozed_to = self._coerce_datetime(item[1].get("snoozedToTime"))
+        return snoozed_to is None or snoozed_to > now
+
     def _process_raw_notifications(self):
         # Build full list for this device/type
         self._all = (
@@ -705,20 +717,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
 
         now = dt.now()
 
-        def _is_active_notification(item):
-            status = item[1].get("status")
-            if status == "ON":
-                return True
-
-            if status != "SNOOZED":
-                return False
-
-            snoozed_to = self._coerce_datetime(item[1].get("snoozedToTime"))
-            return snoozed_to is None or snoozed_to > now
-
         # Filter ACTIVE (ON / SNOOZED, excluding expired snoozes)
         self._active = (
-            list(filter(_is_active_notification, self._all)) if self._all else []
+            list(filter(lambda item: self._is_active_notification(item, now), self._all))
         )
 
         future_active: list = []

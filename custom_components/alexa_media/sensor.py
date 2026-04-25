@@ -718,8 +718,8 @@ class AlexaMediaNotificationSensor(SensorEntity):
         now = dt.now()
 
         # Filter ACTIVE (ON / SNOOZED, excluding expired snoozes)
-        self._active = (
-            list(filter(lambda item: self._is_active_notification(item, now), self._all))
+        self._active = list(
+            filter(lambda item: self._is_active_notification(item, now), self._all)
         )
 
         future_active: list = []

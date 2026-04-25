@@ -669,6 +669,44 @@ class AlexaMediaNotificationSensor(SensorEntity):
         snoozed_to = self._coerce_datetime(item[1].get("snoozedToTime"))
         return snoozed_to is None or snoozed_to > now
 
+    def _select_next_alarm(self, now):
+        """Select next alarm, preferring future active alarms over skipped past ones."""
+        future_active = []
+        skipped_past = []
+
+        for item in self._active:
+            when = self._coerce_datetime(item[1].get(self._sensor_property))
+            if when is not None and when > now:
+                future_active.append(item)
+            else:
+                skipped_past.append((item, when))
+
+        if self._debug and skipped_past:
+            try:
+                summary = [
+                    {
+                        "id": v.get("id"),
+                        "status": v.get("status"),
+                        self._sensor_property: when,
+                        "snoozedToTime": v.get("snoozedToTime"),
+                    }
+                    for (_, v), when in skipped_past
+                ]
+            except (KeyError, TypeError, AttributeError) as exc:
+                summary = f"<error building skipped_past summary: {exc}>"
+
+            _LOGGER.debug(
+                "%s: %s %s skipped past notifications: %s",
+                hide_email(self._account),
+                hide_serial(self._client.device_serial_number),
+                self._type,
+                summary,
+            )
+
+        return future_active[0][1] if future_active else (
+            self._active[0][1] if self._active else None
+        )
+
     def _process_raw_notifications(self):
         # Build full list for this device/type
         self._all = (
@@ -722,44 +760,8 @@ class AlexaMediaNotificationSensor(SensorEntity):
             filter(lambda item: self._is_active_notification(item, now), self._all)
         )
 
-        future_active: list = []
-        skipped_past: list = []
         if self._type == "Alarm":
-            for x in self._active:
-                when = self._coerce_datetime(x[1].get(self._sensor_property))
-                if when is not None and when > now:
-                    future_active.append(x)
-                else:
-                    skipped_past.append((x, when))
-
-        if self._type == "Alarm" and self._debug and skipped_past:
-            try:
-                summary = [
-                    {
-                        "id": v.get("id"),
-                        "status": v.get("status"),
-                        self._sensor_property: when,
-                        "snoozedToTime": v.get("snoozedToTime"),
-                    }
-                    for (_, v), when in skipped_past
-                ]
-            except (KeyError, TypeError, AttributeError) as exc:
-                summary = f"<error building skipped_past summary: {exc}>"
-
-            _LOGGER.debug(
-                "%s: %s %s skipped past notifications: %s",
-                hide_email(self._account),
-                hide_serial(self._client.device_serial_number),
-                self._type,
-                summary,
-            )
-
-        if self._type == "Alarm":
-            self._next = (
-                future_active[0][1]
-                if future_active
-                else (self._active[0][1] if self._active else None)
-            )
+            self._next = self._select_next_alarm(now)
         else:
             self._next = self._active[0][1] if self._active else None
 

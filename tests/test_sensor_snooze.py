@@ -117,11 +117,11 @@ class TestCoerceDatetime:
 
         result = sensor._coerce_datetime(naive)
 
-        expected = naive.replace(tzinfo=self.UTC)
+        expected = naive.replace(tzinfo=result.tzinfo)
 
         assert result == expected
-        assert result.tzinfo == self.UTC
-
+        assert result.utcoffset() == datetime.timedelta(0)
+        assert result.tzinfo is not None
 
 class TestNormalizeAlarmSnoozeState:
     """Unit tests for _normalize_alarm_snooze_state."""

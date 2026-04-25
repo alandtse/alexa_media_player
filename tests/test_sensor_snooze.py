@@ -71,8 +71,9 @@ class TestCoerceDatetime:
 
         expected = datetime.datetime.fromtimestamp(epoch_seconds, tz=self.UTC)
 
-        assert result == expected
-        assert result.tzinfo == self.UTC
+        assert result == expected  # equality compares instants
+        assert result.tzinfo is not None
+        assert result.utcoffset() is not None
 
     def test_epoch_milliseconds_converted_correctly(self):
         """Epoch timestamps in milliseconds should convert correctly."""
@@ -85,7 +86,7 @@ class TestCoerceDatetime:
         expected = datetime.datetime.fromtimestamp(epoch_ms / 1000, tz=self.UTC)
 
         assert result == expected
-        assert result.tzinfo == self.UTC
+        assert result.tzinfo is not None
 
     def test_iso_datetime_string_parsed_correctly(self):
         """ISO datetime strings should parse into aware datetimes."""

@@ -167,6 +167,7 @@ class TestNormalizeAlarmSnoozeState:
 
 class TestIsActiveNotification:
     """Unit tests for _is_active_notification."""
+
     NOW = datetime.datetime(2024, 6, 1, 8, 0, 0, tzinfo=UTC)
 
     # --- State 1: ON ---

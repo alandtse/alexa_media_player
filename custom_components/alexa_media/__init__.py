@@ -795,26 +795,26 @@ async def async_setup_entry(hass, config_entry):
             try:
                 if login._session is None or getattr(login._session, "closed", False):
                     login._create_session(True)
-                response = await login._session.get(
+                async with login._session.get(
                     "https://alexa.amazon.com/api/bootstrap",
                     cookies=cookies,
                     ssl=login._ssl,
                     allow_redirects=False,
-                )
-                if response.status == 200:
-                    data = loads(await response.text())
-                    auth = (data or {}).get("authentication") or {}
-                    customer_email = (auth.get("customerEmail") or "").lower()
-                    if auth.get("authenticated") and customer_email == email.lower():
-                        _LOGGER.debug("[BOOT] Cookie auth confirmed via /api/bootstrap")
-                        login.status["login_successful"] = True
-                        login.customer_id = auth.get("customerId")
-                        login.stats["login_timestamp"] = datetime.now()
-                        login.stats["api_calls"] = 0
-                        await login.check_domain()
-                        await login.finalize_login()
-                        cookie_login_ok = True
-            except (JSONDecodeError, ValueError) as ex:
+                ) as response:
+                    if response.status == 200:
+                        data = loads(await response.text())
+                        auth = (data or {}).get("authentication") or {}
+                        customer_email = (auth.get("customerEmail") or "").lower()
+                        if auth.get("authenticated") and customer_email == email.lower():
+                            _LOGGER.debug("[BOOT] Cookie auth confirmed via /api/bootstrap")
+                            login.status["login_successful"] = True
+                            login.customer_id = auth.get("customerId")
+                            login.stats["login_timestamp"] = datetime.now()
+                            login.stats["api_calls"] = 0
+                            await login.check_domain()
+                            await login.finalize_login()
+                            cookie_login_ok = True
+            except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
                 _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
         if not cookie_login_ok:
             await login.login(cookies=cookies)

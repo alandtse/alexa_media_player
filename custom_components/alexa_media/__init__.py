@@ -805,8 +805,13 @@ async def async_setup_entry(hass, config_entry):
                         data = loads(await response.text())
                         auth = (data or {}).get("authentication") or {}
                         customer_email = (auth.get("customerEmail") or "").lower()
-                        if auth.get("authenticated") and customer_email == email.lower():
-                            _LOGGER.debug("[BOOT] Cookie auth confirmed via /api/bootstrap")
+                        if (
+                            auth.get("authenticated")
+                            and customer_email == email.lower()
+                        ):
+                            _LOGGER.debug(
+                                "[BOOT] Cookie auth confirmed via /api/bootstrap"
+                            )
                             login.status["login_successful"] = True
                             login.customer_id = auth.get("customerId")
                             login.stats["login_timestamp"] = datetime.now()

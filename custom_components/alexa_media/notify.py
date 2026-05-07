@@ -265,6 +265,10 @@ class AlexaNotificationService(BaseNotificationService):
                 expanded_targets.append(target)
         processed_targets = expanded_targets
         entities = self.convert(processed_targets, type_="entities")
+        try:
+            entities.extend(expand_entity_ids(self.hass, entities))
+        except ValueError:
+            _LOGGER.debug("Invalid Home Assistant entity in %s", entities)
         tasks = []
         for account, account_dict in self.hass.data[DATA_ALEXAMEDIA][
             "accounts"

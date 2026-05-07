@@ -8,7 +8,6 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
-import aiohttp
 from datetime import datetime, timedelta
 from json import JSONDecodeError, loads
 import logging
@@ -17,6 +16,7 @@ import random
 import time
 from typing import Optional
 
+import aiohttp
 from alexapy import (
     AlexaAPI,
     AlexaLogin,

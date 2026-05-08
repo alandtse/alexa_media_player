@@ -451,9 +451,7 @@ class TestAsyncSendMessageGroupExpansion:
             "custom_components.alexa_media.notify.expand_entity_ids",
             side_effect=ValueError("invalid group"),
         ):
-            await service.async_send_message(
-                "hello", **{"target": ["group.bad_group"]}
-            )
+            await service.async_send_message("hello", **{"target": ["group.bad_group"]})
 
         service.convert.assert_called_once()
         assert service.convert.call_args.kwargs["type_"] == "entities"
@@ -531,11 +529,7 @@ class TestAsyncSendMessageGroupExpansion:
     async def test_mixed_group_and_plain_targets_all_resolved(self):
         """A mix of group.*, media_player group, and plain targets is fully resolved."""
         hass = self._make_hass(
-            states={
-                "media_player.echo_group": {
-                    "entity_id": ["media_player.echo1"]
-                }
-            }
+            states={"media_player.echo_group": {"entity_id": ["media_player.echo1"]}}
         )
         service = self._create_service(hass)
 
@@ -562,9 +556,9 @@ class TestAsyncSendMessageGroupExpansion:
         service.convert.assert_called_once()
         assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
-        assert "media_player.echo1" in expanded      # from media_player group
-        assert "media_player.echo2" in expanded      # from YAML group
-        assert "media_player.echo3" in expanded      # from YAML group
-        assert "Living Room Echo" in expanded        # plain target
+        assert "media_player.echo1" in expanded  # from media_player group
+        assert "media_player.echo2" in expanded  # from YAML group
+        assert "media_player.echo3" in expanded  # from YAML group
+        assert "Living Room Echo" in expanded  # plain target
         assert "media_player.echo_group" not in expanded
         assert "group.echo_players" not in expanded

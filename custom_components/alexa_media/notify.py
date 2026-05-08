@@ -239,12 +239,12 @@ class AlexaNotificationService(BaseNotificationService):
         # expand_entity_ids() after convert(), because convert() returns Alexa
         # objects, not entity ID strings.
         expanded_targets = []
-        
+
         for target in processed_targets:
             if not isinstance(target, str):
                 expanded_targets.append(target)
                 continue
-        
+
             # UI media_player group helper
             if (
                 target.startswith("media_player.")
@@ -257,7 +257,7 @@ class AlexaNotificationService(BaseNotificationService):
                 else:
                     expanded_targets.append(target)
                 continue
-        
+
             # Old-style YAML group.*, expand before convert()
             if target.startswith("group."):
                 try:
@@ -266,9 +266,9 @@ class AlexaNotificationService(BaseNotificationService):
                     _LOGGER.debug("Invalid Home Assistant group target: %s", target)
                     expanded_targets.append(target)
                 continue
-        
+
             expanded_targets.append(target)
-        
+
         entities = self.convert(expanded_targets, type_="entities")
         tasks = []
         for account, account_dict in self.hass.data[DATA_ALEXAMEDIA][

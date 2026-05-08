@@ -172,8 +172,6 @@ class TestNotifyDevicesProperty:
 #   1. Normalisation: JSON / comma-delimited / bare string → list of strings
 #   2. Expansion: media_player.* helper groups and old-style group.* YAML groups
 #
-# TODO: Remove @pytest.mark.skip decorators once the test suite can import
-#       homeassistant.helpers.group cleanly in the CI environment.
 # =============================================================================
 
 
@@ -253,6 +251,7 @@ class TestAsyncSendMessageGroupExpansion:
             )
 
         service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo1" in expanded
 
@@ -272,6 +271,7 @@ class TestAsyncSendMessageGroupExpansion:
             )
 
         service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo1" in expanded
         assert "media_player.echo2" in expanded
@@ -296,6 +296,7 @@ class TestAsyncSendMessageGroupExpansion:
             )
 
         service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo1" in expanded
         assert "media_player.echo2" in expanded
@@ -324,6 +325,8 @@ class TestAsyncSendMessageGroupExpansion:
                 "hello", **{"target": ["media_player.echo_group"]}
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo1" in expanded
         assert "media_player.echo2" in expanded
@@ -349,6 +352,8 @@ class TestAsyncSendMessageGroupExpansion:
                 "hello", **{"target": ["media_player.echo_group"]}
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo1" in expanded
         assert "media_player.echo2" in expanded
@@ -377,6 +382,8 @@ class TestAsyncSendMessageGroupExpansion:
                 "hello", **{"target": ["media_player.echo_group"]}
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo_group" in expanded
 
@@ -398,6 +405,8 @@ class TestAsyncSendMessageGroupExpansion:
                 "hello", **{"target": ["media_player.echo1"]}
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo1" in expanded
 
@@ -425,6 +434,8 @@ class TestAsyncSendMessageGroupExpansion:
             )
 
         mock_expand.assert_called_once_with(hass, ["group.echo_players"])
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo1" in expanded
         assert "media_player.echo2" in expanded
@@ -444,6 +455,8 @@ class TestAsyncSendMessageGroupExpansion:
                 "hello", **{"target": ["group.bad_group"]}
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "group.bad_group" in expanded
 
@@ -463,6 +476,8 @@ class TestAsyncSendMessageGroupExpansion:
                 "hello", **{"target": ["group.echo_players"]}
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "group.echo_players" not in expanded
 
@@ -484,6 +499,8 @@ class TestAsyncSendMessageGroupExpansion:
                 "hello", **{"target": ["Living Room Echo"]}
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "Living Room Echo" in expanded
 
@@ -501,6 +518,8 @@ class TestAsyncSendMessageGroupExpansion:
                 "hello", **{"target": ["sensor.temperature"]}
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "sensor.temperature" in expanded
 
@@ -540,6 +559,8 @@ class TestAsyncSendMessageGroupExpansion:
                 },
             )
 
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
         expanded = service.convert.call_args[0][0]
         assert "media_player.echo1" in expanded      # from media_player group
         assert "media_player.echo2" in expanded      # from YAML group

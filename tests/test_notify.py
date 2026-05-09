@@ -3,7 +3,7 @@
 Tests the notification service using pytest-homeassistant-custom-component.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -163,3 +163,402 @@ class TestNotifyDevicesProperty:
         assert len(result) == 2
         assert mock_player_1 in result
         assert mock_player_2 in result
+
+
+# =============================================================================
+# DRAFT: Tests for async_send_message group expansion (PR #3446)
+#
+# These tests cover the two-stage target preprocessing introduced in PR #3446:
+#   1. Normalisation: JSON / comma-delimited / bare string → list of strings
+#   2. Expansion: media_player.* helper groups and old-style group.* YAML groups
+#
+# =============================================================================
+
+
+class TestAsyncSendMessageGroupExpansion:
+    """Draft tests for target normalisation and group expansion in async_send_message.
+
+    Covers the fix introduced in PR #3446 (restore old-style YAML groups expansion):
+    - UI media_player.* helper groups are expanded via state.attributes["entity_id"]
+    - Legacy group.* YAML entities are expanded via expand_entity_ids()
+    - Targets that are not groups are passed through unchanged
+    - Non-string targets are passed through unchanged
+    - Comma-delimited and JSON string targets are normalised before expansion
+    """
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _make_hass(self, states: dict | None = None) -> MagicMock:
+        """Return a minimal hass mock.
+
+        Parameters
+        ----------
+        states:
+            Mapping of entity_id → dict of attributes, used to drive
+            hass.states.get().
+        """
+        hass = MagicMock()
+        hass.data = {
+            DATA_ALEXAMEDIA: {
+                "accounts": {
+                    "test@example.com": {
+                        "entities": {"media_player": {}},
+                        "options": {},
+                    }
+                }
+            }
+        }
+
+        def _states_get(entity_id):
+            if states and entity_id in states:
+                state = MagicMock()
+                state.attributes = states[entity_id]
+                return state
+            return None
+
+        hass.states.get.side_effect = _states_get
+        return hass
+
+    def _create_service(self, hass: MagicMock):
+        """Instantiate AlexaNotificationService without calling __init__."""
+        from custom_components.alexa_media.notify import AlexaNotificationService
+
+        service = object.__new__(AlexaNotificationService)
+        service.hass = hass
+        service.last_called = True
+        # Stub convert() so tests focus purely on expansion logic.
+        service.convert = MagicMock(return_value=[])
+        return service
+
+    # ------------------------------------------------------------------
+    # Target normalisation tests
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_bare_string_target_is_appended(self):
+        """A single bare string target (no comma, not JSON) is kept as-is."""
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=["media_player.echo1"],
+        ):
+            await service.async_send_message(
+                "hello", **{"target": ["media_player.echo1"]}
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo1" in expanded
+
+    @pytest.mark.asyncio
+    async def test_comma_delimited_target_is_split(self):
+        """A comma-delimited target string is split into individual targets."""
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message(
+                "hello",
+                **{"target": ["media_player.echo1, media_player.echo2"]},
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo1" in expanded
+        assert "media_player.echo2" in expanded
+
+    @pytest.mark.asyncio
+    async def test_json_string_target_is_parsed(self):
+        """A JSON-encoded list target is decoded into individual targets."""
+        import json
+
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        json_target = json.dumps(["media_player.echo1", "media_player.echo2"])
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message(
+                "hello",
+                **{"target": [json_target]},
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo1" in expanded
+        assert "media_player.echo2" in expanded
+
+    # ------------------------------------------------------------------
+    # media_player.* group expansion tests
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_media_player_group_with_list_members_is_expanded(self):
+        """A media_player.* group whose entity_id attribute is a list is expanded."""
+        hass = self._make_hass(
+            states={
+                "media_player.echo_group": {
+                    "entity_id": ["media_player.echo1", "media_player.echo2"]
+                }
+            }
+        )
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message(
+                "hello", **{"target": ["media_player.echo_group"]}
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo1" in expanded
+        assert "media_player.echo2" in expanded
+        assert "media_player.echo_group" not in expanded
+
+    @pytest.mark.asyncio
+    async def test_media_player_group_with_tuple_members_is_expanded(self):
+        """A media_player.* group whose entity_id is a tuple is expanded."""
+        hass = self._make_hass(
+            states={
+                "media_player.echo_group": {
+                    "entity_id": ("media_player.echo1", "media_player.echo2")
+                }
+            }
+        )
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message(
+                "hello", **{"target": ["media_player.echo_group"]}
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo1" in expanded
+        assert "media_player.echo2" in expanded
+
+    @pytest.mark.asyncio
+    async def test_media_player_group_with_non_list_entity_id_kept_as_is(self):
+        """A media_player.* group whose entity_id is not a list is kept unchanged.
+
+        The code appends the group target itself rather than the scalar entity_id
+        value, matching the intent described in the PR comments.
+        """
+        hass = self._make_hass(
+            states={
+                "media_player.echo_group": {
+                    "entity_id": "media_player.echo1"  # scalar, not a list
+                }
+            }
+        )
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message(
+                "hello", **{"target": ["media_player.echo_group"]}
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo_group" in expanded
+
+    @pytest.mark.asyncio
+    async def test_media_player_entity_without_entity_id_attr_passes_through(self):
+        """A media_player.* entity that is NOT a group (no entity_id attr) passes through."""
+        hass = self._make_hass(
+            states={
+                "media_player.echo1": {"friendly_name": "Echo"}  # no entity_id attr
+            }
+        )
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message(
+                "hello", **{"target": ["media_player.echo1"]}
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo1" in expanded
+
+    # ------------------------------------------------------------------
+    # group.* (old-style YAML) expansion tests
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_yaml_group_is_expanded_via_expand_entity_ids(self):
+        """A group.* target is expanded using expand_entity_ids().
+
+        This is the PRIMARY regression test for PR #3446. Prior to this fix,
+        group.* targets were not handled and silently passed through without
+        expansion, so notify.alexa_media failed to reach group members.
+        """
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=["media_player.echo1", "media_player.echo2"],
+        ) as mock_expand:
+            await service.async_send_message(
+                "hello", **{"target": ["group.echo_players"]}
+            )
+
+        mock_expand.assert_called_once_with(hass, ["group.echo_players"])
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo1" in expanded
+        assert "media_player.echo2" in expanded
+        assert "group.echo_players" not in expanded
+
+    @pytest.mark.asyncio
+    async def test_yaml_group_expansion_falls_back_on_value_error(self):
+        """When expand_entity_ids raises ValueError the original target is kept."""
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            side_effect=ValueError("invalid group"),
+        ):
+            await service.async_send_message("hello", **{"target": ["group.bad_group"]})
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "group.bad_group" in expanded
+
+    @pytest.mark.asyncio
+    async def test_yaml_group_original_not_in_expanded_when_successfully_expanded(
+        self,
+    ):
+        """group.* target is removed from the list after successful expansion."""
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=["media_player.echo1"],
+        ):
+            await service.async_send_message(
+                "hello", **{"target": ["group.echo_players"]}
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "group.echo_players" not in expanded
+
+    # ------------------------------------------------------------------
+    # Pass-through tests
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_non_group_string_target_passes_through(self):
+        """A plain string target that is neither media_player.* nor group.* passes through."""
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message(
+                "hello", **{"target": ["Living Room Echo"]}
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "Living Room Echo" in expanded
+
+    @pytest.mark.asyncio
+    async def test_sensor_domain_target_passes_through_unchanged(self):
+        """A sensor.* target (not a group or media_player group) passes through unchanged."""
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message(
+                "hello", **{"target": ["sensor.temperature"]}
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "sensor.temperature" in expanded
+
+    # ------------------------------------------------------------------
+    # Mixed target list tests
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_mixed_group_and_plain_targets_all_resolved(self):
+        """A mix of group.*, media_player group, and plain targets is fully resolved."""
+        hass = self._make_hass(
+            states={"media_player.echo_group": {"entity_id": ["media_player.echo1"]}}
+        )
+        service = self._create_service(hass)
+
+        def _expand(hass_arg, entity_ids):
+            if "group.echo_players" in entity_ids:
+                return ["media_player.echo2", "media_player.echo3"]
+            return entity_ids
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            side_effect=_expand,
+        ):
+            await service.async_send_message(
+                "hello",
+                **{
+                    "target": [
+                        "media_player.echo_group",
+                        "group.echo_players",
+                        "Living Room Echo",
+                    ]
+                },
+            )
+
+        service.convert.assert_called_once()
+        assert service.convert.call_args.kwargs["type_"] == "entities"
+        expanded = service.convert.call_args[0][0]
+        assert "media_player.echo1" in expanded  # from media_player group
+        assert "media_player.echo2" in expanded  # from YAML group
+        assert "media_player.echo3" in expanded  # from YAML group
+        assert "Living Room Echo" in expanded  # plain target
+        assert "media_player.echo_group" not in expanded
+        assert "group.echo_players" not in expanded

@@ -414,18 +414,22 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 else None
             )
         elif "bluetooth_streaming_change" in event:
-            event_serial = (
-                event["bluetooth_streaming_change"]["dopplerId"]["deviceSerialNumber"]
-                if event["bluetooth_streaming_change"]
-                else None
+            payload = event.get("bluetooth_streaming_change") or {}
+            event_serial = safe_get(payload, ["dopplerId", "deviceSerialNumber"]) or safe_get(
+                payload, ["key", "serialNumber"]
             )
+            if event_serial is None and (
+                entry_id := safe_get(payload, ["key", "entryId"])
+            ):
+                parts = entry_id.split("#")
+                event_serial = parts[2] if len(parts) > 2 else None
         elif "player_state" in event:
             event_serial = (
                 event["player_state"]["dopplerId"]["deviceSerialNumber"]
                 if event["player_state"]
                 else None
             )
-            _LOGGER.debug("player_state event_serial: %s", event_serial)
+            _LOGGER.debug("player_state event_serial: %s", hide_serial(event_serial))
         elif "queue_state" in event:
             event_serial = (
                 event["queue_state"]["dopplerId"]["deviceSerialNumber"]
@@ -580,7 +584,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         self.schedule_update_ha_state()
         elif "player_state" in event:
             player_state = event["player_state"]
-            _LOGGER.debug("player_state: %s", player_state)
+            _LOGGER.debug("player_state: %s", hide_serial(player_state))
             if event_serial == self.device_serial_number:
                 if "audioPlayerState" in player_state:
                     _LOGGER.debug(
@@ -1448,11 +1452,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         ):
             return
         _LOGGER.debug(
-            "%s: %s sending PLAY command; state=%s session=%s",
+            "%s: %s sending PLAY command; state=%s media_id=%s",
             hide_email(self._login.email),
             self.name,
             self.state,
-            self._session,
+            self._session.get("mediaId") if self._session else None,
         )
         if self._playing_parent:
             await self._playing_parent.async_media_play()

@@ -578,7 +578,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     )
                     if self.hass and self.schedule_update_ha_state:
                         self.schedule_update_ha_state()
-                await _refresh_if_no_audiopush(already_refreshed)
         elif "player_state" in event:
             player_state = event["player_state"]
             _LOGGER.debug("player_state: %s", player_state)

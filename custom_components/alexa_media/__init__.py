@@ -2636,12 +2636,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 {"bluetooth_change": bluetooth_state},
                             )
                     elif (
-                        serial 
-                        and serial in existing_serials 
+                        serial
+                        and serial in existing_serials
                         and bt_event == "STREAMING_STATE_CHANGED"
                     ):
                         _LOGGER.debug(
-                            "Updating media_player streaming state: %s", hide_serial(json_payload)
+                            "Updating media_player streaming state: %s",
+                            hide_serial(json_payload),
                         )
                         async_dispatcher_send(
                             hass,

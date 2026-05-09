@@ -1447,21 +1447,26 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             and self.available
         ):
             return
-        _LOGGER.debug("%s: %s sending PLAY command; state=%s session=%s",
-              hide_email(self._login.email), self.name, self.state, self._session)
+        _LOGGER.debug(
+            "%s: %s sending PLAY command; state=%s session=%s",
+            hide_email(self._login.email),
+            self.name,
+            self.state,
+            self._session,
+        )
         if self._playing_parent:
             await self._playing_parent.async_media_play()
         else:
-####### Original code
-#            if self.hass:
-#                self.hass.async_create_task(self.alexa_api.play())
-#            else:
-#                await self.alexa_api.play()
-#################################################
+            ####### Original code
+            #            if self.hass:
+            #                self.hass.async_create_task(self.alexa_api.play())
+            #            else:
+            #                await self.alexa_api.play()
+            #################################################
 
-#            if self._session and self._session.get("mediaId") == "BluetoothMediaId":
-#                self._player_info = None
-#                await self.refresh(no_throttle=True)
+            #            if self._session and self._session.get("mediaId") == "BluetoothMediaId":
+            #                self._player_info = None
+            #                await self.refresh(no_throttle=True)
             is_bt = self._session and self._session.get("mediaId") == "BluetoothMediaId"
             _LOGGER.debug(
                 "%s: %s PLAY precheck: is_bt=%s state=%s media_id=%s transport=%s",
@@ -1473,8 +1478,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._session.get("transport") if self._session else None,
             )
             result = await self.alexa_api.play()
-            _LOGGER.debug("%s: %s PLAY result: %s",
-                hide_email(self._login.email), self.name, result)
+            _LOGGER.debug(
+                "%s: %s PLAY result: %s",
+                hide_email(self._login.email),
+                self.name,
+                result,
+            )
         if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 

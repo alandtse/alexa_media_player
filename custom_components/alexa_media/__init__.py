@@ -2605,11 +2605,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if isinstance(json_payload, dict)
                         else None
                     )
+                    _LOGGER.debug("bt_event: %s", bt_event)
                     bt_success = (
                         json_payload.get("bluetoothEventSuccess")
                         if isinstance(json_payload, dict)
                         else None
                     )
+                    _LOGGER.debug("bt_success: %s", bt_success)
                     if (
                         serial
                         and serial in existing_serials
@@ -2633,6 +2635,19 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 f"{DOMAIN}_{hide_email(email)}"[0:32],
                                 {"bluetooth_change": bluetooth_state},
                             )
+                    elif (
+                        serial 
+                        and serial in existing_serials 
+                        and bt_event == "STREAMING_STATE_CHANGED"
+                    ):
+                        _LOGGER.debug(
+                            "Updating media_player streaming state: %s", hide_serial(json_payload)
+                        )
+                        async_dispatcher_send(
+                            hass,
+                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                            {"bluetooth_streaming_change": json_payload},
+                        )
 
                 elif command == "PUSH_MEDIA_QUEUE_CHANGE":
                     # Player availability update

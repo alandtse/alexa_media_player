@@ -415,9 +415,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             )
         elif "bluetooth_streaming_change" in event:
             payload = event.get("bluetooth_streaming_change") or {}
-            event_serial = safe_get(payload, ["dopplerId", "deviceSerialNumber"]) or safe_get(
-                payload, ["key", "serialNumber"]
-            )
+            event_serial = safe_get(
+                payload, ["dopplerId", "deviceSerialNumber"]
+            ) or safe_get(payload, ["key", "serialNumber"])
             if event_serial is None and (
                 entry_id := safe_get(payload, ["key", "entryId"])
             ):

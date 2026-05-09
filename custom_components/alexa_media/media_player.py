@@ -1457,16 +1457,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if self._playing_parent:
             await self._playing_parent.async_media_play()
         else:
-            ####### Original code
-            #            if self.hass:
-            #                self.hass.async_create_task(self.alexa_api.play())
-            #            else:
-            #                await self.alexa_api.play()
-            #################################################
-
-            #            if self._session and self._session.get("mediaId") == "BluetoothMediaId":
-            #                self._player_info = None
-            #                await self.refresh(no_throttle=True)
             is_bt = self._session and self._session.get("mediaId") == "BluetoothMediaId"
             _LOGGER.debug(
                 "%s: %s PLAY precheck: is_bt=%s state=%s media_id=%s transport=%s",

@@ -413,16 +413,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 if event["bluetooth_change"]
                 else None
             )
-        elif "bluetooth_streaming_change" in event:
-            payload = event.get("bluetooth_streaming_change") or {}
-            event_serial = safe_get(
-                payload, ["dopplerId", "deviceSerialNumber"]
-            ) or safe_get(payload, ["key", "serialNumber"])
-            if event_serial is None and (
-                entry_id := safe_get(payload, ["key", "entryId"])
-            ):
-                parts = entry_id.split("#")
-                event_serial = parts[2] if len(parts) > 2 else None
         elif "player_state" in event:
             event_serial = (
                 event["player_state"]["dopplerId"]["deviceSerialNumber"]
@@ -543,7 +533,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 )
                 self.async_schedule_update_ha_state(force_refresh=force_refresh)
         elif "bluetooth_change" in event:
-            _LOGGER.debug("bluetooth_change in event")
             if event_serial == self.device_serial_number:
                 _LOGGER.debug(
                     "%s: %s bluetooth_state update: %s",
@@ -552,36 +541,27 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     hide_serial(event["bluetooth_change"]),
                 )
                 self._bluetooth_state = event["bluetooth_change"]
-                # the setting of bluetooth_state is not consistent as this
-                # takes from the event instead of the hass storage. We're
-                # setting the value twice. Architecturally we should have a
-                # single authoritative source of truth.
                 self._source = self._get_source()
                 self._source_list = self._get_source_list()
                 self._connected_bluetooth = self._get_connected_bluetooth()
                 self._bluetooth_list = self._get_bluetooth_list()
+                if self._session and self._session.get("mediaId") == "BluetoothMediaId":
+                    # Bluetooth push payloads do not include playback state. Use the refreshed
+                    # bluetooth_state.streamingState instead of /api/np/player to avoid breaking
+                    # Bluetooth AVRCP resume routing.
+                    streaming_state = self._bluetooth_state.get("streamingState")
+                    if self._connected_bluetooth:
+                        if streaming_state == "MUSIC":
+                            self._media_player_state = "PLAYING"
+                            self._session["state"] = "PLAYING"
+                        elif streaming_state in (None, "NONE"):
+                            self._media_player_state = "PAUSED"
+                            self._session["state"] = "PAUSED"
+                    else:
+                        self._media_player_state = "IDLE"
+                        self._session["state"] = "IDLE"
                 if self.hass and self.schedule_update_ha_state:
                     self.schedule_update_ha_state()
-        elif "bluetooth_streaming_change" in event:
-            if event_serial == self.device_serial_number:
-                if self._session and self._session.get("mediaId") == "BluetoothMediaId":
-                    current = self._session.get("state") or self._media_player_state
-
-                    if current == "PLAYING":
-                        self._media_player_state = "PAUSED"
-                        self._session["state"] = "PAUSED"
-                    elif current == "PAUSED":
-                        self._media_player_state = "PLAYING"
-                        self._session["state"] = "PLAYING"
-
-                    _LOGGER.debug(
-                        "%s: %s Bluetooth streaming state changed; optimistic state=%s",
-                        hide_email(self._login.email),
-                        self.name,
-                        self._media_player_state,
-                    )
-                    if self.hass and self.schedule_update_ha_state:
-                        self.schedule_update_ha_state()
         elif "player_state" in event:
             player_state = event["player_state"]
             _LOGGER.debug("player_state: %s", hide_serial(player_state))

@@ -214,19 +214,25 @@ class AlexaNotificationService(BaseNotificationService):
                 _LOGGER.error("Target must be a valid json")
                 return
         processed_targets = []
-        for target in targets:
-            _LOGGER.debug("Processing: %s", target)
-            try:
-                processed_targets += json.loads(target)
-                _LOGGER.debug("Processed Target by json: %s", processed_targets)
-            except json.JSONDecodeError:
-                if "," in target:
-                    processed_targets += [
-                        item.strip() for item in target.split(",") if item.strip()
-                    ]
-                else:
-                    processed_targets.append(target.strip())
-                _LOGGER.debug("Processed Target by string: %s", processed_targets)
+for target in targets:
+    _LOGGER.debug("Processing: %s", target)
+    if not isinstance(target, str):
+        processed_targets.append(target)
+        _LOGGER.debug("Processed non-string target: %s", processed_targets)
+        continue
+    try:
+        parsed = json.loads(target)
+        if isinstance(parsed, list):
+            processed_targets.extend(parsed)
+        else:
+            processed_targets.append(parsed)
+        _LOGGER.debug("Processed Target by json: %s", processed_targets)
+    except json.JSONDecodeError:
+        if "," in target:
+            processed_targets += [item.strip() for item in target.split(",") if item.strip()]
+        else:
+            processed_targets.append(target.strip())
+        _LOGGER.debug("Processed Target by string: %s", processed_targets)
         # Expand Home Assistant group targets into member entity IDs before
         # passing to convert(). The convert() method resolves Alexa-specific
         # identifiers (entity_id, name, serial), but it does not expand HA groups.

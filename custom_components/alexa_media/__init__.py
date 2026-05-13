@@ -3237,7 +3237,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
         hass,
         title="Alexa Media Reauthentication Required",
         message=message,
-        notification_id = f"alexa_media_{slugify(login.email)}_{slugify(host)}",
+        notification_id=f"alexa_media_{slugify(login.email)}_{slugify(host)}",
     )
     flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
         f"{account[CONF_EMAIL]} - {account[CONF_URL]}"

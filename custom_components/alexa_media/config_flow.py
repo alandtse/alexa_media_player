@@ -687,9 +687,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     event_data={"email": hide_email(email), "url": login.url},
                 )
                 host = urlparse(login.url).hostname or login.url
+                notification_id=f"alexa_media_{slugify(email)}_{slugify(host)}"
                 async_dismiss_persistent_notification(
                     self.hass,
-                    notification_id=f"alexa_media_{slugify(email)}_{slugify(host)}",
+                    notification_id,
                 )
                 if not self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(
                     self.config[CONF_EMAIL]

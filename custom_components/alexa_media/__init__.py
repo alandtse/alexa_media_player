@@ -2651,7 +2651,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         and serial in existing_serials
                         and bt_success
                         and bt_event
-                        and bt_event in ["DEVICE_CONNECTED", "DEVICE_DISCONNECTED"]
+                        and bt_event in {"DEVICE_CONNECTED", "DEVICE_DISCONNECTED", "STREAMING_STATE_CHAGE"}
                     ):
                         _LOGGER.debug(
                             "Updating media_player bluetooth %s",
@@ -2669,20 +2669,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 f"{DOMAIN}_{hide_email(email)}"[0:32],
                                 {"bluetooth_change": bluetooth_state},
                             )
-                    elif (
-                        serial
-                        and serial in existing_serials
-                        and bt_event == "STREAMING_STATE_CHANGED"
-                    ):
-                        _LOGGER.debug(
-                            "Updating media_player streaming state: %s",
-                            hide_serial(json_payload),
-                        )
-                        async_dispatcher_send(
-                            hass,
-                            f"{DOMAIN}_{hide_email(email)}"[0:32],
-                            {"bluetooth_streaming_change": json_payload},
-                        )
 
                 elif command == "PUSH_MEDIA_QUEUE_CHANGE":
                     # Player availability update

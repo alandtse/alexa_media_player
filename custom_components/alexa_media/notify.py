@@ -234,7 +234,7 @@ class AlexaNotificationService(BaseNotificationService):
                     ]
                 else:
                     processed_targets.append(target.strip())
-        _LOGGER.debug("Processed Target by string: %s", processed_targets)
+                _LOGGER.debug("Processed Target by string: %s", processed_targets)
         # Expand Home Assistant group targets into member entity IDs before
         # passing to convert(). The convert() method resolves Alexa-specific
         # identifiers (entity_id, name, serial), but it does not expand HA groups.

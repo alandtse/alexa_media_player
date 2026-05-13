@@ -790,19 +790,6 @@ class TestSupportedFeatures:
         # ARM_AWAY should be supported
         assert features is not None
 
-    def test_supported_features_with_import_error(self):
-        """Test supported_features returns 0 when import fails.
-
-        Note: The ImportError branch at lines 241-242 is for backwards
-        compatibility with older Home Assistant versions. It cannot be easily
-        tested without uninstalling the module. This test documents the expected
-        behavior.
-        """
-        # This test documents that supported_features returns 0
-        # when AlarmControlPanelEntityFeature cannot be imported
-        # (older Home Assistant versions)
-        pass
-
 
 class TestAttributeErrorHandling:
     """Test AttributeError handling in _async_alarm_set."""

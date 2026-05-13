@@ -15,6 +15,7 @@ import os
 import random
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 import aiohttp
 from alexapy import (
@@ -3235,7 +3236,8 @@ async def test_login_status(hass, config_entry, login) -> bool:
         hass,
         title="Alexa Media Reauthentication Required",
         message=message,
-        notification_id=f"alexa_media_{slugify(login.email)}{slugify(login.url[7:])}",
+        host = urlparse(login.url).hostname or login.url
+        notification_id = f"alexa_media_{slugify(login.email)}_{slugify(host)}"
     )
     flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
         f"{account[CONF_EMAIL]} - {account[CONF_URL]}"

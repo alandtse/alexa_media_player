@@ -3232,11 +3232,11 @@ async def test_login_status(hass, config_entry, login) -> bool:
         elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
         api_calls: int = login.stats.get("api_calls")
         message += f"Relogin required after {elaspsed_time} and {api_calls} api calls."
+    host = urlparse(login.url).hostname or login.url
     async_create_persistent_notification(
         hass,
         title="Alexa Media Reauthentication Required",
         message=message,
-        host = urlparse(login.url).hostname or login.url
         notification_id = f"alexa_media_{slugify(login.email)}_{slugify(host)}",
     )
     flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(

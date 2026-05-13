@@ -796,8 +796,9 @@ async def async_setup_entry(hass, config_entry):
             try:
                 if login._session is None or getattr(login._session, "closed", False):
                     login._create_session(True)
+                bootstrap_url = f"https://{login.host}/api/bootstrap"
                 async with login._session.get(
-                    "https://alexa.amazon.com/api/bootstrap",
+                    bootstrap_url,
                     cookies=cookies,
                     ssl=login._ssl,
                     allow_redirects=False,

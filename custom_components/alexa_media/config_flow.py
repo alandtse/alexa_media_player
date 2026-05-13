@@ -686,9 +686,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     "alexa_media_relogin_success",
                     event_data={"email": hide_email(email), "url": login.url},
                 )
+                host = urlparse(login.url).hostname or login.url
                 async_dismiss_persistent_notification(
                     self.hass,
-                    host = urlparse(login.url).hostname or login.url
                     notification_id = f"alexa_media_{slugify(email)}_{slugify(host)}"
                 )
                 if not self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(
@@ -749,10 +749,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
         if login.status and (login.status.get("login_failed")):
             _LOGGER.debug("Login failed: %s", login.status.get("login_failed"))
+            host = urlparse(login.url).hostname or login.url
             await login.close()
             async_dismiss_persistent_notification(
                 self.hass,
-                host = urlparse(login.url).hostname or login.url
                 notification_id = f"alexa_media_{slugify(email)}_{slugify(host)}"
             )
             return self.async_abort(reason="login_failed")

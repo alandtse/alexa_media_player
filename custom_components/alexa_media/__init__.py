@@ -2651,7 +2651,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         and serial in existing_serials
                         and bt_success
                         and bt_event
-                        and bt_event in {"DEVICE_CONNECTED", "DEVICE_DISCONNECTED", "STREAMING_STATE_CHAGE"}
+                        and bt_event
+                        in {
+                            "DEVICE_CONNECTED",
+                            "DEVICE_DISCONNECTED",
+                            "STREAMING_STATE_CHAGE",
+                        }
                     ):
                         _LOGGER.debug(
                             "Updating media_player bluetooth %s",

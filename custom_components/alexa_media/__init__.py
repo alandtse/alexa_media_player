@@ -15,6 +15,7 @@ import os
 import random
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 import aiohttp
 from alexapy import (
@@ -796,7 +797,10 @@ async def async_setup_entry(hass, config_entry):
             try:
                 if login._session is None or getattr(login._session, "closed", False):
                     login._create_session(True)
-                bootstrap_url = f"https://{login.host}/api/bootstrap"
+                login_url = getattr(login, "url_", login.url)
+                parsed_url = urlparse(login_url)
+                host = parsed_url.hostname or parsed_url.path or login_url
+                bootstrap_url = f"https://{host}/api/bootstrap"
                 async with login._session.get(
                     bootstrap_url,
                     cookies=cookies,

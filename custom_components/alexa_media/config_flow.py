@@ -15,6 +15,7 @@ from functools import reduce
 import html as html_lib
 import logging
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 from aiohttp import ClientConnectionError, ClientSession, InvalidURL, web, web_response
 from aiohttp.web_exceptions import HTTPBadRequest
@@ -687,7 +688,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
                 async_dismiss_persistent_notification(
                     self.hass,
-                    notification_id=f"alexa_media_{slugify(email)}{slugify(login.url[7:])}",
+                    host = urlparse(login.url).hostname or login.url
+                    notification_id = f"alexa_media_{slugify(email)}_{slugify(host)}"
                 )
                 if not self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(
                     self.config[CONF_EMAIL]
@@ -750,7 +752,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             await login.close()
             async_dismiss_persistent_notification(
                 self.hass,
-                notification_id=f"alexa_media_{slugify(email)}{slugify(login.url[7:])}",
+                host = urlparse(login.url).hostname or login.url
+                notification_id = f"alexa_media_{slugify(email)}_{slugify(host)}"
             )
             return self.async_abort(reason="login_failed")
         new_schema = self._update_schema_defaults()

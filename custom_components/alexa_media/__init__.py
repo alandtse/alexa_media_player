@@ -15,7 +15,6 @@ import os
 import random
 import time
 from typing import Optional
-from urllib.parse import urlparse
 
 import aiohttp
 from alexapy import (

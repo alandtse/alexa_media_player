@@ -546,25 +546,14 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     self.name,
                 )
                 if self._connected_bluetooth:
-                    _LOGGER.debug(
-                        "self._session: %s", "True" if self._session else "False"
-                    )
-                    _LOGGER.debug(
-                        "mediaId: %s",
-                        (
-                            self._session.get("mediaId")
-                            if self._session
-                            else "unavailable"
-                        ),
-                    )
-
-                    # 1. Corrected initialization block
                     if (
                         not self._session
                         or self._session.get("mediaId") != "BluetoothMediaId"
                     ):
+                        # Synthesize a Bluetooth media session when /api/np/player
+                        # does not expose active Bluetooth playback state.
                         _LOGGER.debug(
-                            "Simulating or normalizing bluetooth session object structure"
+                            "Creating synthesized Bluetooth media session"
                         )
                         self._session = {
                             "mediaId": "BluetoothMediaId",
@@ -587,7 +576,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                             },
                         }
 
-                    # 2. Defensive structure checks for nested dictionaries
+                    # Defensive structure checks for nested dictionaries
                     for key in [
                         "infoText",
                         "miniInfoText",
@@ -600,13 +589,13 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         ):
                             self._session[key] = {}
 
-                    # 3. Handle playback states
+                    # Handle playback states
                     if streaming_state == "MUSIC":
                         self._media_player_state = self._session["state"] = "PLAYING"
                     elif streaming_state in (None, "NONE"):
                         self._media_player_state = self._session["state"] = "PAUSED"
 
-                    # 4. Mutate track details
+                    # Mutate track details
                     self._session["infoText"]["title"] = self._session["miniInfoText"][
                         "title"
                     ] = "Bluetooth"
@@ -617,7 +606,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         "miniInfoText"
                     ]["subText2"] = ""
 
-                    # 5. Clear tracking progress lines
+                    # Clear tracking progress lines
                     self._session["progress"]["mediaProgress"] = None
                     self._session["progress"]["mediaLength"] = None
                     self._media_pos = self._media_duration = None
@@ -630,7 +619,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         & ~MediaPlayerEntityFeature.REPEAT_SET
                     )
 
-                    # 6. Inject the valid artwork data URI to force layout expansion
+                    # Use Bluetooth icon metadata for the synthesized Bluetooth session
                     self._session["mainArt"]["artType"] = "IconArtSource"
                     self._session["mainArt"]["iconId"] = "bluetooth-art"
 
@@ -644,17 +633,17 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         self.name,
                     )
 
-                    # 1. Clear out media detail instance variables completely
+                    # Clear out media detail instance variables completely
                     self._clear_media_details()
 
-                    # 2. explicit resets to prevent stale data leakages
+                    # explicit resets to prevent stale data leakages
                     self._media_artist = None
                     self._media_album_name = None
                     self._media_title = None
                     self._media_pos = None
                     self._media_duration = None
 
-                    # 3. Teardown session tracking and push state back to IDLE
+                    # Teardown session tracking and push state back to IDLE
                     self._session = None
                     self._connected_bluetooth = None
                     self._media_player_state = "IDLE"

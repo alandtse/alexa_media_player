@@ -301,6 +301,71 @@ class TestAsyncSendMessageGroupExpansion:
         assert "media_player.echo1" in expanded
         assert "media_player.echo2" in expanded
 
+    @pytest.mark.asyncio
+    async def test_non_string_dict_target_does_not_raise(self):
+        """A dict target must not raise TypeError from json.loads.
+
+        Regression test for issue #3453: ``json.loads`` only accepts
+        ``str | bytes | bytearray``. A dict (or any non-string) raised
+        ``TypeError`` outside the ``json.JSONDecodeError`` handler, aborting
+        ``async_send_message``.
+        """
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        dict_target = {"entity_id": "media_player.echo1"}
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message("hello", **{"target": [dict_target]})
+
+        service.convert.assert_called_once()
+        expanded = service.convert.call_args[0][0]
+        assert dict_target in expanded
+
+    @pytest.mark.asyncio
+    async def test_non_string_int_target_does_not_raise(self):
+        """An int target is appended verbatim without TypeError."""
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message("hello", **{"target": [42]})
+
+        service.convert.assert_called_once()
+        expanded = service.convert.call_args[0][0]
+        assert 42 in expanded
+
+    @pytest.mark.asyncio
+    async def test_json_scalar_string_target_appended_not_extended(self):
+        """JSON that decodes to a scalar (non-list) is appended, not extended.
+
+        Previous code used ``processed_targets += json.loads(target)`` which
+        would iterate a string into individual characters. The fix appends a
+        non-list parse result instead.
+        """
+        hass = self._make_hass()
+        service = self._create_service(hass)
+
+        # ``json.loads('"echo1"')`` returns the string "echo1". Under the old
+        # code, ``processed_targets += "echo1"`` would produce
+        # ``["e", "c", "h", "o", "1"]``.
+        with patch(
+            "custom_components.alexa_media.notify.expand_entity_ids",
+            return_value=[],
+        ):
+            await service.async_send_message("hello", **{"target": ['"echo1"']})
+
+        service.convert.assert_called_once()
+        expanded = service.convert.call_args[0][0]
+        assert "echo1" in expanded
+        assert "e" not in expanded
+
     # ------------------------------------------------------------------
     # media_player.* group expansion tests
     # ------------------------------------------------------------------

@@ -2655,7 +2655,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         in {
                             "DEVICE_CONNECTED",
                             "DEVICE_DISCONNECTED",
-                            "STREAMING_STATE_CHAnGE",
+                            "STREAMING_STATE_CHANGED",
                         }
                     ):
                         _LOGGER.debug(

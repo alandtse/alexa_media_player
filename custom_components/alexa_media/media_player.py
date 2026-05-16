@@ -552,9 +552,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     ):
                         # Synthesize a Bluetooth media session when /api/np/player
                         # does not expose active Bluetooth playback state.
-                        _LOGGER.debug(
-                            "Creating synthesized Bluetooth media session"
-                        )
+                        _LOGGER.debug("Creating synthesized Bluetooth media session")
                         self._session = {
                             "mediaId": "BluetoothMediaId",
                             "state": None,

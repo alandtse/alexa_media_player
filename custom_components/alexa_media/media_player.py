@@ -546,12 +546,26 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     self.name,
                 )
                 if self._connected_bluetooth:
-                    _LOGGER.debug("self._session: %s", "True" if self._session else "False")
-                    _LOGGER.debug("mediaId: %s", self._session.get("mediaId") if self._session else "unavailable")
-                    
+                    _LOGGER.debug(
+                        "self._session: %s", "True" if self._session else "False"
+                    )
+                    _LOGGER.debug(
+                        "mediaId: %s",
+                        (
+                            self._session.get("mediaId")
+                            if self._session
+                            else "unavailable"
+                        ),
+                    )
+
                     # 1. Corrected initialization block
-                    if not self._session or self._session.get("mediaId") != "BluetoothMediaId":
-                        _LOGGER.debug("Simulating or normalizing bluetooth session object structure")
+                    if (
+                        not self._session
+                        or self._session.get("mediaId") != "BluetoothMediaId"
+                    ):
+                        _LOGGER.debug(
+                            "Simulating or normalizing bluetooth session object structure"
+                        )
                         self._session = {
                             "mediaId": "BluetoothMediaId",
                             "state": None,
@@ -574,8 +588,16 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         }
 
                     # 2. Defensive structure checks for nested dictionaries
-                    for key in ["infoText", "miniInfoText", "mainArt", "miniArt", "progress"]:
-                        if key not in self._session or not isinstance(self._session[key], dict):
+                    for key in [
+                        "infoText",
+                        "miniInfoText",
+                        "mainArt",
+                        "miniArt",
+                        "progress",
+                    ]:
+                        if key not in self._session or not isinstance(
+                            self._session[key], dict
+                        ):
                             self._session[key] = {}
 
                     # 3. Handle playback states
@@ -585,10 +607,16 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                         self._media_player_state = self._session["state"] = "PAUSED"
 
                     # 4. Mutate track details
-                    self._session["infoText"]["title"] = self._session["miniInfoText"]["title"] = "Bluetooth"
-                    self._session["infoText"]["subText1"] = self._session["miniInfoText"]["subText1"] = f"Streaming from {self._source}"
-                    self._session["infoText"]["subText2"] = self._session["miniInfoText"]["subText2"] = ""
-                    
+                    self._session["infoText"]["title"] = self._session["miniInfoText"][
+                        "title"
+                    ] = "Bluetooth"
+                    self._session["infoText"]["subText1"] = self._session[
+                        "miniInfoText"
+                    ]["subText1"] = f"Streaming from {self._source}"
+                    self._session["infoText"]["subText2"] = self._session[
+                        "miniInfoText"
+                    ]["subText2"] = ""
+
                     # 5. Clear tracking progress lines
                     self._session["progress"]["mediaProgress"] = None
                     self._session["progress"]["mediaLength"] = None
@@ -610,23 +638,27 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
                 else:
                     # This executes when self._connected_bluetooth evaluates to None/False
-                    _LOGGER.debug("%s: Cleaning up Bluetooth state and session for %s", hide_email(self._login.email), self.name)
-                    
+                    _LOGGER.debug(
+                        "%s: Cleaning up Bluetooth state and session for %s",
+                        hide_email(self._login.email),
+                        self.name,
+                    )
+
                     # 1. Clear out media detail instance variables completely
                     self._clear_media_details()
-                    
+
                     # 2. explicit resets to prevent stale data leakages
                     self._media_artist = None
                     self._media_album_name = None
                     self._media_title = None
                     self._media_pos = None
                     self._media_duration = None
-                    
+
                     # 3. Teardown session tracking and push state back to IDLE
                     self._session = None
                     self._connected_bluetooth = None
                     self._media_player_state = "IDLE"
-                    
+
                 if self.hass and self.schedule_update_ha_state:
                     self.schedule_update_ha_state()
         elif "player_state" in event:
@@ -1187,8 +1219,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         """Return the state of the device."""
         if not self.available:
             return STATE_UNAVAILABLE
-            
-        # Fix: Intercept and explicitly return standard Home Assistant player states 
+
+        # Fix: Intercept and explicitly return standard Home Assistant player states
         # based on Amazon's streaming state string profile
         if self._connected_bluetooth and self._bluetooth_state:
             streaming_state = self._bluetooth_state.get("streamingState")
@@ -1265,7 +1297,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
         # Safely access 'http2' setting
         push_enabled = is_http2_enabled(self.hass, self._login.email)
-        
+
         _LOGGER.debug("is push_enabled? %s", push_enabled)
 
         if not push_enabled:
@@ -1338,7 +1370,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if self._connected_bluetooth and self._source:
             # Check if _set_attrs already successfully populated it from your session mock
             return self._media_artist or f"Streaming from {self._source}"
-            
+
         return self._media_artist
 
     @property
@@ -1369,7 +1401,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         # Fix: Prevent timestamp leaking when a simulated session has no linear timeline
         if self._session and self._session.get("mediaId") == "BluetoothMediaId":
             return None
-            
+
         return (
             self._player_info["last_update"]
             if self._player_info and self._player_info.get("last_update")
@@ -1380,9 +1412,13 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def media_image_url(self) -> Optional[str]:
         """Return the image URL of current playing media."""
         # Force None during Bluetooth so Home Assistant stops looking for artwork files
-        if self._connected_bluetooth and self._session and self._session.get("mediaId") == "BluetoothMediaId":
+        if (
+            self._connected_bluetooth
+            and self._session
+            and self._session.get("mediaId") == "BluetoothMediaId"
+        ):
             return None
-            
+
         if self._media_image_url:
             return re.sub("\\(", "%28", re.sub("\\)", "%29", self._media_image_url))
             # fix failure of HA media player ui to quote "(" or ")"
@@ -1392,9 +1428,13 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def icon(self) -> str:
         """Return the icon to use in the frontend."""
         # Dynamically inject the exact MDI bluetooth music icon during active push streams
-        if self._connected_bluetooth and self._session and self._session.get("mediaId") == "BluetoothMediaId":
+        if (
+            self._connected_bluetooth
+            and self._session
+            and self._session.get("mediaId") == "BluetoothMediaId"
+        ):
             return "mdi:music-note-bluetooth"
-            
+
         # Fall back to the default Alexa/Echo device icons defined elsewhere in the integration
         return super().icon
 

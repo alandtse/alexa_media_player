@@ -541,7 +541,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._bluetooth_list = self._get_bluetooth_list()
                 streaming_state = self._bluetooth_state.get("streamingState")
                 _LOGGER.debug(
-                    "%s: Upating '%s' Bluetooth_state",
+                    "%s: Updating '%s' Bluetooth_state",
                     hide_email(self._login.email),
                     self.name,
                 )

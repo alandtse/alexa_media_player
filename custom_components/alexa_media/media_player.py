@@ -1367,10 +1367,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def media_artist(self):
         """Return the artist of current playing media, music track only."""
-        if self._connected_bluetooth and self._source:
-            # Check if _set_attrs already successfully populated it from your session mock
-            return self._media_artist or f"Streaming from {self._source}"
-
+        if self._connected_bluetooth:
+            source_name = self._source or self._connected_bluetooth
+            # Intercept if it's empty, None, or explicitly stuck on Amazon's generic boot string
+            if not self._media_artist or self._media_artist == "Streaming":
+                return f"Streaming from {source_name}"
         return self._media_artist
 
     @property

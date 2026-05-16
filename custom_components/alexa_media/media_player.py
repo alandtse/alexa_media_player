@@ -413,12 +413,23 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 if event["bluetooth_change"]
                 else None
             )
+        elif "bluetooth_streaming_change" in event:
+            payload = event.get("bluetooth_streaming_change") or {}
+            event_serial = safe_get(
+                payload, ["dopplerId", "deviceSerialNumber"]
+            ) or safe_get(payload, ["key", "serialNumber"])
+            if event_serial is None and (
+                entry_id := safe_get(payload, ["key", "entryId"])
+            ):
+                parts = entry_id.split("#")
+                event_serial = parts[2] if len(parts) > 2 else None
         elif "player_state" in event:
             event_serial = (
                 event["player_state"]["dopplerId"]["deviceSerialNumber"]
                 if event["player_state"]
                 else None
             )
+            _LOGGER.debug("player_state event_serial: %s", hide_serial(event_serial))
         elif "queue_state" in event:
             event_serial = (
                 event["queue_state"]["dopplerId"]["deviceSerialNumber"]
@@ -532,6 +543,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 )
                 self.async_schedule_update_ha_state(force_refresh=force_refresh)
         elif "bluetooth_change" in event:
+            _LOGGER.debug("bluetooth_change in event")
             if event_serial == self.device_serial_number:
                 _LOGGER.debug(
                     "%s: %s bluetooth_state update: %s",
@@ -550,8 +562,29 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self._bluetooth_list = self._get_bluetooth_list()
                 if self.hass and self.schedule_update_ha_state:
                     self.schedule_update_ha_state()
+        elif "bluetooth_streaming_change" in event:
+            if event_serial == self.device_serial_number:
+                if self._session and self._session.get("mediaId") == "BluetoothMediaId":
+                    current = self._session.get("state") or self._media_player_state
+
+                    if current == "PLAYING":
+                        self._media_player_state = "PAUSED"
+                        self._session["state"] = "PAUSED"
+                    elif current == "PAUSED":
+                        self._media_player_state = "PLAYING"
+                        self._session["state"] = "PLAYING"
+
+                    _LOGGER.debug(
+                        "%s: %s Bluetooth streaming state changed; optimistic state=%s",
+                        hide_email(self._login.email),
+                        self.name,
+                        self._media_player_state,
+                    )
+                    if self.hass and self.schedule_update_ha_state:
+                        self.schedule_update_ha_state()
         elif "player_state" in event:
             player_state = event["player_state"]
+            _LOGGER.debug("player_state: %s", hide_serial(player_state))
             if event_serial == self.device_serial_number:
                 if "audioPlayerState" in player_state:
                     _LOGGER.debug(
@@ -625,7 +658,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 await asyncio.sleep(2)
                 await self.async_update()
                 already_refreshed = True
-
         if info_changed and self._player_info and self._cluster_members:
             # This is Speaker Group or Speaker pair so throw event data
             if self.hass:
@@ -1419,13 +1451,33 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             and self.available
         ):
             return
+        _LOGGER.debug(
+            "%s: %s sending PLAY command; state=%s media_id=%s",
+            hide_email(self._login.email),
+            self.name,
+            self.state,
+            self._session.get("mediaId") if self._session else None,
+        )
         if self._playing_parent:
             await self._playing_parent.async_media_play()
         else:
-            if self.hass:
-                self.hass.async_create_task(self.alexa_api.play())
-            else:
-                await self.alexa_api.play()
+            is_bt = self._session and self._session.get("mediaId") == "BluetoothMediaId"
+            _LOGGER.debug(
+                "%s: %s PLAY precheck: is_bt=%s state=%s media_id=%s transport=%s",
+                hide_email(self._login.email),
+                self.name,
+                is_bt,
+                self.state,
+                self._session.get("mediaId") if self._session else None,
+                self._session.get("transport") if self._session else None,
+            )
+            result = await self.alexa_api.play()
+            _LOGGER.debug(
+                "%s: %s PLAY result: %s",
+                hide_email(self._login.email),
+                self.name,
+                result,
+            )
         if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 

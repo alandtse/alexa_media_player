@@ -15,7 +15,9 @@ import os
 import random
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
+import aiohttp
 from alexapy import (
     AlexaAPI,
     AlexaLogin,
@@ -789,7 +791,40 @@ async def async_setup_entry(hass, config_entry):
     hass.bus.async_listen("alexa_media_relogin_success", login_success)
     try:
         _t = time.monotonic()
-        await login.login(cookies=await login.load_cookie())
+        cookies = await login.load_cookie()
+        cookie_login_ok = False
+        if cookies:
+            try:
+                if login._session is None or getattr(login._session, "closed", False):
+                    login._create_session(True)
+                async with login._session.get(
+                    "https://alexa.amazon.com/api/bootstrap",
+                    cookies=cookies,
+                    ssl=login._ssl,
+                    allow_redirects=False,
+                ) as response:
+                    if response.status == 200:
+                        data = loads(await response.text())
+                        auth = (data or {}).get("authentication") or {}
+                        customer_email = (auth.get("customerEmail") or "").lower()
+                        if (
+                            auth.get("authenticated")
+                            and customer_email == email.lower()
+                        ):
+                            _LOGGER.debug(
+                                "[BOOT] Cookie auth confirmed via /api/bootstrap"
+                            )
+                            login.status["login_successful"] = True
+                            login.customer_id = auth.get("customerId")
+                            login.stats["login_timestamp"] = datetime.now()
+                            login.stats["api_calls"] = 0
+                            await login.check_domain()
+                            await login.finalize_login()
+                            cookie_login_ok = True
+            except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
+                _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
+        if not cookie_login_ok:
+            await login.login(cookies=cookies)
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
         if await test_login_status(hass, config_entry, login):
@@ -2605,11 +2640,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if isinstance(json_payload, dict)
                         else None
                     )
+                    _LOGGER.debug("bt_event: %s", bt_event)
                     bt_success = (
                         json_payload.get("bluetoothEventSuccess")
                         if isinstance(json_payload, dict)
                         else None
                     )
+                    _LOGGER.debug("bt_success: %s", bt_success)
                     if (
                         serial
                         and serial in existing_serials
@@ -2633,6 +2670,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 f"{DOMAIN}_{hide_email(email)}"[0:32],
                                 {"bluetooth_change": bluetooth_state},
                             )
+                    elif (
+                        serial
+                        and serial in existing_serials
+                        and bt_event == "STREAMING_STATE_CHANGED"
+                    ):
+                        _LOGGER.debug(
+                            "Updating media_player streaming state: %s",
+                            hide_serial(json_payload),
+                        )
+                        async_dispatcher_send(
+                            hass,
+                            f"{DOMAIN}_{hide_email(email)}"[0:32],
+                            {"bluetooth_streaming_change": json_payload},
+                        )
 
                 elif command == "PUSH_MEDIA_QUEUE_CHANGE":
                     # Player availability update
@@ -3181,11 +3232,12 @@ async def test_login_status(hass, config_entry, login) -> bool:
         elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
         api_calls: int = login.stats.get("api_calls")
         message += f"Relogin required after {elaspsed_time} and {api_calls} api calls."
+    host = urlparse(login.url).hostname or login.url
     async_create_persistent_notification(
         hass,
         title="Alexa Media Reauthentication Required",
         message=message,
-        notification_id=f"alexa_media_{slugify(login.email)}{slugify(login.url[7:])}",
+        notification_id=f"alexa_media_{slugify(login.email)}_{slugify(host)}",
     )
     flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
         f"{account[CONF_EMAIL]} - {account[CONF_URL]}"

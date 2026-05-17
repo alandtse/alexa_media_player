@@ -673,7 +673,33 @@ async def async_setup_entry(hass, config_entry):
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
             else:
                 login_obj.oauth_login = True
-            await login_obj.reset()
+            # Try OAuth token refresh first instead of reset(), which
+            # destructively deletes all cookie files. The HTTP/2 timeout
+            # that triggers relogin is often transient and doesn't mean
+            # the session is invalid.
+            relogin_ok = False
+            try:
+                if login_obj._session is None or getattr(
+                    login_obj._session, "closed", False
+                ):
+                    login_obj._create_session(True)
+                token_ok = await login_obj.get_tokens()
+                if token_ok:
+                    cookie_ok = await login_obj.exchange_token_for_cookies()
+                    if cookie_ok:
+                        await login_obj.get_csrf()
+                        _LOGGER.debug(
+                            "%s: Relogin via OAuth token refresh succeeded",
+                            hide_email(email),
+                        )
+                        relogin_ok = True
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug(
+                    "%s: OAuth refresh failed during relogin, falling back to reset",
+                    hide_email(email),
+                )
+            if not relogin_ok:
+                await login_obj.reset()
             # await login_obj.login()
             if await test_login_status(hass, config_entry, login_obj):
                 await setup_alexa(hass, config_entry, login_obj)
@@ -824,7 +850,59 @@ async def async_setup_entry(hass, config_entry):
             except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
                 _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
         if not cookie_login_ok:
-            await login.login(cookies=cookies)
+            # Try OAuth token refresh before falling back to form login.
+            # The refresh_token (stored in config entry) can generate new
+            # access tokens and cookies without a browser-based login.
+            _LOGGER.debug("[BOOT] Cookie auth failed; trying OAuth token refresh")
+            try:
+                if login._session is None or getattr(login._session, "closed", False):
+                    login._create_session(True)
+                token_ok = await login.get_tokens()
+                if token_ok:
+                    cookie_ok = await login.exchange_token_for_cookies()
+                    if cookie_ok:
+                        csrf_ok = await login.get_csrf()
+                        _LOGGER.debug(
+                            "[BOOT] OAuth refresh: token=%s cookie=%s csrf=%s",
+                            token_ok, cookie_ok, csrf_ok,
+                        )
+                        # Re-check bootstrap with fresh cookies
+                        async with login._session.get(
+                            "https://alexa.amazon.com/api/bootstrap",
+                            ssl=login._ssl,
+                            allow_redirects=False,
+                        ) as response:
+                            if response.status == 200:
+                                data = loads(await response.text())
+                                auth = (data or {}).get("authentication") or {}
+                                customer_email = (
+                                    auth.get("customerEmail") or ""
+                                ).lower()
+                                if (
+                                    auth.get("authenticated")
+                                    and customer_email == email.lower()
+                                ):
+                                    _LOGGER.debug(
+                                        "[BOOT] OAuth token refresh succeeded"
+                                    )
+                                    login.status["login_successful"] = True
+                                    login.customer_id = auth.get("customerId")
+                                    login.stats[
+                                        "login_timestamp"
+                                    ] = datetime.now()
+                                    login.stats["api_calls"] = 0
+                                    await login.check_domain()
+                                    await login.finalize_login()
+                                    cookie_login_ok = True
+            except Exception as ex:
+                _LOGGER.debug("[BOOT] OAuth token refresh failed: %s", ex)
+            if not cookie_login_ok:
+                # Last resort: form-based login with credentials.
+                _LOGGER.debug("[BOOT] OAuth refresh failed; trying form login")
+                await login.login(data=account)
+        # Reset cached last request to prevent stale URL in reauth flow
+        if hasattr(login, "_lastreq"):
+            login._lastreq = None
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
         if await test_login_status(hass, config_entry, login):
@@ -1366,6 +1444,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 )
 
         await login_obj.save_cookiefile()
+        # Proactively refresh the OAuth access token to keep the
+        # refresh_token alive. Amazon may revoke refresh tokens that
+        # haven't been used within their TTL window.
+        try:
+            if login_obj.refresh_token:
+                refreshed = await login_obj.get_tokens()
+                if refreshed:
+                    _LOGGER.debug(
+                        "%s: Proactively refreshed OAuth access token",
+                        hide_email(email),
+                    )
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug(
+                "%s: OAuth token refresh failed (non-fatal)",
+                hide_email(email),
+            )
         if login_obj.access_token:
             hass.config_entries.async_update_entry(
                 config_entry,

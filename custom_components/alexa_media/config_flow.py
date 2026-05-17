@@ -639,15 +639,20 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         )
         if seconds_since_login < 60:
             _LOGGER.debug(
-                "Relogin requested within %s seconds; manual login required",
+                "Relogin requested within %s seconds; attempting automatic relogin"
+                " (boot-time reauth detected)",
                 seconds_since_login,
             )
-            return self.async_show_form(
-                step_id="user",
-                data_schema=vol.Schema(reauth_schema),
-                description_placeholders={"message": "REAUTH"},
+        else:
+            _LOGGER.debug(
+                "Attempting automatic relogin after %s seconds",
+                seconds_since_login,
             )
-        _LOGGER.debug("Attempting automatic relogin")
+        # Reset cached last request URL so the reauth flow starts fresh
+        # instead of replaying a stale Amazon page.
+        if hasattr(self.login, "_lastreq"):
+            _LOGGER.debug("Resetting cached last request URL for clean reauth")
+            self.login._lastreq = None
         await sleep(15)
         return await self.async_step_user_legacy(self.config)
 

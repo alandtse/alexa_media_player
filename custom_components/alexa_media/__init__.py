@@ -864,7 +864,9 @@ async def async_setup_entry(hass, config_entry):
                         csrf_ok = await login.get_csrf()
                         _LOGGER.debug(
                             "[BOOT] OAuth refresh: token=%s cookie=%s csrf=%s",
-                            token_ok, cookie_ok, csrf_ok,
+                            token_ok,
+                            cookie_ok,
+                            csrf_ok,
                         )
                         # Re-check bootstrap with fresh cookies
                         async with login._session.get(
@@ -887,9 +889,7 @@ async def async_setup_entry(hass, config_entry):
                                     )
                                     login.status["login_successful"] = True
                                     login.customer_id = auth.get("customerId")
-                                    login.stats[
-                                        "login_timestamp"
-                                    ] = datetime.now()
+                                    login.stats["login_timestamp"] = datetime.now()
                                     login.stats["api_calls"] = 0
                                     await login.check_domain()
                                     await login.finalize_login()

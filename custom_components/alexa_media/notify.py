@@ -216,8 +216,16 @@ class AlexaNotificationService(BaseNotificationService):
         processed_targets = []
         for target in targets:
             _LOGGER.debug("Processing: %s", target)
+            if not isinstance(target, str):
+                processed_targets.append(target)
+                _LOGGER.debug("Processed non-string target: %s", processed_targets)
+                continue
             try:
-                processed_targets += json.loads(target)
+                parsed = json.loads(target)
+                if isinstance(parsed, list):
+                    processed_targets.extend(parsed)
+                else:
+                    processed_targets.append(parsed)
                 _LOGGER.debug("Processed Target by json: %s", processed_targets)
             except json.JSONDecodeError:
                 if "," in target:

@@ -413,16 +413,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 if event["bluetooth_change"]
                 else None
             )
-        elif "bluetooth_streaming_change" in event:
-            payload = event.get("bluetooth_streaming_change") or {}
-            event_serial = safe_get(
-                payload, ["dopplerId", "deviceSerialNumber"]
-            ) or safe_get(payload, ["key", "serialNumber"])
-            if event_serial is None and (
-                entry_id := safe_get(payload, ["key", "entryId"])
-            ):
-                parts = entry_id.split("#")
-                event_serial = parts[2] if len(parts) > 2 else None
         elif "player_state" in event:
             event_serial = (
                 event["player_state"]["dopplerId"]["deviceSerialNumber"]
@@ -543,45 +533,121 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 )
                 self.async_schedule_update_ha_state(force_refresh=force_refresh)
         elif "bluetooth_change" in event:
-            _LOGGER.debug("bluetooth_change in event")
             if event_serial == self.device_serial_number:
-                _LOGGER.debug(
-                    "%s: %s bluetooth_state update: %s",
-                    hide_email(self._login.email),
-                    self.name,
-                    hide_serial(event["bluetooth_change"]),
-                )
                 self._bluetooth_state = event["bluetooth_change"]
-                # the setting of bluetooth_state is not consistent as this
-                # takes from the event instead of the hass storage. We're
-                # setting the value twice. Architecturally we should have a
-                # single authoritative source of truth.
                 self._source = self._get_source()
                 self._source_list = self._get_source_list()
                 self._connected_bluetooth = self._get_connected_bluetooth()
                 self._bluetooth_list = self._get_bluetooth_list()
-                if self.hass and self.schedule_update_ha_state:
-                    self.schedule_update_ha_state()
-        elif "bluetooth_streaming_change" in event:
-            if event_serial == self.device_serial_number:
-                if self._session and self._session.get("mediaId") == "BluetoothMediaId":
-                    current = self._session.get("state") or self._media_player_state
+                streaming_state = self._bluetooth_state.get("streamingState")
+                _LOGGER.debug(
+                    "%s: Updating '%s' Bluetooth_state",
+                    hide_email(self._login.email),
+                    self.name,
+                )
+                if self._connected_bluetooth:
+                    if (
+                        not self._session
+                        or self._session.get("mediaId") != "BluetoothMediaId"
+                    ):
+                        # Synthesize a Bluetooth media session when /api/np/player
+                        # does not expose active Bluetooth playback state.
+                        _LOGGER.debug("Creating synthesized Bluetooth media session")
+                        self._session = {
+                            "mediaId": "BluetoothMediaId",
+                            "state": None,
+                            "infoText": {},
+                            "miniInfoText": {},
+                            "mainArt": {},
+                            "miniArt": {},
+                            "progress": {},
+                            "transport": {
+                                "playPause": "ENABLED",
+                                "next": "ENABLED",
+                                "previous": "ENABLED",
+                                "repeat": "HIDDEN",
+                                "shuffle": "HIDDEN",
+                            },
+                            "volume": {
+                                "muted": self._media_is_muted,
+                                "volume": int((self._media_vol_level or 0) * 100),
+                            },
+                        }
 
-                    if current == "PLAYING":
-                        self._media_player_state = "PAUSED"
-                        self._session["state"] = "PAUSED"
-                    elif current == "PAUSED":
-                        self._media_player_state = "PLAYING"
-                        self._session["state"] = "PLAYING"
+                    # Defensive structure checks for nested dictionaries
+                    for key in [
+                        "infoText",
+                        "miniInfoText",
+                        "mainArt",
+                        "miniArt",
+                        "progress",
+                    ]:
+                        if key not in self._session or not isinstance(
+                            self._session[key], dict
+                        ):
+                            self._session[key] = {}
 
+                    # Handle playback states
+                    if streaming_state == "MUSIC":
+                        self._media_player_state = self._session["state"] = "PLAYING"
+                    elif streaming_state in (None, "NONE"):
+                        self._media_player_state = self._session["state"] = "PAUSED"
+
+                    # Mutate track details
+                    self._session["infoText"]["title"] = self._session["miniInfoText"][
+                        "title"
+                    ] = "Bluetooth"
+                    self._session["infoText"]["subText1"] = self._session[
+                        "miniInfoText"
+                    ]["subText1"] = f"Streaming from {self._source}"
+                    self._session["infoText"]["subText2"] = self._session[
+                        "miniInfoText"
+                    ]["subText2"] = ""
+
+                    # Clear tracking progress lines
+                    self._session["progress"]["mediaProgress"] = None
+                    self._session["progress"]["mediaLength"] = None
+                    self._media_pos = self._media_duration = None
+
+                    # Prevent stale transport capabilities from previous media leaking into HA.
+                    self._attr_supported_features = (
+                        SUPPORT_ALEXA
+                        & ~MediaPlayerEntityFeature.SEEK
+                        & ~MediaPlayerEntityFeature.SHUFFLE_SET
+                        & ~MediaPlayerEntityFeature.REPEAT_SET
+                    )
+
+                    # Use Bluetooth icon metadata for the synthesized Bluetooth session
+                    self._session["mainArt"]["artType"] = "IconArtSource"
+                    self._session["mainArt"]["iconId"] = "bluetooth-art"
+
+                    self._set_attrs(self._session)
+
+                else:
+                    # This executes when self._connected_bluetooth evaluates to None/False
                     _LOGGER.debug(
-                        "%s: %s Bluetooth streaming state changed; optimistic state=%s",
+                        "%s: Cleaning up Bluetooth state and session for %s",
                         hide_email(self._login.email),
                         self.name,
-                        self._media_player_state,
                     )
-                    if self.hass and self.schedule_update_ha_state:
-                        self.schedule_update_ha_state()
+
+                    # Clear out media detail instance variables completely
+                    self._clear_media_details()
+
+                    # explicit resets to prevent stale data leakages
+                    self._media_artist = None
+                    self._media_album_name = None
+                    self._media_title = None
+                    self._media_pos = None
+                    self._media_duration = None
+
+                    # Teardown session tracking and push state back to IDLE
+                    self._session = None
+                    self._connected_bluetooth = None
+                    self._media_player_state = "IDLE"
+
+                if self.hass and self.schedule_update_ha_state:
+                    self.schedule_update_ha_state()
         elif "player_state" in event:
             player_state = event["player_state"]
             _LOGGER.debug("player_state: %s", hide_serial(player_state))
@@ -1140,6 +1206,16 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         """Return the state of the device."""
         if not self.available:
             return STATE_UNAVAILABLE
+
+        # Fix: Intercept and explicitly return standard Home Assistant player states
+        # based on Amazon's streaming state string profile
+        if self._connected_bluetooth and self._bluetooth_state:
+            streaming_state = self._bluetooth_state.get("streamingState")
+            if streaming_state == "MUSIC":
+                return MediaPlayerState.PLAYING
+            if streaming_state in (None, "NONE", "PAUSED"):
+                return MediaPlayerState.PAUSED
+
         if self._media_player_state == "PLAYING":
             return MediaPlayerState.PLAYING
         if self._media_player_state == "PAUSED":
@@ -1209,6 +1285,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         # Safely access 'http2' setting
         push_enabled = is_http2_enabled(self.hass, self._login.email)
 
+        _LOGGER.debug("is push_enabled? %s", push_enabled)
+
         if not push_enabled:
             if (
                 self.state in [MediaPlayerState.PLAYING]
@@ -1276,26 +1354,42 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def media_artist(self):
         """Return the artist of current playing media, music track only."""
+        if self._connected_bluetooth:
+            source_name = self._source or self._connected_bluetooth
+            # Intercept if it's empty, None, or explicitly stuck on Amazon's generic boot string
+            if not self._media_artist or self._media_artist == "Streaming":
+                return f"Streaming from {source_name}"
         return self._media_artist
 
     @property
     def media_album_name(self):
         """Return the album name of current playing media, music track only."""
+        if self._connected_bluetooth and self._source:
+            return None
         return self._media_album_name
 
     @property
     def media_duration(self):
         """Return the duration of current playing media in seconds."""
+        # Fix: Force None to stop Home Assistant core from falling back to zero-bound tracking
+        if self._connected_bluetooth:
+            return None
         return self._media_duration
 
     @property
     def media_position(self):
-        """Return the duration of current playing media in seconds."""
+        """Return the position of current playing media in seconds."""
+        if self._connected_bluetooth:
+            return None
         return self._media_pos
 
     @property
     def media_position_updated_at(self):
         """When was the position of the current playing media valid."""
+        # Fix: Prevent timestamp leaking when a simulated session has no linear timeline
+        if self._session and self._session.get("mediaId") == "BluetoothMediaId":
+            return None
+
         return (
             self._player_info["last_update"]
             if self._player_info and self._player_info.get("last_update")
@@ -1305,13 +1399,35 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def media_image_url(self) -> Optional[str]:
         """Return the image URL of current playing media."""
+        # Force None during Bluetooth so Home Assistant stops looking for artwork files
+        if (
+            self._connected_bluetooth
+            and self._session
+            and self._session.get("mediaId") == "BluetoothMediaId"
+        ):
+            return None
+
         if self._media_image_url:
             return re.sub("\\(", "%28", re.sub("\\)", "%29", self._media_image_url))
             # fix failure of HA media player ui to quote "(" or ")"
         return None
 
     @property
-    def media_image_remotely_accessible(self):
+    def icon(self) -> str:
+        """Return the icon to use in the frontend."""
+        # Dynamically inject the exact MDI bluetooth music icon during active push streams
+        if (
+            self._connected_bluetooth
+            and self._session
+            and self._session.get("mediaId") == "BluetoothMediaId"
+        ):
+            return "mdi:music-note-bluetooth"
+
+        # Fall back to the default Alexa/Echo device icons defined elsewhere in the integration
+        return super().icon
+
+    @property
+    def media_image_remotely_accessible(self) -> bool:
         """Return whether image is accessible outside of the home network."""
         return bool(self._media_image_url)
 

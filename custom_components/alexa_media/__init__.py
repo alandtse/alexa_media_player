@@ -2867,6 +2867,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 "%s: HTTP2Push connection closed; retries exceeded; polling",
                 hide_email(email),
             )
+        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         if coordinator:
             coordinator.update_interval = timedelta(
                 seconds=scan_interval * 10 if http2_enabled else scan_interval

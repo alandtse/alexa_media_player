@@ -382,7 +382,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.login,
                     str(URL(self.config.get(CONF_HASS_URL)).with_path(AUTH_PROXY_PATH)),
                 )
-
                 self.proxy.session_factory = lambda: create_async_httpx_client(
                     self.hass,
                     verify_ssl=True,
@@ -394,16 +393,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         pool=30.0,
                     ),
                 )
-
-            #                self.proxy.session_factory = lambda: httpx.AsyncClient(
-            #                    timeout=httpx.Timeout(
-            #                        connect=30.0,
-            #                        read=120.0,
-            #                        write=30.0,
-            #                        pool=30.0,
-            #                    ),
-            #                )
-
             except ValueError as ex:
                 return self.async_show_form(
                     step_id="user",

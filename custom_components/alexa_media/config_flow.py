@@ -395,14 +395,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     ),
                 )
 
-#                self.proxy.session_factory = lambda: httpx.AsyncClient(
-#                    timeout=httpx.Timeout(
-#                        connect=30.0,
-#                        read=120.0,
-#                        write=30.0,
-#                        pool=30.0,
-#                    ),
-#                )
+            #                self.proxy.session_factory = lambda: httpx.AsyncClient(
+            #                    timeout=httpx.Timeout(
+            #                        connect=30.0,
+            #                        read=120.0,
+            #                        write=30.0,
+            #                        pool=30.0,
+            #                    ),
+            #                )
 
             except ValueError as ex:
                 return self.async_show_form(

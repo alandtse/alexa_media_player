@@ -42,7 +42,7 @@
           "otp_secret": "52-stelliger Authenticator-App Schlüssel für Amazon 2SV",
           "password": "Passwort",
           "public_url": "Öffentliche URL, die mit extern gehosteten Diensten geteilt wird",
-          "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in die Warteschlange (Sekunden)",
+          "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in einer Warteschlange (Sekunden)",
           "scan_interval": "Geplantes Abfrageintervall (Sekunden)",
           "securitycode": "Einmalpasswort (OTP)",
           "should_get_network": "Entdecken Sie das Alexa-Netzwerk",
@@ -111,11 +111,11 @@
       "init": {
         "data": {
           "debug": "Erweitertes Debugging",
-          "exclude_devices": "oder Diese Geräte von allen ausschließen (durch Komma getrennt)",
+          "exclude_devices": "oder diese Geräte von allen ausschließen (durch Komma getrennt)",
           "extended_entity_discovery": "Fügen Sie zusätzliche Sensoren, Schalter und Leuchten hinzu.",
           "include_devices": "Nur diese Geräte angeben (durch Komma getrennt)",
-          "otp_secret": "52-stelliger Authenticator-App Schlüssel für Amazon 2SV",
-          "public_url": "Öffentliche URL, die mit externen gehosteten Diensten geteilt wird",
+          "otp_secret": "52-stelliger Authenticator-App-Schlüssel für Amazon 2SV",
+          "public_url": "Öffentliche URL, die mit extern gehosteten Diensten geteilt wird",
           "queue_delay": "Verzögerung beim Zusammenführen mehrerer Befehle in die Warteschlange (Sekunden)",
           "scan_interval": "Geplante Abfragehäufigkeit (Sekunden)",
           "should_get_network": "Entdecken Sie das Alexa-Netzwerk"
@@ -124,7 +124,7 @@
           "debug": "Ermöglicht eine sehr ausführliche Protokollierung auf Trace-Ebene für die erweiterte Fehlerbehebung. \n Aufgrund des erhöhten Protokollvolumens wird dies für den Normalbetrieb nicht empfohlen. \n Stellen Sie sicher, dass die Protokollierungsstufe auf DEBUG eingestellt ist, um die vollständige Ausgabe zu erhalten.",
           "otp_secret": "Beispiel: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         },
-        "description": "* Erforderliche Angaben",
+        "description": "* Erforderliche Angabe",
         "title": "Alexa Media Player - Rekonfiguration"
       }
     }
@@ -175,7 +175,7 @@
       "name": "Vorherige Lautstärke wiederherstellen"
     },
     "update_last_called": {
-      "description": "Erzwinge Updates der zuletzt aufgerufenen Echo Geräte für jeden Alexa Account.",
+      "description": "Erzwingt eine Aktualisierung des zuletzt aufgerufenen Echo-Geräts für jedes Alexa-Konto.",
       "fields": {
         "email": {
           "description": "Liste der zu aktualisierenden Alexa-Konten. Wenn leer, werden alle bekannten Konten aktualisiert.",

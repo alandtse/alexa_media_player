@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "alexa_media_player"
-version = "5.15.1"
+version = "5.15.5"
 description = "This is a custom component to allow control of Amazon Alexa devices in [Homeassistant](https://home-assistant.io) using the unofficial Alexa API."
 authors = [
   "Keaton Taylor <keatonstaylor@gmail.com>",
@@ -13,7 +13,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.13,<4.0"
-alexapy = "1.29.22"
+alexapy = "1.29.24"
 aiohttp = ">=3.8.1"
 packaging = ">=20.3"
 wrapt = ">=1.12.1"
@@ -32,9 +32,6 @@ codespell = ">2.0.0"
 yamllint = ">1.26.0"
 pyupgrade = "^3.3.1"
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
 
 [tool.semantic_release]
 version_toml = [
@@ -101,8 +98,15 @@ skip = './.*,*.csv,*.json,*.lock'
 quiet-level = 2
 ignore-words-list = "hass"
 
-[pytest]
-python_files = ["tests.py", "test_*.py", "*_tests.py"]
-
 [tool.bandit]
 skips = ["B101", "B404", "B603"]
+
+
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[pytest]
+python_files = ["tests.py", "test_*.py", "*_tests.py"]

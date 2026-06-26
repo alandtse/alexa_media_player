@@ -15,6 +15,7 @@ import os
 import random
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 import aiohttp
 from alexapy import (
@@ -2651,7 +2652,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         and serial in existing_serials
                         and bt_success
                         and bt_event
-                        and bt_event in ["DEVICE_CONNECTED", "DEVICE_DISCONNECTED"]
+                        and bt_event
+                        in {
+                            "DEVICE_CONNECTED",
+                            "DEVICE_DISCONNECTED",
+                            "STREAMING_STATE_CHANGED",
+                        }
                     ):
                         _LOGGER.debug(
                             "Updating media_player bluetooth %s",
@@ -2669,20 +2675,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 f"{DOMAIN}_{hide_email(email)}"[0:32],
                                 {"bluetooth_change": bluetooth_state},
                             )
-                    elif (
-                        serial
-                        and serial in existing_serials
-                        and bt_event == "STREAMING_STATE_CHANGED"
-                    ):
-                        _LOGGER.debug(
-                            "Updating media_player streaming state: %s",
-                            hide_serial(json_payload),
-                        )
-                        async_dispatcher_send(
-                            hass,
-                            f"{DOMAIN}_{hide_email(email)}"[0:32],
-                            {"bluetooth_streaming_change": json_payload},
-                        )
 
                 elif command == "PUSH_MEDIA_QUEUE_CHANGE":
                     # Player availability update
@@ -2875,6 +2867,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 "%s: HTTP2Push connection closed; retries exceeded; polling",
                 hide_email(email),
             )
+        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         if coordinator:
             coordinator.update_interval = timedelta(
                 seconds=scan_interval * 10 if http2_enabled else scan_interval
@@ -3231,11 +3224,12 @@ async def test_login_status(hass, config_entry, login) -> bool:
         elaspsed_time: str = str(datetime.now() - login.stats.get("login_timestamp"))
         api_calls: int = login.stats.get("api_calls")
         message += f"Relogin required after {elaspsed_time} and {api_calls} api calls."
+    host = urlparse(login.url).hostname or login.url
     async_create_persistent_notification(
         hass,
         title="Alexa Media Reauthentication Required",
         message=message,
-        notification_id=f"alexa_media_{slugify(login.email)}{slugify(login.url[7:])}",
+        notification_id=f"alexa_media_{slugify(login.email)}_{slugify(host)}",
     )
     flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
         f"{account[CONF_EMAIL]} - {account[CONF_URL]}"

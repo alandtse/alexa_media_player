@@ -43,6 +43,7 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult, UnknownFlow
 from homeassistant.exceptions import Unauthorized
+from homeassistant.helpers.httpx_client import create_async_httpx_client
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import slugify
 import httpx
@@ -381,7 +382,10 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.login,
                     str(URL(self.config.get(CONF_HASS_URL)).with_path(AUTH_PROXY_PATH)),
                 )
-                self.proxy.session_factory = lambda: httpx.AsyncClient(
+                self.proxy.session_factory = lambda: create_async_httpx_client(
+                    self.hass,
+                    verify_ssl=True,
+                    follow_redirects=False,
                     timeout=httpx.Timeout(
                         connect=30.0,
                         read=120.0,

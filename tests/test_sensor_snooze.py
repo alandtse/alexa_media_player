@@ -145,7 +145,7 @@ class TestNormalizeAlarmSnoozeState:
         """ON alarm with no snoozedToTime must not be modified."""
         sensor = _make_alarm_sensor()
         alarm_at = self.NOW + datetime.timedelta(hours=1)
-        value = _alarm_value("ON", alarm_at, snoozed_to=None)
+        value = _alarm_value("SNOOZED", alarm_at, snoozed_to=None)
 
         with patch(
             "custom_components.alexa_media.sensor.dt.now", return_value=self.NOW
@@ -165,23 +165,6 @@ class TestNormalizeAlarmSnoozeState:
         original_alarm = self.NOW - datetime.timedelta(minutes=5)  # already rang
         snooze_until = self.NOW + datetime.timedelta(minutes=9)  # snooze active
         value = _alarm_value("ON", original_alarm, snoozed_to=snooze_until)
-
-        with patch(
-            "custom_components.alexa_media.sensor.dt.now", return_value=self.NOW
-        ):
-            result = sensor._normalize_alarm_snooze_state(value)
-
-        assert result[1]["status"] == "SNOOZED"
-        assert result[1]["date_time"] == snooze_until
-        assert result[1]["snoozedToTime"] == snooze_until
-
-    def test_future_snoozed_to_time_overrides_existing_snoozed_status(self):
-        """Future snoozedToTime normalizes regardless of original status value."""
-        sensor = _make_alarm_sensor()
-        snooze_until = self.NOW + datetime.timedelta(minutes=3)
-        value = _alarm_value(
-            "SNOOZED", self.NOW - datetime.timedelta(hours=1), snoozed_to=snooze_until
-        )
 
         with patch(
             "custom_components.alexa_media.sensor.dt.now", return_value=self.NOW

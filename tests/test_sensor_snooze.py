@@ -1,7 +1,9 @@
-"""Pytest cases for the four key alarm snooze states.
+"""Pytest cases for Alexa alarm snooze handling.
 
-Covers _normalize_alarm_snooze_state and the _is_active_notification
-filter logic introduced in PR `#3440`.
+Covers _normalize_alarm_snooze_state and _is_active_notification for
+current Alexa payloads where SNOOZED alarms may have missing or expired
+snoozedToTime values. SNOOZED status is treated as authoritative so the
+sensor does not drop to unknown/off while an alarm is snoozed.
 """
 
 import datetime
@@ -128,7 +130,7 @@ class TestCoerceDatetime:
 
 
 # ---------------------------------------------------------------------------
-# 2. _normalize_alarm_snooze_state — four states
+# 2. _normalize_alarm_snooze_state — key states
 # ---------------------------------------------------------------------------
 
 
@@ -192,9 +194,13 @@ class TestNormalizeAlarmSnoozeState:
 
     # --- State 3: SNOOZED with missing snoozedToTime ---
 
-    def test_snoozed_missing_snooze_time_backfills_from_alarm_time(self):
-        """SNOOZED alarm whose snoozedToTime is None must have snoozedToTime
-        backfilled from date_time."""
+    def test_snoozed_missing_snooze_time_is_preserved(self):
+        """SNOOZED alarm with missing snoozedToTime must stay snoozed.
+
+        Amazon may omit the real snooze expiry. Normalization should not
+        backfill snoozedToTime from date_time because that value can be the
+        original alarm time, not the next snooze fire time.
+        """
         sensor = _make_alarm_sensor()
         alarm_at = self.NOW + datetime.timedelta(minutes=5)
         value = _alarm_value("SNOOZED", alarm_at, snoozed_to=None)
@@ -205,14 +211,18 @@ class TestNormalizeAlarmSnoozeState:
             result = sensor._normalize_alarm_snooze_state(value)
 
         assert result[1]["status"] == "SNOOZED"
-        assert result[1]["snoozedToTime"] == alarm_at
+        assert result[1]["snoozedToTime"] is None
         assert result[1]["date_time"] == alarm_at
 
     # --- State 4: expired SNOOZED ---
 
-    def test_expired_snoozed_left_unchanged_by_normalize(self):
-        """SNOOZED alarm whose snoozedToTime is in the past must not be modified
-        by normalization (exclusion is handled downstream by the active filter)."""
+    def test_expired_snoozed_clears_unusable_snooze_time(self):
+        """Expired snoozedToTime should be cleared, not used for filtering.
+
+        Current Alexa payloads can report stale snooze times. The alarm status
+        remains SNOOZED, while the unusable snoozedToTime is set to None so
+        status remains the source of truth.
+        """
         sensor = _make_alarm_sensor()
         expired_snooze = self.NOW - datetime.timedelta(minutes=5)
         original_alarm = self.NOW - datetime.timedelta(hours=1)
@@ -223,9 +233,8 @@ class TestNormalizeAlarmSnoozeState:
         ):
             result = sensor._normalize_alarm_snooze_state(value)
 
-        # normalize does not touch expired snooze; filtering is done elsewhere
         assert result[1]["status"] == "SNOOZED"
-        assert result[1]["snoozedToTime"] == expired_snooze
+        assert result[1]["snoozedToTime"] is None
         assert result[1]["date_time"] == original_alarm
 
     # --- Non-Alarm type guard ---
@@ -290,20 +299,24 @@ class TestIsActiveNotification:
 
     # --- State 4: expired SNOOZED ---
 
-    def test_expired_snoozed_is_not_active(self):
-        """SNOOZED alarm whose snoozedToTime is in the past must be excluded."""
+    def test_expired_snoozed_is_active(self):
+        """SNOOZED alarm with expired snoozedToTime remains active.
+
+        Amazon may return stale snooze timestamps during repeated tap snoozes,
+        so SNOOZED status is treated as authoritative.
+        """
         sensor = _make_alarm_sensor()
         expired_snooze = self.NOW - datetime.timedelta(minutes=5)
         item = _alarm_value(
             "SNOOZED", self.NOW - datetime.timedelta(hours=1), snoozed_to=expired_snooze
         )
-        assert sensor._is_active_notification(item, self.NOW) is False
+        assert sensor._is_active_notification(item, self.NOW) is True
 
-    def test_expired_snooze_at_exact_boundary_is_not_active(self):
-        """snoozedToTime == now (not strictly greater) is treated as expired."""
+    def test_expired_snooze_at_exact_boundary_is_active(self):
+        """snoozedToTime == now is still active when status is SNOOZED."""
         sensor = _make_alarm_sensor()
         item = _alarm_value("SNOOZED", self.NOW, snoozed_to=self.NOW)
-        assert sensor._is_active_notification(item, self.NOW) is False
+        assert sensor._is_active_notification(item, self.NOW) is True
 
     # --- Unrelated statuses ---
 

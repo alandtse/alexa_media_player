@@ -664,7 +664,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
         next_item["snoozedToTime"] = None
         return value
 
-    def _is_active_notification(self, item, now):
+    def _is_active_notification(self, item, _now):
         """Return whether a notification should be considered active."""
         status = item[1].get("status")
         if status == "ON":

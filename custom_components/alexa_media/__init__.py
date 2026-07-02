@@ -1530,7 +1530,32 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     if not login_live or not _network_allowed(login_live):
                         await asyncio.sleep(5)
                         continue
-                    await account_live["last_called_probe_event"].wait()
+                    # Stop this worker if the login object has been torn down (entry
+                    # reload/unload) so it cannot orphan onto a dead login and keep
+                    # hammering the API across reloads.
+                    if getattr(login_live, "close_requested", False) or (
+                        getattr(login_live, "session", None) is not None
+                        and login_live.session.closed
+                    ):
+                        return
+                    # Skip probing while the login is unhealthy: the request would be
+                    # built with a missing csrf / None header and raise a serialization
+                    # TypeError, and hammering the history API while logged-out can
+                    # hinder re-auth. Poll quietly until the login recovers.
+                    _status = getattr(login_live, "status", None)
+                    if not (_status and _status.get("login_successful")):
+                        await asyncio.sleep(15)
+                        continue
+                    # Bounded wait so that if the login is torn down while we are
+                    # idle here, the next iteration's teardown guard exits promptly
+                    # instead of parking on the event forever.
+                    try:
+                        await asyncio.wait_for(
+                            account_live["last_called_probe_event"].wait(),
+                            timeout=15,
+                        )
+                    except asyncio.TimeoutError:
+                        continue
                     account_live["last_called_probe_event"].clear()
 
                     if not skip_debounce:
@@ -1630,24 +1655,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                     max_record_size=max_record_size,
                                 )
                             except TypeError as exc:
-                                # Known alexapy/aiohttp edge case: None header key, etc.
+                                # A serialization TypeError (e.g. a None header key
+                                # when the login is half-torn-down) is not transient
+                                # within a session: back off and do NOT re-arm. The
+                                # old behavior crash-looped ~every 11s, hammering the
+                                # API. Wait for the next genuine push trigger instead.
+                                backoff = max(LAST_CALLED_CONN_BACKOFF_S, 60.0)
                                 account_live["last_called_probe_next_allowed"] = (
-                                    time.monotonic() + LAST_CALLED_CONN_BACKOFF_S
+                                    time.monotonic() + backoff
                                 )
                                 _LOGGER.warning(
-                                    "%s: last_called probe API TypeError (%s): %s",
+                                    "%s: last_called probe API TypeError (%s): %s; "
+                                    "backing off, not re-arming",
                                     hide_email(email),
                                     trigger_cmd,
                                     exc,
-                                    exc_info=True,
                                 )
-                                # NOTE:
-                                # We intentionally re-arm the probe (set event + backoff) on this TypeError
-                                # because this path is typically caused by transient alexapy/aiohttp issues
-                                # (e.g., None header key). Unlike Login/Connection errors, we retry quickly
-                                # to avoid losing last_called updates triggered by push events.
-                                skip_debounce = True
-                                account_live["last_called_probe_event"].set()
                                 break
 
                             if records is None:

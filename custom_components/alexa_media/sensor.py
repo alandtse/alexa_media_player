@@ -632,7 +632,14 @@ class AlexaMediaNotificationSensor(SensorEntity):
         return None
 
     def _normalize_alarm_snooze_state(self, value):
-        """Normalize snoozed alarm state before sorting/selecting next."""
+        """Normalize snoozed alarm state before sorting/selecting next.
+
+        Amazon can report a snoozed alarm without a reliable future
+        ``snoozedToTime``. In that case, do not synthesize ``snoozedToTime``
+        from the original alarm time; that value can be stale or already
+        expired. Keep the alarm status as SNOOZED and let active filtering
+        preserve it.
+        """
         if self._type != "Alarm" or not value:
             return value
 
@@ -640,22 +647,21 @@ class AlexaMediaNotificationSensor(SensorEntity):
         if not isinstance(next_item, dict):
             return value
 
-        status = next_item.get("status")
+        if next_item.get("status") != "SNOOZED":
+            return value
+
         snoozed_to = self._coerce_datetime(next_item.get("snoozedToTime"))
-        alarm_when = self._coerce_datetime(next_item.get(self._sensor_property))
         now = dt.now()
 
         if snoozed_to and snoozed_to > now:
-            next_item["status"] = "SNOOZED"
             next_item["snoozedToTime"] = snoozed_to
             next_item[self._sensor_property] = snoozed_to
             return value
 
-        if status == "SNOOZED" and snoozed_to is None and alarm_when is not None:
-            next_item["snoozedToTime"] = alarm_when
-            next_item[self._sensor_property] = alarm_when
-            return value
-
+        # Missing or expired snoozedToTime should not make a SNOOZED alarm
+        # inactive. Drop the unusable snooze timestamp so the status remains the
+        # source of truth, matching the pre-5.15.1 behavior more closely.
+        next_item["snoozedToTime"] = None
         return value
 
     def _is_active_notification(self, item, now):
@@ -664,11 +670,13 @@ class AlexaMediaNotificationSensor(SensorEntity):
         if status == "ON":
             return True
 
-        if status != "SNOOZED":
-            return False
+        # Treat SNOOZED as active even when Amazon omits or returns an expired
+        # snoozedToTime. The notification status is more reliable than the
+        # derived timestamp in current Alexa payloads.
+        if status == "SNOOZED":
+            return True
 
-        snoozed_to = self._coerce_datetime(item[1].get("snoozedToTime"))
-        return snoozed_to is None or snoozed_to > now
+        return False
 
     def _select_next_alarm(self, now):
         """Select next alarm, preferring future active alarms over skipped past ones."""

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "alexa_media_player"
-version = "5.15.5"
+version = "5.15.6"
 description = "This is a custom component to allow control of Amazon Alexa devices in [Homeassistant](https://home-assistant.io) using the unofficial Alexa API."
 authors = [
   "Keaton Taylor <keatonstaylor@gmail.com>",
@@ -100,6 +100,7 @@ ignore-words-list = "hass"
 
 [tool.bandit]
 skips = ["B101", "B404", "B603"]
+
 
 
 

@@ -1,7 +1,5 @@
 """Test the alexa_entity module utility functions."""
 
-import pytest
-
 from custom_components.alexa_media.alexa_entity import (
     has_capability,
     is_hue_v1,
@@ -9,6 +7,7 @@ from custom_components.alexa_media.alexa_entity import (
     is_local,
     is_skill,
 )
+import pytest
 
 
 class TestHasCapability:

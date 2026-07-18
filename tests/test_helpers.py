@@ -5,8 +5,6 @@ Tests the helper functions using pytest-homeassistant-custom-component.
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.helpers import (
     _existing_serials,
@@ -14,6 +12,7 @@ from custom_components.alexa_media.helpers import (
     is_http2_enabled,
     safe_get,
 )
+import pytest
 
 # =============================================================================
 # Tests for _existing_serials function

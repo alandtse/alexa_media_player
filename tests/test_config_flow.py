@@ -2,10 +2,9 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
+import pytest
 
 
 class TestReauthReload:

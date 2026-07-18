@@ -1,7 +1,5 @@
 """Test the exceptions module."""
 
-import pytest
-
 from custom_components.alexa_media.exceptions import (
     EmptyDataException,
     ForbiddenException,
@@ -10,6 +8,7 @@ from custom_components.alexa_media.exceptions import (
     TimeoutException,
     UnexpectedApiException,
 )
+import pytest
 
 
 def test_empty_data_exception():

@@ -8,9 +8,6 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-import pytest
-
 from custom_components.alexa_media.const import DOMAIN, TO_REDACT
 from custom_components.alexa_media.diagnostics import (
     _find_coordinators,
@@ -22,6 +19,8 @@ from custom_components.alexa_media.diagnostics import (
     async_get_config_entry_diagnostics,
     async_get_device_diagnostics,
 )
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+import pytest
 
 
 @pytest.fixture

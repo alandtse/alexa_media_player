@@ -5,10 +5,9 @@ Tests the notification service using pytest-homeassistant-custom-component.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.notify import AlexaNotificationService
+import pytest
 
 # =============================================================================
 # Tests for AlexaNotificationService.devices property

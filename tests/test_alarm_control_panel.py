@@ -5,9 +5,8 @@ Tests the Alexa Guard alarm control panel functionality.
 
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
-import pytest
-
 from custom_components.alexa_media.const import CONF_QUEUE_DELAY, DATA_ALEXAMEDIA
+import pytest
 
 # Try to import the state constants
 try:
@@ -460,11 +459,10 @@ class TestAsyncSetupPlatform:
     @pytest.mark.asyncio
     async def test_setup_platform_no_account_raises_not_ready(self):
         """Test that missing account raises ConfigEntryNotReady."""
-        from homeassistant.exceptions import ConfigEntryNotReady
-
         from custom_components.alexa_media.alarm_control_panel import (
             async_setup_platform,
         )
+        from homeassistant.exceptions import ConfigEntryNotReady
 
         hass = MagicMock()
         config = {}  # No email
@@ -476,11 +474,10 @@ class TestAsyncSetupPlatform:
     @pytest.mark.asyncio
     async def test_setup_platform_with_discovery_info(self):
         """Test setup with discovery_info providing the account."""
-        from homeassistant.exceptions import ConfigEntryNotReady
-
         from custom_components.alexa_media.alarm_control_panel import (
             async_setup_platform,
         )
+        from homeassistant.exceptions import ConfigEntryNotReady
 
         hass = MagicMock()
         config = None
@@ -495,12 +492,11 @@ class TestAsyncSetupPlatform:
     @pytest.mark.asyncio
     async def test_setup_platform_media_player_not_loaded(self):
         """Test that unloaded media player raises ConfigEntryNotReady."""
-        from homeassistant.exceptions import ConfigEntryNotReady
-
         from custom_components.alexa_media.alarm_control_panel import (
             async_setup_platform,
         )
         from custom_components.alexa_media.const import DATA_ALEXAMEDIA
+        from homeassistant.exceptions import ConfigEntryNotReady
 
         hass = MagicMock()
         account = "test@example.com"

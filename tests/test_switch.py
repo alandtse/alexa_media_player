@@ -7,12 +7,11 @@ devices with CONF_EXTENDED_ENTITY_DISCOVERY enabled.
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from custom_components.alexa_media.const import (
     CONF_EXTENDED_ENTITY_DISCOVERY,
     DATA_ALEXAMEDIA,
 )
+import pytest
 
 
 @pytest.fixture

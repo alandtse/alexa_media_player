@@ -3126,7 +3126,8 @@ async def async_unload_entry(hass, entry) -> bool:
     if hass.data[DATA_ALEXAMEDIA].get("config_flows") == {}:
         _LOGGER.debug("Removing config_flows data")
         async_dismiss_persistent_notification(
-            hass, f"alexa_media_secure_{slugify(email)}{slugify((entry.data['url'])[7:])}"
+            hass,
+            f"alexa_media_secure_{slugify(email)}{slugify((entry.data['url'])[7:])}",
         )
         hass.data[DATA_ALEXAMEDIA].pop("config_flows")
     if not hass.data[DATA_ALEXAMEDIA]:

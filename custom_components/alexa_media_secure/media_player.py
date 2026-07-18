@@ -2125,9 +2125,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 "response": self._last_called_response,
             }
 
-            _LOGGER.debug("Firing alexa_media_last_called_event")
-            self.hass.bus.fire("alexa_media_last_called_event", event_data)
+            _LOGGER.debug("Firing alexa_media_secure_last_called_event")
+            self.hass.bus.fire("alexa_media_secure_last_called_event", event_data)
 
-        _LOGGER.debug("Scheduling alexa_media_last_called_event")
+        _LOGGER.debug("Scheduling alexa_media_secure_last_called_event")
         # Defer to the next loop iteration so downstream consumers see updated state.
         async_call_later(self.hass, 0, _fire_last_called_event)

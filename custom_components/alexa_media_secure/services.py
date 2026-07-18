@@ -216,7 +216,7 @@ class AlexaMediaServices:
             # Store task handle for proper cleanup on unload
             task = self.hass.async_create_task(
                 _run_update_last_called(email, login_obj),
-                name=f"alexa_media.update_last_called.{hide_email(email)}",
+                name=f"alexa_media_secure.update_last_called.{hide_email(email)}",
             )
             account_dict["service_update_last_called_task"] = task
 

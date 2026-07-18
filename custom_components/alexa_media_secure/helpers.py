@@ -389,7 +389,7 @@ def report_relogin_required(hass, login, email) -> bool:
                 login.stats,
             )
             hass.bus.async_fire(
-                "alexa_media_relogin_required",
+                "alexa_media_secure_relogin_required",
                 event_data={
                     "email": hide_email(email),
                     "url": login.url,

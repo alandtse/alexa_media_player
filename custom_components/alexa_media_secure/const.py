@@ -21,8 +21,8 @@ PROJECT_URL = "https://github.com/alandtse/alexa_media_player/"
 ISSUE_URL = f"{PROJECT_URL}issues"
 NOTIFY_URL = f"{PROJECT_URL}wiki/Configuration%3A-Notification-Component#use-the-notifyalexa_media-service"
 
-DOMAIN = "alexa_media"
-DATA_ALEXAMEDIA = "alexa_media"
+DOMAIN = "alexa_media_secure"
+DATA_ALEXAMEDIA = "alexa_media_secure"
 
 PLAY_SCAN_INTERVAL = 20
 SCAN_INTERVAL = timedelta(seconds=60)

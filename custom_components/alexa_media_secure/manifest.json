@@ -1,0 +1,18 @@
+{
+  "domain": "alexa_media_secure",
+  "name": "Alexa Media Player Secure",
+  "codeowners": ["@superbeetle1973"],
+  "config_flow": true,
+  "dependencies": ["persistent_notification", "http"],
+  "documentation": "https://github.com/superbeetle1973/alexa-media-secure",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/superbeetle1973/alexa-media-secure/issues",
+  "loggers": ["alexapy_secure", "authcaptureproxy"],
+  "requirements": [
+    "alexapy-secure==0.1.0.dev0",
+    "packaging>=20.3",
+    "wrapt>=1.14.0",
+    "dictor>=0.1.12,<0.2"
+  ],
+  "version": "6.0.0a1"
+}

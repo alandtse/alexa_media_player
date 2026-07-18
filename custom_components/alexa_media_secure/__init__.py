@@ -787,8 +787,8 @@ async def async_setup_entry(hass, config_entry):
     if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
-    hass.bus.async_listen("alexa_media_relogin_required", relogin)
-    hass.bus.async_listen("alexa_media_relogin_success", login_success)
+    hass.bus.async_listen("alexa_media_secure_relogin_required", relogin)
+    hass.bus.async_listen("alexa_media_secure_relogin_success", login_success)
     try:
         _t = time.monotonic()
         cookies = await login.load_cookie()
@@ -1188,7 +1188,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
             if login_obj.status:
                 hass.bus.async_fire(
-                    "alexa_media_relogin_required",
+                    "alexa_media_secure_relogin_required",
                     event_data={"email": hide_email(email), "url": login_obj.url},
                 )
             return None
@@ -1457,7 +1457,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         previous_alarm.get("version"),
                     ):
                         hass.bus.async_fire(
-                            "alexa_media_alarm_dismissal_event",
+                            "alexa_media_secure_alarm_dismissal_event",
                             event_data={
                                 "device": {"id": n_dev_id},
                                 "event": notification,
@@ -2366,7 +2366,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 exception_,
             )
             hass.bus.async_fire(
-                "alexa_media_relogin_required",
+                "alexa_media_secure_relogin_required",
                 event_data={"email": hide_email(email), "url": login_obj.url},
             )
             return
@@ -2925,7 +2925,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = 5
             _LOGGER.debug("%s: Login error detected.", hide_email(email))
             hass.bus.async_fire(
-                "alexa_media_relogin_required",
+                "alexa_media_secure_relogin_required",
                 event_data={"email": hide_email(email), "url": login_obj.url},
             )
             return
@@ -3126,7 +3126,7 @@ async def async_unload_entry(hass, entry) -> bool:
     if hass.data[DATA_ALEXAMEDIA].get("config_flows") == {}:
         _LOGGER.debug("Removing config_flows data")
         async_dismiss_persistent_notification(
-            hass, f"alexa_media_{slugify(email)}{slugify((entry.data['url'])[7:])}"
+            hass, f"alexa_media_secure_{slugify(email)}{slugify((entry.data['url'])[7:])}"
         )
         hass.data[DATA_ALEXAMEDIA].pop("config_flows")
     if not hass.data[DATA_ALEXAMEDIA]:
@@ -3252,7 +3252,7 @@ async def test_login_status(hass, config_entry, login) -> bool:
         hass,
         title="Alexa Media Reauthentication Required",
         message=message,
-        notification_id=f"alexa_media_{slugify(login.email)}_{slugify(host)}",
+        notification_id=f"alexa_media_secure_{slugify(login.email)}_{slugify(host)}",
     )
     flow = hass.data[DATA_ALEXAMEDIA]["config_flows"].get(
         f"{account[CONF_EMAIL]} - {account[CONF_URL]}"

@@ -841,11 +841,11 @@ class AlexaMediaNotificationSensor(SensorEntity):
         _LOGGER.debug(
             "%s:Firing %s at %s",
             self,
-            "alexa_media_notification_event",
+            "alexa_media_secure_notification_event",
             dt.as_local(time_date),
         )
         self.hass.bus.fire(
-            "alexa_media_notification_event",
+            "alexa_media_secure_notification_event",
             event_data={
                 "email": hide_email(self._account),
                 "device": {"name": self.name, "entity_id": self.entity_id},

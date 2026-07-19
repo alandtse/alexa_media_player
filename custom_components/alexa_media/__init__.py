@@ -970,8 +970,14 @@ async def async_setup_entry(hass, config_entry):
             # ConfigEntryAuthFailed to start the paste-URL reauth flow — this is
             # the terminal-vs-transient classification the design promises.
             if not (login.status and login.status.get("login_successful")):
-                raise ConfigEntryAuthFailed(
-                    "Stored device credentials were rejected; re-enrollment required"
+                # The TokenManager preflight above already proved the stored
+                # token is valid and classified terminal failures. If AlexaLogin
+                # still fails to reach a logged-in state here, it is a
+                # second-bootstrap hiccup, not a dead registration — retry rather
+                # than force reauth.
+                raise ConfigEntryNotReady(
+                    "Alexa login did not complete after a successful credential "
+                    "refresh; will retry"
                 )
             if secure_store is not None:
                 # First successful refresh commits the migrated/enrolled

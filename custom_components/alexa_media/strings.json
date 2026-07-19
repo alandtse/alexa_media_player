@@ -7,9 +7,11 @@
       "already_configured": "This Amazon account is already configured."
     },
     "error": {
+      "invalid_domain": "Unsupported Amazon region domain. Use a domain like amazon.com, amazon.co.uk, or amazon.de.",
       "paste_required": "Paste the full redirect URL from your browser.",
       "paste_invalid": "That URL is not a valid Amazon maplanding redirect for this region.",
-      "register_failed": "Device registration failed (the code may have expired). Restart the login and paste the URL within ~5 minutes."
+      "register_failed": "Device registration failed (the code may have expired). Restart the login and paste the URL within ~5 minutes.",
+      "try_again": "Could not reach Amazon to verify the new login. Check your connection and try again."
     },
     "step": {
       "user": {

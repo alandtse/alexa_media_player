@@ -23,7 +23,6 @@ from alexapy import (
     AlexaLogin,
     AlexapyConnectionError,
     AlexapyLoginError,
-    AuthTerminalError,
     HTTP2EchoClient,
     __version__ as alexapy_version,
     hide_serial,
@@ -929,21 +928,32 @@ async def async_setup_entry(hass, config_entry):
             except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
                 _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
         if not cookie_login_ok:
-            try:
-                await login.login(cookies=cookies)
-            except AuthTerminalError as err:
-                # The stored device registration is dead — only interactive
-                # re-enrollment can recover it.
-                raise ConfigEntryAuthFailed(str(err)) from err
+            await login.login(cookies=cookies)
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
-        if await test_login_status(hass, config_entry, login):
-            _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
-            if secure and secure_store is not None:
-                # First successful round-trip commits the migrated/enrolled
+        if secure:
+            # Secure entries bootstrap purely from the stored refresh token.
+            # Transient/network failures raise AlexapyConnectionError and are
+            # mapped to ConfigEntryNotReady below. Any other failure to reach a
+            # logged-in state means the stored registration is dead, so surface
+            # ConfigEntryAuthFailed to start the paste-URL reauth flow — this is
+            # the terminal-vs-transient classification the design promises.
+            if not (login.status and login.status.get("login_successful")):
+                raise ConfigEntryAuthFailed(
+                    "Stored device credentials were rejected; re-enrollment required"
+                )
+            if secure_store is not None:
+                # First successful refresh commits the migrated/enrolled
                 # credentials and drains any legacy secrets from the entry.
                 await secure_store.async_mark_validated()
                 await _cleanup_legacy_secrets(hass, config_entry)
+            await setup_alexa(hass, config_entry, login)
+            _LOGGER.debug(
+                "[BOOT] setup_entry total: %.2fs", time.monotonic() - _boot_start
+            )
+            return True
+        if await test_login_status(hass, config_entry, login):
+            _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)
             _LOGGER.debug(
@@ -3310,7 +3320,16 @@ async def async_remove_entry(hass, entry) -> bool:
         try:
             await store.async_remove()
         except Exception as ex:  # noqa: BLE001
-            _LOGGER.debug("Could not remove secure store: %s", ex)
+            # Do not hide this: a leftover store still holds a replayable refresh
+            # token. Surface it at error level with the path so it can be removed
+            # manually; deregistration above already best-effort revoked it.
+            _LOGGER.error(
+                "Failed to delete secure credential store for %s (%s). A refresh "
+                "token may remain in .storage/%s — delete it manually.",
+                obfuscated_email,
+                ex,
+                store.key,
+            )
         _LOGGER.debug("Config entry %s removed.", obfuscated_email)
         return True
 

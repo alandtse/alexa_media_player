@@ -17,7 +17,15 @@ import logging
 from typing import Any, Optional
 
 import aiohttp
-from alexapy import EnrollmentError, EnrollmentFlow, hide_email, obfuscate
+from alexapy import (
+    AuthTerminalError,
+    AuthTransientError,
+    EnrollmentError,
+    EnrollmentFlow,
+    TokenManager,
+    hide_email,
+    obfuscate,
+)
 from awesomeversion import AwesomeVersion
 from homeassistant import config_entries
 from homeassistant.const import (
@@ -103,7 +111,16 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 data_schema=vol.Schema(self._user_schema()),
                 description_placeholders={"message": "REAUTH" if reauth else ""},
             )
-        self._enrollment = EnrollmentFlow(domain=self.config[CONF_URL])
+        try:
+            self._enrollment = EnrollmentFlow(domain=self.config[CONF_URL])
+        except EnrollmentError as err:
+            _LOGGER.debug("Rejected domain %s: %s", self.config.get(CONF_URL), err)
+            return self.async_show_form(
+                step_id="user",
+                data_schema=vol.Schema(self._user_schema()),
+                errors={"base": "invalid_domain"},
+                description_placeholders={"message": "REAUTH" if reauth else ""},
+            )
         return self.async_show_form(
             step_id="paste",
             data_schema=vol.Schema({vol.Required(CONF_PASTE_URL): str}),
@@ -130,6 +147,23 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         except EnrollmentError as err:
             _LOGGER.debug("Device registration failed: %s", err)
             return self._paste_form("register_failed")
+        # Account binding is mandatory: without a stable Amazon account id we
+        # cannot enforce the reauth mismatch / duplicate guards.
+        if not creds.customer_id:
+            _LOGGER.debug("Registration returned no account id; rejecting")
+            return self._paste_form("register_failed")
+        # Validate the freshly minted credentials before persisting anything, so
+        # a bad registration cannot overwrite a working store (reauth) or create
+        # a dead entry.
+        try:
+            async with aiohttp.ClientSession() as session:
+                await TokenManager(creds).async_refresh_access_token(session)
+        except AuthTerminalError as err:
+            _LOGGER.debug("New credentials rejected on validation: %s", err)
+            return self._paste_form("register_failed")
+        except AuthTransientError as err:
+            _LOGGER.debug("Transient error validating new credentials: %s", err)
+            return self._paste_form("try_again")
         return await self._finish_secure_enrollment(creds)
 
     async def _finish_secure_enrollment(self, creds) -> FlowResult:
@@ -142,12 +176,17 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         url = self.config[CONF_URL]
         existing_entry = self._reauth_entry()
 
-        if creds.customer_id:
-            await self.async_set_unique_id(creds.customer_id)
-            if existing_entry:
+        await self.async_set_unique_id(creds.customer_id)
+        if existing_entry:
+            # A legacy (pre-secure) entry is keyed by "<email> - <region>", not
+            # the Amazon account id. Binding it to the account id for the first
+            # time is expected; only reject when an already-account-bound entry
+            # is being reauthenticated against a different account.
+            existing_uid = existing_entry.unique_id or ""
+            if existing_uid.startswith("amzn1.account"):
                 self._abort_if_unique_id_mismatch(reason="wrong_account")
-            else:
-                self._abort_if_unique_id_configured()
+        else:
+            self._abort_if_unique_id_configured()
 
         # The config entry never holds secrets; the minimized device credentials
         # go to the dedicated protected store.
@@ -169,7 +208,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             store = SecureCredentialStore(self.hass, existing_entry.entry_id)
             await store.async_save(creds.as_dict(), pending_validation=False)
             self.hass.config_entries.async_update_entry(
-                existing_entry, data=self.config
+                existing_entry, data=self.config, unique_id=creds.customer_id
             )
             await self.hass.config_entries.async_reload(existing_entry.entry_id)
             _LOGGER.debug("Secure reauth successful for %s", hide_email(email))

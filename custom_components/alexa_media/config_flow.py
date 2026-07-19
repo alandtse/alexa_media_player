@@ -820,7 +820,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if CONF_PASSWORD in user_input:
             self.config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
         if CONF_URL in user_input:
-            self.config[CONF_URL] = user_input[CONF_URL]
+            self.config[CONF_URL] = "".join(user_input[CONF_URL].split())
         if CONF_PUBLIC_URL in user_input:
             if not user_input[CONF_PUBLIC_URL].endswith("/"):
                 user_input[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL] + "/"

@@ -59,6 +59,8 @@ CONF_SCAN_INTERVAL = (
 )
 CONF_TOTP_REGISTER = "registered"
 CONF_OAUTH = "oauth"
+CONF_SECURE = "secure_enrollment"
+CONF_PASTE_URL = "paste_url"
 DATA_LISTENER = "listener"
 
 EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"
@@ -174,6 +176,9 @@ DEVICE_PLAYER_BUCKETS = ("devices", "media_players", "players")
 TO_REDACT: set[str] = {
     "email",
     "password",
+    "serial",
+    "customer_id",
+    "paste_url",
     "access_token",
     "refresh_token",
     "token",

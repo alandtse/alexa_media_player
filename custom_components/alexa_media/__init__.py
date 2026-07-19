@@ -23,6 +23,7 @@ from alexapy import (
     AlexaLogin,
     AlexapyConnectionError,
     AlexapyLoginError,
+    AuthTerminalError,
     HTTP2EchoClient,
     __version__ as alexapy_version,
     hide_serial,
@@ -45,7 +46,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import UnknownFlow
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
@@ -55,7 +56,8 @@ from homeassistant.util import dt, slugify
 import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
-from .config_flow import in_progress_instances
+from .config_flow import CONFIG_VERSION, in_progress_instances
+from .secure_store import SecureCredentialStore
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
@@ -68,6 +70,7 @@ from .const import (
     CONF_PUBLIC_URL,
     CONF_QUEUE_DELAY,
     CONF_SCAN_INTERVAL,
+    CONF_SECURE,
     DATA_ALEXAMEDIA,
     DATA_LISTENER,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
@@ -475,6 +478,88 @@ async def async_setup(hass, config):
     return True
 
 
+async def async_migrate_entry(hass, config_entry) -> bool:
+    """Migrate a legacy entry to the secure, credential-minimizing schema.
+
+    Local, lazy, and non-destructive (RFC #3523 migration design): copy the
+    existing ``refresh_token``/``mac_dms`` into the protected store and mark the
+    entry secure, but keep the legacy secrets until the first successful
+    refresh-plus-cookie round trip commits (``_cleanup_legacy_secrets``, called
+    from ``async_setup_entry``). No Amazon request happens here, so a transient
+    outage cannot strand the entry.
+    """
+    if config_entry.version >= CONFIG_VERSION:
+        return True
+    _LOGGER.debug(
+        "Migrating %s from schema v%s to v%s",
+        hide_email(config_entry.data.get(CONF_EMAIL, "")),
+        config_entry.version,
+        CONFIG_VERSION,
+    )
+    data = dict(config_entry.data)
+    oauth = data.get(CONF_OAUTH, {}) or {}
+    refresh_token = oauth.get("refresh_token")
+    if not refresh_token:
+        # Nothing to migrate to; the entry must re-enroll interactively. Mark it
+        # secure and bump the version so setup raises ConfigEntryAuthFailed and
+        # starts the paste-URL reauth flow.
+        hass.config_entries.async_update_entry(
+            config_entry,
+            data={**data, CONF_SECURE: True},
+            version=CONFIG_VERSION,
+        )
+        return True
+    store = SecureCredentialStore(hass, config_entry.entry_id)
+    await store.async_save(
+        {
+            "refresh_token": refresh_token,
+            "mac_dms": oauth.get("mac_dms"),
+            "serial": data.get("serial"),
+            "customer_id": oauth.get("customer_id"),
+            "domain": data.get(CONF_URL, "amazon.com"),
+        },
+        pending_validation=True,
+    )
+    # Keep legacy secrets in place until validation commits; only flip the marker
+    # and version now.
+    hass.config_entries.async_update_entry(
+        config_entry,
+        data={**data, CONF_SECURE: True},
+        version=CONFIG_VERSION,
+    )
+    return True
+
+
+async def _cleanup_legacy_secrets(hass, config_entry) -> None:
+    """Drop legacy at-rest secrets after the secure credentials validate.
+
+    Removes the password, TOTP seed, and inline oauth dict from the config
+    entry and deletes legacy cookie files. Only called after a successful
+    refresh-plus-cookie round trip, so migration can never strand an entry.
+    """
+    data = dict(config_entry.data)
+    legacy_keys = [CONF_PASSWORD, CONF_OTPSECRET, CONF_OAUTH]
+    removed = [key for key in legacy_keys if key in data]
+    if removed:
+        for key in removed:
+            data.pop(key, None)
+        hass.config_entries.async_update_entry(config_entry, data=data)
+        _LOGGER.debug(
+            "%s: cleared legacy secrets %s after secure validation",
+            hide_email(config_entry.data.get(CONF_EMAIL, "")),
+            removed,
+        )
+    email = config_entry.data.get(CONF_EMAIL, "")
+    for handle in (email, hide_email(email)):
+        cookiefile = hass.config.path(f".storage/{DOMAIN}.{handle}.pickle")
+        if os.path.exists(cookiefile):
+            try:
+                await alexapy_delete_cookie(cookiefile)
+                _LOGGER.debug("Deleted legacy cookiefile for %s", hide_email(email))
+            except (OSError, EOFError, TypeError, AttributeError) as ex:
+                _LOGGER.debug("Could not delete legacy cookiefile: %s", ex)
+
+
 def _store_and_dispatch_last_called(
     hass: HomeAssistant,
     email: str,
@@ -759,6 +844,24 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"] = uuid_dict[
         "index"
     ]
+    # Secure enrollment (RFC #3523): the durable device credentials live in a
+    # dedicated protected store, not the config entry. Load them here so the
+    # runtime bootstraps from the refresh token alone — no password, no seed,
+    # no persisted cookie file.
+    secure = bool(account.get(CONF_SECURE))
+    secure_store: SecureCredentialStore | None = None
+    secure_oauth: dict = account.get(CONF_OAUTH, {})
+    if secure:
+        secure_store = SecureCredentialStore(hass, config_entry.entry_id)
+        stored = await secure_store.async_load()
+        if not stored or not stored.get("refresh_token"):
+            raise ConfigEntryAuthFailed(
+                "No stored device credentials; interactive re-enrollment required"
+            )
+        secure_oauth = {
+            "refresh_token": stored["refresh_token"],
+            "mac_dms": stored.get("mac_dms"),
+        }
     login: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
         "login_obj",
         AlexaLogin(
@@ -768,7 +871,7 @@ async def async_setup_entry(hass, config_entry):
             outputpath=hass.config.path,
             debug=account.get(CONF_DEBUG),
             otp_secret=account.get(CONF_OTPSECRET, ""),
-            oauth=account.get(CONF_OAUTH, {}),
+            oauth=secure_oauth,
             uuid=uuid,
             oauth_login=True,
         ),
@@ -791,7 +894,9 @@ async def async_setup_entry(hass, config_entry):
     hass.bus.async_listen("alexa_media_relogin_success", login_success)
     try:
         _t = time.monotonic()
-        cookies = await login.load_cookie()
+        # Secure entries never read a legacy cookie file — the session is
+        # reconstructed from the stored refresh token on every start.
+        cookies = None if secure else await login.load_cookie()
         cookie_login_ok = False
         if cookies:
             try:
@@ -824,11 +929,21 @@ async def async_setup_entry(hass, config_entry):
             except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
                 _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
         if not cookie_login_ok:
-            await login.login(cookies=cookies)
+            try:
+                await login.login(cookies=cookies)
+            except AuthTerminalError as err:
+                # The stored device registration is dead — only interactive
+                # re-enrollment can recover it.
+                raise ConfigEntryAuthFailed(str(err)) from err
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
         if await test_login_status(hass, config_entry, login):
             _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
+            if secure and secure_store is not None:
+                # First successful round-trip commits the migrated/enrolled
+                # credentials and drains any legacy secrets from the entry.
+                await secure_store.async_mark_validated()
+                await _cleanup_legacy_secrets(hass, config_entry)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)
             _LOGGER.debug(
@@ -1365,22 +1480,37 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     device_entry.name,
                 )
 
-        await login_obj.save_cookiefile()
-        if login_obj.access_token:
-            hass.config_entries.async_update_entry(
-                config_entry,
-                data={
-                    **config_entry.data,
-                    CONF_OAUTH: {
-                        "access_token": login_obj.access_token,
+        if config_entry.data.get(CONF_SECURE):
+            # Persist only rotated durable credentials, and only to the
+            # protected store — never write tokens back into the config entry.
+            if login_obj.refresh_token:
+                store = SecureCredentialStore(hass, config_entry.entry_id)
+                stored = await store.async_load() or {}
+                await store.async_save(
+                    {
+                        **stored,
                         "refresh_token": login_obj.refresh_token,
-                        "expires_in": login_obj.expires_in,
                         "mac_dms": login_obj.mac_dms,
-                        "code_verifier": login_obj.code_verifier,
-                        "authorization_code": login_obj.authorization_code,
                     },
-                },
-            )
+                    pending_validation=False,
+                )
+        else:
+            await login_obj.save_cookiefile()
+            if login_obj.access_token:
+                hass.config_entries.async_update_entry(
+                    config_entry,
+                    data={
+                        **config_entry.data,
+                        CONF_OAUTH: {
+                            "access_token": login_obj.access_token,
+                            "refresh_token": login_obj.refresh_token,
+                            "expires_in": login_obj.expires_in,
+                            "mac_dms": login_obj.mac_dms,
+                            "code_verifier": login_obj.code_verifier,
+                            "authorization_code": login_obj.authorization_code,
+                        },
+                    },
+                )
 
         if first_run or not _push_healthy(account):
             if _network_allowed(login_obj):
@@ -3147,6 +3277,43 @@ async def async_remove_entry(hass, entry) -> bool:
     email = entry.data["email"]
     obfuscated_email = hide_email(email)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
+
+    if entry.data.get(CONF_SECURE):
+        # Best-effort device deregistration, then delete the protected store.
+        # Amazon availability must never block entry removal.
+        store = SecureCredentialStore(hass, entry.entry_id)
+        creds = await store.async_load()
+        if creds and creds.get("refresh_token"):
+            try:
+                from alexapy import (  # pylint: disable=import-outside-toplevel
+                    DeviceCredentials,
+                    TokenManager,
+                )
+
+                manager = TokenManager(
+                    DeviceCredentials(
+                        refresh_token=creds["refresh_token"],
+                        mac_dms=creds.get("mac_dms") or {},
+                        serial=creds.get("serial", ""),
+                        customer_id=creds.get("customer_id"),
+                        domain=creds.get("domain", "amazon.com"),
+                    )
+                )
+                async with aiohttp.ClientSession() as session:
+                    await manager.async_refresh_access_token(session)
+                    await manager.async_deregister(session)
+                _LOGGER.debug("Deregistered device for %s", obfuscated_email)
+            except Exception as ex:  # noqa: BLE001
+                _LOGGER.debug(
+                    "Best-effort deregister failed for %s: %s", obfuscated_email, ex
+                )
+        try:
+            await store.async_remove()
+        except Exception as ex:  # noqa: BLE001
+            _LOGGER.debug("Could not remove secure store: %s", ex)
+        _LOGGER.debug("Config entry %s removed.", obfuscated_email)
+        return True
+
     login_obj = AlexaLogin(
         url="",
         email=email,
@@ -3275,15 +3442,15 @@ async def test_login_status(hass, config_entry, login) -> bool:
         context={"source": SOURCE_REAUTH},
         data={
             CONF_EMAIL: account[CONF_EMAIL],
-            CONF_PASSWORD: account[CONF_PASSWORD],
+            CONF_PASSWORD: account.get(CONF_PASSWORD, ""),
             CONF_URL: account[CONF_URL],
-            CONF_DEBUG: account[CONF_DEBUG],
-            CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
-            CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
+            CONF_DEBUG: account.get(CONF_DEBUG, False),
+            CONF_INCLUDE_DEVICES: account.get(CONF_INCLUDE_DEVICES, ""),
+            CONF_EXCLUDE_DEVICES: account.get(CONF_EXCLUDE_DEVICES, ""),
             CONF_SCAN_INTERVAL: (
                 account[CONF_SCAN_INTERVAL].total_seconds()
-                if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
-                else account[CONF_SCAN_INTERVAL]
+                if isinstance(account.get(CONF_SCAN_INTERVAL), timedelta)
+                else account.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
             ),
             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
         },

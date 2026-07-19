@@ -1,57 +1,41 @@
 {
   "config": {
     "abort": {
-      "forgot_password": "The Forgot Password page was detected. This normally is the result of too many failed logins. Amazon may require action before a relogin can be attempted.",
       "login_failed": "Alexa Media Player failed to login.",
-      "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA."
+      "reauth_successful": "Alexa Media Player successfully reauthenticated. Please ignore the \"Aborted\" message from HA.",
+      "wrong_account": "The Amazon account you logged in with does not match this entry. Log in with the same account you originally enrolled.",
+      "already_configured": "This Amazon account is already configured."
     },
     "error": {
-      "2fa_key_invalid": "{otp_secret} is invalid",
-      "connection_error": "Error connecting; check network and retry",
-      "identifier_exists": "Email for Alexa URL already registered",
-      "invalid_auth": "Login was not successful. Please double-check your email, password, and Authenticator key.",
-      "invalid_credentials": "Invalid credentials",
-      "invalid_url": "URL is invalid: {message}",
-      "oauth_error": "Could not complete OAuth login. Please try again.",
-      "unable_to_connect_hass_url": "Unable to connect to Home Assistant Local URL. Please check the URL under Settings > System > Network > Home Assistant URL > Local network",
-      "unknown_error": "Unknown error: {message}"
+      "paste_required": "Paste the full redirect URL from your browser.",
+      "paste_invalid": "That URL is not a valid Amazon maplanding redirect for this region.",
+      "register_failed": "Device registration failed (the code may have expired). Restart the login and paste the URL within ~5 minutes."
     },
     "step": {
-      "proxy_warning": {
-        "data": {
-          "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."
-        },
-        "description": "The HA server cannot connect to the URL provided: {hass_url}.\n> {error}\n\nTo fix this, please confirm your browser can reach {hass_url}. This field is from Settings > System > Network > Home Assistant URL.\n\nIf you are **certain** your browser can reach this URL, you can bypass this warning.",
-        "title": "Alexa Media Player - Unable to Connect to HA URL"
-      },
-      "totp_register": {
-        "data": {
-          "registered": "Yes, OTP code was verified"
-        },
-        "description": "**{email} - alexa.{url}**  \nHave you verified the OTP code in Amazon 2SV?  \n >OTP Code: {message}",
-        "title": "Alexa Media Player - OTP Confirmation"
-      },
       "user": {
         "data": {
           "debug": "Advanced debug",
           "email": "Email Address",
           "exclude_devices": "or Exclude these devices from all (comma separated)",
           "extended_entity_discovery": "Include additional sensors, switches and lights",
-          "hass_url": "Local network URL to access Home Assistant",
           "include_devices": "Only include these devices (comma separated)",
-          "otp_secret": "52-character Authenticator App Key for Amazon 2SV",
-          "password": "Password",
-          "public_url": "Public URL shared with external hosted services",
           "queue_delay": "Delay to queue multiple commands together (seconds)",
           "scan_interval": "Scheduled polling interval (seconds)",
-          "securitycode": "One-time password (OTP)",
-          "should_get_network": "Discover Alexa network",
           "url": "Amazon region domain (e.g., amazon.co.uk)"
         },
         "data_description": {
           "debug": "Enables very verbose, trace-level logging for advanced troubleshooting.\nNot recommended for normal operation due to increased log volume.\nEnsure logger levels are set to DEBUG for full output.",
-          "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
-        }
+          "email": "Only used as a label and to confirm the region — your password is never entered here."
+        },
+        "description": "Enter your Amazon account email and region. You will log in on Amazon's own page in the next step; no password or Authenticator key is entered in Home Assistant.",
+        "title": "Alexa Media Player - Account"
+      },
+      "paste": {
+        "data": {
+          "paste_url": "Pasted redirect URL"
+        },
+        "description": "1. Open this URL in your browser and log in to Amazon:\n\n{url}\n\n2. After login you land on a blank/error page at /ap/maplanding — that is expected.\n3. Copy the FULL address-bar URL and paste it below (it expires in ~5 minutes).",
+        "title": "Alexa Media Player - Complete Login ({email})"
       }
     }
   },

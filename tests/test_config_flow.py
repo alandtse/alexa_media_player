@@ -1,354 +1,206 @@
-"""Tests for config_flow module."""
+"""Tests for the secure paste-URL config flow."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from alexapy import EnrollmentError
 import pytest
 
-from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
-from custom_components.alexa_media.const import DATA_ALEXAMEDIA
+from custom_components.alexa_media.config_flow import (
+    CONFIG_VERSION,
+    AlexaMediaFlowHandler,
+)
+from custom_components.alexa_media.const import (
+    CONF_OAUTH,
+    CONF_PASTE_URL,
+    CONF_SECURE,
+)
+
+MAP_URL = (
+    "https://www.amazon.com/ap/maplanding?"
+    "openid.oa2.authorization_code=ANsecretcode&openid.assoc_handle=amzn"
+)
 
 
-class TestReauthReload:
-    """Test that reauth triggers integration reload.
+def _creds(customer_id="amzn1.account.ABC"):
+    creds = MagicMock()
+    creds.refresh_token = "Atna|refresh"  # nosec B105
+    creds.mac_dms = {"device_private_key": "k", "adp_token": "t"}
+    creds.serial = "DEADBEEF"
+    creds.customer_id = customer_id
+    creds.domain = "amazon.com"
+    creds.as_dict.return_value = {
+        "refresh_token": "Atna|refresh",
+        "mac_dms": {"device_private_key": "k", "adp_token": "t"},
+        "serial": "DEADBEEF",
+        "customer_id": customer_id,
+        "domain": "amazon.com",
+    }
+    return creds
 
-    These tests verify the fix for the bug where the integration remained
-    in an error state after successful reauthentication because async_reload
-    was not called.
-    """
+
+class TestUserStep:
+    """Step 1: collect account/region and present the login URL."""
 
     @pytest.mark.asyncio
-    async def test_reauth_triggers_reload(self):
-        """Test that successful reauth calls async_reload to clear error state.
-
-        This test verifies the fix for the bug where the integration remained
-        in an error state after successful reauthentication because async_reload
-        was not called.
-
-        Test plan:
-        1. Trigger a reauth flow by simulating an existing entry
-        2. Complete the reauth successfully
-        3. Verify that async_reload is called to clear the error state
-        """
-        # Create flow handler
+    async def test_shows_form_without_input(self):
         flow = AlexaMediaFlowHandler()
         flow.hass = MagicMock()
-        flow.config = {
-            "email": "test@example.com",
-        }
+        result = await flow.async_step_user()
+        assert result["type"] == "form"
+        assert result["step_id"] == "user"
 
-        # Mock login object with successful status
-        mock_login = MagicMock()
-        mock_login.email = "test@example.com"
-        mock_login.url = "https://amazon.com"
-        mock_login.status = {"login_successful": True}
-        mock_login.access_token = "test_token"  # nosec B105
-        mock_login.refresh_token = "test_refresh"  # nosec B105
-        mock_login.expires_in = 3600
-        mock_login.mac_dms = "test_mac"
-        mock_login.code_verifier = "test_verifier"
-        mock_login.authorization_code = "test_code"
-        flow.login = mock_login
-
-        # Mock existing entry (simulates reauth scenario)
-        mock_entry = MagicMock()
-        mock_entry.entry_id = "test_entry_id"
-
-        # Setup hass.data structure
-        flow.hass.data = {
-            DATA_ALEXAMEDIA: {
-                "accounts": {},
-                "config_flows": {},
-            }
-        }
-
-        # Mock async_set_unique_id to return existing entry (triggers reauth path)
-        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
-
-        # Mock config entries methods
-        flow.hass.config_entries.async_update_entry = MagicMock()
-        flow.hass.config_entries.async_reload = AsyncMock()
-
-        # Mock other required methods
-        flow.hass.bus.async_fire = MagicMock()
-        flow.async_abort = MagicMock(return_value={"type": "abort"})
-
-        # Patch async_dismiss_persistent_notification
+    @pytest.mark.asyncio
+    async def test_advances_to_paste_with_login_url(self):
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
         with patch(
-            "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
-        ):
-            # Call _test_login which handles reauth
-            await flow._test_login()
+            "custom_components.alexa_media.config_flow.EnrollmentFlow"
+        ) as enroll_cls:
+            enroll_cls.return_value.oauth_url = "https://www.amazon.com/ap/register?x=1"
+            result = await flow.async_step_user(
+                {"email": "user@example.com", "url": "amazon.com"}
+            )
+        assert result["type"] == "form"
+        assert result["step_id"] == "paste"
+        assert "amazon.com/ap/register" in result["description_placeholders"]["url"]
 
-        # Verify async_reload was called with the entry_id
-        flow.hass.config_entries.async_reload.assert_called_once_with("test_entry_id")
 
-        # Verify async_abort was called with reauth_successful
-        flow.async_abort.assert_called_once_with(reason="reauth_successful")
+class TestPasteStep:
+    """Step 2: parse the pasted redirect URL and register the device."""
 
-    @pytest.mark.asyncio
-    async def test_new_entry_does_not_trigger_reload(self):
-        """Test that new entry creation does not call async_reload.
-
-        Only reauth (existing entry update) should trigger reload.
-        New entries should use async_create_entry instead.
-        """
+    def _flow_at_paste(self):
         flow = AlexaMediaFlowHandler()
         flow.hass = MagicMock()
-        flow.config = {
-            "email": "test@example.com",
-        }
+        flow.config.update({"email": "user@example.com", "url": "amazon.com"})
+        flow._enrollment = MagicMock()
+        flow._enrollment.oauth_url = "https://www.amazon.com/ap/register"
+        return flow
 
-        # Mock login object
-        mock_login = MagicMock()
-        mock_login.email = "test@example.com"
-        mock_login.url = "https://amazon.com"
-        mock_login.status = {"login_successful": True}
-        mock_login.access_token = "test_token"  # nosec B105
-        mock_login.refresh_token = "test_refresh"  # nosec B105
-        mock_login.expires_in = 3600
-        mock_login.mac_dms = "test_mac"
-        mock_login.code_verifier = "test_verifier"
-        mock_login.authorization_code = "test_code"
-        flow.login = mock_login
+    @pytest.mark.asyncio
+    async def test_missing_paste_shows_error(self):
+        flow = self._flow_at_paste()
+        result = await flow.async_step_paste({})
+        assert result["type"] == "form"
+        assert result["errors"] == {"base": "paste_required"}
 
-        flow.hass.data = {
-            DATA_ALEXAMEDIA: {
-                "accounts": {},
-                "config_flows": {},
-            }
-        }
+    @pytest.mark.asyncio
+    async def test_invalid_url_shows_error(self):
+        flow = self._flow_at_paste()
+        flow._enrollment.parse_redirect_url.side_effect = EnrollmentError("bad host")
+        result = await flow.async_step_paste({CONF_PASTE_URL: "https://evil/x"})
+        assert result["errors"] == {"base": "paste_invalid"}
 
-        # Mock async_set_unique_id to return None (no existing entry = new setup)
-        flow.async_set_unique_id = AsyncMock(return_value=None)
+    @pytest.mark.asyncio
+    async def test_register_failure_shows_error(self):
+        flow = self._flow_at_paste()
+        flow._enrollment.parse_redirect_url.return_value = "ANcode"
+        flow._enrollment.async_register = AsyncMock(
+            side_effect=EnrollmentError("expired code")
+        )
+        result = await flow.async_step_paste({CONF_PASTE_URL: MAP_URL})
+        assert result["errors"] == {"base": "register_failed"}
 
-        # Mock methods
-        flow.hass.config_entries.async_reload = AsyncMock()
+    @pytest.mark.asyncio
+    async def test_success_creates_entry_and_stores_creds(self):
+        flow = self._flow_at_paste()
+        flow._enrollment.parse_redirect_url.return_value = "ANcode"
+        flow._enrollment.async_register = AsyncMock(return_value=_creds())
+        flow.async_set_unique_id = AsyncMock()
         flow._abort_if_unique_id_configured = MagicMock()
-        flow.async_create_entry = MagicMock(return_value={"type": "create_entry"})
-
-        await flow._test_login()
-
-        # Verify async_reload was NOT called for new entries
-        flow.hass.config_entries.async_reload.assert_not_called()
-
-        # Verify async_create_entry was called instead
-        flow.async_create_entry.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_reauth_updates_credentials_before_reload(self):
-        """Test that credentials are updated before reload is triggered.
-
-        The async_update_entry should be called before async_reload
-        to ensure new credentials are in place.
-        """
-        flow = AlexaMediaFlowHandler()
-        flow.hass = MagicMock()
-        flow.config = {
-            "email": "test@example.com",
-        }
-
-        mock_login = MagicMock()
-        mock_login.email = "test@example.com"
-        mock_login.url = "https://amazon.com"
-        mock_login.status = {"login_successful": True}
-        mock_login.access_token = "new_access_token"  # nosec B105
-        mock_login.refresh_token = "new_refresh_token"  # nosec B105
-        mock_login.expires_in = 3600
-        mock_login.mac_dms = "test_mac"
-        mock_login.code_verifier = "test_verifier"
-        mock_login.authorization_code = "test_code"
-        flow.login = mock_login
-
-        mock_entry = MagicMock()
-        mock_entry.entry_id = "test_entry_id"
-
-        flow.hass.data = {
-            DATA_ALEXAMEDIA: {
-                "accounts": {},
-                "config_flows": {},
-            }
-        }
-
-        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
-
-        # Track call order
-        call_order: list[str] = []
-        flow.hass.config_entries.async_update_entry = MagicMock(
-            side_effect=lambda *_args, **_kwargs: call_order.append("update")
+        created = MagicMock()
+        created.entry_id = "entry123"
+        flow.async_create_entry = MagicMock(
+            return_value={"type": "create_entry", "result": created}
         )
-        flow.hass.config_entries.async_reload = AsyncMock(
-            side_effect=lambda *_args, **_kwargs: call_order.append("reload")
-        )
-        flow.hass.bus.async_fire = MagicMock()
-        flow.async_abort = MagicMock(return_value={"type": "abort"})
-
+        store = AsyncMock()
         with patch(
-            "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
+            "custom_components.alexa_media.config_flow.SecureCredentialStore",
+            return_value=store,
         ):
-            await flow._test_login()
+            result = await flow.async_step_paste({CONF_PASTE_URL: MAP_URL})
 
-        # Verify update was called before reload
-        assert call_order == [
-            "update",
-            "reload",
-        ], f"Expected update before reload, got: {call_order}"
+        assert result["type"] == "create_entry"
+        # Entry is bound to the Amazon account id.
+        flow.async_set_unique_id.assert_awaited_once_with("amzn1.account.ABC")
+        # Credentials go to the protected store, never the entry data.
+        store.async_save.assert_awaited_once()
+        data = flow.async_create_entry.call_args.kwargs["data"]
+        assert data[CONF_SECURE] is True
+        assert "password" not in data
+        assert CONF_OAUTH not in data
+
+
+class TestReauth:
+    """Reauth must re-enroll and must not rebind to a different account."""
 
     @pytest.mark.asyncio
-    async def test_reauth_succeeds_even_when_reload_fails(self):
-        """Test that reauth completes successfully even if reload raises an exception.
-
-        The implementation includes defensive error handling that logs a warning
-        but still returns reauth_successful when async_reload fails. This ensures
-        credentials are updated even if the integration can't be reloaded.
-        """
+    async def test_reauth_routes_to_user_step(self):
         flow = AlexaMediaFlowHandler()
         flow.hass = MagicMock()
-        flow.config = {
-            "email": "test@example.com",
-        }
+        result = await flow.async_step_reauth({"email": "user@example.com"})
+        assert result["type"] == "form"
+        assert result["step_id"] == "user"
+        assert flow.config["reauth"] is True
 
-        mock_login = MagicMock()
-        mock_login.email = "test@example.com"
-        mock_login.url = "https://amazon.com"
-        mock_login.status = {"login_successful": True}
-        mock_login.access_token = "test_token"  # noqa: S105  # nosec B105
-        mock_login.refresh_token = "test_refresh"  # noqa: S105  # nosec B105
-        mock_login.expires_in = 3600
-        mock_login.mac_dms = "test_mac"
-        mock_login.code_verifier = "test_verifier"
-        mock_login.authorization_code = "test_code"
-        flow.login = mock_login
-
-        mock_entry = MagicMock()
-        mock_entry.entry_id = "test_entry_id"
-
-        flow.hass.data = {
-            DATA_ALEXAMEDIA: {
-                "accounts": {},
-                "config_flows": {},
-            }
-        }
-
-        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
+    @pytest.mark.asyncio
+    async def test_reauth_success_updates_and_reloads(self):
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config.update(
+            {"email": "user@example.com", "url": "amazon.com", "reauth": True}
+        )
+        flow._enrollment = MagicMock()
+        flow._enrollment.parse_redirect_url.return_value = "ANcode"
+        flow._enrollment.async_register = AsyncMock(return_value=_creds())
+        existing = MagicMock()
+        existing.entry_id = "entry123"
+        flow._reauth_entry = MagicMock(return_value=existing)
+        flow.async_set_unique_id = AsyncMock()
+        flow._abort_if_unique_id_mismatch = MagicMock()
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
         flow.hass.config_entries.async_update_entry = MagicMock()
-        # Simulate reload failure
-        flow.hass.config_entries.async_reload = AsyncMock(
-            side_effect=Exception("Reload failed")
-        )
-        flow.hass.bus.async_fire = MagicMock()
-        flow.async_abort = MagicMock(return_value={"type": "abort"})
-
+        flow.hass.config_entries.async_reload = AsyncMock()
+        store = AsyncMock()
         with patch(
-            "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
+            "custom_components.alexa_media.config_flow.SecureCredentialStore",
+            return_value=store,
         ):
-            await flow._test_login()
+            result = await flow.async_step_paste({CONF_PASTE_URL: MAP_URL})
 
-        # Despite reload failure, reauth should still complete successfully
+        flow._abort_if_unique_id_mismatch.assert_called_once()
+        flow.hass.config_entries.async_reload.assert_awaited_once_with("entry123")
         flow.async_abort.assert_called_once_with(reason="reauth_successful")
-        # Credentials should have been updated
-        flow.hass.config_entries.async_update_entry.assert_called_once()
+        assert result["type"] == "abort"
 
-
-class TestConfigFlowInvalidOtpKeyDataSchema:
-    """Tests for handling invalid OTP key errors in config flow.
-
-    These tests verify that when a user provides an invalid 2FA/OTP key,
-    the configuration flow properly displays an error form WITH the data
-    schema so the user can correct their input.
-
-    The bug: async_show_form was called without data_schema parameter when
-    AlexapyPyotpInvalidKey was raised, causing the error form to display
-    without any input fields. Users could see the error but had no way to
-    correct their invalid OTP key.
-
-    The fix: Add data_schema=vol.Schema(self.proxy_schema) to the
-    async_show_form call in the exception handler.
-
-    Related issues: #3254, #3243, #3189
-    """
-
-    def test_bugfix_adds_data_schema_to_exception_handler(self):
-        """Test that the bugfix adds data_schema to the AlexapyPyotpInvalidKey handler.
-
-        This test reads the actual config_flow.py source code and verifies
-        that the exception handler includes data_schema in the async_show_form call.
-        """
-        with open(
-            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
-        ) as f:
-            content = f.read()
-
-        # Check that the exception handler exists
-        assert (
-            "except AlexapyPyotpInvalidKey:" in content
-        ), "AlexapyPyotpInvalidKey exception handler not found in config_flow.py"
-
-        # Find the exception handler block
-        handler_start = content.find("except AlexapyPyotpInvalidKey:")
-        assert handler_start != -1
-
-        # Get the next ~500 characters to capture the full handler
-        handler_block = content[handler_start : handler_start + 500]
-
-        # Verify the handler returns async_show_form
-        assert (
-            "async_show_form" in handler_block
-        ), "async_show_form not found in AlexapyPyotpInvalidKey handler"
-
-        # CRITICAL: Verify data_schema is present in the handler
-        assert "data_schema" in handler_block, (
-            "BUGFIX MISSING: data_schema parameter not found in "
-            "AlexapyPyotpInvalidKey exception handler. "
-            "Without data_schema, users cannot correct their invalid OTP key. "
-            "See issues #3254, #3243, #3189."
+    @pytest.mark.asyncio
+    async def test_reauth_wrong_account_aborts(self):
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config.update(
+            {"email": "user@example.com", "url": "amazon.com", "reauth": True}
         )
-
-        # Verify it uses proxy_schema
-        assert "proxy_schema" in handler_block, (
-            "proxy_schema not found in AlexapyPyotpInvalidKey handler. "
-            "The handler should use vol.Schema(self.proxy_schema) for data_schema."
+        flow._enrollment = MagicMock()
+        flow._enrollment.parse_redirect_url.return_value = "ANcode"
+        flow._enrollment.async_register = AsyncMock(
+            return_value=_creds(customer_id="amzn1.account.OTHER")
         )
+        existing = MagicMock()
+        existing.entry_id = "entry123"
+        flow._reauth_entry = MagicMock(return_value=existing)
+        flow.async_set_unique_id = AsyncMock()
 
-    def test_error_form_includes_2fa_key_invalid_error(self):
-        """Test that the exception handler sets the correct error key."""
-        with open(
-            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
-        ) as f:
-            content = f.read()
+        def _mismatch(reason):
+            raise Exception(reason)  # noqa: TRY002 — stand-in for AbortFlow
 
-        handler_start = content.find("except AlexapyPyotpInvalidKey:")
-        handler_block = content[handler_start : handler_start + 500]
+        flow._abort_if_unique_id_mismatch = MagicMock(side_effect=_mismatch)
+        with (
+            patch("custom_components.alexa_media.config_flow.SecureCredentialStore"),
+            pytest.raises(Exception, match="wrong_account"),
+        ):
+            await flow.async_step_paste({CONF_PASTE_URL: MAP_URL})
 
-        assert (
-            "2fa_key_invalid" in handler_block
-        ), "Error key '2fa_key_invalid' not found in exception handler"
 
-    def test_error_form_includes_otp_secret_placeholder(self):
-        """Test that the exception handler includes otp_secret in placeholders."""
-        with open(
-            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
-        ) as f:
-            content = f.read()
-
-        handler_start = content.find("except AlexapyPyotpInvalidKey:")
-        handler_block = content[handler_start : handler_start + 500]
-
-        assert "otp_secret" in handler_block, (
-            "otp_secret placeholder not found in exception handler. "
-            "Users should see which OTP key was invalid."
-        )
-
-    def test_handler_returns_user_step(self):
-        """Test that the exception handler returns to the 'user' step."""
-        with open(
-            "custom_components/alexa_media/config_flow.py", encoding="utf-8"
-        ) as f:
-            content = f.read()
-
-        handler_start = content.find("except AlexapyPyotpInvalidKey:")
-        handler_block = content[handler_start : handler_start + 500]
-
-        assert 'step_id="user"' in handler_block, (
-            "step_id='user' not found in exception handler. "
-            "The handler should return users to the user step for correction."
-        )
+def test_config_version_bumped_for_migration():
+    """The schema version must advance so async_migrate_entry runs."""
+    assert CONFIG_VERSION == 2
+    assert AlexaMediaFlowHandler.VERSION == 2

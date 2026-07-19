@@ -152,12 +152,15 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         if not creds.customer_id:
             _LOGGER.debug("Registration returned no account id; rejecting")
             return self._paste_form("register_failed")
-        # Validate the freshly minted credentials before persisting anything, so
-        # a bad registration cannot overwrite a working store (reauth) or create
-        # a dead entry.
+        # Validate the freshly minted credentials with the full runtime round
+        # trip (access-token refresh + cookie mint) before persisting anything,
+        # so a bad registration cannot overwrite a working store (reauth) or
+        # create a dead entry.
         try:
             async with aiohttp.ClientSession() as session:
-                await TokenManager(creds).async_refresh_access_token(session)
+                manager = TokenManager(creds)
+                await manager.async_refresh_access_token(session)
+                await manager.async_exchange_cookies(session)
         except AuthTerminalError as err:
             _LOGGER.debug("New credentials rejected on validation: %s", err)
             return self._paste_form("register_failed")
@@ -185,6 +188,15 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             existing_uid = existing_entry.unique_id or ""
             if existing_uid.startswith("amzn1.account"):
                 self._abort_if_unique_id_mismatch(reason="wrong_account")
+            else:
+                # Rebinding a legacy entry must not collide with a different
+                # entry that already owns this account id.
+                for other in self.hass.config_entries.async_entries(DOMAIN):
+                    if (
+                        other.entry_id != existing_entry.entry_id
+                        and other.unique_id == creds.customer_id
+                    ):
+                        return self.async_abort(reason="already_configured")
         else:
             self._abort_if_unique_id_configured()
 

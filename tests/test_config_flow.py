@@ -153,6 +153,7 @@ class TestPasteStep:
         store = AsyncMock()
         tm = MagicMock()
         tm.async_refresh_access_token = AsyncMock()
+        tm.async_exchange_cookies = AsyncMock()
         with (
             patch(
                 "custom_components.alexa_media.config_flow.SecureCredentialStore",
@@ -166,8 +167,9 @@ class TestPasteStep:
             result = await flow.async_step_paste({CONF_PASTE_URL: MAP_URL})
 
         assert result["type"] == "create_entry"
-        # Credentials are validated before anything is persisted.
+        # Credentials are validated (refresh + cookie mint) before persisting.
         tm.async_refresh_access_token.assert_awaited_once()
+        tm.async_exchange_cookies.assert_awaited_once()
         # Entry is bound to the Amazon account id.
         flow.async_set_unique_id.assert_awaited_once_with("amzn1.account.ABC")
         # Credentials go to the protected store, never the entry data.
@@ -185,6 +187,7 @@ class TestReauth:
     def _paste_patches(store):
         tm = MagicMock()
         tm.async_refresh_access_token = AsyncMock()
+        tm.async_exchange_cookies = AsyncMock()
         return (
             patch(
                 "custom_components.alexa_media.config_flow.SecureCredentialStore",
@@ -259,6 +262,7 @@ class TestReauth:
         flow.async_abort = MagicMock(return_value={"type": "abort"})
         flow.hass.config_entries.async_update_entry = MagicMock()
         flow.hass.config_entries.async_reload = AsyncMock()
+        flow.hass.config_entries.async_entries = MagicMock(return_value=[existing])
         store = AsyncMock()
         p1, p2 = self._paste_patches(store)
         with p1, p2:
@@ -270,6 +274,40 @@ class TestReauth:
             flow.hass.config_entries.async_update_entry.call_args.kwargs["unique_id"]
             == "amzn1.account.ABC"
         )
+
+    @pytest.mark.asyncio
+    async def test_reauth_legacy_rebind_collision_aborts(self):
+        """Rebinding a legacy entry must not collide with another account entry."""
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config.update(
+            {"email": "user@example.com", "url": "amazon.com", "reauth": True}
+        )
+        flow._enrollment = MagicMock()
+        flow._enrollment.parse_redirect_url.return_value = "ANcode"
+        flow._enrollment.async_register = AsyncMock(return_value=_creds())
+        existing = MagicMock()
+        existing.entry_id = "entry123"
+        existing.unique_id = "user@example.com - amazon.com"  # legacy
+        other = MagicMock()
+        other.entry_id = "entry999"
+        other.unique_id = "amzn1.account.ABC"  # already owns the account id
+        flow._reauth_entry = MagicMock(return_value=existing)
+        flow.async_set_unique_id = AsyncMock()
+        flow._abort_if_unique_id_mismatch = MagicMock()
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
+        flow.hass.config_entries.async_entries = MagicMock(
+            return_value=[existing, other]
+        )
+        flow.hass.config_entries.async_update_entry = MagicMock()
+        store = AsyncMock()
+        p1, p2 = self._paste_patches(store)
+        with p1, p2:
+            result = await flow.async_step_paste({CONF_PASTE_URL: MAP_URL})
+
+        flow.async_abort.assert_called_once_with(reason="already_configured")
+        flow.hass.config_entries.async_update_entry.assert_not_called()
+        assert result["type"] == "abort"
 
     @pytest.mark.asyncio
     async def test_reauth_wrong_account_aborts(self):

@@ -23,7 +23,11 @@ from alexapy import (
     AlexaLogin,
     AlexapyConnectionError,
     AlexapyLoginError,
+    AuthTerminalError,
+    AuthTransientError,
+    DeviceCredentials,
     HTTP2EchoClient,
+    TokenManager,
     __version__ as alexapy_version,
     hide_serial,
     obfuscate,
@@ -893,6 +897,33 @@ async def async_setup_entry(hass, config_entry):
     hass.bus.async_listen("alexa_media_relogin_success", login_success)
     try:
         _t = time.monotonic()
+        if secure:
+            # Preflight the stored credentials through TokenManager, which
+            # classifies failures precisely: AuthTransientError (network/5xx/429)
+            # -> retry via ConfigEntryNotReady; AuthTerminalError (revoked/invalid
+            # grant) -> ConfigEntryAuthFailed and the paste-URL reauth flow. This
+            # is the terminal-vs-transient contract the design promises, and it
+            # proves the protected-store token actually works before any legacy
+            # cleanup. AlexaLogin's own refresh returns False on transient errors,
+            # so relying on it alone would misclassify a blip as terminal.
+            preflight_creds = DeviceCredentials(
+                refresh_token=stored["refresh_token"],
+                mac_dms=stored.get("mac_dms") or {},
+                serial=stored.get("serial", ""),
+                customer_id=stored.get("customer_id"),
+                domain=stored.get("domain", url or "amazon.com"),
+            )
+            try:
+                async with aiohttp.ClientSession() as _pf_session:
+                    manager = TokenManager(preflight_creds)
+                    await manager.async_refresh_access_token(_pf_session)
+                    await manager.async_exchange_cookies(_pf_session)
+            except AuthTransientError as err:
+                raise ConfigEntryNotReady(
+                    f"Transient error refreshing Alexa credentials: {err}"
+                ) from err
+            except AuthTerminalError as err:
+                raise ConfigEntryAuthFailed(str(err)) from err
         # Secure entries never read a legacy cookie file — the session is
         # reconstructed from the stored refresh token on every start.
         cookies = None if secure else await login.load_cookie()
@@ -3320,16 +3351,29 @@ async def async_remove_entry(hass, entry) -> bool:
         try:
             await store.async_remove()
         except Exception as ex:  # noqa: BLE001
-            # Do not hide this: a leftover store still holds a replayable refresh
-            # token. Surface it at error level with the path so it can be removed
-            # manually; deregistration above already best-effort revoked it.
-            _LOGGER.error(
-                "Failed to delete secure credential store for %s (%s). A refresh "
-                "token may remain in .storage/%s — delete it manually.",
-                obfuscated_email,
-                ex,
-                store.key,
-            )
+            # A leftover store still holds a replayable refresh token. Try a
+            # direct file delete as a fallback, then surface loudly if even that
+            # fails so it can be removed manually (deregistration above already
+            # best-effort revoked it).
+            store_path = hass.config.path(".storage", store.key)
+            try:
+                if os.path.exists(store_path):
+                    os.remove(store_path)
+                    _LOGGER.warning(
+                        "Secure store delete failed via Store (%s); removed the "
+                        "file directly at %s.",
+                        ex,
+                        store_path,
+                    )
+            except OSError as file_ex:
+                _LOGGER.error(
+                    "Could not delete secure credential store for %s (%s / %s). A "
+                    "refresh token may remain at %s — delete it manually.",
+                    obfuscated_email,
+                    ex,
+                    file_ex,
+                    store_path,
+                )
         _LOGGER.debug("Config entry %s removed.", obfuscated_email)
         return True
 

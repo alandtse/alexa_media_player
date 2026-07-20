@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.const import CONF_URL
 import pytest
 
 from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
@@ -352,3 +353,15 @@ class TestConfigFlowInvalidOtpKeyDataSchema:
             "step_id='user' not found in exception handler. "
             "The handler should return users to the user step for correction."
         )
+
+
+class TestConfigFlowUrlCleanup:
+    """Tests for cleaning Amazon region domains in config flow."""
+
+    def test_save_user_input_strips_whitespace_from_url(self):
+        """Test that accidental whitespace is removed from the Amazon domain."""
+        flow = AlexaMediaFlowHandler()
+
+        flow._save_user_input_to_config({CONF_URL: "amazon.com. au"})
+
+        assert flow.config[CONF_URL] == "amazon.com.au"

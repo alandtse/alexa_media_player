@@ -4,10 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.alexa_media import (
-    _cleanup_legacy_secrets,
-    async_migrate_entry,
-)
+from custom_components.alexa_media import _cleanup_legacy_secrets, async_migrate_entry
 from custom_components.alexa_media.const import CONF_OAUTH, CONF_SECURE
 
 

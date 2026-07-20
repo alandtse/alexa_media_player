@@ -9,11 +9,7 @@ from custom_components.alexa_media.config_flow import (
     CONFIG_VERSION,
     AlexaMediaFlowHandler,
 )
-from custom_components.alexa_media.const import (
-    CONF_OAUTH,
-    CONF_PASTE_URL,
-    CONF_SECURE,
-)
+from custom_components.alexa_media.const import CONF_OAUTH, CONF_PASTE_URL, CONF_SECURE
 
 MAP_URL = (
     "https://www.amazon.com/ap/maplanding?"

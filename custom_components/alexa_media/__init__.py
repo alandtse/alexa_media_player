@@ -60,7 +60,6 @@ import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import CONFIG_VERSION, in_progress_instances
-from .secure_store import SecureCredentialStore
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
@@ -120,6 +119,7 @@ from .helpers import (
 from .metrics import AlexaMetrics, get_metrics
 from .notify import async_unload_entry as notify_async_unload_entry
 from .runtime_data import AlexaRuntimeData
+from .secure_store import SecureCredentialStore
 from .services import AlexaMediaServices
 
 _LOGGER = logging.getLogger(__name__)

@@ -122,8 +122,7 @@ jobs:
         run: |
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
           for attempt in 1 2 3 4 5; do
-            git fetch origin dev
-            if git rebase origin/dev && git push origin HEAD:dev; then
+            if git fetch origin dev && git rebase origin/dev && git push origin HEAD:dev; then
               echo "Pushed to dev on attempt $attempt"
               exit 0
             fi

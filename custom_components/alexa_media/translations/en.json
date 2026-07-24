@@ -130,6 +130,30 @@
     }
   },
   "services": {
+    "amazon_kids_disable": {
+      "description": "Turns off Amazon Kids (child mode) for an Echo by unassigning it from any child profile.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo device to disable Amazon Kids on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Disable Amazon Kids"
+    },
+    "amazon_kids_enable": {
+      "description": "Turns on Amazon Kids (child mode) for an Echo by assigning it to a child profile.",
+      "fields": {
+        "child": {
+          "description": "Child profile to assign (first name or directedId)",
+          "name": "Child"
+        },
+        "entity_id": {
+          "description": "Echo device to enable Amazon Kids on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Enable Amazon Kids"
+    },
     "enable_network_discovery": {
       "description": "Re-enables Alexa network discovery so the next polling cycle will rediscover Alexa devices for the selected accounts.",
       "fields": {

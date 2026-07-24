@@ -16,6 +16,7 @@ from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.util import slugify
 import voluptuous as vol
 
 from .const import (
@@ -304,11 +305,16 @@ class AlexaMediaServices:
         if not entity_entry or entity_entry.platform != DOMAIN:
             _LOGGER.error("Entity %s not found or not part of %s", entity_id, DOMAIN)
             return None, None, None
-        serial = entity_entry.unique_id
+        unique_id = entity_entry.unique_id
         accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
         for email, account_dict in accounts.items():
             for device in AlexaAPI.devices.get(email, []):
-                if device.get("serialNumber") == serial:
+                serial = device.get("serialNumber")
+                if not serial:
+                    continue
+                # Match the media_player unique id convention: raw serial for the
+                # primary account, slugify("<serial>_<email>") for secondaries.
+                if unique_id in (serial, slugify(f"{serial}_{email}")):
                     return account_dict["login_obj"], serial, device.get("deviceType")
         _LOGGER.error("No Alexa Media account/device found for entity %s", entity_id)
         return None, None, None

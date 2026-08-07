@@ -78,6 +78,8 @@ SERVICE_RESTORE_VOLUME = "restore_volume"
 SERVICE_GET_HISTORY_RECORDS = "get_history_records"
 SERVICE_FORCE_LOGOUT = "force_logout"
 SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
+SERVICE_AMAZON_KIDS_ENABLE = "amazon_kids_enable"
+SERVICE_AMAZON_KIDS_DISABLE = "amazon_kids_disable"
 
 # Backoff durations for the last-called probe worker
 LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0
@@ -147,6 +149,7 @@ ATTR_MESSAGE = "message"
 ATTR_EMAIL = "email"
 ATTR_ENTITY_ID = "entity_id"
 ATTR_NUM_ENTRIES = "entries"
+ATTR_CHILD = "child"
 COMMON_BUCKET_COUNTS = (
     "accounts",
     "devices",

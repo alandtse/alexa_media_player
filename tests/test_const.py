@@ -8,6 +8,7 @@ from custom_components.alexa_media.const import (
     ALEXA_AIR_QUALITY_DEVICE_CLASS,
     ALEXA_COMPONENTS,
     ALEXA_ICON_CONVERSION,
+    ALEXA_UNIT_CONVERSION,
     CONF_ACCOUNTS,
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
@@ -213,3 +214,84 @@ class TestAirQualityConstants:
             assert ALEXA_ICON_CONVERSION[sensor_type] is not None
             assert isinstance(ALEXA_ICON_CONVERSION[sensor_type], str)
             assert ALEXA_ICON_CONVERSION[sensor_type].startswith("mdi:")
+
+
+class TestUnitConversionConstants:
+    """Test ALEXA_UNIT_CONVERSION (#3535: HA 2026.8 deprecated CONCENTRATION_* units)."""
+
+    def test_alexa_unit_conversion_has_required_mappings(self):
+        """Test that all three Alexa unit strings resolve to a value."""
+        required_units = [
+            "Alexa.Unit.Percent",
+            "Alexa.Unit.PartsPerMillion",
+            "Alexa.Unit.Density.MicroGramsPerCubicMeter",
+        ]
+        for unit in required_units:
+            assert unit in ALEXA_UNIT_CONVERSION
+            assert ALEXA_UNIT_CONVERSION[unit] is not None
+
+    def test_alexa_unit_conversion_values(self):
+        """Test the mapping resolves to the correct unit strings, independent
+        of which Home Assistant version supplied the constant.
+
+        UnitOfDensity/UnitOfRatio (added in HA 2026.7.0) and the
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER / CONCENTRATION_PARTS_PER_MILLION
+        constants they deprecate (removed in HA 2027.8) carry the same values
+        on every HA version that defines either. const.py picks whichever
+        pair the running HA version has; this asserts on the value itself so
+        the test passes regardless of which branch is live in the
+        environment running it.
+
+        The density unit's micro sign is intentionally not hardcoded as a
+        literal here -- U+00B5 MICRO SIGN and U+03BC GREEK SMALL LETTER MU
+        are visually identical and easy to type the wrong one of by hand
+        (caught by this exact test during review). Comparing against the
+        actual imported HA constant sidesteps that entirely.
+        """
+        assert ALEXA_UNIT_CONVERSION["Alexa.Unit.PartsPerMillion"] == "ppm"
+
+        try:
+            from homeassistant.const import UnitOfDensity
+
+            expected_density_unit = UnitOfDensity.MICROGRAMS_PER_CUBIC_METER
+        except ImportError:
+            from homeassistant.const import CONCENTRATION_MICROGRAMS_PER_CUBIC_METER
+
+            expected_density_unit = CONCENTRATION_MICROGRAMS_PER_CUBIC_METER
+
+        assert (
+            ALEXA_UNIT_CONVERSION["Alexa.Unit.Density.MicroGramsPerCubicMeter"]
+            == expected_density_unit
+        )
+
+    def test_unit_fallback_matches_whichever_homeassistant_const_has(self):
+        """#3535: const.py must resolve to real objects either way.
+
+        This integration's floor is HA 2025.2.0, but UnitOfDensity/UnitOfRatio
+        only exist from 2026.7.0 onward -- importing them unconditionally
+        would raise ImportError on every older supported version. Confirm
+        const.py's resolved constants equal whichever of the two pairs
+        homeassistant.const actually provides in this environment.
+        """
+        from custom_components.alexa_media.const import (
+            _MICROGRAMS_PER_CUBIC_METER,
+            _PARTS_PER_MILLION,
+        )
+
+        try:
+            from homeassistant.const import UnitOfDensity, UnitOfRatio
+
+            assert _PARTS_PER_MILLION == UnitOfRatio.PARTS_PER_MILLION
+            assert (
+                _MICROGRAMS_PER_CUBIC_METER == UnitOfDensity.MICROGRAMS_PER_CUBIC_METER
+            )
+        except ImportError:
+            from homeassistant.const import (
+                CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+                CONCENTRATION_PARTS_PER_MILLION,
+            )
+
+            assert _PARTS_PER_MILLION == CONCENTRATION_PARTS_PER_MILLION
+            assert (
+                _MICROGRAMS_PER_CUBIC_METER == CONCENTRATION_MICROGRAMS_PER_CUBIC_METER
+            )

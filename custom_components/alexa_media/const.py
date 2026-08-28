@@ -11,11 +11,25 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from homeassistant.const import (
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_PARTS_PER_MILLION,
-    PERCENTAGE,
-)
+from homeassistant.const import PERCENTAGE
+
+try:
+    # UnitOfDensity/UnitOfRatio were added in HA 2026.7.0. Below that (this
+    # integration's floor is 2025.2.0), fall back to the equivalent
+    # CONCENTRATION_* constants -- deprecated starting in HA 2026.8 (removed
+    # in 2027.8) but still present as aliases for the same values, and the
+    # only ones that exist pre-2026.7.
+    from homeassistant.const import UnitOfDensity, UnitOfRatio
+
+    _MICROGRAMS_PER_CUBIC_METER = UnitOfDensity.MICROGRAMS_PER_CUBIC_METER
+    _PARTS_PER_MILLION = UnitOfRatio.PARTS_PER_MILLION
+except ImportError:
+    from homeassistant.const import (
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER as _MICROGRAMS_PER_CUBIC_METER,
+    )
+    from homeassistant.const import (
+        CONCENTRATION_PARTS_PER_MILLION as _PARTS_PER_MILLION,
+    )
 
 PROJECT_URL = "https://github.com/alandtse/alexa_media_player/"
 ISSUE_URL = f"{PROJECT_URL}issues"
@@ -213,8 +227,8 @@ AUTH_PROXY_NAME = "auth:alexamedia:proxy"
 
 ALEXA_UNIT_CONVERSION = {
     "Alexa.Unit.Percent": PERCENTAGE,
-    "Alexa.Unit.PartsPerMillion": CONCENTRATION_PARTS_PER_MILLION,
-    "Alexa.Unit.Density.MicroGramsPerCubicMeter": CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+    "Alexa.Unit.PartsPerMillion": _PARTS_PER_MILLION,
+    "Alexa.Unit.Density.MicroGramsPerCubicMeter": _MICROGRAMS_PER_CUBIC_METER,
 }
 
 ALEXA_ICON_CONVERSION = {

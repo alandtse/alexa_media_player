@@ -26,8 +26,6 @@ try:
 except ImportError:
     from homeassistant.const import (
         CONCENTRATION_MICROGRAMS_PER_CUBIC_METER as _MICROGRAMS_PER_CUBIC_METER,
-    )
-    from homeassistant.const import (
         CONCENTRATION_PARTS_PER_MILLION as _PARTS_PER_MILLION,
     )
 

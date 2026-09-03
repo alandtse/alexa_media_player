@@ -312,10 +312,17 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
 
     @property
     def device_info(self):
-        """Return device_info for device registry."""
+        """Return device_info for device registry.
+
+        Historically this also set the deprecated via_device kwarg to
+        the same ``(ALEXA_DOMAIN, client.unique_id)`` tuple already used
+        in ``identifiers``. That self-reference produced no observable
+        relationship at runtime (HA cannot link a device entry to itself
+        through its own identifier) and the deprecated kwarg is reported
+        by HA 2026.9 and removed in 2027.8 (see issue #3551), so drop it.
+        """
         return {
             "identifiers": {(ALEXA_DOMAIN, self._client.unique_id)},
-            "via_device": (ALEXA_DOMAIN, self._client.unique_id),
         }
 
     @property

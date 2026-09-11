@@ -108,6 +108,7 @@ from .helpers import (
     alarm_just_dismissed,
     calculate_uuid,
     hide_email,
+    is_push_message_object,
     report_relogin_required,
     safe_get,
 )
@@ -2385,6 +2386,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         This allows push notifications from Alexa to update last_called and media state.
         """
+
+        if not is_push_message_object(message_obj):
+            _LOGGER.debug(
+                "%s: Ignoring non-object http2 push message: %r",
+                hide_email(email),
+                message_obj,
+            )
+            return
 
         coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]

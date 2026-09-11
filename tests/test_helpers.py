@@ -12,6 +12,7 @@ from custom_components.alexa_media.helpers import (
     _existing_serials,
     add_devices,
     is_http2_enabled,
+    is_push_message_object,
     safe_get,
 )
 
@@ -402,6 +403,38 @@ def test_is_http2_enabled_http2_object():
     )
 
     assert is_http2_enabled(hass, "test@example.com") is True
+
+
+# =============================================================================
+# Tests for is_push_message_object function
+# =============================================================================
+
+
+@pytest.mark.parametrize(
+    ("message_obj", "expected"),
+    [
+        (0, False),
+        (42, False),
+        (-1, False),
+        (3.14, False),
+        ("directive", False),
+        ("", False),
+        (True, False),
+        (None, False),
+        ([], False),
+        ([1, 2], False),
+        ({"directive": {"payload": {}}}, True),
+        ({}, True),
+    ],
+)
+def test_is_push_message_object(message_obj, expected):
+    """Only JSON objects are accepted as http2 push messages.
+
+    alexapy passes every stream line that parses as JSON to the callback
+    unchanged, so scalars, lists and null used to reach http2_handler and raise
+    AttributeError on its first .get() call.
+    """
+    assert is_push_message_object(message_obj) is expected
 
 
 # =============================================================================

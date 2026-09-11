@@ -516,6 +516,15 @@ def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:
     return False
 
 
+def is_push_message_object(message_obj: Any) -> bool:
+    """Whether an http2 push message is a JSON object.
+
+    alexapy hands every stream line that parses as JSON to the callback, so
+    scalars, lists and null reach the handler and have no .get().
+    """
+    return isinstance(message_obj, dict)
+
+
 @overload
 def safe_get(
     data: Any,

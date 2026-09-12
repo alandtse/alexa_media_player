@@ -41,7 +41,7 @@ repos:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.16.4
+    rev: v4.18.0
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -50,7 +50,7 @@ repos:
   - hooks:
       - id: black
     repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 26.3.1
   - repo: https://github.com/pre-commit/mirrors-prettier
     hooks:
       - id: prettier
@@ -71,7 +71,7 @@ repos:
       - id: bandit
         args: ["-c", "pyproject.toml"]
   - repo: https://github.com/PyCQA/isort
-    rev: 9.0.0b1
+    rev: 9.0.1
     hooks:
       - id: isort
   #  - repo: local
@@ -88,7 +88,7 @@ repos:
       - id: sync_with_poetry
         args: []
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.2
+    rev: v2.4.3
     hooks:
       - id: codespell
         additional_dependencies:

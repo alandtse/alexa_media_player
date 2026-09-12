@@ -117,7 +117,18 @@ jobs:
           tag: ${{ env.release_version }}
           overwrite: true
       - name: Push changes to dev
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: dev
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          for attempt in 1 2 3 4 5; do
+            if git fetch origin dev && git rebase origin/dev && git push origin HEAD:dev; then
+              echo "Pushed to dev on attempt $attempt"
+              exit 0
+            fi
+            echo "Push to dev failed on attempt $attempt, retrying..."
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 3))
+          done
+          echo "::error::Failed to push release commits to dev after retries"
+          exit 1

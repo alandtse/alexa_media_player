@@ -16,14 +16,18 @@ from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.util import slugify
 import voluptuous as vol
 
 from .const import (
+    ATTR_CHILD,
     ATTR_EMAIL,
     ATTR_ENTITY_ID,
     ATTR_NUM_ENTRIES,
     DATA_ALEXAMEDIA,
     DOMAIN,
+    SERVICE_AMAZON_KIDS_DISABLE,
+    SERVICE_AMAZON_KIDS_ENABLE,
     SERVICE_ENABLE_NETWORK_DISCOVERY,
     SERVICE_FORCE_LOGOUT,
     SERVICE_GET_HISTORY_RECORDS,
@@ -58,6 +62,14 @@ ENABLE_NETWORK_DISCOVERY_SCHEMA = vol.Schema(
         ),
     }
 )
+
+AMAZON_KIDS_ENABLE_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_CHILD): cv.string,
+    }
+)
+AMAZON_KIDS_DISABLE_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
 
 
 @dataclass(frozen=True)
@@ -94,6 +106,16 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         name=SERVICE_ENABLE_NETWORK_DISCOVERY,
         schema=ENABLE_NETWORK_DISCOVERY_SCHEMA,
         handler="enable_network_discovery",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_AMAZON_KIDS_ENABLE,
+        schema=AMAZON_KIDS_ENABLE_SCHEMA,
+        handler="amazon_kids_enable",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_AMAZON_KIDS_DISABLE,
+        schema=AMAZON_KIDS_DISABLE_SCHEMA,
+        handler="amazon_kids_disable",
     ),
 )
 
@@ -274,6 +296,75 @@ class AlexaMediaServices:
         )
 
         _LOGGER.debug("Volume restored to %s for entity %s", previous_volume, entity_id)
+        return True
+
+    def _resolve_device(self, entity_id):
+        """Resolve a media_player entity_id to (login_obj, serial, device_type)."""
+        entity_registry = er.async_get(self.hass)
+        entity_entry = entity_registry.async_get(entity_id)
+        if not entity_entry or entity_entry.platform != DOMAIN:
+            _LOGGER.error("Entity %s not found or not part of %s", entity_id, DOMAIN)
+            return None, None, None
+        unique_id = entity_entry.unique_id
+        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+        for email, account_dict in accounts.items():
+            for device in AlexaAPI.devices.get(email, []):
+                serial = device.get("serialNumber")
+                if not serial:
+                    continue
+                # Match the media_player unique id convention: raw serial for the
+                # primary account, slugify("<serial>_<email>") for secondaries.
+                if unique_id in (serial, slugify(f"{serial}_{email}")):
+                    return account_dict["login_obj"], serial, device.get("deviceType")
+        _LOGGER.error("No Alexa Media account/device found for entity %s", entity_id)
+        return None, None, None
+
+    async def _resolve_child_id(self, login_obj, child):
+        """Resolve a child (directedId or first name) to its directedId."""
+        if child and child.startswith("amzn1.account"):
+            return child
+        profiles = await AlexaAPI.get_child_profiles(login_obj) or []
+        for profile in profiles:
+            if (profile.get("firstName") or "").lower() == (child or "").lower():
+                return profile.get("directedId")
+        _LOGGER.error("Child profile '%s' not found in household", child)
+        return None
+
+    @_catch_login_errors
+    async def amazon_kids_enable(self, call: ServiceCall) -> bool:
+        """Enable Amazon Kids on a device by assigning it to a child profile.
+
+        Arguments:
+            call.ATTR_ENTITY_ID {str} -- Alexa Media Player entity.
+            call.ATTR_CHILD {str} -- Child first name or directedId.
+
+        """
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        child = call.data.get(ATTR_CHILD)
+        login_obj, serial, device_type = self._resolve_device(entity_id)
+        if not login_obj:
+            return False
+        child_id = await self._resolve_child_id(login_obj, child)
+        if not child_id:
+            return False
+        await AlexaAPI.enable_child_mode(login_obj, serial, device_type, child_id)
+        _LOGGER.debug("Enabled Amazon Kids on %s for child %s", entity_id, child)
+        return True
+
+    @_catch_login_errors
+    async def amazon_kids_disable(self, call: ServiceCall) -> bool:
+        """Disable Amazon Kids on a device (unassign it from any child).
+
+        Arguments:
+            call.ATTR_ENTITY_ID {str} -- Alexa Media Player entity.
+
+        """
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        login_obj, serial, device_type = self._resolve_device(entity_id)
+        if not login_obj:
+            return False
+        await AlexaAPI.disable_child_mode(login_obj, serial, device_type)
+        _LOGGER.debug("Disabled Amazon Kids on %s", entity_id)
         return True
 
     async def get_history_records(self, call: ServiceCall) -> bool:

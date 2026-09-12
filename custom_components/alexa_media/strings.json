@@ -132,6 +132,30 @@
           "description": "Optional Alexa account email or list of emails. If empty, all known accounts will be refreshed."
         }
       }
+    },
+    "amazon_kids_enable": {
+      "name": "Enable Amazon Kids",
+      "description": "Turns on Amazon Kids (child mode) for an Echo by assigning it to a child profile.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device to enable Amazon Kids on"
+        },
+        "child": {
+          "name": "Child",
+          "description": "Child profile to assign (first name or directedId)"
+        }
+      }
+    },
+    "amazon_kids_disable": {
+      "name": "Disable Amazon Kids",
+      "description": "Turns off Amazon Kids (child mode) for an Echo by unassigning it from any child profile.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device to disable Amazon Kids on"
+        }
+      }
     }
   },
   "entity": {

@@ -130,6 +130,30 @@
     }
   },
   "services": {
+    "amazon_kids_disable": {
+      "description": "Disattiva Amazon Kids (modalità bambino) per un Echo rimuovendolo da qualsiasi profilo bambino.",
+      "fields": {
+        "entity_id": {
+          "description": "Dispositivo Echo per disattivare Amazon Kids su",
+          "name": "Seleziona il lettore multimediale:"
+        }
+      },
+      "name": "Disattiva Amazon Kids"
+    },
+    "amazon_kids_enable": {
+      "description": "Attiva Amazon Kids (modalità bambino) per un dispositivo Echo assegnandolo a un profilo bambino.",
+      "fields": {
+        "child": {
+          "description": "Profilo bambino da assegnare (nome o ID indirizzato)",
+          "name": "Bambino"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo per abilitare Amazon Kids su",
+          "name": "Seleziona il lettore multimediale:"
+        }
+      },
+      "name": "Abilita Amazon Kids"
+    },
     "enable_network_discovery": {
       "description": "Riattiva la rilevazione della rete Alexa in modo che il successivo ciclo di sondaggio rilevi i dispositivi Alexa per gli account selezionati.",
       "fields": {

@@ -130,6 +130,30 @@
     }
   },
   "services": {
+    "amazon_kids_disable": {
+      "description": "Deaktiviert Amazon Kids (Kindermodus) für ein Echo-Gerät, indem es von allen Kinderprofilen entfernt wird.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo-Gerät zum Deaktivieren von Amazon Kids",
+          "name": "Medienplayer auswählen:"
+        }
+      },
+      "name": "Amazon Kids deaktivieren"
+    },
+    "amazon_kids_enable": {
+      "description": "Aktiviert Amazon Kids (Kindermodus) für ein Echo-Gerät, indem es einem Kinderprofil zugewiesen wird.",
+      "fields": {
+        "child": {
+          "description": "Kinderprofil zuweisen (Vorname oder Directed-ID)",
+          "name": "Kind"
+        },
+        "entity_id": {
+          "description": "Echo-Gerät zum Aktivieren von Amazon Kids",
+          "name": "Medienplayer auswählen:"
+        }
+      },
+      "name": "Amazon Kids aktivieren"
+    },
     "enable_network_discovery": {
       "description": "Aktiviert die Alexa-Netzwerkerkennung erneut, sodass beim nächsten Abfragezyklus die Alexa-Geräte für die ausgewählten Konten erneut erkannt werden.",
       "fields": {

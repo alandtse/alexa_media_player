@@ -130,6 +130,30 @@
     }
   },
   "services": {
+    "amazon_kids_disable": {
+      "description": "Slår av Amazon Kids (barnemodus) for en Echo ved å fjerne tilordningen fra en hvilken som helst barneprofil.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo-enhet for å deaktivere Amazon Kids på",
+          "name": "Velg mediespiller:"
+        }
+      },
+      "name": "Deaktiver Amazon Kids"
+    },
+    "amazon_kids_enable": {
+      "description": "Slår på Amazon Kids (barnemodus) for en Echo ved å tilordne den til en barneprofil.",
+      "fields": {
+        "child": {
+          "description": "Barneprofil som skal tilordnes (fornavn eller directedId)",
+          "name": "Barn"
+        },
+        "entity_id": {
+          "description": "Echo-enhet for å aktivere Amazon Kids",
+          "name": "Velg mediespiller:"
+        }
+      },
+      "name": "Aktiver Amazon Kids"
+    },
     "enable_network_discovery": {
       "description": "Aktiverer Alexa-nettverksoppdagelse på nytt, slik at neste avstemningssyklus vil oppdage Alexa-enheter på nytt for de valgte kontoene.",
       "fields": {

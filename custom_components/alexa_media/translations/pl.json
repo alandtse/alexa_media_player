@@ -130,6 +130,30 @@
     }
   },
   "services": {
+    "amazon_kids_disable": {
+      "description": "Wyłącza Amazon Kids (tryb dziecięcy) dla urządzenia Echo poprzez usunięcie jego przypisania do dowolnego profilu dziecięcego.",
+      "fields": {
+        "entity_id": {
+          "description": "Urządzenie Echo do wyłączania Amazon Kids",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        }
+      },
+      "name": "Wyłącz Amazon Kids"
+    },
+    "amazon_kids_enable": {
+      "description": "Włącza Amazon Kids (tryb dziecięcy) dla urządzenia Echo poprzez przypisanie go do profilu dziecięcego.",
+      "fields": {
+        "child": {
+          "description": "Profil dziecka do przypisania (imię lub directionId)",
+          "name": "Dziecko"
+        },
+        "entity_id": {
+          "description": "Urządzenie Echo umożliwiające korzystanie z Amazon Kids",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        }
+      },
+      "name": "Włącz Amazon Kids"
+    },
     "enable_network_discovery": {
       "description": "Ponownie włącza wykrywanie sieci Alexa, dzięki czemu kolejny cykl sondowania ponownie wykryje urządzenia Alexa dla wybranych kont.",
       "fields": {

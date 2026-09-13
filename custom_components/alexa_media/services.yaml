@@ -68,3 +68,36 @@ enable_network_discovery:
       example: [email protected]
       selector:
         text:
+
+amazon_kids_enable:
+  name: Enable Amazon Kids
+  description: Enable Amazon Kids (child mode) on an Echo by assigning it to a child profile.
+  fields:
+    entity_id:
+      name: Entity
+      description: Alexa Media Player device to enable Amazon Kids on.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
+    child:
+      name: Child
+      description: Child profile first name (or directedId) to assign the device to.
+      required: true
+      example: "Anton"
+      selector:
+        text:
+
+amazon_kids_disable:
+  name: Disable Amazon Kids
+  description: Disable Amazon Kids (child mode) on an Echo by unassigning it from any child.
+  fields:
+    entity_id:
+      name: Entity
+      description: Alexa Media Player device to disable Amazon Kids on.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media

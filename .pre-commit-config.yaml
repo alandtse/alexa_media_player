@@ -41,7 +41,7 @@ repos:
       - id: commitizen
         stages: ["commit-msg"]
     repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.17.0
+    rev: v4.18.0
   # --- Linters ---
   # - hooks:
   #     - id: dockerfile_lint
@@ -71,7 +71,7 @@ repos:
       - id: bandit
         args: ["-c", "pyproject.toml"]
   - repo: https://github.com/PyCQA/isort
-    rev: 9.0.0b1
+    rev: 9.0.1
     hooks:
       - id: isort
   #  - repo: local

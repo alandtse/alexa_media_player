@@ -130,6 +130,30 @@
     }
   },
   "services": {
+    "amazon_kids_disable": {
+      "description": "Отключает детский режим Amazon Kids для Echo, удаляя его из любого детского профиля.",
+      "fields": {
+        "entity_id": {
+          "description": "Устройство Cho для отключения Amazon Kids",
+          "name": "Выберите медиа плеер:"
+        }
+      },
+      "name": "Отключить Amazon Kids"
+    },
+    "amazon_kids_enable": {
+      "description": "Включает детский режим Amazon Kids для устройства Echo, назначая его детскому профилю.",
+      "fields": {
+        "child": {
+          "description": "Профиль ребенка для присвоения (имя или directedId)",
+          "name": "Ребенок"
+        },
+        "entity_id": {
+          "description": "Устройство Echo для включения Amazon Kids",
+          "name": "Выберите медиа плеер:"
+        }
+      },
+      "name": "Включить Amazon Kids"
+    },
     "enable_network_discovery": {
       "description": "Повторно включает обнаружение сети Alexa, чтобы в следующем цикле опроса были повторно обнаружены устройства Alexa для выбранных учетных записей.",
       "fields": {

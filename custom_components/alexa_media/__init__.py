@@ -8,6 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
+import contextlib
 from datetime import datetime, timedelta
 from json import JSONDecodeError, loads
 import logging
@@ -92,6 +93,7 @@ from .const import (
     LAST_CALLED_SUCCESS_PACE_S,
     LAST_PING_MAX_AGE_SECONDS,
     LAST_PUSH_INACTIVITY_SECONDS,
+    LOGIN_MAX_WAIT_S,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
     NOTIFICATION_COOLDOWN,
@@ -691,6 +693,14 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DATA_ALEXAMEDIA].setdefault("accounts", {})
     hass.data[DATA_ALEXAMEDIA].setdefault("config_flows", {})
     hass.data[DATA_ALEXAMEDIA].setdefault("notify_service", None)
+    # The collector is removed when the last account unloads, so recreating it
+    # here re-arms boot tracking at the domain lifecycle boundary: a reload
+    # measures its own setup instead of the async_setup of this Home Assistant
+    # run. Tracking is deliberately not re-armed for an additional account,
+    # which would discard the stages already recorded for the loaded ones.
+    if not isinstance(hass.data[DATA_ALEXAMEDIA].get("metrics"), AlexaMetrics):
+        hass.data[DATA_ALEXAMEDIA]["metrics"] = AlexaMetrics(hass)
+        hass.data[DATA_ALEXAMEDIA]["metrics"].start_boot_tracking()
     account = config_entry.data
     email = account.get(CONF_EMAIL)
     password = account.get(CONF_PASSWORD)
@@ -824,7 +834,22 @@ async def async_setup_entry(hass, config_entry):
             except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
                 _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
         if not cookie_login_ok:
-            await login.login(cookies=cookies)
+            try:
+                async with async_timeout.timeout(LOGIN_MAX_WAIT_S):
+                    await login.login(cookies=cookies)
+            except asyncio.TimeoutError as err:
+                # An interrupted login can leave partial request state on the
+                # client, which alexapy resumes from on the next attempt. Both
+                # hass.data and runtime_data would hand that same client to the
+                # retry, so drop it and let the retry build a fresh one; the
+                # saved cookie is left in place.
+                with contextlib.suppress(Exception):
+                    await login.close()
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop("login_obj", None)
+                config_entry.runtime_data = None
+                raise ConfigEntryNotReady(
+                    f"Login did not complete within {LOGIN_MAX_WAIT_S:.0f}s"
+                ) from err
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
         if await test_login_status(hass, config_entry, login):
@@ -973,8 +998,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "entities"
         ].get("binary_sensor", []):
-            if binary_sensor.enabled:
-                entities_to_monitor.add(binary_sensor.alexa_entity_id)
+            # AmazonKidsSensor is stored alongside the coordinator-backed
+            # AlexaContact sensors but is not derived from an Alexa entity: it
+            # polls the Echo on its own interval and has no alexa_entity_id.
+            alexa_entity_id = getattr(binary_sensor, "alexa_entity_id", None)
+            if alexa_entity_id and binary_sensor.enabled:
+                entities_to_monitor.add(alexa_entity_id)
 
         for guard in (
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]
@@ -3123,6 +3152,11 @@ async def async_unload_entry(hass, entry) -> bool:
         if alexa_services:
             await alexa_services.unregister()
             hass.data[DATA_ALEXAMEDIA].pop("services")
+        # Per-run collectors recreated by the next setup. Leaving them behind
+        # keeps DATA_ALEXAMEDIA truthy, so the data structure below is never
+        # removed and stale boot metrics survive into the next setup.
+        hass.data[DATA_ALEXAMEDIA].pop("metrics", None)
+        hass.data[DATA_ALEXAMEDIA].pop("notify_service", None)
     if hass.data[DATA_ALEXAMEDIA].get("config_flows") == {}:
         _LOGGER.debug("Removing config_flows data")
         async_dismiss_persistent_notification(

@@ -202,7 +202,6 @@ class AmazonKidsSensor(BinarySensorEntity):
         """Attach to the Echo device."""
         return {
             "identifiers": {(DATA_ALEXAMEDIA, self._client.unique_id)},
-            "via_device": (DATA_ALEXAMEDIA, self._client.unique_id),
         }
 
     async def async_added_to_hass(self):

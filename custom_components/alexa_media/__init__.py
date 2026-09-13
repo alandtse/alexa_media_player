@@ -691,13 +691,14 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DATA_ALEXAMEDIA].setdefault("accounts", {})
     hass.data[DATA_ALEXAMEDIA].setdefault("config_flows", {})
     hass.data[DATA_ALEXAMEDIA].setdefault("notify_service", None)
-    # Boot metrics measure elapsed time from the moment tracking starts. Re-arm
-    # them per setup (recreating the collector if a previous unload removed it)
-    # so a reload reports its own timings instead of measuring from the
-    # async_setup of this Home Assistant run.
+    # The collector is removed when the last account unloads, so recreating it
+    # here re-arms boot tracking at the domain lifecycle boundary: a reload
+    # measures its own setup instead of the async_setup of this Home Assistant
+    # run. Tracking is deliberately not re-armed for an additional account,
+    # which would discard the stages already recorded for the loaded ones.
     if not isinstance(hass.data[DATA_ALEXAMEDIA].get("metrics"), AlexaMetrics):
         hass.data[DATA_ALEXAMEDIA]["metrics"] = AlexaMetrics(hass)
-    hass.data[DATA_ALEXAMEDIA]["metrics"].start_boot_tracking()
+        hass.data[DATA_ALEXAMEDIA]["metrics"].start_boot_tracking()
     account = config_entry.data
     email = account.get(CONF_EMAIL)
     password = account.get(CONF_PASSWORD)

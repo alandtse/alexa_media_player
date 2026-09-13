@@ -315,7 +315,6 @@ class AlexaMediaSwitch(SwitchDevice, AlexaMedia):
         """Return device_info for device registry."""
         return {
             "identifiers": {(ALEXA_DOMAIN, self._client.unique_id)},
-            "via_device": (ALEXA_DOMAIN, self._client.unique_id),
         }
 
     @property

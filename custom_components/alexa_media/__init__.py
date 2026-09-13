@@ -691,6 +691,13 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DATA_ALEXAMEDIA].setdefault("accounts", {})
     hass.data[DATA_ALEXAMEDIA].setdefault("config_flows", {})
     hass.data[DATA_ALEXAMEDIA].setdefault("notify_service", None)
+    # Boot metrics measure elapsed time from the moment tracking starts. Re-arm
+    # them per setup (recreating the collector if a previous unload removed it)
+    # so a reload reports its own timings instead of measuring from the
+    # async_setup of this Home Assistant run.
+    if not isinstance(hass.data[DATA_ALEXAMEDIA].get("metrics"), AlexaMetrics):
+        hass.data[DATA_ALEXAMEDIA]["metrics"] = AlexaMetrics(hass)
+    hass.data[DATA_ALEXAMEDIA]["metrics"].start_boot_tracking()
     account = config_entry.data
     email = account.get(CONF_EMAIL)
     password = account.get(CONF_PASSWORD)
@@ -3123,6 +3130,11 @@ async def async_unload_entry(hass, entry) -> bool:
         if alexa_services:
             await alexa_services.unregister()
             hass.data[DATA_ALEXAMEDIA].pop("services")
+        # Per-run collectors recreated by the next setup. Leaving them behind
+        # keeps DATA_ALEXAMEDIA truthy, so the data structure below is never
+        # removed and stale boot metrics survive into the next setup.
+        hass.data[DATA_ALEXAMEDIA].pop("metrics", None)
+        hass.data[DATA_ALEXAMEDIA].pop("notify_service", None)
     if hass.data[DATA_ALEXAMEDIA].get("config_flows") == {}:
         _LOGGER.debug("Removing config_flows data")
         async_dismiss_persistent_notification(

@@ -92,6 +92,7 @@ from .const import (
     LAST_CALLED_SUCCESS_PACE_S,
     LAST_PING_MAX_AGE_SECONDS,
     LAST_PUSH_INACTIVITY_SECONDS,
+    LOGIN_MAX_WAIT_S,
     MIN_TIME_BETWEEN_FORCED_SCANS,
     MIN_TIME_BETWEEN_SCANS,
     NOTIFICATION_COOLDOWN,
@@ -824,7 +825,13 @@ async def async_setup_entry(hass, config_entry):
             except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
                 _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
         if not cookie_login_ok:
-            await login.login(cookies=cookies)
+            try:
+                async with async_timeout.timeout(LOGIN_MAX_WAIT_S):
+                    await login.login(cookies=cookies)
+            except asyncio.TimeoutError as err:
+                raise ConfigEntryNotReady(
+                    f"Login did not complete within {LOGIN_MAX_WAIT_S:.0f}s"
+                ) from err
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
         if await test_login_status(hass, config_entry, login):

@@ -8,6 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
+import contextlib
 from datetime import datetime, timedelta
 from json import JSONDecodeError, loads
 import logging
@@ -829,6 +830,15 @@ async def async_setup_entry(hass, config_entry):
                 async with async_timeout.timeout(LOGIN_MAX_WAIT_S):
                     await login.login(cookies=cookies)
             except asyncio.TimeoutError as err:
+                # An interrupted login can leave partial request state on the
+                # client, which alexapy resumes from on the next attempt. Both
+                # hass.data and runtime_data would hand that same client to the
+                # retry, so drop it and let the retry build a fresh one; the
+                # saved cookie is left in place.
+                with contextlib.suppress(Exception):
+                    await login.close()
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop("login_obj", None)
+                config_entry.runtime_data = None
                 raise ConfigEntryNotReady(
                     f"Login did not complete within {LOGIN_MAX_WAIT_S:.0f}s"
                 ) from err

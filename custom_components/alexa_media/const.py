@@ -99,6 +99,9 @@ LAST_CALLED_429_BACKOFF_MAX_S = 15 * 60.0
 LAST_CALLED_CONN_BACKOFF_S = 10.0
 LAST_CALLED_LOGIN_BACKOFF_S = 30.0
 
+# Deadlock guard for AlexaLogin.login() during config entry setup.
+LOGIN_MAX_WAIT_S = 600.0
+
 # Tuning constants for the per-account last-called probe worker
 LAST_CALLED_DEBOUNCE_S = 3.5  # coalesce bursty pushes, but stay snappy
 LAST_CALLED_RETRY_DELAY_S = 4.0  # wider retry cadence for delayed routine history

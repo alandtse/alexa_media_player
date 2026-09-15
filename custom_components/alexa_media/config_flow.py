@@ -623,6 +623,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Handle reauth processing for the config flow."""
         self._save_user_input_to_config(user_input)
         self.config["reauth"] = True
+        self.reauth_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
         reauth_schema = self._update_schema_defaults()
         _LOGGER.debug(
             "Creating reauth form with %s",
@@ -660,7 +663,16 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         email = login.email
         _LOGGER.debug("Testing login status: %s", login.status)
         if login.status and login.status.get("login_successful"):
-            existing_entry = await self.async_set_unique_id(f"{email} - {login.url}")
+            existing_entry = getattr(self, "reauth_entry", None)
+            _LOGGER.debug(
+                "Reauth existing entry: %s",
+                existing_entry.entry_id if existing_entry else None,
+            )
+            if existing_entry is None:
+                existing_entry = await self.async_set_unique_id(
+                    f"{email} - {login.url}"
+                )
+
             if self.config.get("reauth"):
                 self.config.pop("reauth")
             if self.config.get(CONF_SECURITYCODE):
@@ -681,10 +693,37 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             )
             self.hass.data[DATA_ALEXAMEDIA].setdefault("accounts", {})
             self.hass.data[DATA_ALEXAMEDIA].setdefault("config_flows", {})
+
             if existing_entry:
+                # During reauth the Amazon email may have changed.
+                # Move the existing, fully initialised runtime account from
+                # the old email key to the new email key before updating the
+                # config entry. This preserves entities/devices/options.
+                old_email = existing_entry.data.get(CONF_EMAIL)
+
+                accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+
+                if old_email and old_email != email and old_email in accounts:
+                    _LOGGER.debug(
+                        "Moving Alexa runtime account from %s to %s",
+                        hide_email(old_email),
+                        hide_email(email),
+                    )
+                    account_data = accounts.pop(old_email)
+                    account_data["config_entry"] = existing_entry
+                    account_data["login_obj"] = self.login
+                    accounts[email] = account_data
+                else:
+                    if email in accounts:
+                        accounts[email]["login_obj"] = self.login
+
                 self.hass.config_entries.async_update_entry(
-                    existing_entry, data=self.config
+                    existing_entry,
+                    data=self.config,
+                    title=f"{login.email} - {login.url}",
+                    unique_id=f"{login.email} - {login.url}",
                 )
+
                 _LOGGER.debug("Reauth successful for %s", hide_email(email))
                 self.hass.bus.async_fire(
                     "alexa_media_relogin_success",
@@ -696,15 +735,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     self.hass,
                     notification_id,
                 )
-                if not self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(
-                    self.config[CONF_EMAIL]
-                ):
-                    self.hass.data[DATA_ALEXAMEDIA]["accounts"][
-                        self.config[CONF_EMAIL]
-                    ] = {}
-                self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.config[CONF_EMAIL]][
-                    "login_obj"
-                ] = self.login
                 self.hass.data[DATA_ALEXAMEDIA]["config_flows"][
                     f"{email} - {login.url}"
                 ] = None

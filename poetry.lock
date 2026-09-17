@@ -283,14 +283,14 @@ tzdata = ">=2024.1"
 
 [[package]]
 name = "alexapy"
-version = "1.30.1"
+version = "1.31.0"
 description = "Python API to control Amazon Echo Devices Programmatically."
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "alexapy-1.30.1-py3-none-any.whl", hash = "sha256:6dfcbb99df9f5866ed1fa53fca4d97eae811c2ef8f8e095e32f0f34a8beec72a"},
-    {file = "alexapy-1.30.1.tar.gz", hash = "sha256:247e819056d1e29615d57a726d41500e0bdc758b98a39957416e3088d50e50e2"},
+    {file = "alexapy-1.31.0-py3-none-any.whl", hash = "sha256:44718ce694700354f06164c10e8b69f333b4abc22566bca60a510312635c4f01"},
+    {file = "alexapy-1.31.0.tar.gz", hash = "sha256:75bb353ca98398f82992e83024851aa983063e7f937a7fb753c85d86b26c8124"},
 ]
 
 [package.dependencies]
@@ -6025,4 +6025,4 @@ ifaddr = ">=0.1.7"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "35e564fcfc8d931923de89883e4923f2f8bcf099f377817eef8623b1077118cc"
+content-hash = "5feaab4585e8d7c436978babbd015b04111ee4b9d65dd45c6b80c1f198bce111"

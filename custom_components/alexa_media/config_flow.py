@@ -513,6 +513,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 )
             else:
                 _LOGGER.debug("Using existing login")
+                if self.config.get("reauth") and self.config.get(CONF_EMAIL):
+                    self.login.email = self.config[CONF_EMAIL]
             if (
                 not self.config.get("reauth")
                 and user_input

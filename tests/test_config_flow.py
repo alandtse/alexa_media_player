@@ -249,6 +249,87 @@ class TestReauthReload:
         # Credentials should have been updated
         flow.hass.config_entries.async_update_entry.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_reauth_moves_account_when_email_changes(self):
+        """Test that email-changing reauth preserves runtime account state."""
+    
+        old_email = "old@example.com"
+        new_email = "new@example.com"
+    
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+    
+        flow.config = {
+            "email": new_email,
+            "reauth": True,
+        }
+    
+        mock_login = MagicMock()
+        mock_login.email = new_email
+        mock_login.url = "https://amazon.com"
+        mock_login.status = {"login_successful": True}
+        mock_login.access_token = "test_token"  # nosec B105
+        mock_login.refresh_token = "test_refresh"  # nosec B105
+        mock_login.expires_in = 3600
+        mock_login.mac_dms = "test_mac"
+        mock_login.code_verifier = "test_verifier"
+        mock_login.authorization_code = "test_code"
+    
+        flow.login = mock_login
+    
+        mock_entry = MagicMock()
+        mock_entry.entry_id = "test_entry_id"
+        mock_entry.data = {"email": old_email}
+    
+        account_data = {
+            "devices": {"device1": {}},
+            "entities": {"media_player": {}},
+            "login_obj": MagicMock(),
+            "config_entry": mock_entry,
+        }
+    
+        flow.hass.data = {
+            DATA_ALEXAMEDIA: {
+                "accounts": {
+                    old_email: account_data,
+                },
+                "config_flows": {},
+            }
+        }
+    
+        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
+    
+        flow.hass.config_entries.async_update_entry = MagicMock()
+        flow.hass.config_entries.async_reload = AsyncMock()
+    
+        flow.hass.bus.async_fire = MagicMock()
+    
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
+    
+        with patch(
+            "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
+        ):
+            await flow._test_login()
+    
+        accounts = flow.hass.data[DATA_ALEXAMEDIA]["accounts"]
+    
+        assert old_email not in accounts
+        assert new_email in accounts
+    
+        assert accounts[new_email]["config_entry"] is mock_entry
+        assert accounts[new_email]["login_obj"] is flow.login
+    
+        flow.hass.config_entries.async_reload.assert_called_once_with(
+            mock_entry.entry_id
+        )
+    
+        flow.hass.config_entries.async_update_entry.assert_called_once()
+    
+        _, kwargs = flow.hass.config_entries.async_update_entry.call_args
+    
+        assert kwargs["unique_id"] == f"{new_email} - {mock_login.url}"
+        assert kwargs["title"] == f"{new_email} - {mock_login.url}"
+
 
 class TestConfigFlowInvalidOtpKeyDataSchema:
     """Tests for handling invalid OTP key errors in config flow.

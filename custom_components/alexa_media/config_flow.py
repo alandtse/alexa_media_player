@@ -695,10 +695,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.hass.data[DATA_ALEXAMEDIA].setdefault("config_flows", {})
 
             if existing_entry:
-                # During reauth the Amazon email may have changed.
-                # Move the existing, fully initialised runtime account from
-                # the old email key to the new email key before updating the
-                # config entry. This preserves entities/devices/options.
+                # Preserve account state across email changes during reauth.
                 old_email = existing_entry.data.get(CONF_EMAIL)
 
                 accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]

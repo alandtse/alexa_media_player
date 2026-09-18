@@ -697,7 +697,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.hass.data[DATA_ALEXAMEDIA].setdefault("config_flows", {})
 
             if existing_entry:
-                # Preserve account state across email changes during reauth.
                 old_email = existing_entry.data.get(CONF_EMAIL)
 
                 accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]

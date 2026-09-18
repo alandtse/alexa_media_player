@@ -703,6 +703,20 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
                 accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
 
+                target_account = accounts.get(email)
+                if target_account is not None:
+                    target_entry = target_account.get("config_entry")
+                    if (
+                        target_entry is None
+                        or target_entry.entry_id != existing_entry.entry_id
+                    ):
+                        _LOGGER.error(
+                            "Cannot reauth %s: runtime account belongs to "
+                            "another config entry",
+                            hide_email(email),
+                        )
+                        return self.async_abort(reason="already_configured")
+
                 if old_email and old_email != email and old_email in accounts:
                     _LOGGER.debug(
                         "Moving Alexa runtime account from %s to %s",

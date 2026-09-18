@@ -130,6 +130,30 @@
     }
   },
   "services": {
+    "amazon_kids_disable": {
+      "description": "Hiermee wordt Amazon Kids (kindermodus) voor een Echo uitgeschakeld door het apparaat los te koppelen van elk kinderprofiel.",
+      "fields": {
+        "entity_id": {
+          "description": "Amazon Kids uitschakelen op het Echo-apparaat",
+          "name": "Selecteer een mediaspeler:"
+        }
+      },
+      "name": "Amazon Kids uitschakelen"
+    },
+    "amazon_kids_enable": {
+      "description": "Hiermee wordt Amazon Kids (kindermodus) voor een Echo ingeschakeld door het apparaat aan een kinderprofiel toe te wijzen.",
+      "fields": {
+        "child": {
+          "description": "Kindprofiel dat moet worden toegewezen (voornaam of directedId)",
+          "name": "Kind"
+        },
+        "entity_id": {
+          "description": "Echo-apparaat om Amazon Kids in te schakelen",
+          "name": "Selecteer een mediaspeler:"
+        }
+      },
+      "name": "Amazon Kids inschakelen"
+    },
     "enable_network_discovery": {
       "description": "Hiermee wordt de Alexa-netwerkdetectie opnieuw ingeschakeld, zodat de volgende pollingcyclus Alexa-apparaten voor de geselecteerde accounts opnieuw kan detecteren.",
       "fields": {

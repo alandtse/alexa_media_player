@@ -53,7 +53,7 @@ body:
     attributes:
       label: Home Assistant Version
       description: Settings > About > Core version number
-      placeholder: 2025.x.x
+      placeholder: 2026.9.2
     validations:
       required: true
 
@@ -62,7 +62,7 @@ body:
     attributes:
       label: Alexa Media Player Version
       description: alexa_media version (from `const.py` or HA startup log)
-      placeholder: 5.8.x
+      placeholder: 5.16.1
     validations:
       required: true
 
@@ -71,7 +71,7 @@ body:
     attributes:
       label: Alexa Media Player API library Version
       description: alexapy version (from `pip show alexapy` in HA container or HA startup log)
-      placeholder: 1.29.x
+      placeholder: 1.31.1
     validations:
       required: true
 
@@ -79,10 +79,21 @@ body:
     id: two-factor
     attributes:
       label: Have you entered a 52-character key for Amazon 2SV via Authenticator App login?
-      description: "Your preferred method must be via Authenticator App. No help will be provided for any issues if you attempt to configure otherwise.\nSee [Enable Two-Step Verification for your Amazon account](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-step-verification-for-your-amazon-account)"
+      description: "No help will be provided for any issues if you attempt to configure without a 52-character key.\nSee [Enable Two-Step Verification for your Amazon account](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-step-verification-for-your-amazon-account)"
       options:
-        - "No"
         - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: two-factor
+    attributes:
+      label: Is Amazon 2SV via Authenticator App the Preferred method?
+      description: "No help will be provided for any issues if your preferred method is not via Authenticator App.\nSee [Enable Two-Step Verification for your Amazon account](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-step-verification-for-your-amazon-account)"
+      options:
+        - "Yes"
+        - "No"
     validations:
       required: true
 

@@ -87,7 +87,7 @@ body:
       required: true
 
   - type: dropdown
-    id: two-factor
+    id: two-factor-primary
     attributes:
       label: Is Amazon 2SV via Authenticator App the Preferred method?
       description: "No help will be provided for any issues if your preferred method is not via Authenticator App.\nSee [Enable Two-Step Verification for your Amazon account](https://github.com/alandtse/alexa_media_player/wiki/Configuration#enable-two-step-verification-for-your-amazon-account)"

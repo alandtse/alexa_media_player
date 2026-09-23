@@ -797,8 +797,15 @@ async def async_setup_entry(hass, config_entry):
     if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
-    hass.bus.async_listen("alexa_media_relogin_required", relogin)
-    hass.bus.async_listen("alexa_media_relogin_success", login_success)
+    # async_on_unload runs these both on a normal unload and on the
+    # ConfigEntryNotReady retry path, so a timed-out or reloaded setup
+    # doesn't leave a stale pair of relogin listeners registered.
+    config_entry.async_on_unload(
+        hass.bus.async_listen("alexa_media_relogin_required", relogin)
+    )
+    config_entry.async_on_unload(
+        hass.bus.async_listen("alexa_media_relogin_success", login_success)
+    )
     try:
         _t = time.monotonic()
         cookies = await login.load_cookie()

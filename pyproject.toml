@@ -111,3 +111,6 @@ build-backend = "poetry.core.masonry.api"
 
 [pytest]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

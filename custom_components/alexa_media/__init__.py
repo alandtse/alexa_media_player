@@ -70,7 +70,6 @@ from .const import (
     CONF_QUEUE_DELAY,
     CONF_SCAN_INTERVAL,
     DATA_ALEXAMEDIA,
-    DATA_LISTENER,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
@@ -744,26 +743,23 @@ async def async_setup_entry(hass, config_entry):
             "notifications_pending": set(),  # doppler serials that need a refresh
             "notifications_refresh_task": None,  # running task or None
             "notifications_retry_count": 0,  # simple backoff counter
-            "options": {
-                CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
-                CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
-                CONF_QUEUE_DELAY: config_entry.data.get(
-                    CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
-                ),
-                CONF_SCAN_INTERVAL: config_entry.data.get(
-                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                ),
-                CONF_PUBLIC_URL: config_entry.data.get(
-                    CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
-                ),
-                CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.data.get(
-                    CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
-                ),
-                CONF_DEBUG: config_entry.data.get(CONF_DEBUG, False),
-            },
-            DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         },
     )
+    # Refreshed on every attempt: the account dict survives setup retries and
+    # a failed setup, so options saved in the meantime would otherwise be lost.
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"] = {
+        CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
+        CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
+        CONF_QUEUE_DELAY: config_entry.data.get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
+        CONF_SCAN_INTERVAL: config_entry.data.get(
+            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        ),
+        CONF_PUBLIC_URL: config_entry.data.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),
+        CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.data.get(
+            CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
+        ),
+        CONF_DEBUG: config_entry.data.get(CONF_DEBUG, False),
+    }
     uuid_dict = await calculate_uuid(hass, email, url)
     uuid = uuid_dict["uuid"]
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"] = uuid_dict[
@@ -864,6 +860,12 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)
+            # Registered once the entry has loaded, so that Home Assistant
+            # removes it on unload. Any earlier and each setup retry, or failed
+            # login check, would leave another copy on the entry.
+            config_entry.async_on_unload(
+                config_entry.add_update_listener(update_listener)
+            )
             _LOGGER.debug(
                 "[BOOT] setup_entry total: %.2fs", time.monotonic() - _boot_start
             )
@@ -3136,8 +3138,6 @@ async def async_unload_entry(hass, entry) -> bool:
         except Exception:
             _LOGGER.error("Error unloading: %s", component)
     await close_connections(hass, email)
-    for listener in hass.data[DATA_ALEXAMEDIA]["accounts"][email][DATA_LISTENER]:
-        listener()
     hass.data[DATA_ALEXAMEDIA]["accounts"].pop(email)
     # Clean up config flows in progress
     flows_to_remove = []

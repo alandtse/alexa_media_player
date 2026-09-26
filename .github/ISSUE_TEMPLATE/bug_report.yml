@@ -71,7 +71,7 @@ body:
     attributes:
       label: Alexa Media Player API library Version
       description: alexapy version (from `pip show alexapy` in HA container or HA startup log)
-      placeholder: 1.31.1
+      placeholder: 1.31.0
     validations:
       required: true
 

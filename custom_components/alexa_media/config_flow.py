@@ -51,6 +51,7 @@ import voluptuous as vol
 from yarl import URL
 
 from .const import (
+    AMAZON_DOMAINS,
     AUTH_CALLBACK_NAME,
     AUTH_CALLBACK_PATH,
     AUTH_PROXY_NAME,
@@ -110,6 +111,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     proxy: AlexaProxy = None
     proxy_view: "AlexaMediaAuthorizationProxyView" = None
 
+    def _get_default_amazon_domain(self) -> str:
+        """Return the Amazon domain appropriate for the HA country."""
+        return AMAZON_DOMAINS.get(
+            self.hass.config.country,
+            "amazon.com",
+        )
+
     def _update_ord_dict(self, old_dict: OrderedDict, new_dict: dict) -> OrderedDict:
         result: OrderedDict = OrderedDict()
         for k, v in old_dict.items():  # pylint: disable=invalid-name
@@ -159,6 +167,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     async def async_step_user(self, user_input=None):
         # pylint: disable=too-many-branches
 
+        default_domain = self._get_default_amazon_domain()
+
         """Provide a proxy for login."""
         self._save_user_input_to_config(user_input=user_input)
         """ Internal URL for proxy authentication """
@@ -179,7 +189,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (
                     vol.Required(
-                        CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
+                        CONF_URL, default=self.config.get(CONF_URL, default_domain)
                     ),
                     str,
                 ),
@@ -902,11 +912,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_DEBUG] = user_input[CONF_DEBUG]
 
     def _update_schema_defaults(self) -> Any:
+        default_domain = self._get_default_amazon_domain()
         new_schema = self._update_ord_dict(
             self.data_schema,
             {
                 vol.Required(
-                    CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
+                    CONF_URL, default=self.config.get(CONF_URL, default_domain)
                 ): str,
                 vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")): str,
                 vol.Required(

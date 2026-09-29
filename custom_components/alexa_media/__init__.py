@@ -833,9 +833,13 @@ async def async_setup_entry(hass, config_entry):
                     await login.login(cookies=cookies)
             except (RuntimeError, ValueError) as err:
                 if "Session is closed" in str(err) or "unrecoverable" in str(err):
-                    _LOGGER.warning("Alexa Media Player session is closed. Triggering Re-authentication flow.")
+                    _LOGGER.warning(
+                        "Alexa Media Player session is closed. Triggering Re-authentication flow."
+                    )
                     # This tells Home Assistant to show a persistent notification requiring reauth
-                    raise ConfigEntryAuthFailed("Amazon session closed. Please reconfigure your credentials.") from err
+                    raise ConfigEntryAuthFailed(
+                        "Amazon session closed. Please reconfigure your credentials."
+                    ) from err
                 raise
             except asyncio.TimeoutError as err:
                 # An interrupted login can leave partial request state on the

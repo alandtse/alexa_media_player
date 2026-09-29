@@ -254,6 +254,21 @@ ALEXA_AIR_QUALITY_DEVICE_CLASS = {
     "Alexa.AirQuality.Humidity": "humidity",
 }
 
+AMAZON_DOMAINS = {
+    "AU": "amazon.com.au",
+    "BR": "amazon.com.br",
+    "CA": "amazon.ca",
+    "DE": "amazon.de",
+    "ES": "amazon.es",
+    "FR": "amazon.fr",
+    "GB": "amazon.co.uk",
+    "IN": "amazon.in",
+    "IT": "amazon.it",
+    "JP": "amazon.co.jp",
+    "MX": "amazon.com.mx",
+    "US": "amazon.com",
+}
+
 UPLOAD_PATH = "www/alexa_tts"
 
 # Note: Some of these are likely wrong

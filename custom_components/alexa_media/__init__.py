@@ -46,7 +46,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import UnknownFlow
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
@@ -831,6 +831,16 @@ async def async_setup_entry(hass, config_entry):
             try:
                 async with async_timeout.timeout(LOGIN_MAX_WAIT_S):
                     await login.login(cookies=cookies)
+            except (RuntimeError, ValueError) as err:
+                if "Session is closed" in str(err) or "unrecoverable" in str(err):
+                    _LOGGER.warning(
+                        "Alexa Media Player session is closed. Triggering Re-authentication flow."
+                    )
+                    # This tells Home Assistant to show a persistent notification requiring reauth
+                    raise ConfigEntryAuthFailed(
+                        "Amazon session closed. Please reconfigure your credentials."
+                    ) from err
+                raise
             except asyncio.TimeoutError as err:
                 # An interrupted login can leave partial request state on the
                 # client, which alexapy resumes from on the next attempt. Both

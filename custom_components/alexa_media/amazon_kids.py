@@ -185,12 +185,16 @@ class AmazonKidsState:
         # Snapshot: a platform still setting up may track a device meanwhile.
         for serial, device_type in list(self._tracked.items()):
             previous = self.devices.get(serial) or {}
+            kids = None
             try:
                 kids = await AlexaAPI.get_child_mode(self.login, serial, device_type)
             except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
-                # Keep the last known state: one failed poll should not drop
-                # the sensor, the switch and the select to unavailable.
                 _LOGGER.debug("Amazon Kids refresh failed for a device: %s", ex)
+            if kids is None:
+                # alexapy reports an unreadable state as None rather than
+                # raising, so keep the last known state: one failed poll
+                # should not drop the sensor, switch and select to
+                # unavailable.
                 continue
             child = None
             # The assigned child is only meaningful while child mode is on.
@@ -200,9 +204,12 @@ class AmazonKidsState:
                         self.login, serial, device_type
                     )
                 except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
-                    # Child mode is on, so keep the child we last saw rather
-                    # than discarding the state we did read successfully.
                     _LOGGER.debug("Amazon Kids child lookup failed: %s", ex)
+                if child is None:
+                    # A device is in child mode only while it is assigned to a
+                    # child, so an empty answer means the lookup did not come
+                    # through, not that nobody is assigned. Keep the child last
+                    # seen instead of discarding the mode we did read.
                     child = previous.get("child")
             self.devices[serial] = {
                 "kids": kids,

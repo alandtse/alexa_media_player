@@ -51,6 +51,7 @@ DEPENDENT_ALEXA_COMPONENTS = [
     "alarm_control_panel",
     "light",
     "binary_sensor",
+    "select",
 ]
 
 HTTP_COOKIE_HEADER = "# HTTP Cookie File"

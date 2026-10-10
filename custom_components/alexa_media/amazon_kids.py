@@ -184,18 +184,26 @@ class AmazonKidsState:
             self._set_children(children or [])
         # Snapshot: a platform still setting up may track a device meanwhile.
         for serial, device_type in list(self._tracked.items()):
-            kids = None
-            child = None
+            previous = self.devices.get(serial) or {}
             try:
                 kids = await AlexaAPI.get_child_mode(self.login, serial, device_type)
-                # The assigned child is only meaningful while child mode is on.
-                if kids:
+            except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
+                # Keep the last known state: one failed poll should not drop
+                # the sensor, the switch and the select to unavailable.
+                _LOGGER.debug("Amazon Kids refresh failed for a device: %s", ex)
+                continue
+            child = None
+            # The assigned child is only meaningful while child mode is on.
+            if kids:
+                try:
                     child = await AlexaAPI.get_device_child(
                         self.login, serial, device_type
                     )
-            except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
-                _LOGGER.debug("Amazon Kids refresh failed for a device: %s", ex)
-            previous = self.devices.get(serial) or {}
+                except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
+                    # Child mode is on, so keep the child we last saw rather
+                    # than discarding the state we did read successfully.
+                    _LOGGER.debug("Amazon Kids child lookup failed: %s", ex)
+                    child = previous.get("child")
             self.devices[serial] = {
                 "kids": kids,
                 "child": child,

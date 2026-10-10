@@ -10,7 +10,6 @@
   "loggers": ["alexapy", "authcaptureproxy"],
   "requirements": [
     "alexapy==1.31.0",
-    "packaging>=20.3",
     "wrapt>=1.14.0",
     "dictor>=0.1.12,<0.2"
   ],

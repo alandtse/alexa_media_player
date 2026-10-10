@@ -10,6 +10,7 @@ the child select all share a single set of API calls.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 import logging
 
@@ -35,8 +36,10 @@ class AmazonKidsState:
         self.login = login
         self.children: list[dict] = []
         self.devices: dict[str, dict] = {}
+        self._options: dict[str, str] = {}
         self._tracked: dict[str, str] = {}
         self._listeners: list = []
+        self._refresh_lock = asyncio.Lock()
         self._unsub = None
 
     def track(self, serial: str, device_type: str) -> None:
@@ -75,41 +78,66 @@ class AmazonKidsState:
             "last_child": None,
         }
 
+    def _set_children(self, children: list[dict]) -> None:
+        """Store the child profiles and rebuild the select options.
+
+        Profiles can share a first name, can have no first name at all, and can
+        even be named like the release option, so every option label is made
+        unique and maps to exactly one ``directedId``.
+        """
+        self.children = children
+        options: dict[str, str] = {}
+        used = {OPTION_NONE}
+        for child in children:
+            directed_id = child.get("directedId")
+            if not directed_id:
+                continue
+            base = (child.get("firstName") or "").strip() or directed_id
+            label = base
+            if label in used:
+                label = f"{base} ({directed_id[-4:]})"
+                index = 2
+                while label in used:
+                    label = f"{base} ({directed_id[-4:]}-{index})"
+                    index += 1
+            used.add(label)
+            options[label] = directed_id
+        self._options = options
+
+    @property
+    def child_options(self) -> list[str]:
+        """Return one select option label per child profile."""
+        return list(self._options)
+
+    def child_id(self, option: str | None) -> str | None:
+        """Return the directedId for a select option label."""
+        if not option:
+            return None
+        return self._options.get(option)
+
+    def child_option(self, directed_id: str | None) -> str | None:
+        """Return the select option label for a child directedId."""
+        if not directed_id:
+            return None
+        for label, candidate in self._options.items():
+            if candidate == directed_id:
+                return label
+        return None
+
     def default_child_id(self, serial: str) -> str | None:
         """Child to assign when switching a device on.
 
         Prefers the current assignment, then the last one seen for that device,
-        and finally the first child profile of the household.
+        and finally the first child profile of the household. A child that no
+        longer exists is skipped, unless the profile list is unavailable and the
+        device assignment is all we know.
         """
+        known = set(self._options.values())
         current = self.state(serial)
-        return (
-            current.get("child")
-            or current.get("last_child")
-            or (self.children[0].get("directedId") if self.children else None)
-        )
-
-    def child_name(self, directed_id: str | None) -> str | None:
-        """Return the first name for a child directedId."""
-        if not directed_id:
-            return None
-        for child in self.children:
-            if child.get("directedId") == directed_id:
-                return child.get("firstName") or directed_id
-        return directed_id
-
-    def child_id(self, name: str | None) -> str | None:
-        """Return the directedId for a child first name."""
-        if not name:
-            return None
-        for child in self.children:
-            if (child.get("firstName") or "") == name:
-                return child.get("directedId")
-        return None
-
-    @property
-    def child_names(self) -> list[str]:
-        """Return the household's child first names."""
-        return [c.get("firstName") for c in self.children if c.get("firstName")]
+        for candidate in (current.get("child"), current.get("last_child")):
+            if candidate and (not known or candidate in known):
+                return candidate
+        return next(iter(self._options.values()), None)
 
     async def async_start(self) -> None:
         """Do a first refresh and schedule periodic updates."""
@@ -132,17 +160,30 @@ class AmazonKidsState:
         await self.async_refresh()
 
     async def async_refresh(self) -> None:
-        """Refresh child profiles and the state of all tracked devices."""
-        if not self.children:
-            try:
-                self.children = await AlexaAPI.get_child_profiles(self.login) or []
-            except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
-                _LOGGER.debug(
-                    "%s: Unable to list Amazon Kids child profiles: %s",
-                    hide_email(self.login.email),
-                    ex,
-                )
-        for serial, device_type in self._tracked.items():
+        """Refresh child profiles and the state of all tracked devices.
+
+        Refreshes are serialized: a device command refreshes right after it
+        completes, and without the lock a slower poll already in flight could
+        finish last and write back the assignment it read before the command.
+        """
+        async with self._refresh_lock:
+            await self._async_refresh()
+
+    async def _async_refresh(self) -> None:
+        try:
+            children = await AlexaAPI.get_child_profiles(self.login)
+        except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
+            # Keep the profiles from the last successful poll; a failed fetch
+            # must not empty the select or drop the switch's fallback child.
+            _LOGGER.debug(
+                "%s: Unable to list Amazon Kids child profiles: %s",
+                hide_email(self.login.email),
+                ex,
+            )
+        else:
+            self._set_children(children or [])
+        # Snapshot: a platform still setting up may track a device meanwhile.
+        for serial, device_type in list(self._tracked.items()):
             kids = None
             child = None
             try:

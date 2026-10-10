@@ -101,16 +101,20 @@ class AmazonKidsChildSelect(SelectEntity):
     @property
     def options(self) -> list[str]:
         """Return the household's child profiles plus "None"."""
-        return [*self._kids.child_names, OPTION_NONE]
+        return [*self._kids.child_options, OPTION_NONE]
 
     @property
     def current_option(self):
-        """Return the assigned child, or "None" while child mode is off."""
+        """Return the assigned child, or "None" while child mode is off.
+
+        A child that is missing from the profile list reads as unknown, so the
+        state never falls outside ``options``.
+        """
         state = self._kids.state(self._serial)
         if state["kids"] is None:
             return None
         if state["child"]:
-            return self._kids.child_name(state["child"])
+            return self._kids.child_option(state["child"])
         return OPTION_NONE
 
     @property

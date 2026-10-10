@@ -191,10 +191,8 @@ class AmazonKidsState:
             except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
                 _LOGGER.debug("Amazon Kids refresh failed for a device: %s", ex)
             if kids is None:
-                # alexapy reports an unreadable state as None rather than
-                # raising, so keep the last known state: one failed poll
-                # should not drop the sensor, switch and select to
-                # unavailable.
+                # alexapy returns None for an unreadable state instead of
+                # raising; keep the cache so one failed poll stays invisible.
                 continue
             child = None
             # The assigned child is only meaningful while child mode is on.
@@ -206,10 +204,8 @@ class AmazonKidsState:
                 except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
                     _LOGGER.debug("Amazon Kids child lookup failed: %s", ex)
                 if child is None:
-                    # A device is in child mode only while it is assigned to a
-                    # child, so an empty answer means the lookup did not come
-                    # through, not that nobody is assigned. Keep the child last
-                    # seen instead of discarding the mode we did read.
+                    # Child mode implies an assignment, so an empty answer is
+                    # a failed lookup; keep the child last seen.
                     child = previous.get("child")
             self.devices[serial] = {
                 "kids": kids,

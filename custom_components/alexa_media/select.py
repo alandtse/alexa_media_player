@@ -107,15 +107,16 @@ class AmazonKidsChildSelect(SelectEntity):
     def current_option(self):
         """Return the assigned child, or "None" while child mode is off.
 
-        A child that is missing from the profile list reads as unknown, so the
-        state never falls outside ``options``.
+        Reads as unknown while child mode is on but the child is not known,
+        and for a child missing from the profile list, so the state is never
+        reported as released by mistake nor falls outside ``options``.
         """
         state = self._kids.state(self._serial)
         if state["kids"] is None:
             return None
-        if state["child"]:
-            return self._kids.child_option(state["child"])
-        return OPTION_NONE
+        if not state["kids"]:
+            return OPTION_NONE
+        return self._kids.child_option(state["child"])
 
     @property
     def available(self):

@@ -211,8 +211,9 @@ class AlexaNotificationService(BaseNotificationService):
             try:
                 targets = json.loads(targets)
             except json.JSONDecodeError:
-                _LOGGER.error("Target must be a valid json")
-                return
+                targets = [targets]
+        if targets is None:
+            targets = []
         processed_targets = []
         for target in targets:
             _LOGGER.debug("Processing: %s", target)

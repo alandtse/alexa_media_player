@@ -1050,9 +1050,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             if tasks:
                 # Note: asyncio.TimeoutError and aiohttp.ClientError are already
                 # handled by the data update coordinator.
-                # Increase timeout from 30s to 45s to permit
-                # get_network_details() retries which could up to 30s.
-                async with async_timeout.timeout(45):
+                # Timeout set to 90s: AlexaAPI._static_request acquires
+                # login._oauth_lock for every request, which serializes all
+                # asyncio.gather() calls (no true concurrency). With 5+ tasks
+                # each potentially retrying via @backoff.on_exception, worst-case
+                # serial time exceeds 45s — observed ~50s on a 32-device account.
+                async with async_timeout.timeout(90):
                     start_fetch = time.monotonic()
                     if _used_cached_devices:
                         (

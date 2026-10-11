@@ -963,6 +963,26 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if metrics:
             cached_devices = metrics.api_cache.get(f"{cache_key_prefix}_devices")
 
+        _PER_TASK_TIMEOUT = 45
+
+        async def _timed(coro, fallback, label):
+            """Wrap a coroutine with a per-task timeout and a safe fallback.
+
+            Allows asyncio.gather() to complete even when one slow API call
+            hangs due to backoff retries.  The outer 90s backstop still guards
+            the whole block.
+            """
+            try:
+                return await asyncio.wait_for(coro, timeout=_PER_TASK_TIMEOUT)
+            except asyncio.TimeoutError:
+                _LOGGER.warning(
+                    "%s: API call '%s' timed out after %ds; using default",
+                    hide_email(email),
+                    label,
+                    _PER_TASK_TIMEOUT,
+                )
+                return fallback
+
         if cached_devices and not new_devices:
             _LOGGER.debug("%s: Using cached devices data", hide_email(email))
             # NOTE: DataCache returns direct references. We intentionally enrich device dicts
@@ -971,16 +991,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             _used_cached_devices = True
             # Still need fresh bluetooth, preferences, and DND
             tasks = [
-                AlexaAPI.get_bluetooth(login_obj),
-                AlexaAPI.get_device_preferences(login_obj),
-                AlexaAPI.get_dnd_state(login_obj),
+                _timed(AlexaAPI.get_bluetooth(login_obj), {}, "get_bluetooth"),
+                _timed(AlexaAPI.get_device_preferences(login_obj), {}, "get_device_preferences"),
+                _timed(AlexaAPI.get_dnd_state(login_obj), {}, "get_dnd_state"),
             ]
         else:
             tasks = [
-                AlexaAPI.get_devices(login_obj),
-                AlexaAPI.get_bluetooth(login_obj),
-                AlexaAPI.get_device_preferences(login_obj),
-                AlexaAPI.get_dnd_state(login_obj),
+                _timed(AlexaAPI.get_devices(login_obj), [], "get_devices"),
+                _timed(AlexaAPI.get_bluetooth(login_obj), {}, "get_bluetooth"),
+                _timed(AlexaAPI.get_device_preferences(login_obj), {}, "get_device_preferences"),
+                _timed(AlexaAPI.get_dnd_state(login_obj), {}, "get_dnd_state"),
             ]
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
@@ -1048,13 +1068,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         optional_task_results = []
         try:
             if tasks:
-                # Note: asyncio.TimeoutError and aiohttp.ClientError are already
-                # handled by the data update coordinator.
-                # Timeout set to 90s: AlexaAPI._static_request acquires
-                # login._oauth_lock for every request, which serializes all
-                # asyncio.gather() calls (no true concurrency). With 5+ tasks
-                # each potentially retrying via @backoff.on_exception, worst-case
-                # serial time exceeds 45s — observed ~50s on a 32-device account.
+                # Core tasks (devices/bluetooth/preferences/dnd) each carry a
+                # 45s per-task timeout via _timed() so a single slow API call
+                # cannot block the others.  This outer 90s guard is a backstop
+                # for optional tasks and any remaining async stalls.
                 async with async_timeout.timeout(90):
                     start_fetch = time.monotonic()
                     if _used_cached_devices:
@@ -1083,8 +1100,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     # Record API call metrics
                     if metrics:
                         metrics.record_api_call("initial_fetch", fetch_time)
-                        # Cache the devices for faster next boot (only freshly fetched)
-                        if not _used_cached_devices:
+                        # Cache devices for faster next boot.
+                        # Skip if devices is empty (timed-out fallback) to avoid
+                        # caching a stale empty list that would persist across boots.
+                        if not _used_cached_devices and devices:
                             metrics.api_cache.cache_set(
                                 f"{cache_key_prefix}_devices", devices
                             )

@@ -992,14 +992,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             # Still need fresh bluetooth, preferences, and DND
             tasks = [
                 _timed(AlexaAPI.get_bluetooth(login_obj), {}, "get_bluetooth"),
-                _timed(AlexaAPI.get_device_preferences(login_obj), {}, "get_device_preferences"),
+                _timed(
+                    AlexaAPI.get_device_preferences(login_obj),
+                    {},
+                    "get_device_preferences",
+                ),
                 _timed(AlexaAPI.get_dnd_state(login_obj), {}, "get_dnd_state"),
             ]
         else:
             tasks = [
                 _timed(AlexaAPI.get_devices(login_obj), [], "get_devices"),
                 _timed(AlexaAPI.get_bluetooth(login_obj), {}, "get_bluetooth"),
-                _timed(AlexaAPI.get_device_preferences(login_obj), {}, "get_device_preferences"),
+                _timed(
+                    AlexaAPI.get_device_preferences(login_obj),
+                    {},
+                    "get_device_preferences",
+                ),
                 _timed(AlexaAPI.get_dnd_state(login_obj), {}, "get_dnd_state"),
             ]
         if new_devices:

@@ -722,6 +722,8 @@ async def async_setup_entry(hass, config_entry):
             "entities": {
                 "media_player": {},
                 "switch": {},
+                "amazon_kids_switch": [],
+                "select": [],
                 "sensor": {},
                 "light": [],
                 "binary_sensor": [],
@@ -736,6 +738,7 @@ async def async_setup_entry(hass, config_entry):
             "http2_activity": {"serials": {}, "refreshed": {}},
             "http2": None,
             "auth_info": None,
+            "amazon_kids": None,
             "second_account_index": 0,
             "should_get_network": True,
             "first_run": True,
@@ -3137,6 +3140,11 @@ async def async_unload_entry(hass, entry) -> bool:
         hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "confirm_refresh_debouncer"
         ] = None
+
+    amazon_kids = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("amazon_kids")
+    if amazon_kids:
+        amazon_kids.async_stop()
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["amazon_kids"] = None
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

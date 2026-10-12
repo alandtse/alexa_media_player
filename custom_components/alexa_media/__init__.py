@@ -1001,7 +1001,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             ]
         else:
             tasks = [
-                _timed(AlexaAPI.get_devices(login_obj), [], "get_devices"),
+                AlexaAPI.get_devices(login_obj),
                 _timed(AlexaAPI.get_bluetooth(login_obj), {}, "get_bluetooth"),
                 _timed(
                     AlexaAPI.get_device_preferences(login_obj),
@@ -1076,10 +1076,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         optional_task_results = []
         try:
             if tasks:
-                # Core tasks (devices/bluetooth/preferences/dnd) each carry a
-                # 45s per-task timeout via _timed() so a single slow API call
-                # cannot block the others.  This outer 90s guard is a backstop
-                # for optional tasks and any remaining async stalls.
                 async with async_timeout.timeout(90):
                     start_fetch = time.monotonic()
                     if _used_cached_devices:

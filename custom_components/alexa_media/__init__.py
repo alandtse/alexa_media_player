@@ -2468,8 +2468,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             trigger_ts_ms: int | None,
         ) -> None:
             """Mirror alexa-remote.ts PUSH_VOLUME_CHANGE -> simulateActivity() conditions."""
-            last_volumes: dict = account["last_volumes"]
-            last_equalizer: dict = account["last_equalizer"]
+            last_volumes: dict = account.setdefault("last_volumes", {})
+            last_equalizer: dict = account.setdefault("last_equalizer", {})
 
             vol = json_payload.get("volumeSetting")
             muted = json_payload.get("isMuted")
@@ -2510,8 +2510,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             trigger_ts_ms: int | None,
         ) -> None:
             """Mirror alexa-remote.ts PUSH_EQUALIZER_STATE_CHANGE -> simulateActivity() conditions."""
-            last_volumes: dict = account["last_volumes"]
-            last_equalizer: dict = account["last_equalizer"]
+            last_volumes: dict = account.setdefault("last_volumes", {})
+            last_equalizer: dict = account.setdefault("last_equalizer", {})
 
             bass = json_payload.get("bass")
             treble = json_payload.get("treble")

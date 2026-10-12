@@ -715,6 +715,20 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         )
                         return self.async_abort(reason="already_configured")
 
+                # Runtime accounts only exist for loaded entries, so also check
+                # every config entry (disabled or not yet loaded) for ownership.
+                new_unique_id = f"{login.email} - {login.url}"
+                for other_entry in self.hass.config_entries.async_entries(DOMAIN):
+                    if other_entry.entry_id == existing_entry.entry_id:
+                        continue
+                    if other_entry.unique_id == new_unique_id:
+                        _LOGGER.error(
+                            "Cannot reauth %s: another config entry already "
+                            "owns this account",
+                            hide_email(email),
+                        )
+                        return self.async_abort(reason="already_configured")
+
                 if old_email and old_email != email and old_email in accounts:
                     _LOGGER.debug(
                         "Moving Alexa runtime account from %s to %s",

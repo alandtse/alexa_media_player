@@ -722,6 +722,8 @@ async def async_setup_entry(hass, config_entry):
             "entities": {
                 "media_player": {},
                 "switch": {},
+                "amazon_kids_switch": [],
+                "select": [],
                 "sensor": {},
                 "light": [],
                 "binary_sensor": [],
@@ -736,6 +738,7 @@ async def async_setup_entry(hass, config_entry):
             "http2_activity": {"serials": {}, "refreshed": {}},
             "http2": None,
             "auth_info": None,
+            "amazon_kids": None,
             "second_account_index": 0,
             "should_get_network": True,
             "first_run": True,
@@ -2491,8 +2494,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             trigger_ts_ms: int | None,
         ) -> None:
             """Mirror alexa-remote.ts PUSH_VOLUME_CHANGE -> simulateActivity() conditions."""
-            last_volumes: dict = account["last_volumes"]
-            last_equalizer: dict = account["last_equalizer"]
+            last_volumes: dict = account.setdefault("last_volumes", {})
+            last_equalizer: dict = account.setdefault("last_equalizer", {})
 
             vol = json_payload.get("volumeSetting")
             muted = json_payload.get("isMuted")
@@ -2533,8 +2536,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             trigger_ts_ms: int | None,
         ) -> None:
             """Mirror alexa-remote.ts PUSH_EQUALIZER_STATE_CHANGE -> simulateActivity() conditions."""
-            last_volumes: dict = account["last_volumes"]
-            last_equalizer: dict = account["last_equalizer"]
+            last_volumes: dict = account.setdefault("last_volumes", {})
+            last_equalizer: dict = account.setdefault("last_equalizer", {})
 
             bass = json_payload.get("bass")
             treble = json_payload.get("treble")
@@ -3163,6 +3166,11 @@ async def async_unload_entry(hass, entry) -> bool:
         hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "confirm_refresh_debouncer"
         ] = None
+
+    amazon_kids = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("amazon_kids")
+    if amazon_kids:
+        amazon_kids.async_stop()
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["amazon_kids"] = None
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

@@ -722,6 +722,8 @@ async def async_setup_entry(hass, config_entry):
             "entities": {
                 "media_player": {},
                 "switch": {},
+                "amazon_kids_switch": [],
+                "select": [],
                 "sensor": {},
                 "light": [],
                 "binary_sensor": [],
@@ -736,6 +738,7 @@ async def async_setup_entry(hass, config_entry):
             "http2_activity": {"serials": {}, "refreshed": {}},
             "http2": None,
             "auth_info": None,
+            "amazon_kids": None,
             "second_account_index": 0,
             "should_get_network": True,
             "first_run": True,
@@ -963,6 +966,26 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if metrics:
             cached_devices = metrics.api_cache.get(f"{cache_key_prefix}_devices")
 
+        _PER_TASK_TIMEOUT = 45
+
+        async def _timed(coro, fallback, label):
+            """Wrap a coroutine with a per-task timeout and a safe fallback.
+
+            Allows asyncio.gather() to complete even when one slow API call
+            hangs due to backoff retries.  The outer 90s backstop still guards
+            the whole block.
+            """
+            try:
+                return await asyncio.wait_for(coro, timeout=_PER_TASK_TIMEOUT)
+            except asyncio.TimeoutError:
+                _LOGGER.warning(
+                    "%s: API call '%s' timed out after %ds; using default",
+                    hide_email(email),
+                    label,
+                    _PER_TASK_TIMEOUT,
+                )
+                return fallback
+
         if cached_devices and not new_devices:
             _LOGGER.debug("%s: Using cached devices data", hide_email(email))
             # NOTE: DataCache returns direct references. We intentionally enrich device dicts
@@ -971,16 +994,24 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             _used_cached_devices = True
             # Still need fresh bluetooth, preferences, and DND
             tasks = [
-                AlexaAPI.get_bluetooth(login_obj),
-                AlexaAPI.get_device_preferences(login_obj),
-                AlexaAPI.get_dnd_state(login_obj),
+                _timed(AlexaAPI.get_bluetooth(login_obj), {}, "get_bluetooth"),
+                _timed(
+                    AlexaAPI.get_device_preferences(login_obj),
+                    {},
+                    "get_device_preferences",
+                ),
+                _timed(AlexaAPI.get_dnd_state(login_obj), {}, "get_dnd_state"),
             ]
         else:
             tasks = [
                 AlexaAPI.get_devices(login_obj),
-                AlexaAPI.get_bluetooth(login_obj),
-                AlexaAPI.get_device_preferences(login_obj),
-                AlexaAPI.get_dnd_state(login_obj),
+                _timed(AlexaAPI.get_bluetooth(login_obj), {}, "get_bluetooth"),
+                _timed(
+                    AlexaAPI.get_device_preferences(login_obj),
+                    {},
+                    "get_device_preferences",
+                ),
+                _timed(AlexaAPI.get_dnd_state(login_obj), {}, "get_dnd_state"),
             ]
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
@@ -1048,11 +1079,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         optional_task_results = []
         try:
             if tasks:
-                # Note: asyncio.TimeoutError and aiohttp.ClientError are already
-                # handled by the data update coordinator.
-                # Increase timeout from 30s to 45s to permit
-                # get_network_details() retries which could up to 30s.
-                async with async_timeout.timeout(45):
+                async with async_timeout.timeout(90):
                     start_fetch = time.monotonic()
                     if _used_cached_devices:
                         (
@@ -1080,8 +1107,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     # Record API call metrics
                     if metrics:
                         metrics.record_api_call("initial_fetch", fetch_time)
-                        # Cache the devices for faster next boot (only freshly fetched)
-                        if not _used_cached_devices:
+                        # Cache devices for faster next boot.
+                        # Skip if devices is empty (timed-out fallback) to avoid
+                        # caching a stale empty list that would persist across boots.
+                        if not _used_cached_devices and devices:
                             metrics.api_cache.cache_set(
                                 f"{cache_key_prefix}_devices", devices
                             )
@@ -2465,8 +2494,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             trigger_ts_ms: int | None,
         ) -> None:
             """Mirror alexa-remote.ts PUSH_VOLUME_CHANGE -> simulateActivity() conditions."""
-            last_volumes: dict = account["last_volumes"]
-            last_equalizer: dict = account["last_equalizer"]
+            last_volumes: dict = account.setdefault("last_volumes", {})
+            last_equalizer: dict = account.setdefault("last_equalizer", {})
 
             vol = json_payload.get("volumeSetting")
             muted = json_payload.get("isMuted")
@@ -2507,8 +2536,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             trigger_ts_ms: int | None,
         ) -> None:
             """Mirror alexa-remote.ts PUSH_EQUALIZER_STATE_CHANGE -> simulateActivity() conditions."""
-            last_volumes: dict = account["last_volumes"]
-            last_equalizer: dict = account["last_equalizer"]
+            last_volumes: dict = account.setdefault("last_volumes", {})
+            last_equalizer: dict = account.setdefault("last_equalizer", {})
 
             bass = json_payload.get("bass")
             treble = json_payload.get("treble")
@@ -3137,6 +3166,11 @@ async def async_unload_entry(hass, entry) -> bool:
         hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "confirm_refresh_debouncer"
         ] = None
+
+    amazon_kids = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("amazon_kids")
+    if amazon_kids:
+        amazon_kids.async_stop()
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["amazon_kids"] = None
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

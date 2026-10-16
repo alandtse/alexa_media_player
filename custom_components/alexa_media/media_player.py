@@ -2004,6 +2004,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def extra_state_attributes(self):
         """Return the state attributes."""
         attr = {
+            "locale": self._locale,
             "available": self.available,
             "last_called": self._last_called,
             "last_called_timestamp": self._last_called_timestamp,

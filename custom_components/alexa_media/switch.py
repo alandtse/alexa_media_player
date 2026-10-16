@@ -11,7 +11,11 @@ import datetime
 import logging
 
 from alexapy import AlexaAPI
-from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
+from homeassistant.exceptions import (
+    ConfigEntryNotReady,
+    HomeAssistantError,
+    NoEntitySpecifiedError,
+)
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -27,6 +31,7 @@ from . import (
 )
 from .alexa_entity import parse_power_from_coordinator
 from .alexa_media import AlexaMedia
+from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .helpers import _catch_login_errors, add_devices, safe_get
 
@@ -140,13 +145,39 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     "Switch '%s' has not been added because it may originate from emulated_hue",
                     switch_entity["name"],
                 )
-    return await add_devices(
+    # Amazon Kids (child mode) switch per capable Echo. Only devices that
+    # already have a media_player entity are used, so the configured
+    # include/exclude filters are inherited and unique ids stay account scoped.
+    login_obj = account_dict["login_obj"]
+    kids_state = async_get_state(hass, account_dict, login_obj)
+    kids_devices = []
+    for key, device in account_dict["devices"]["media_player"].items():
+        if device.get("deviceFamily") not in KIDS_CAPABLE_FAMILIES:
+            continue
+        device_type = device.get("deviceType")
+        client = account_dict["entities"]["media_player"].get(key)
+        if not device_type or client is None:
+            continue
+        kids_state.track(client.device_serial_number, device_type)
+        kids_switch = AmazonKidsSwitch(kids_state, login_obj, client, device_type)
+        account_dict["entities"]["amazon_kids_switch"].append(kids_switch)
+        kids_devices.append(kids_switch)
+
+    result = await add_devices(
         hide_email(account),
         devices,
         add_devices_callback,
         include_filter,
         exclude_filter,
     )
+    if kids_devices:
+        await kids_state.async_start()
+        # Already scoped via the media_player entities, so no extra name filter.
+        result = (
+            await add_devices(hide_email(account), kids_devices, add_devices_callback)
+            and result
+        )
+    return result
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
@@ -165,6 +196,8 @@ async def async_unload_entry(hass, entry) -> bool:
         for device in switches[key].values():
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
+    for kids_switch in account_dict["entities"]["amazon_kids_switch"]:
+        await kids_switch.async_remove()
     return True
 
 
@@ -499,3 +532,70 @@ class SmartSwitch(CoordinatorEntity, SwitchDevice):
     async def async_turn_off(self, **kwargs):  # pylint:disable=unused-argument
         """Turn off."""
         await self._set_state(False)
+
+
+class AmazonKidsSwitch(SwitchDevice):
+    """Amazon Kids (child mode) switch for an Echo device.
+
+    Turning it on assigns the Echo to a child profile: the one currently
+    assigned, else the last one used for that device, else the household's
+    first child. Use the "Amazon Kids child" select to pick a specific child.
+    """
+
+    _attr_has_entity_name = True
+    _attr_name = "Amazon Kids"
+    _attr_icon = "mdi:account-child"
+    _attr_should_poll = False
+
+    def __init__(self, kids_state, login, client, device_type: str) -> None:
+        """Initialize the Amazon Kids switch."""
+        self._kids = kids_state
+        self._login = login
+        self._client = client
+        self._serial = client.device_serial_number
+        self._device_type = device_type
+
+    @property
+    def unique_id(self):
+        """Return the unique id, scoped to the account like the media player."""
+        return f"{self._client.unique_id}_amazon_kids_switch"
+
+    @property
+    def is_on(self):
+        """Return whether Amazon Kids is active."""
+        return self._kids.state(self._serial)["kids"]
+
+    @property
+    def available(self):
+        """Return whether the state is known."""
+        return self._kids.state(self._serial)["kids"] is not None
+
+    @property
+    def device_info(self):
+        """Attach to the Echo device."""
+        return {
+            "identifiers": {(ALEXA_DOMAIN, self._client.unique_id)},
+        }
+
+    async def async_added_to_hass(self):
+        """Subscribe to shared Amazon Kids state updates."""
+        self.async_on_remove(self._kids.async_add_listener(self.async_write_ha_state))
+
+    @_catch_login_errors
+    async def async_turn_on(self, **kwargs):
+        """Assign the Echo to a child profile."""
+        child_id = self._kids.default_child_id(self._serial)
+        if not child_id:
+            raise HomeAssistantError(
+                "No Amazon Kids child profile found for this Amazon account"
+            )
+        await AlexaAPI.enable_child_mode(
+            self._login, self._serial, self._device_type, child_id
+        )
+        await self._kids.async_refresh()
+
+    @_catch_login_errors
+    async def async_turn_off(self, **kwargs):
+        """Release the Echo from its child profile."""
+        await AlexaAPI.disable_child_mode(self._login, self._serial, self._device_type)
+        await self._kids.async_refresh()

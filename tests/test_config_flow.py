@@ -330,6 +330,47 @@ class TestReauthReload:
         assert kwargs["unique_id"] == f"{new_email} - {mock_login.url}"
         assert kwargs["title"] == f"{new_email} - {mock_login.url}"
 
+    @pytest.mark.asyncio
+    async def test_reauth_aborts_when_other_config_entry_owns_unique_id(self):
+        """Reauth must abort if an unloaded/disabled entry already owns the account."""
+        new_email = "new@example.com"
+
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.config = {"email": new_email, "reauth": True}
+
+        mock_login = MagicMock()
+        mock_login.email = new_email
+        mock_login.url = "https://amazon.com"
+        mock_login.status = {"login_successful": True}
+        flow.login = mock_login
+
+        mock_entry = MagicMock()
+        mock_entry.entry_id = "reauth_entry_id"
+        mock_entry.data = {"email": "old@example.com"}
+
+        # Not loaded, so absent from runtime accounts.
+        other_entry = MagicMock()
+        other_entry.entry_id = "other_entry_id"
+        other_entry.unique_id = f"{new_email} - {mock_login.url}"
+
+        flow.hass.data = {
+            DATA_ALEXAMEDIA: {"accounts": {}, "config_flows": {}},
+        }
+        flow.hass.config_entries.async_entries = MagicMock(
+            return_value=[mock_entry, other_entry]
+        )
+        flow.hass.config_entries.async_update_entry = MagicMock()
+        flow.hass.config_entries.async_reload = AsyncMock()
+        flow.async_set_unique_id = AsyncMock(return_value=mock_entry)
+        flow.async_abort = MagicMock(return_value={"type": "abort"})
+
+        await flow._test_login()
+
+        flow.async_abort.assert_called_once_with(reason="already_configured")
+        flow.hass.config_entries.async_update_entry.assert_not_called()
+        flow.hass.config_entries.async_reload.assert_not_called()
+
 
 class TestConfigFlowInvalidOtpKeyDataSchema:
     """Tests for handling invalid OTP key errors in config flow.

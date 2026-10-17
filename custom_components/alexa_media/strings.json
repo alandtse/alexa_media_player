@@ -41,9 +41,9 @@
       },
       "domain_mismatch": {
         "title": "Alexa Media Player - Amazon Region Mismatch",
-        "description": "Amazon reports that this account belongs to **{reported_domain}**, but Alexa Media Player was configured to use **{configured_domain}**.\n\nYou can switch to the reported region and authenticate again, or continue with the currently configured region.",
+        "description": "Amazon reports that this account belongs to **{reported_domain}**, but Alexa Media Player was configured to use **{configured_domain}**.\n\nYou can change to the reported region and authenticate again, or deselect and attempt to continue with your currently configured region.",
         "data": {
-          "use_reported_domain": "Use the Amazon-reported region"
+          "use_reported_domain": "Change configuration to the Amazon-reported region"
         }
       },
       "proxy_warning": {

@@ -585,7 +585,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
             "identifiers": {(ALEXA_DOMAIN, client.unique_id)},
         }
         self._attr_assumed_state = client.assumed_state
-        self._attr_available = client.available
         self._client = client
         self._n_dict = n_dict
         self._sensor_property = sensor_property
@@ -1016,6 +1015,11 @@ class AlexaMediaNotificationSensor(SensorEntity):
     def hidden(self):
         """Return whether the sensor should be hidden."""
         return self.state is None
+
+    @property
+    def available(self) -> bool:
+        """Return the availability of the client."""
+        return self._client.available
 
     @property
     def should_poll(self):

@@ -4,9 +4,13 @@ Tests the sensor functionality using pytest-homeassistant-custom-component.
 """
 
 import datetime
+from types import SimpleNamespace
 from unittest.mock import patch
 
-from custom_components.alexa_media.sensor import AlexaMediaNotificationSensor
+from custom_components.alexa_media.sensor import (
+    AlarmSensor,
+    AlexaMediaNotificationSensor,
+)
 
 
 class TestUpdateRecurringAlarm:
@@ -267,3 +271,27 @@ class TestUpdateRecurringAlarm:
         result_alarm = result[1]["alarmTime"]
         # Reminders should also be advanced correctly
         assert result_alarm.isoweekday() == 5
+
+
+class TestNotificationSensorAvailability:
+    """Test that notification sensors follow the media player's availability."""
+
+    def test_available_tracks_client(self) -> None:
+        """Test availability is read live from the client, not cached at init.
+
+        Regression test: an Echo that was offline when Home Assistant started
+        left its Next Alarm/Timer/Reminder sensors unavailable until the
+        integration was reloaded, even after the device came back online.
+        """
+        client = SimpleNamespace(
+            unique_id="SERIAL123", assumed_state=False, available=False
+        )
+        sensor = AlarmSensor(client, {}, "test@example.com")
+
+        assert sensor.available is False
+
+        client.available = True
+        assert sensor.available is True
+
+        client.available = False
+        assert sensor.available is False

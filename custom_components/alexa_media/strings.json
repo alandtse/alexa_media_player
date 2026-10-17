@@ -39,6 +39,13 @@
           "otp_secret": "Example: 35T5 LQSY I5IO 3EFQ LGAJ I6YB JWBY JJPR PYT7 XPPW IDAK SQBJ CVXA"
         }
       },
+      "domain_mismatch": {
+        "title": "Alexa Media Player - Amazon Region Mismatch",
+        "description": "Amazon reports that this account belongs to **{reported_domain}**, but Alexa Media Player was configured to use **{configured_domain}**.\n\nYou can switch to the reported region and authenticate again, or continue with the currently configured region.",
+        "data": {
+          "use_reported_domain": "Use the Amazon-reported region"
+        }
+      },
       "proxy_warning": {
         "data": {
           "proxy_warning": "Ignore and Continue - I understand that no support for login issues are provided for bypassing this warning."

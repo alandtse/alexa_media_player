@@ -38,6 +38,7 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_URL,
+    CONF_USE_REPORTED_DOMAIN
     __version__ as HAVERSION,
 )
 from homeassistant.core import callback
@@ -466,8 +467,49 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             await self.login.finalize_login()
             self.config[CONF_EMAIL] = self.login.email
             self.config[CONF_PASSWORD] = self.login.password
+            reported_domain = self.login.reported_account_domain
+            if (
+                reported_domain
+                and reported_domain != self.login.url
+            ):
+                return await self.async_step_domain_mismatch()
+
             return await self._test_login()
+
         return self.async_abort(reason="login_failed")
+
+    async def async_step_domain_mismatch(self, user_input=None):
+        """Handle an Amazon domain mismatch."""
+        reported_domain = self.login.reported_account_domain
+        configured_domain = self.login.url
+
+        if user_input is not None:
+            if user_input.get(CONF_USE_REPORTED_DOMAIN):
+                self.config[CONF_URL] = reported_domain
+
+                await self.login.close()
+                self.login = None
+                self.proxy = None
+
+                return await self.async_step_user()
+
+            return await self._test_login()
+
+        return self.async_show_form(
+            step_id="domain_mismatch",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USE_REPORTED_DOMAIN,
+                        default=True,
+                    ): bool,
+                }
+            ),
+            description_placeholders={
+                "configured_domain": configured_domain,
+                "reported_domain": reported_domain,
+            },
+        )
 
     async def async_step_user_legacy(self, user_input=None):
         """Handle legacy input for the config flow."""

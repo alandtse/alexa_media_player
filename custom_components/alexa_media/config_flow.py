@@ -495,6 +495,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
             return await self._test_login()
 
+        _LOGGER.warning(
+            "Configured Amazon domain %s does not match reported account domain %s",
+            configured_domain,
+            reported_domain,
+        )
+
         return self.async_show_form(
             step_id="domain_mismatch",
             data_schema=vol.Schema(

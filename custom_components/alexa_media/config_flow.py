@@ -433,7 +433,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.proxy_view = AlexaMediaAuthorizationProxyView(self.proxy.all_handler)
         else:
             _LOGGER.debug("Found existing proxy_view")
-            AlexaMediaAuthorizationProxyView.handler = self.proxy.all_handler
+            self.proxy_view.handler = self.proxy.all_handler
         self.hass.http.register_view(AlexaMediaAuthorizationCallbackView())
         self.hass.http.register_view(self.proxy_view)
         callback_url = (
@@ -1177,7 +1177,6 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
     extra_urls: list[str] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
     name: str = AUTH_PROXY_NAME
     requires_auth: bool = False
-    handler: web.RequestHandler = None
     known_ips: dict[str, datetime.datetime] = {}
     auth_seconds: int = 300
 
@@ -1188,13 +1187,13 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
             handler (web.RequestHandler): Handler to apply to all method types
 
         """
-        AlexaMediaAuthorizationProxyView.handler = handler
+        self.handler: web.RequestHandler = handler
         for method in ("get", "post", "delete", "put", "patch", "head", "options"):
             setattr(self, method, self.check_auth())
 
-    @classmethod
-    def check_auth(cls):
+    def check_auth(self):
         """Wrap authentication into the handler."""
+        cls = type(self)
 
         async def wrapped(request, **kwargs):
             """Notify that the API is running."""
@@ -1239,7 +1238,7 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     _safe_req_headers,
                 )
             try:
-                result = await cls.handler(request, **kwargs)
+                result = await self.handler(request, **kwargs)
                 if _LOGGER.isEnabledFor(logging.DEBUG):
                     _safe_resp_headers = (
                         {

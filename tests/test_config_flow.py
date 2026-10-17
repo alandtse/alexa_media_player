@@ -501,7 +501,7 @@ class TestConfigFlowProxyReuse:
     """Tests for refreshing the proxy handler between authentication rounds."""
 
     @pytest.mark.asyncio
-    async def test_start_proxy_updates_existing_view_class_handler(self):
+    async def test_start_proxy_updates_existing_view_handler(self):
         """A reused view dispatches requests to the fresh proxy's handler."""
         flow = AlexaMediaFlowHandler()
         flow.hass = MagicMock()
@@ -519,7 +519,6 @@ class TestConfigFlowProxyReuse:
 
         # Restore shared view state after the test.
         with (
-            patch.object(AlexaMediaAuthorizationProxyView, "handler", None),
             patch.object(AlexaMediaAuthorizationProxyView, "known_ips", {}),
             patch(
                 "custom_components.alexa_media.config_flow.AlexaProxy",
@@ -527,13 +526,13 @@ class TestConfigFlowProxyReuse:
             ) as proxy_class,
         ):
             view = flow.proxy_view = AlexaMediaAuthorizationProxyView(old_handler)
-            assert AlexaMediaAuthorizationProxyView.handler is old_handler
+            assert view.handler is old_handler
 
             result = await flow.async_step_start_proxy()
 
             assert result["step_id"] == "check_proxy"
             assert flow.proxy_view is view
-            assert AlexaMediaAuthorizationProxyView.handler is fresh_proxy.all_handler
+            assert view.handler is fresh_proxy.all_handler
             proxy_class.assert_called_once()
             fresh_proxy.change_login.assert_called_once_with(flow.login)
 
@@ -550,6 +549,35 @@ class TestConfigFlowProxyReuse:
             assert response is fresh_proxy.all_handler.return_value
             fresh_proxy.all_handler.assert_awaited_once_with(request)
             old_handler.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_separate_views_keep_isolated_handlers(self):
+        """Creating or refreshing another view cannot change a view's dispatch."""
+        first_handler = AsyncMock()
+        second_handler = AsyncMock()
+        fresh_handler = AsyncMock()
+        with patch.object(AlexaMediaAuthorizationProxyView, "known_ips", {}):
+            first_view = AlexaMediaAuthorizationProxyView(first_handler)
+            second_view = AlexaMediaAuthorizationProxyView(second_handler)
+            request = MagicMock()
+            request.remote = "127.0.0.1"
+            request.url = URL("http://localhost/?config_flow_id=test_flow_id")
+            hass = MagicMock()
+            request.app = {"hass": hass}
+            hass.config_entries.flow.async_progress.return_value = [
+                {"flow_id": "test_flow_id"}
+            ]
+
+            assert await first_view.get(request) is first_handler.return_value
+            assert await second_view.post(request) is second_handler.return_value
+            second_view.handler = fresh_handler
+            assert await first_view.get(request) is first_handler.return_value
+            assert await second_view.post(request) is fresh_handler.return_value
+
+            first_handler.assert_has_awaits([((request,), {}), ((request,), {})])
+            assert first_handler.await_count == 2
+            second_handler.assert_awaited_once_with(request)
+            fresh_handler.assert_awaited_once_with(request)
 
 
 class TestConfigFlowRegionalDomain:

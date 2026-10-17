@@ -6,7 +6,10 @@ from homeassistant.const import CONF_URL
 import pytest
 
 from custom_components.alexa_media.config_flow import AlexaMediaFlowHandler
-from custom_components.alexa_media.const import DATA_ALEXAMEDIA
+from custom_components.alexa_media.const import (
+    CONF_USE_REPORTED_DOMAIN,
+    DATA_ALEXAMEDIA,
+)
 
 
 class TestReauthReload:
@@ -487,3 +490,127 @@ class TestConfigFlowUrlCleanup:
         flow._save_user_input_to_config({CONF_URL: "amazon.com. au"})
 
         assert flow.config[CONF_URL] == "amazon.com.au"
+
+
+class TestConfigFlowRegionalDomain:
+    """Tests for country defaults and reported Amazon account domains."""
+
+    @pytest.fixture
+    def flow(self):
+        """Create a flow with a successful login on the configured domain."""
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.hass.config.country = "IT"
+        flow.config[CONF_URL] = "amazon.com"
+        flow.login = MagicMock()
+        flow.login.url = "amazon.com"
+        flow.login.email = "test@example.com"
+        flow.login.password = "test_password"  # nosec B105
+        flow.login.test_loggedin = AsyncMock(return_value=True)
+        flow.login.finalize_login = AsyncMock()
+        flow.login.close = AsyncMock()
+        flow._test_login = AsyncMock(return_value={"type": "create_entry"})
+        return flow
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("country", "expected_domain"),
+        [("IT", "amazon.it"), ("ZZ", "amazon.com")],
+    )
+    async def test_initial_domain_default(self, country, expected_domain):
+        """The initial user form defaults to the HA country or amazon.com."""
+        flow = AlexaMediaFlowHandler()
+        flow.hass = MagicMock()
+        flow.hass.config.country = country
+
+        with patch(
+            "custom_components.alexa_media.config_flow.get_url",
+            return_value="http://homeassistant.local:8123",
+        ):
+            result = await flow.async_step_user()
+
+        assert result["type"] == "form"
+        assert result["step_id"] == "user"
+        url_field = next(key for key in result["data_schema"].schema if key == CONF_URL)
+        assert url_field.default() == expected_domain
+        assert flow.login is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reported_domain", ["amazon.com", None])
+    async def test_finish_proxy_without_mismatch(self, flow, reported_domain):
+        """Matching or absent reported domains continue the normal login flow."""
+        flow.login.reported_account_domain = reported_domain
+
+        result = await flow.async_step_finish_proxy()
+
+        assert result == {"type": "create_entry"}
+        flow.login.test_loggedin.assert_awaited_once_with()
+        flow.login.finalize_login.assert_awaited_once_with()
+        flow._test_login.assert_awaited_once_with()
+        flow.login.close.assert_not_awaited()
+        assert flow.config[CONF_URL] == "amazon.com"
+
+    @pytest.mark.asyncio
+    async def test_finish_proxy_domain_mismatch(self, flow):
+        """A mismatch offers the reported domain with both domain placeholders."""
+        flow.login.reported_account_domain = "amazon.it"
+
+        result = await flow.async_step_finish_proxy()
+
+        assert result["type"] == "form"
+        assert result["step_id"] == "domain_mismatch"
+        assert result["description_placeholders"] == {
+            "configured_domain": "amazon.com",
+            "reported_domain": "amazon.it",
+        }
+        assert result["data_schema"]({}) == {CONF_USE_REPORTED_DOMAIN: True}
+        flow.login.finalize_login.assert_awaited_once_with()
+        flow._test_login.assert_not_awaited()
+        flow.login.close.assert_not_awaited()
+        assert flow.config[CONF_URL] == "amazon.com"
+
+    @pytest.mark.asyncio
+    async def test_use_reported_domain_restarts_login(self, flow):
+        """Accepting the domain closes and discards the login and shows user form."""
+        login = flow.login
+        login.reported_account_domain = "amazon.it"
+        flow.proxy = MagicMock()
+        await flow.async_step_finish_proxy()
+
+        with patch(
+            "custom_components.alexa_media.config_flow.get_url",
+            return_value="http://homeassistant.local:8123",
+        ):
+            result = await flow.async_step_domain_mismatch(
+                {CONF_USE_REPORTED_DOMAIN: True}
+            )
+
+        assert flow.config[CONF_URL] == "amazon.it"
+        login.close.assert_awaited_once_with()
+        assert flow.login is None
+        assert flow.proxy is None
+        assert result["type"] == "form"
+        assert result["step_id"] == "user"
+        url_field = next(key for key in result["data_schema"].schema if key == CONF_URL)
+        assert url_field.default() == "amazon.it"
+        flow._test_login.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_keep_configured_domain_continues_login(self, flow):
+        """Unchecking the option continues with the current login and domain."""
+        login = flow.login
+        login.reported_account_domain = "amazon.it"
+        proxy = flow.proxy = MagicMock()
+        await flow.async_step_finish_proxy()
+
+        result = await flow.async_step_domain_mismatch(
+            {CONF_USE_REPORTED_DOMAIN: False}
+        )
+
+        assert result == {"type": "create_entry"}
+        flow._test_login.assert_awaited_once_with()
+        assert flow.config[CONF_URL] == "amazon.com"
+        assert login.url == "amazon.com"
+        assert flow.login is login
+        assert flow.proxy is proxy
+        login.close.assert_not_awaited()

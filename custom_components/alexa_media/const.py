@@ -57,21 +57,21 @@ DEPENDENT_ALEXA_COMPONENTS = [
 HTTP_COOKIE_HEADER = "# HTTP Cookie File"
 CONF_ACCOUNTS = "accounts"
 CONF_DEBUG = "debug"
-CONF_EXCLUDE_DEVICES = "exclude_devices"
-CONF_EXTENDED_ENTITY_DISCOVERY = "extended_entity_discovery"
 CONF_HASS_URL = "hass_url"
 CONF_INCLUDE_DEVICES = "include_devices"
-CONF_OAUTH = "oauth"
+CONF_EXCLUDE_DEVICES = "exclude_devices"
+CONF_QUEUE_DELAY = "queue_delay"
+CONF_PUBLIC_URL = "public_url"
+CONF_EXTENDED_ENTITY_DISCOVERY = "extended_entity_discovery"
+CONF_SECURITYCODE = "securitycode"
 CONF_OTPSECRET = "otp_secret"
 CONF_PROXY = "proxy"
 CONF_PROXY_WARNING = "proxy_warning"
-CONF_PUBLIC_URL = "public_url"
-CONF_QUEUE_DELAY = "queue_delay"
 CONF_SCAN_INTERVAL = (
     "scan_interval"  # local definition; HA's CONF_SCAN_INTERVAL is deprecated
 )
-CONF_SECURITYCODE = "securitycode"
 CONF_TOTP_REGISTER = "registered"
+CONF_OAUTH = "oauth"
 CONF_USE_REPORTED_DOMAIN = "use_reported_domain"
 DATA_LISTENER = "listener"
 

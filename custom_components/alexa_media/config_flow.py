@@ -433,7 +433,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.proxy_view = AlexaMediaAuthorizationProxyView(self.proxy.all_handler)
         else:
             _LOGGER.debug("Found existing proxy_view")
-            self.proxy_view.handler = self.proxy.all_handler
+            AlexaMediaAuthorizationProxyView.handler = self.proxy.all_handler
         self.hass.http.register_view(AlexaMediaAuthorizationCallbackView())
         self.hass.http.register_view(self.proxy_view)
         callback_url = (

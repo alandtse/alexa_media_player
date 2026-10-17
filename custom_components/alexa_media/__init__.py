@@ -603,6 +603,14 @@ async def _async_update_last_called_global(
                 repr(last_called),
             )
             return
+
+        if last_called is None:
+            _LOGGER.debug(
+                "%s: No last_called activity returned by AlexaPy",
+                hide_email(email),
+            )
+            return
+
         if not isinstance(last_called, dict):
             _LOGGER.debug(
                 "%s: Error updating last_called: unexpected response %s",

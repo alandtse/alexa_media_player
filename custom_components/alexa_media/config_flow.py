@@ -38,7 +38,7 @@ from homeassistant.const import (
     CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_URL,
-    CONF_USE_REPORTED_DOMAIN
+    CONF_USE_REPORTED_DOMAIN,
     __version__ as HAVERSION,
 )
 from homeassistant.core import callback

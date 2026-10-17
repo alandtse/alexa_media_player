@@ -468,10 +468,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_EMAIL] = self.login.email
             self.config[CONF_PASSWORD] = self.login.password
             reported_domain = self.login.reported_account_domain
-            if (
-                reported_domain
-                and reported_domain != self.login.url
-            ):
+            if reported_domain and reported_domain != self.login.url:
                 return await self.async_step_domain_mismatch()
 
             return await self._test_login()

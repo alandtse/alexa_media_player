@@ -17,6 +17,13 @@
       "unknown_error": "Errore sconosciuto: {message}"
     },
     "step": {
+      "domain_mismatch": {
+        "data": {
+          "use_reported_domain": "Modifica la configurazione in base alla regione segnalata da Amazon."
+        },
+        "description": "Amazon segnala che questo account appartiene a **{reported_domain} **, ma Alexa Media Player è stato configurato per utilizzare **{configured_domain} **.\n\nÈ possibile passare alla regione segnalata ed eseguire nuovamente l'autenticazione, oppure deselezionare l'opzione e provare a continuare con la regione attualmente configurata.",
+        "title": "Alexa Media Player - Incompatibilità di regione con Amazon"
+      },
       "proxy_warning": {
         "data": {
           "proxy_warning": "Ignora e continua - capisco che non verrà fornito alcun supporto per i problemi di accesso derivanti dall'aggirare questo avviso."

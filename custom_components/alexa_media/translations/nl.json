@@ -17,6 +17,13 @@
       "unknown_error": "Onbekende fout: {message}"
     },
     "step": {
+      "domain_mismatch": {
+        "data": {
+          "use_reported_domain": "Wijzig de configuratie naar de door Amazon gerapporteerde regio."
+        },
+        "description": "Amazon meldt dat dit account toebehoort aan **{reported_domain} **, maar Alexa Media Player was geconfigureerd om ** te gebruiken{configured_domain} **.\n\nU kunt overschakelen naar de gerapporteerde regio en opnieuw authenticeren, of de selectie ongedaan maken en proberen verder te gaan met uw huidige geconfigureerde regio.",
+        "title": "Alexa Media Player - Regio-inconsistentie bij Amazon"
+      },
       "proxy_warning": {
         "data": {
           "proxy_warning": "Negeren en doorgaan - Ik begrijp dat er geen ondersteuning wordt geboden bij inlogproblemen wanneer ik deze waarschuwing omzeil."

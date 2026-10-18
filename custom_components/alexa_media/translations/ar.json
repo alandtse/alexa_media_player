@@ -17,6 +17,13 @@
       "unknown_error": "خطأ غير معروف: {message}"
     },
     "step": {
+      "domain_mismatch": {
+        "data": {
+          "use_reported_domain": "Change configuration to the Amazon-reported region"
+        },
+        "description": "Amazon reports that this account belongs to **{reported_domain}**, but Alexa Media Player was configured to use **{configured_domain}**.\n\nYou can change to the reported region and authenticate again, or deselect and attempt to continue with your currently configured region.",
+        "title": "Alexa Media Player - Amazon Region Mismatch"
+      },
       "proxy_warning": {
         "data": {
           "proxy_warning": "تجاهل ومتابعة - أتفهم أنه لا يوجد دعم لمشاكل تسجيل الدخول لتجاوز هذا التحذير."

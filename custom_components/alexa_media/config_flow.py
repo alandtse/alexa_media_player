@@ -134,6 +134,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         """Initialize the config flow."""
         self.login = None
         self._reuse_loaded_login = True
+        self._loaded_login = None
         self.securitycode: Optional[str] = None
         self.automatic_steps: int = 0
         self.config = OrderedDict()
@@ -284,6 +285,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self.config[CONF_EMAIL]
                 ].get("login_obj")
+                self._loaded_login = self.login
             except KeyError:
                 self.login = None
         try:
@@ -485,13 +487,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             if user_input.get(CONF_USE_REPORTED_DOMAIN):
                 self.config[CONF_URL] = reported_domain
 
-                loaded_login = (
-                    self.hass.data.get(DATA_ALEXAMEDIA, {})
-                    .get("accounts", {})
-                    .get(self.config.get(CONF_EMAIL), {})
-                    .get("login_obj")
-                )
-                if self.login is not loaded_login:
+                if self.login is not self._loaded_login:
                     await self.login.close()
                 self.login = None
                 self.proxy = None
@@ -556,6 +552,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self.config[CONF_EMAIL]
                 ].get("login_obj")
+                self._loaded_login = self.login
             except KeyError:
                 self.login = None
         try:
@@ -703,6 +700,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self.config[CONF_EMAIL]
                 ].get("login_obj")
+                self._loaded_login = self.login
             except KeyError:
                 self.login = None
         seconds_since_login: int = (

@@ -692,6 +692,7 @@ class TestConfigFlowRegionalDomain:
         login.reported_account_domain = "amazon.it"
         flow.config[CONF_EMAIL] = "test@example.com"
         flow.config[CONF_DEBUG] = False
+        flow._loaded_login = login
         flow.hass.data = {
             DATA_ALEXAMEDIA: {"accounts": {"test@example.com": {"login_obj": login}}}
         }
@@ -712,7 +713,24 @@ class TestConfigFlowRegionalDomain:
                     "custom_components.alexa_media.config_flow.AlexaLogin"
                 ) as new_login,
             ):
-                with patch.object(flow, "async_step_start_proxy", AsyncMock()):
+                response = MagicMock(status=200)
+                get_ctx = MagicMock()
+                get_ctx.__aenter__ = AsyncMock(return_value=response)
+                get_ctx.__aexit__ = AsyncMock(return_value=False)
+                client = MagicMock()
+                client.get.return_value = get_ctx
+                client_ctx = MagicMock()
+                client_ctx.__aenter__ = AsyncMock(return_value=client)
+                client_ctx.__aexit__ = AsyncMock(return_value=False)
+                with (
+                    patch(
+                        "custom_components.alexa_media.config_flow.ClientSession",
+                        return_value=client_ctx,
+                    ),
+                    patch.object(
+                        flow, "async_step_start_proxy", AsyncMock()
+                    ) as start_proxy,
+                ):
                     await flow.async_step_user(
                         {
                             CONF_URL: "amazon.it",
@@ -724,6 +742,7 @@ class TestConfigFlowRegionalDomain:
 
         login.close.assert_not_awaited()
         new_login.assert_called_once()
+        start_proxy.assert_awaited_once()
         assert flow.login is new_login.return_value
 
     @pytest.mark.asyncio

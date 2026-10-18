@@ -127,7 +127,11 @@ jobs:
           # with a new SHA and causes conflicts on the next dev -> master merge).
           RELEASE_SHA=$(git rev-parse HEAD)
           for attempt in 1 2 3 4 5; do
-            git fetch origin dev
+            if ! git fetch origin dev; then
+              echo "Fetch of dev failed on attempt $attempt, retrying..."
+              sleep $((attempt * 3))
+              continue
+            fi
             if git merge-base --is-ancestor origin/dev "$RELEASE_SHA"; then
               git push origin "$RELEASE_SHA":refs/heads/dev && { echo "Fast-forwarded dev on attempt $attempt"; exit 0; }
             else

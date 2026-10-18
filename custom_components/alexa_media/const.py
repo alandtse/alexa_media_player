@@ -72,6 +72,7 @@ CONF_SCAN_INTERVAL = (
 )
 CONF_TOTP_REGISTER = "registered"
 CONF_OAUTH = "oauth"
+CONF_USE_REPORTED_DOMAIN = "use_reported_domain"
 DATA_LISTENER = "listener"
 
 EXCEPTION_TEMPLATE = "An exception of type {0} occurred. Arguments:\n{1!r}"
@@ -253,6 +254,21 @@ ALEXA_AIR_QUALITY_DEVICE_CLASS = {
     "Alexa.AirQuality.IndoorAirQuality": "aqi",
     "Alexa.AirQuality.VolatileOrganicCompounds": "aqi",
     "Alexa.AirQuality.Humidity": "humidity",
+}
+
+AMAZON_DOMAINS = {
+    "AU": "amazon.com.au",
+    "BR": "amazon.com.br",
+    "CA": "amazon.ca",
+    "DE": "amazon.de",
+    "ES": "amazon.es",
+    "FR": "amazon.fr",
+    "GB": "amazon.co.uk",
+    "IN": "amazon.in",
+    "IT": "amazon.it",
+    "JP": "amazon.co.jp",
+    "MX": "amazon.com.mx",
+    "US": "amazon.com",
 }
 
 UPLOAD_PATH = "www/alexa_tts"

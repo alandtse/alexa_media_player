@@ -51,6 +51,7 @@ import voluptuous as vol
 from yarl import URL
 
 from .const import (
+    AMAZON_DOMAINS,
     AUTH_CALLBACK_NAME,
     AUTH_CALLBACK_PATH,
     AUTH_PROXY_NAME,
@@ -67,6 +68,7 @@ from .const import (
     CONF_QUEUE_DELAY,
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
+    CONF_USE_REPORTED_DOMAIN,
     DATA_ALEXAMEDIA,
     DEFAULT_DEBUG,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
@@ -109,6 +111,13 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
     proxy: AlexaProxy = None
     proxy_view: "AlexaMediaAuthorizationProxyView" = None
+
+    def _get_default_amazon_domain(self) -> str:
+        """Return the Amazon domain appropriate for the HA country."""
+        return AMAZON_DOMAINS.get(
+            self.hass.config.country,
+            "amazon.com",
+        )
 
     def _update_ord_dict(self, old_dict: OrderedDict, new_dict: dict) -> OrderedDict:
         result: OrderedDict = OrderedDict()
@@ -159,6 +168,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     async def async_step_user(self, user_input=None):
         # pylint: disable=too-many-branches
 
+        default_domain = self._get_default_amazon_domain()
+
         """Provide a proxy for login."""
         self._save_user_input_to_config(user_input=user_input)
         """ Internal URL for proxy authentication """
@@ -179,7 +190,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             [
                 (
                     vol.Required(
-                        CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
+                        CONF_URL, default=self.config.get(CONF_URL, default_domain)
                     ),
                     str,
                 ),
@@ -456,8 +467,52 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             await self.login.finalize_login()
             self.config[CONF_EMAIL] = self.login.email
             self.config[CONF_PASSWORD] = self.login.password
+            reported_domain = self.login.reported_account_domain
+            if reported_domain and reported_domain != self.login.url:
+                return await self.async_step_domain_mismatch()
+
             return await self._test_login()
+
         return self.async_abort(reason="login_failed")
+
+    async def async_step_domain_mismatch(self, user_input=None):
+        """Handle an Amazon domain mismatch."""
+        reported_domain = self.login.reported_account_domain
+        configured_domain = self.login.url
+
+        if user_input is not None:
+            if user_input.get(CONF_USE_REPORTED_DOMAIN):
+                self.config[CONF_URL] = reported_domain
+
+                await self.login.close()
+                self.login = None
+                self.proxy = None
+
+                return await self.async_step_user()
+
+            return await self._test_login()
+
+        _LOGGER.warning(
+            "Configured Amazon domain %s does not match reported account domain %s",
+            configured_domain,
+            reported_domain,
+        )
+
+        return self.async_show_form(
+            step_id="domain_mismatch",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_USE_REPORTED_DOMAIN,
+                        default=True,
+                    ): bool,
+                }
+            ),
+            description_placeholders={
+                "configured_domain": configured_domain,
+                "reported_domain": reported_domain,
+            },
+        )
 
     async def async_step_user_legacy(self, user_input=None):
         """Handle legacy input for the config flow."""
@@ -916,11 +971,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             self.config[CONF_DEBUG] = user_input[CONF_DEBUG]
 
     def _update_schema_defaults(self) -> Any:
+        default_domain = self._get_default_amazon_domain()
         new_schema = self._update_ord_dict(
             self.data_schema,
             {
                 vol.Required(
-                    CONF_URL, default=self.config.get(CONF_URL, "amazon.com")
+                    CONF_URL, default=self.config.get(CONF_URL, default_domain)
                 ): str,
                 vol.Required(CONF_EMAIL, default=self.config.get(CONF_EMAIL, "")): str,
                 vol.Required(
@@ -1121,7 +1177,6 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
     extra_urls: list[str] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
     name: str = AUTH_PROXY_NAME
     requires_auth: bool = False
-    handler: web.RequestHandler = None
     known_ips: dict[str, datetime.datetime] = {}
     auth_seconds: int = 300
 
@@ -1132,13 +1187,13 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
             handler (web.RequestHandler): Handler to apply to all method types
 
         """
-        AlexaMediaAuthorizationProxyView.handler = handler
+        self.handler: web.RequestHandler = handler
         for method in ("get", "post", "delete", "put", "patch", "head", "options"):
             setattr(self, method, self.check_auth())
 
-    @classmethod
-    def check_auth(cls):
+    def check_auth(self):
         """Wrap authentication into the handler."""
+        cls = type(self)
 
         async def wrapped(request, **kwargs):
             """Notify that the API is running."""
@@ -1183,7 +1238,7 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     _safe_req_headers,
                 )
             try:
-                result = await cls.handler(request, **kwargs)
+                result = await self.handler(request, **kwargs)
                 if _LOGGER.isEnabledFor(logging.DEBUG):
                     _safe_resp_headers = (
                         {

@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.const import CONF_URL
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_URL
 import pytest
 from yarl import URL
 
@@ -11,6 +11,7 @@ from custom_components.alexa_media.config_flow import (
     AlexaMediaFlowHandler,
 )
 from custom_components.alexa_media.const import (
+    CONF_DEBUG,
     CONF_HASS_URL,
     CONF_USE_REPORTED_DOMAIN,
     DATA_ALEXAMEDIA,
@@ -682,6 +683,48 @@ class TestConfigFlowRegionalDomain:
         url_field = next(key for key in result["data_schema"].schema if key == CONF_URL)
         assert url_field.default() == "amazon.it"
         flow._test_login.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_use_reported_domain_keeps_loaded_account_login_open(self, flow):
+        """A login reused from a loaded account is not closed or reused again."""
+        login = flow.login
+        login.session.closed = False
+        login.reported_account_domain = "amazon.it"
+        flow.config[CONF_EMAIL] = "test@example.com"
+        flow.config[CONF_DEBUG] = False
+        flow.hass.data = {
+            DATA_ALEXAMEDIA: {"accounts": {"test@example.com": {"login_obj": login}}}
+        }
+        flow.proxy = MagicMock()
+        await flow.async_step_finish_proxy()
+
+        with patch(
+            "custom_components.alexa_media.config_flow.get_url",
+            return_value="http://homeassistant.local:8123",
+        ):
+            await flow.async_step_domain_mismatch({CONF_USE_REPORTED_DOMAIN: True})
+            with (
+                patch(
+                    "custom_components.alexa_media.config_flow.calculate_uuid",
+                    AsyncMock(return_value={"uuid": "uuid"}),
+                ),
+                patch(
+                    "custom_components.alexa_media.config_flow.AlexaLogin"
+                ) as new_login,
+            ):
+                with patch.object(flow, "async_step_start_proxy", AsyncMock()):
+                    await flow.async_step_user(
+                        {
+                            CONF_URL: "amazon.it",
+                            CONF_HASS_URL: "http://homeassistant.local:8123",
+                            CONF_EMAIL: "test@example.com",
+                            CONF_PASSWORD: "test_password",  # nosec B105
+                        }
+                    )
+
+        login.close.assert_not_awaited()
+        new_login.assert_called_once()
+        assert flow.login is new_login.return_value
 
     @pytest.mark.asyncio
     async def test_keep_configured_domain_continues_login(self, flow):

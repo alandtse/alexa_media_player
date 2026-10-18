@@ -133,6 +133,8 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
     def __init__(self):
         """Initialize the config flow."""
         self.login = None
+        self._reuse_loaded_login = True
+        self._loaded_login = None
         self.securitycode: Optional[str] = None
         self.automatic_steps: int = 0
         self.config = OrderedDict()
@@ -278,11 +280,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 data_schema=vol.Schema(self.proxy_schema),
                 description_placeholders={"message": ""},
             )
-        if self.login is None:
+        if self.login is None and self._reuse_loaded_login:
             try:
                 self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self.config[CONF_EMAIL]
                 ].get("login_obj")
+                self._loaded_login = self.login
             except KeyError:
                 self.login = None
         try:
@@ -484,9 +487,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             if user_input.get(CONF_USE_REPORTED_DOMAIN):
                 self.config[CONF_URL] = reported_domain
 
-                await self.login.close()
+                if self.login is not self._loaded_login:
+                    await self.login.close()
                 self.login = None
                 self.proxy = None
+                self._reuse_loaded_login = False
 
                 return await self.async_step_user()
 
@@ -542,11 +547,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 errors={CONF_EMAIL: "identifier_exists"},
                 description_placeholders={"message": ""},
             )
-        if self.login is None:
+        if self.login is None and self._reuse_loaded_login:
             try:
                 self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self.config[CONF_EMAIL]
                 ].get("login_obj")
+                self._loaded_login = self.login
             except KeyError:
                 self.login = None
         try:
@@ -689,11 +695,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             obfuscate(self.config),
         )
         self.automatic_steps = 0
-        if self.login is None:
+        if self.login is None and self._reuse_loaded_login:
             try:
                 self.login = self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                     self.config[CONF_EMAIL]
                 ].get("login_obj")
+                self._loaded_login = self.login
             except KeyError:
                 self.login = None
         seconds_since_login: int = (

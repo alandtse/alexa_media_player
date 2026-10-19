@@ -502,6 +502,7 @@ class TestConfigFlowProxyReuse:
     """Exercise the registered router across fresh attempts and parallel flows."""
 
     @pytest.mark.asyncio
+    @pytest.mark.allow_hosts(["127.0.0.1"])
     async def test_router_dispatch_and_code_ownership(self):
         """Rewritten requests and callbacks keep each code on its owning login."""
         from aiohttp import web

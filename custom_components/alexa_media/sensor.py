@@ -980,8 +980,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
     def _handle_event(self, event):
         """Handle events.
 
-        This will update PUSH_ACTIVITY, NOTIFICATION_UPDATE, or a global
-        notifications refresh event to see if the sensor should be updated.
+        This will update PUSH_ACTIVITY, NOTIFICATION_UPDATE,
+        PUSH_DOPPLER_CONNECTION_CHANGE, or a global notifications refresh
+        event to see if the sensor should be updated.
         """
         try:
             if not self.enabled:
@@ -1009,6 +1010,19 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 == self._client.device_serial_number
             ):
                 _LOGGER.debug("Updating sensor %s from push_activity", self)
+                self.schedule_update_ha_state(True)
+
+        if "player_state" in event:
+            # PUSH_DOPPLER_CONNECTION_CHANGE: the media player has just
+            # updated client.available, so write the new availability
+            player_state = event["player_state"]
+            if (
+                player_state
+                and "dopplerConnectionState" in player_state
+                and player_state["dopplerId"]["deviceSerialNumber"]
+                == self._client.device_serial_number
+            ):
+                _LOGGER.debug("Updating sensor %s from player_state", self)
                 self.schedule_update_ha_state(True)
 
     @property

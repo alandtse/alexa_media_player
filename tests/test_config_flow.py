@@ -1,5 +1,6 @@
 """Tests for config_flow module."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_URL
@@ -677,6 +678,48 @@ class TestConfigFlowProxyReuse:
         fresh.assert_awaited_once_with(request, tail="ap/signin")
         other.assert_awaited_once_with(request)
         old.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_inflight_request_keeps_handler_when_another_flow_retries(self):
+        """Overlapping requests retain ownership while a third handler is installed."""
+        from aiohttp import web
+
+        from custom_components.alexa_media.const import DOMAIN
+
+        hass = MagicMock()
+        hass.config_entries.flow.async_progress.return_value = [
+            {"flow_id": flow_id, "handler": DOMAIN} for flow_id in ("first", "second")
+        ]
+        view = AlexaMediaAuthorizationProxyView()
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def slow_handler(request, **kwargs):
+            entered.set()
+            await release.wait()
+            return web.Response(text="first")
+
+        first = AsyncMock(side_effect=slow_handler)
+        old_second = AsyncMock()
+        fresh_second = AsyncMock(return_value=web.Response(text="second"))
+        view.register_handler(hass, "first", first)
+        view.register_handler(hass, "second", old_second)
+        request = MagicMock()
+        request.app = {"hass": hass}
+        request.query = {}
+        pending = asyncio.create_task(view.post(request, config_flow_id="first"))
+        try:
+            await asyncio.wait_for(entered.wait(), timeout=2)
+            view.register_handler(hass, "second", fresh_second)
+            response = await view.post(request, config_flow_id="second")
+            assert response.text == "second"
+        finally:
+            release.set()
+            response = await asyncio.wait_for(pending, timeout=2)
+        assert response.text == "first"
+        first.assert_awaited_once_with(request)
+        fresh_second.assert_awaited_once_with(request)
+        old_second.assert_not_awaited()
 
 
 class TestConfigFlowRegionalDomain:

@@ -502,11 +502,10 @@ class TestConfigFlowProxyReuse:
     """Exercise the registered router across fresh attempts and parallel flows."""
 
     @pytest.mark.asyncio
-    @pytest.mark.allow_hosts(["127.0.0.1"])
     async def test_router_dispatch_and_code_ownership(self):
         """Rewritten requests and callbacks keep each code on its owning login."""
         from aiohttp import web
-        from aiohttp.test_utils import TestClient, TestServer
+        from aiohttp.test_utils import make_mocked_request
 
         from custom_components.alexa_media.const import AUTH_PROXY_NAME, DOMAIN
 
@@ -524,6 +523,36 @@ class TestConfigFlowProxyReuse:
             view.register(hass, app, app.router)
 
         hass.http.register_view.side_effect = register_view
+
+        class RouterClient:
+            """Run the real router and HA handlers without opening sockets."""
+
+            async def __aenter__(self):
+                app.freeze()
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def request(self, method, path):
+                request = make_mocked_request(method, path, app=app)
+                match_info = await app.router.resolve(request)
+                match_info.add_app(app)
+                request._match_info = match_info
+                try:
+                    response = await match_info.handler(request)
+                except web.HTTPException as ex:
+                    response = ex
+                result = MagicMock()
+                result.status = response.status
+                result.text = AsyncMock(return_value=response.text)
+                return result
+
+            async def get(self, path):
+                return await self.request("GET", path)
+
+            async def post(self, path):
+                return await self.request("POST", path)
 
         async def start(flow_id):
             flow = AlexaMediaFlowHandler()
@@ -574,7 +603,7 @@ class TestConfigFlowProxyReuse:
 
         first = await start("first")
         view = hass.data[AUTH_PROXY_NAME]
-        async with TestClient(TestServer(app)) as client:
+        async with RouterClient() as client:
             response = await client.get(
                 "/auth/alexamedia/proxy/first?config_flow_id=first"
             )

@@ -435,6 +435,48 @@ def _select_last_called_payload_from_records(
     return None, set()
 
 
+# last_called only reports the newest record of a burst and moves the watermark
+# past the rest, so rapid voice commands on one device get lost. Collect every
+# new record so each can be fired as its own alexa_media_voice_command event.
+def _collect_new_voice_records(
+    records: list[dict],
+    lower_ts: int,
+    upper_ts: int,
+    existing_serials_local: set[str],
+) -> list[dict]:
+    """Return valid voice records with lower_ts < ts <= upper_ts, oldest first."""
+    found: list[dict] = []
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        serial = record.get("deviceSerialNumber")
+        if not serial or serial not in existing_serials_local:
+            continue
+        if not _valid_utterance_type(record):
+            continue
+        description = record.get("description")
+        summary = description.get("summary") if isinstance(description, dict) else None
+        if not _valid_voice_summary(summary):
+            continue
+        summary = summary.strip()
+        try:
+            ts = int(record.get("creationTimestamp") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not lower_ts < ts <= upper_ts:
+            continue
+        found.append(
+            {
+                "serial": serial,
+                "timestamp": ts,
+                "summary": summary,
+                "response": str(record.get("alexaResponse") or "").strip() or None,
+            }
+        )
+    found.sort(key=lambda item: item["timestamp"])
+    return found
+
+
 async def async_setup(hass, config):
     """Set up the Alexa domain."""
     # Initialize metrics
@@ -1981,6 +2023,38 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             ),
                             hide_serial(payload["serialNumber"]),
                         )
+
+                        # Fire every new voice record, not just the newest
+                        # (see _collect_new_voice_records).
+                        prev_watermark = int(
+                            account_live.get("last_called_customer_history_ts") or 0
+                        )
+                        # No watermark yet (the startup last_called refresh failed or
+                        # was rate-limited): bound by the queued burst start instead
+                        # of replaying old history.
+                        if prev_watermark:
+                            lower_ts = prev_watermark
+                        elif earliest_ts:
+                            lower_ts = earliest_ts - LAST_CALLED_STALE_FUDGE_MS
+                        else:
+                            lower_ts = int(payload["timestamp"]) - 1
+                        media_players = (account_live.get("entities") or {}).get(
+                            "media_player"
+                        ) or {}
+                        for voice_record in _collect_new_voice_records(
+                            records,
+                            lower_ts,
+                            int(payload["timestamp"]),
+                            existing_serials_local,
+                        ):
+                            player = media_players.get(voice_record["serial"])
+                            hass.bus.async_fire(
+                                "alexa_media_voice_command",
+                                event_data={
+                                    **voice_record,
+                                    "entity_id": getattr(player, "entity_id", None),
+                                },
+                            )
 
                         await update_last_called(login_live, payload)
                         account_live["last_called_last_pushed_activity"][

@@ -1219,6 +1219,15 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 or request.query.get("config_flow_id", config_flow_id) != config_flow_id
             ):
                 raise Unauthorized()
+            if "callback_url" in request.query:
+                try:
+                    callback_flow_id = URL(request.query["callback_url"]).query.get(
+                        "flow_id"
+                    )
+                except ValueError as ex:
+                    raise Unauthorized() from ex
+                if callback_flow_id != config_flow_id:
+                    raise Unauthorized()
             self.prune(hass)
             handler = self.handlers.get(config_flow_id)
             if handler is None:

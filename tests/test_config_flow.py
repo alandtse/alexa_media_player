@@ -657,6 +657,59 @@ class TestConfigFlowProxyReuse:
             ).status == 400
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("method", ["get", "post"])
+    @pytest.mark.parametrize(
+        ("callback_url", "allowed"),
+        [
+            (None, True),
+            ("http://localhost/auth/alexamedia/callback?flow_id=first", True),
+            ("http://localhost/auth/alexamedia/callback?flow_id=second", False),
+            ("http://localhost/auth/alexamedia/callback", False),
+            ("http://localhost/auth/alexamedia/callback?flow_id=", False),
+            ("", False),
+            ("not-a-url", False),
+            ("http://[invalid/?flow_id=first", False),
+        ],
+    )
+    async def test_callback_flow_ownership(self, method, callback_url, allowed):
+        """Validate supplied callbacks before invoking the owning flow's handler."""
+        from aiohttp import web
+        from aiohttp.test_utils import make_mocked_request
+        from homeassistant.exceptions import Unauthorized
+
+        from custom_components.alexa_media.const import DOMAIN
+
+        hass = MagicMock()
+        hass.config_entries.flow.async_progress.return_value = [
+            {"flow_id": flow_id, "handler": DOMAIN} for flow_id in ("first", "second")
+        ]
+        view = AlexaMediaAuthorizationProxyView()
+        handler = AsyncMock(return_value=web.Response(text="first"))
+        other = AsyncMock()
+        view.register_handler(hass, "first", handler)
+        view.register_handler(hass, "second", other)
+        url = URL("/auth/alexamedia/proxy/first/ap/signin")
+        if callback_url is not None:
+            url = url.with_query({"callback_url": callback_url})
+        app = web.Application()
+        app["hass"] = hass
+        request = make_mocked_request(method.upper(), str(url), app=app)
+
+        if allowed:
+            result = await getattr(view, method)(
+                request, config_flow_id="first", tail="ap/signin"
+            )
+            assert result.text == "first"
+            handler.assert_awaited_once_with(request, tail="ap/signin")
+        else:
+            with pytest.raises(Unauthorized):
+                await getattr(view, method)(
+                    request, config_flow_id="first", tail="ap/signin"
+                )
+            handler.assert_not_awaited()
+        other.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_refresh_one_flow_does_not_replace_another(self):
         """A retry updates only its own handler, even from the same client."""
         from custom_components.alexa_media.const import DOMAIN

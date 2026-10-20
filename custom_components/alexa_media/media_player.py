@@ -912,6 +912,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     parent_session = parent.session
                 if parent_session:
                     session = parent_session.copy()
+                    # Remember the group, so commands still reach it once it pauses
+                    session["dopplerId"] = {
+                        "deviceSerialNumber": self.device_serial_number,
+                        "parentSerialNumber": playing_parents[0],
+                    }
                     session["isPlayingInLemur"] = False
                     session["lemurVolume"] = None
                     if parent_session.get("lemurVolume") and self.device_serial_number:
@@ -1559,6 +1564,37 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
+    def _get_session_parent(self) -> Optional["AlexaClient"]:
+        """Return the group whose playing or paused session this device mirrors.
+
+        A playing group is always used. A paused one is used unless this device
+        is showing or streaming Bluetooth audio of its own or has left the group.
+        """
+        if self._playing_parent:
+            return self._playing_parent
+        parent_serial = safe_get(
+            self._player_info or self._session, ["dopplerId", "parentSerialNumber"]
+        )
+        streaming_bluetooth = (
+            self._connected_bluetooth
+            and (self._bluetooth_state or {}).get("streamingState") == "MUSIC"
+        ) or (self._session or {}).get("mediaId") == "BluetoothMediaId"
+        if (
+            not self.hass
+            or streaming_bluetooth
+            or parent_serial not in (self._parent_clusters or [])
+        ):
+            return None
+        parent = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email][
+            "entities"
+        ]["media_player"].get(parent_serial)
+        if parent and parent.state in (
+            MediaPlayerState.PLAYING,
+            MediaPlayerState.PAUSED,
+        ):
+            return parent
+        return None
+
     @_catch_login_errors
     async def async_media_play(self):
         """Send play command."""
@@ -1574,8 +1610,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self.state,
             self._session.get("mediaId") if self._session else None,
         )
-        if self._playing_parent:
-            await self._playing_parent.async_media_play()
+        if parent := self._get_session_parent():
+            await parent.async_media_play()
         else:
             is_bt = self._session and self._session.get("mediaId") == "BluetoothMediaId"
             _LOGGER.debug(
@@ -1605,8 +1641,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             and self.available
         ):
             return
-        if self._playing_parent:
-            await self._playing_parent.async_media_pause()
+        if parent := self._get_session_parent():
+            await parent.async_media_pause()
         else:
             if self.hass:
                 self.hass.async_create_task(self.alexa_api.pause())
@@ -1671,8 +1707,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             and self.available
         ):
             return
-        if self._playing_parent:
-            await self._playing_parent.async_media_next_track()
+        if parent := self._get_session_parent():
+            await parent.async_media_next_track()
         else:
             if self.hass:
                 self.hass.async_create_task(self.alexa_api.next())
@@ -1689,8 +1725,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             and self.available
         ):
             return
-        if self._playing_parent:
-            await self._playing_parent.async_media_previous_track()
+        if parent := self._get_session_parent():
+            await parent.async_media_previous_track()
         else:
             if self.hass:
                 self.hass.async_create_task(self.alexa_api.previous())

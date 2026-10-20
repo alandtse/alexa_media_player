@@ -1210,13 +1210,10 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
             del self.handlers[flow_id]
 
     def check_auth(self):
-        """Resolve each request against its owning, still-active config flow."""
+        """Return the per-method dispatcher."""
 
         async def wrapped(request, config_flow_id=None, **kwargs):
-            """Dispatch without retaining a login or trusting a shared client IP."""
             hass = request.app["hass"]
-            # The flow id is part of the proxy base URL so rewritten forms,
-            # redirects and assets keep ownership even without query parameters.
             if (
                 not config_flow_id
                 or request.query.get("config_flow_id", config_flow_id) != config_flow_id

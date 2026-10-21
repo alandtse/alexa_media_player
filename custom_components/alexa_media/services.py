@@ -9,6 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 import asyncio
 from dataclasses import dataclass
+import datetime
 import logging
 from typing import Any, Callable
 
@@ -16,18 +17,26 @@ from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv, entity_registry as er
-from homeassistant.util import slugify
+from homeassistant.util import dt as dt_util, slugify
 import voluptuous as vol
 
 from .const import (
+    ATTR_ALARM_ID,
     ATTR_CHILD,
+    ATTR_DAYS,
     ATTR_EMAIL,
     ATTR_ENTITY_ID,
     ATTR_NUM_ENTRIES,
+    ATTR_TIME,
     DATA_ALEXAMEDIA,
     DOMAIN,
+    RECURRING_PATTERN_ISO_SET,
     SERVICE_AMAZON_KIDS_DISABLE,
     SERVICE_AMAZON_KIDS_ENABLE,
+    SERVICE_CREATE_ALARM,
+    SERVICE_DELETE_ALARM,
+    SERVICE_DISABLE_ALARM,
+    SERVICE_ENABLE_ALARM,
     SERVICE_ENABLE_NETWORK_DISCOVERY,
     SERVICE_FORCE_LOGOUT,
     SERVICE_GET_HISTORY_RECORDS,
@@ -70,6 +79,34 @@ AMAZON_KIDS_ENABLE_SCHEMA = vol.Schema(
     }
 )
 AMAZON_KIDS_DISABLE_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
+
+ALARM_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+CREATE_ALARM_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_TIME): cv.time,
+        vol.Optional(ATTR_DAYS, default=[]): vol.All(
+            cv.ensure_list, [vol.In(ALARM_DAYS)]
+        ),
+    }
+)
+ALARM_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_ALARM_ID): cv.string,
+    }
+)
+
+
+def next_alarm_time(
+    alarm_time: datetime.time, days: list[str], start: datetime.date | None = None
+) -> str:
+    """Return the next ring on one of days (any day if empty), not before start."""
+    now = dt_util.now().replace(tzinfo=None)
+    when = datetime.datetime.combine(max(start or now.date(), now.date()), alarm_time)
+    while when <= now or (days and ALARM_DAYS[when.weekday()] not in days):
+        when += datetime.timedelta(days=1)
+    return when.isoformat(timespec="seconds")
 
 
 @dataclass(frozen=True)
@@ -116,6 +153,26 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         name=SERVICE_AMAZON_KIDS_DISABLE,
         schema=AMAZON_KIDS_DISABLE_SCHEMA,
         handler="amazon_kids_disable",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_CREATE_ALARM,
+        schema=CREATE_ALARM_SCHEMA,
+        handler="create_alarm",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_ENABLE_ALARM,
+        schema=ALARM_SCHEMA,
+        handler="enable_alarm",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_DISABLE_ALARM,
+        schema=ALARM_SCHEMA,
+        handler="disable_alarm",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_DELETE_ALARM,
+        schema=ALARM_SCHEMA,
+        handler="delete_alarm",
     ),
 )
 
@@ -366,6 +423,140 @@ class AlexaMediaServices:
         await AlexaAPI.disable_child_mode(login_obj, serial, device_type)
         _LOGGER.debug("Disabled Amazon Kids on %s", entity_id)
         return True
+
+    def _resolve_alarm(self, entity_id, alarm_id):
+        """Resolve a media_player entity_id and alarm id to (login_obj, serial, alarm)."""
+        login_obj, serial, _ = self._resolve_device(entity_id)
+        if not login_obj:
+            return None, None, None
+        alarms = safe_get(
+            self.hass.data[DATA_ALEXAMEDIA]["accounts"],
+            [login_obj.email, "notifications", serial, "Alarm"],
+            {},
+        )
+        for index, alarm in alarms.items():
+            if alarm_id in (index, alarm.get("id")):
+                return login_obj, serial, alarm
+        _LOGGER.error("Alarm %s not found on %s", alarm_id, entity_id)
+        return None, None, None
+
+    def _alarm_changed(self, success, login_obj, serial, entity_id, service) -> bool:
+        """Refresh the alarm list after a change, or log the failure."""
+        if not success:
+            _LOGGER.error("%s failed for %s", service, entity_id)
+            return False
+        schedule_refresh = self._functions.get("schedule_notifications_refresh")
+        if callable(schedule_refresh):
+            schedule_refresh(
+                self.hass, login_obj.email, device_serial=serial, reason=service
+            )
+        return True
+
+    @_catch_login_errors
+    async def create_alarm(self, call: ServiceCall) -> bool:
+        """Create an alarm on a device.
+
+        Arguments:
+            call.ATTR_ENTITY_ID {str} -- Alexa Media Player entity.
+            call.ATTR_TIME {time} -- Time the alarm rings.
+            call.ATTR_DAYS {list[str]} -- Days to repeat on, empty for a one-off.
+
+        """
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        days = call.data.get(ATTR_DAYS)
+        login_obj, serial, device_type = self._resolve_device(entity_id)
+        if not login_obj:
+            return False
+        recurrence = None
+        if set(days) == set(ALARM_DAYS):
+            recurrence = {"freq": "DAILY", "byDay": [], "interval": 1}
+        elif days:
+            by_day = [day[:2].upper() for day in ALARM_DAYS if day in days]
+            recurrence = {"freq": "WEEKLY", "byDay": by_day, "interval": 1}
+        success = await AlexaAPI.create_alarm(
+            login_obj,
+            serial,
+            device_type,
+            next_alarm_time(call.data.get(ATTR_TIME), days),
+            recurrence,
+        )
+        return self._alarm_changed(
+            success, login_obj, serial, entity_id, SERVICE_CREATE_ALARM
+        )
+
+    @_catch_login_errors
+    async def enable_alarm(self, call: ServiceCall) -> bool:
+        """Turn an alarm on.
+
+        Arguments:
+            call.ATTR_ENTITY_ID {str} -- Alexa Media Player entity.
+            call.ATTR_ALARM_ID {str} -- Alarm id or notificationIndex.
+
+        """
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        login_obj, serial, alarm = self._resolve_alarm(
+            entity_id, call.data.get(ATTR_ALARM_ID)
+        )
+        if not alarm:
+            return False
+        iso_days = RECURRING_PATTERN_ISO_SET.get(alarm.get("recurringPattern")) or ()
+        when = next_alarm_time(
+            datetime.time.fromisoformat(alarm["originalTime"][:8]),
+            [ALARM_DAYS[day - 1] for day in iso_days],
+            datetime.date.fromisoformat(alarm["originalDate"]),
+        )
+        if alarm.get("musicAlarmId"):
+            sound_id = f"MUSIC-{alarm['musicAlarmId']}"
+        else:
+            sound_id = safe_get(alarm, ["sound", "id"])
+        success = await AlexaAPI.enable_alarm(
+            login_obj, alarm["notificationIndex"], when, sound_id
+        )
+        return self._alarm_changed(
+            success, login_obj, serial, entity_id, SERVICE_ENABLE_ALARM
+        )
+
+    @_catch_login_errors
+    async def disable_alarm(self, call: ServiceCall) -> bool:
+        """Turn an alarm off without deleting it.
+
+        Arguments:
+            call.ATTR_ENTITY_ID {str} -- Alexa Media Player entity.
+            call.ATTR_ALARM_ID {str} -- Alarm id or notificationIndex.
+
+        """
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        login_obj, serial, alarm = self._resolve_alarm(
+            entity_id, call.data.get(ATTR_ALARM_ID)
+        )
+        if not alarm:
+            return False
+        success = await AlexaAPI.disable_alarm(login_obj, alarm["notificationIndex"])
+        return self._alarm_changed(
+            success, login_obj, serial, entity_id, SERVICE_DISABLE_ALARM
+        )
+
+    @_catch_login_errors
+    async def delete_alarm(self, call: ServiceCall) -> bool:
+        """Delete an alarm.
+
+        Arguments:
+            call.ATTR_ENTITY_ID {str} -- Alexa Media Player entity.
+            call.ATTR_ALARM_ID {str} -- Alarm id or notificationIndex.
+
+        """
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        login_obj, serial, alarm = self._resolve_alarm(
+            entity_id, call.data.get(ATTR_ALARM_ID)
+        )
+        if not alarm:
+            return False
+        # date_time is added by this integration and may hold a datetime.
+        notification = {k: v for k, v in alarm.items() if k != "date_time"}
+        success = await AlexaAPI.delete_notification(login_obj, notification)
+        return self._alarm_changed(
+            success, login_obj, serial, entity_id, SERVICE_DELETE_ALARM
+        )
 
     async def get_history_records(self, call: ServiceCall) -> bool:
         """Handle request to get history records and store them on the entity."""

@@ -3229,7 +3229,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     # Register services (fast - just registers callbacks)
     hass.data[DATA_ALEXAMEDIA]["services"] = alexa_services = AlexaMediaServices(
-        hass, functions={"update_last_called": update_last_called}
+        hass,
+        functions={
+            "update_last_called": update_last_called,
+            "schedule_notifications_refresh": _schedule_notifications_refresh,
+        },
     )
     await alexa_services.register()
 

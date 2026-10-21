@@ -101,3 +101,20 @@ amazon_kids_disable:
         entity:
           domain: media_player
           integration: alexa_media
+
+repeat_last_message:
+  name: Repeat Last Message
+  description: >
+    Sends the last TTS message or announcement sent to an Echo by the notify
+    service again. Messages are kept until Home Assistant restarts or the
+    integration reloads.
+  fields:
+    entity_id:
+      name: Entity
+      description: Alexa Media Player devices to repeat the last message on.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
+          multiple: true

@@ -15,6 +15,7 @@ from typing import Any, Callable
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.util import slugify
 import voluptuous as vol
@@ -31,6 +32,7 @@ from .const import (
     SERVICE_ENABLE_NETWORK_DISCOVERY,
     SERVICE_FORCE_LOGOUT,
     SERVICE_GET_HISTORY_RECORDS,
+    SERVICE_REPEAT_LAST_MESSAGE,
     SERVICE_RESTORE_VOLUME,
     SERVICE_UPDATE_LAST_CALLED,
 )
@@ -70,6 +72,7 @@ AMAZON_KIDS_ENABLE_SCHEMA = vol.Schema(
     }
 )
 AMAZON_KIDS_DISABLE_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
+REPEAT_LAST_MESSAGE_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_ids})
 
 
 @dataclass(frozen=True)
@@ -116,6 +119,11 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         name=SERVICE_AMAZON_KIDS_DISABLE,
         schema=AMAZON_KIDS_DISABLE_SCHEMA,
         handler="amazon_kids_disable",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_REPEAT_LAST_MESSAGE,
+        schema=REPEAT_LAST_MESSAGE_SCHEMA,
+        handler="repeat_last_message",
     ),
 )
 
@@ -366,6 +374,34 @@ class AlexaMediaServices:
         await AlexaAPI.disable_child_mode(login_obj, serial, device_type)
         _LOGGER.debug("Disabled Amazon Kids on %s", entity_id)
         return True
+
+    async def repeat_last_message(self, call: ServiceCall) -> None:
+        """Handle repeat last message service request.
+
+        Arguments:
+            call.ATTR_ENTITY_ID {List[str]} -- Alexa Media Player entities.
+
+        """
+        entity_ids = call.data[ATTR_ENTITY_ID]
+        _LOGGER.debug("Service repeat_last_message called for: %s", entity_ids)
+        media_players = {
+            entity.entity_id: entity
+            for account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].values()
+            for entity in account_dict["entities"]["media_player"].values()
+            # Disabled entities get an entity_id but are never added to hass
+            if entity.hass
+        }
+        errors = []
+        for entity_id in entity_ids:
+            if entity_id not in media_players:
+                errors.append(f"Entity {entity_id} not found or not part of {DOMAIN}")
+                continue
+            try:
+                await media_players[entity_id].async_repeat_last_message()
+            except ServiceValidationError as err:
+                errors.append(str(err))
+        if errors:
+            raise ServiceValidationError("; ".join(errors))
 
     async def get_history_records(self, call: ServiceCall) -> bool:
         """Handle request to get history records and store them on the entity."""

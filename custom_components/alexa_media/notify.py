@@ -300,6 +300,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
+                        alexa.async_set_last_message(message, data_type)
                 elif data_type == "announce":
                     targets = self.convert(
                         entities, type_="serialnumbers", filter_matches=True
@@ -317,17 +318,34 @@ class AlexaNotificationService(BaseNotificationService):
                             list(map(hide_serial, targets)),
                             message,
                         )
+                        method = data["method"] if "method" in data else "all"
                         tasks.append(
                             alexa.async_send_announcement(
                                 message,
                                 targets=targets,
                                 title=title,
-                                method=(data["method"] if "method" in data else "all"),
+                                method=method,
                                 queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                                     account
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
+                        media_players = account_dict["entities"]["media_player"]
+                        # An announcement to a group plays on its members too
+                        heard = set(targets)
+                        for serial in targets:
+                            if serial in media_players:
+                                heard.update(
+                                    media_players[serial]._cluster_members or []
+                                )
+                        for media_player in media_players.values():
+                            if (
+                                media_player.device_serial_number in heard
+                                and media_player.available
+                            ):
+                                media_player.async_set_last_message(
+                                    message, data_type, title=title, method=method
+                                )
                         break
                 elif data_type == "push":
                     targets = self.convert(

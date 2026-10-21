@@ -374,6 +374,7 @@ MODEL_IDS = {
     "A32DDESGESSHZA": "Echo Dot (Gen3)",
     "A32DOYMUN6DTXA": "Echo Dot (Gen3)",
     "A339L426Y220I4": "Teufel Radio",
+    "A345JHMQDGG1M5": "Echo Show 8 (Gen4)",
     "A347G2JC8I4HC7": "Roav Car Charger Pro",
     "A37CFAHI1O0CXT": "Logitech Blast",
     "A37M7RU8Z6ZFB": "Garmin Speak",

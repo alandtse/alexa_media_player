@@ -807,6 +807,7 @@ async def async_setup_entry(hass, config_entry):
             "devices": {
                 "media_player": {},
                 "switch": {},
+                "number": {},
                 "guard": [],
                 "light": [],
                 "binary_sensor": [],
@@ -816,6 +817,7 @@ async def async_setup_entry(hass, config_entry):
             "entities": {
                 "media_player": {},
                 "switch": {},
+                "number": {},
                 "amazon_kids_switch": [],
                 "select": [],
                 "sensor": {},
@@ -1050,6 +1052,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         bluetooth = {}
         preferences = {}
         dnd = {}
+        notification_states = []
         entity_state = {}
 
         # Try to get cached data for faster boot
@@ -1095,6 +1098,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     "get_device_preferences",
                 ),
                 _timed(AlexaAPI.get_dnd_state(login_obj), {}, "get_dnd_state"),
+                _timed(
+                    AlexaAPI.get_notification_states(login_obj),
+                    [],
+                    "get_notification_states",
+                ),
             ]
         else:
             tasks = [
@@ -1106,6 +1114,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     "get_device_preferences",
                 ),
                 _timed(AlexaAPI.get_dnd_state(login_obj), {}, "get_dnd_state"),
+                _timed(
+                    AlexaAPI.get_notification_states(login_obj),
+                    [],
+                    "get_notification_states",
+                ),
             ]
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
@@ -1180,6 +1193,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             bluetooth,
                             preferences,
                             dnd,
+                            notification_states,
                             *optional_task_results,
                         ) = await asyncio.gather(*tasks)
                     else:
@@ -1188,6 +1202,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             bluetooth,
                             preferences,
                             dnd,
+                            notification_states,
                             *optional_task_results,
                         ) = await asyncio.gather(*tasks)
 
@@ -1442,6 +1457,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
                             "switch"
                         ].setdefault(serial, {"dnd": True})
+                        break
+
+            # Speaker groups report a volume too, but can't ring alarms
+            if "TIMERS_AND_ALARMS" in device.get("capabilities", []):
+                for dev in notification_states or []:
+                    if dev["deviceSerialNumber"] == serial:
+                        device["notification_volume"] = dev["volumeLevel"]
+                        device["notification_software_version"] = dev["softwareVersion"]
+                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                            "number"
+                        ].setdefault(serial, {"notification_volume": True})
                         break
 
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["auth_info"] = device[

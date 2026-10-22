@@ -585,7 +585,6 @@ class AlexaMediaNotificationSensor(SensorEntity):
             "identifiers": {(ALEXA_DOMAIN, client.unique_id)},
         }
         self._attr_assumed_state = client.assumed_state
-        self._attr_available = client.available
         self._client = client
         self._n_dict = n_dict
         self._sensor_property = sensor_property
@@ -981,8 +980,9 @@ class AlexaMediaNotificationSensor(SensorEntity):
     def _handle_event(self, event):
         """Handle events.
 
-        This will update PUSH_ACTIVITY, NOTIFICATION_UPDATE, or a global
-        notifications refresh event to see if the sensor should be updated.
+        This will update PUSH_ACTIVITY, NOTIFICATION_UPDATE,
+        PUSH_DOPPLER_CONNECTION_CHANGE, or a global notifications refresh
+        event to see if the sensor should be updated.
         """
         try:
             if not self.enabled:
@@ -1012,10 +1012,28 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 _LOGGER.debug("Updating sensor %s from push_activity", self)
                 self.schedule_update_ha_state(True)
 
+        if "player_state" in event:
+            # PUSH_DOPPLER_CONNECTION_CHANGE: the media player has just
+            # updated client.available, so write the new availability
+            player_state = event["player_state"]
+            if (
+                player_state
+                and "dopplerConnectionState" in player_state
+                and player_state["dopplerId"]["deviceSerialNumber"]
+                == self._client.device_serial_number
+            ):
+                _LOGGER.debug("Updating sensor %s from player_state", self)
+                self.schedule_update_ha_state(True)
+
     @property
     def hidden(self):
         """Return whether the sensor should be hidden."""
         return self.state is None
+
+    @property
+    def available(self) -> bool:
+        """Return the availability of the client."""
+        return self._client.available
 
     @property
     def should_poll(self):

@@ -110,7 +110,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
     proxy: AlexaProxy = None
-    proxy_view: "AlexaMediaAuthorizationProxyView" = None
 
     def _get_default_amazon_domain(self) -> str:
         """Return the Amazon domain appropriate for the HA country."""
@@ -394,7 +393,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             try:
                 self.proxy = AlexaProxy(
                     self.login,
-                    str(URL(self.config.get(CONF_HASS_URL)).with_path(AUTH_PROXY_PATH)),
+                    str(
+                        URL(self.config.get(CONF_HASS_URL)).with_path(
+                            f"{AUTH_PROXY_PATH}/{self.flow_id}"
+                        )
+                    ),
                 )
                 self.proxy.session_factory = lambda: create_async_httpx_client(
                     self.hass,
@@ -432,13 +435,14 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 "Proxy: No session found on proxy object. Attrs: %s",
                 dir(self.proxy),
             )
-        if not self.proxy_view:
-            self.proxy_view = AlexaMediaAuthorizationProxyView(self.proxy.all_handler)
-        else:
-            _LOGGER.debug("Found existing proxy_view")
-            self.proxy_view.handler = self.proxy.all_handler
-        self.hass.http.register_view(AlexaMediaAuthorizationCallbackView())
-        self.hass.http.register_view(self.proxy_view)
+        # Routes live for the lifetime of the HTTP server, not a config flow.
+        if AUTH_PROXY_NAME not in self.hass.data:
+            self.hass.http.register_view(AlexaMediaAuthorizationCallbackView())
+            self.hass.data[AUTH_PROXY_NAME] = AlexaMediaAuthorizationProxyView()
+            self.hass.http.register_view(self.hass.data[AUTH_PROXY_NAME])
+        self.hass.data[AUTH_PROXY_NAME].register_handler(
+            self.hass, self.flow_id, self.proxy.all_handler
+        )
         callback_url = (
             URL(self.config[CONF_HASS_URL])
             .with_path(AUTH_CALLBACK_PATH)
@@ -460,7 +464,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             hide_email(self.login.email),
             self.login.url,
         )
-        self.proxy_view.reset()
+        self.hass.data[AUTH_PROXY_NAME].handlers.pop(self.flow_id, None)
         return self.async_external_step_done(next_step_id="finish_proxy")
 
     async def async_step_finish_proxy(self, user_input=None):
@@ -1181,51 +1185,53 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
     """Handle proxy connections."""
 
     url: str = AUTH_PROXY_PATH
-    extra_urls: list[str] = [f"{AUTH_PROXY_PATH}/{{tail:.*}}"]
+    extra_urls: list[str] = [
+        f"{AUTH_PROXY_PATH}/{{config_flow_id}}",
+        f"{AUTH_PROXY_PATH}/{{config_flow_id}}/{{tail:.*}}",
+    ]
     name: str = AUTH_PROXY_NAME
     requires_auth: bool = False
-    known_ips: dict[str, datetime.datetime] = {}
-    auth_seconds: int = 300
 
-    def __init__(self, handler: web.RequestHandler):
-        """Initialize routes for view.
-
-        Args:
-            handler (web.RequestHandler): Handler to apply to all method types
-
-        """
-        self.handler: web.RequestHandler = handler
+    def __init__(self):
+        """Initialize a single dispatcher for all active AMP flows."""
+        self.handlers: dict[str, web.RequestHandler] = {}
         for method in ("get", "post", "delete", "put", "patch", "head", "options"):
             setattr(self, method, self.check_auth())
 
-    def check_auth(self):
-        """Wrap authentication into the handler."""
-        cls = type(self)
+    def register_handler(self, hass, flow_id: str, handler: web.RequestHandler) -> None:
+        """Refresh only this flow and discard handlers for abandoned flows."""
+        self.prune(hass)
+        self.handlers[flow_id] = handler
 
-        async def wrapped(request, **kwargs):
-            """Notify that the API is running."""
+    def prune(self, hass) -> None:
+        """Release logins whose config flows are no longer active."""
+        active = in_progress_instances(hass)
+        for flow_id in self.handlers.keys() - active:
+            del self.handlers[flow_id]
+
+    def check_auth(self):
+        """Return the per-method dispatcher."""
+
+        async def wrapped(request, config_flow_id=None, **kwargs):
             hass = request.app["hass"]
-            success = False
             if (
-                request.remote not in cls.known_ips
-                or (datetime.datetime.now() - cls.known_ips.get(request.remote)).seconds
-                > cls.auth_seconds
+                not config_flow_id
+                or request.query.get("config_flow_id", config_flow_id) != config_flow_id
             ):
+                raise Unauthorized()
+            if "callback_url" in request.query:
                 try:
-                    flow_id = request.url.query["config_flow_id"]
-                except KeyError as ex:
+                    callback_flow_id = URL(request.query["callback_url"]).query.get(
+                        "flow_id"
+                    )
+                except ValueError as ex:
                     raise Unauthorized() from ex
-                for flow in hass.config_entries.flow.async_progress():
-                    if flow["flow_id"] == flow_id:
-                        _LOGGER.debug(
-                            "Found flow_id; adding %s to known_ips for %s seconds",
-                            request.remote,
-                            cls.auth_seconds,
-                        )
-                        success = True
-                if not success:
+                if callback_flow_id != config_flow_id:
                     raise Unauthorized()
-                cls.known_ips[request.remote] = datetime.datetime.now()
+            self.prune(hass)
+            handler = self.handlers.get(config_flow_id)
+            if handler is None:
+                raise Unauthorized()
             _sensitive_keys = {
                 "authorization",
                 "cookie",
@@ -1245,7 +1251,7 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                     _safe_req_headers,
                 )
             try:
-                result = await self.handler(request, **kwargs)
+                result = await handler(request, **kwargs)
                 if _LOGGER.isEnabledFor(logging.DEBUG):
                     _safe_resp_headers = (
                         {
@@ -1292,8 +1298,3 @@ class AlexaMediaAuthorizationProxyView(HomeAssistantView):
                 )
 
         return wrapped
-
-    @classmethod
-    def reset(cls) -> None:
-        """Reset the view."""
-        cls.known_ips = {}

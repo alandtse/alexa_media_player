@@ -66,6 +66,7 @@ def amazon_api():
         patch.object(AlexaAPI, "get_bluetooth", AsyncMock(return_value={})),
         patch.object(AlexaAPI, "get_device_preferences", AsyncMock(return_value={})),
         patch.object(AlexaAPI, "get_dnd_state", AsyncMock(return_value={})),
+        patch.object(AlexaAPI, "get_notification_states", AsyncMock(return_value=[])),
         patch.object(AlexaAPI, "get_authentication", AsyncMock(return_value={})),
         patch.object(AlexaAPI, "get_network_details", AsyncMock(return_value={})),
     ):

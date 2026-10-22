@@ -4,9 +4,13 @@ Tests the sensor functionality using pytest-homeassistant-custom-component.
 """
 
 import datetime
+from types import SimpleNamespace
 from unittest.mock import patch
 
-from custom_components.alexa_media.sensor import AlexaMediaNotificationSensor
+from custom_components.alexa_media.sensor import (
+    AlarmSensor,
+    AlexaMediaNotificationSensor,
+)
 
 
 class TestUpdateRecurringAlarm:
@@ -267,3 +271,68 @@ class TestUpdateRecurringAlarm:
         result_alarm = result[1]["alarmTime"]
         # Reminders should also be advanced correctly
         assert result_alarm.isoweekday() == 5
+
+
+class TestNotificationSensorAvailability:
+    """Test that notification sensors follow the media player's availability."""
+
+    def test_available_tracks_client(self) -> None:
+        """Test availability is read live from the client, not cached at init.
+
+        Regression test: an Echo that was offline when Home Assistant started
+        left its Next Alarm/Timer/Reminder sensors unavailable until the
+        integration was reloaded, even after the device came back online.
+        """
+        client = SimpleNamespace(
+            unique_id="SERIAL123", assumed_state=False, available=False
+        )
+        sensor = AlarmSensor(client, {}, "test@example.com")
+
+        assert sensor.available is False
+
+        client.available = True
+        assert sensor.available is True
+
+        client.available = False
+        assert sensor.available is False
+
+    def test_connection_change_writes_state(self) -> None:
+        """Test a doppler connection change for this Echo writes the sensor state.
+
+        With HTTP2 push enabled the sensor is not polled, so without this the
+        new availability would not be recorded until some other event arrived.
+        """
+        client = SimpleNamespace(
+            unique_id="SERIAL123",
+            device_serial_number="SERIAL123",
+            assumed_state=False,
+            available=True,
+        )
+        sensor = AlarmSensor(client, {}, "test@example.com")
+
+        def connection_change(serial, state="ONLINE"):
+            return {
+                "player_state": {
+                    "dopplerId": {"deviceSerialNumber": serial},
+                    "dopplerConnectionState": state,
+                }
+            }
+
+        with patch.object(sensor, "schedule_update_ha_state") as mock_update:
+            sensor._handle_event(connection_change("SERIAL123"))
+            mock_update.assert_called_once_with(True)
+
+            mock_update.reset_mock()
+            # Another Echo's connection change, or a non-availability
+            # player_state event, must not trigger an update
+            sensor._handle_event(connection_change("OTHER"))
+            sensor._handle_event(
+                {
+                    "player_state": {
+                        "dopplerId": {"deviceSerialNumber": "SERIAL123"},
+                        "volumeSetting": 50,
+                    }
+                }
+            )
+            sensor._handle_event({"player_state": None})
+            mock_update.assert_not_called()

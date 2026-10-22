@@ -435,6 +435,92 @@ def _select_last_called_payload_from_records(
     return None, set()
 
 
+def _collect_new_voice_records(
+    records: list[dict],
+    lower_ts: int,
+    upper_ts: int,
+    existing_serials_local: set[str],
+) -> list[dict]:
+    """Return valid voice records with lower_ts < ts <= upper_ts, oldest first."""
+    found: list[dict] = []
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        serial = record.get("deviceSerialNumber")
+        if not serial or serial not in existing_serials_local:
+            continue
+        if not _valid_utterance_type(record):
+            continue
+        description = record.get("description")
+        summary = description.get("summary") if isinstance(description, dict) else None
+        if not _valid_voice_summary(summary):
+            continue
+        summary = summary.strip()
+        try:
+            ts = int(record.get("creationTimestamp") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not lower_ts < ts <= upper_ts:
+            continue
+        found.append(
+            {
+                "serial": serial,
+                "timestamp": ts,
+                "summary": summary,
+                "response": str(record.get("alexaResponse") or "").strip() or None,
+            }
+        )
+    found.sort(key=lambda item: item["timestamp"])
+    return found
+
+
+def _take_new_voice_records(
+    account: dict,
+    records: list[dict],
+    upper_ts: int,
+    earliest_ts: int,
+    existing_serials_local: set[str],
+) -> list[dict]:
+    """Return voice records not yet emitted for alexa_media_voice_command."""
+    watermark = int(account.get("last_called_customer_history_ts") or 0)
+    floor = int(account.get("last_called_voice_floor_ts") or 0)
+    if not floor:
+        # Never reach below the first window, so history from before startup
+        # is not replayed.
+        if watermark:
+            floor = watermark
+        elif earliest_ts:
+            floor = earliest_ts - LAST_CALLED_STALE_FUDGE_MS
+        else:
+            floor = upper_ts - LAST_CALLED_STALE_FUDGE_MS
+        account["last_called_voice_floor_ts"] = floor
+
+    # History can list a record after a newer one, so keep an overlap below
+    # the watermark and dedupe against what was already emitted. Only while
+    # this function emitted up to the watermark: refresh paths advance it
+    # without emitting, and the overlap would replay their records late.
+    lower_ts = max(floor, watermark)
+    if watermark <= int(account.get("last_called_voice_upper_ts") or 0):
+        lower_ts = max(floor, watermark - LAST_CALLED_STALE_FUDGE_MS)
+    account["last_called_voice_upper_ts"] = upper_ts
+    emitted: set[tuple[str, int]] = account.setdefault(
+        "last_called_voice_emitted", set()
+    )
+    for key in [key for key in emitted if key[1] <= lower_ts]:
+        emitted.discard(key)
+
+    new_records = []
+    for voice_record in _collect_new_voice_records(
+        records, lower_ts, upper_ts, existing_serials_local
+    ):
+        key = (voice_record["serial"], voice_record["timestamp"])
+        if key in emitted:
+            continue
+        emitted.add(key)
+        new_records.append(voice_record)
+    return new_records
+
+
 async def async_setup(hass, config):
     """Set up the Alexa domain."""
     # Initialize metrics
@@ -1592,6 +1678,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         account.setdefault("last_called_probe_trigger", None)
         account.setdefault("last_called_activity_queue", [])
         account.setdefault("last_called_last_pushed_activity", {})
+        account.setdefault("last_called_voice_emitted", set())
+        account.setdefault("last_called_voice_floor_ts", 0)
+        account.setdefault("last_called_voice_upper_ts", 0)
         account.setdefault("last_volumes", {})
         account.setdefault("last_equalizer", {})
 
@@ -1981,6 +2070,25 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             ),
                             hide_serial(payload["serialNumber"]),
                         )
+
+                        media_players = (account_live.get("entities") or {}).get(
+                            "media_player"
+                        ) or {}
+                        for voice_record in _take_new_voice_records(
+                            account_live,
+                            records,
+                            int(payload["timestamp"]),
+                            earliest_ts,
+                            existing_serials_local,
+                        ):
+                            player = media_players.get(voice_record["serial"])
+                            hass.bus.async_fire(
+                                "alexa_media_voice_command",
+                                event_data={
+                                    **voice_record,
+                                    "entity_id": getattr(player, "entity_id", None),
+                                },
+                            )
 
                         await update_last_called(login_live, payload)
                         account_live["last_called_last_pushed_activity"][

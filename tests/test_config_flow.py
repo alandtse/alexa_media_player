@@ -1,5 +1,6 @@
 """Tests for config_flow module."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_URL
@@ -499,86 +500,279 @@ class TestConfigFlowUrlCleanup:
 
 
 class TestConfigFlowProxyReuse:
-    """Tests for refreshing the proxy handler between authentication rounds."""
+    """Exercise the registered router across fresh attempts and parallel flows."""
 
     @pytest.mark.asyncio
-    async def test_start_proxy_updates_existing_view_handler(self):
-        """A reused view dispatches requests to the fresh proxy's handler."""
-        flow = AlexaMediaFlowHandler()
-        flow.hass = MagicMock()
-        flow.flow_id = "test_flow_id"
-        flow.config[CONF_HASS_URL] = "http://homeassistant.local:8123"
-        flow.login = MagicMock()
-        flow.login.email = "test@example.com"
-        flow.login.url = "amazon.it"
-        old_handler = AsyncMock()
-        fresh_proxy = MagicMock()
-        fresh_proxy.all_handler = AsyncMock()
-        fresh_proxy.access_url.return_value = URL(
-            "http://homeassistant.local:8123/auth/alexamedia/proxy"
-        )
+    async def test_router_dispatch_and_code_ownership(self):
+        """Rewritten requests and callbacks keep each code on its owning login."""
+        from aiohttp import web
+        from aiohttp.test_utils import make_mocked_request
 
-        # Restore shared view state after the test.
-        with (
-            patch.object(AlexaMediaAuthorizationProxyView, "known_ips", {}),
-            patch(
+        from custom_components.alexa_media.const import AUTH_PROXY_NAME, DOMAIN
+
+        hass = MagicMock()
+        hass.data = {}
+        hass.is_stopping = False
+        flows = {}
+        hass.config_entries.flow.async_progress.side_effect = lambda: [
+            {"flow_id": flow_id, "handler": DOMAIN} for flow_id in flows
+        ]
+        app = web.Application()
+        app["hass"] = hass
+
+        def register_view(view):
+            view.register(hass, app, app.router)
+
+        hass.http.register_view.side_effect = register_view
+
+        class RouterClient:
+            """Run the real router and HA handlers without opening sockets."""
+
+            async def __aenter__(self):
+                app.freeze()
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def request(self, method, path):
+                request = make_mocked_request(method, path, app=app)
+                match_info = await app.router.resolve(request)
+                match_info.add_app(app)
+                request._match_info = match_info
+                try:
+                    response = await match_info.handler(request)
+                except web.HTTPException as ex:
+                    response = ex
+                result = MagicMock()
+                result.status = response.status
+                result.text = AsyncMock(return_value=response.text)
+                return result
+
+            async def get(self, path):
+                return await self.request("GET", path)
+
+            async def post(self, path):
+                return await self.request("POST", path)
+
+        async def start(flow_id):
+            flow = AlexaMediaFlowHandler()
+            flow.hass = hass
+            flow.flow_id = flow_id
+            flow.config[CONF_HASS_URL] = "http://localhost"
+            flow.login = MagicMock()
+            flow.login.email = "test@example.com"
+            flow.login.url = "amazon.com"
+            flow.login.authorization_code = None
+            flows[flow_id] = flow
+
+            def proxy_factory(login, url):
+                proxy = MagicMock()
+                proxy.access_url.return_value = URL(url)
+                proxy._login = login
+                proxy.init_query = {
+                    "config_flow_id": flow_id,
+                    "callback_url": f"http://localhost/auth/alexamedia/callback?flow_id={flow_id}",
+                }
+                proxy.reset_data = AsyncMock()
+
+                async def handle(request, **kwargs):
+                    code = request.query.get("openid.oa2.authorization_code")
+                    if code:
+                        from alexapy import AlexaProxy
+
+                        response = MagicMock()
+                        response.url = URL(
+                            "https://www.amazon.com/ap/maplanding"
+                        ).with_query({"openid.oa2.authorization_code": code})
+                        callback_url = await AlexaProxy.test_amazon_url(
+                            proxy, response, {}, {}
+                        )
+                        assert URL(callback_url).query["flow_id"] == flow_id
+                    return web.Response(text=flow_id)
+
+                proxy.all_handler = AsyncMock(side_effect=handle)
+                return proxy
+
+            with patch(
                 "custom_components.alexa_media.config_flow.AlexaProxy",
-                return_value=fresh_proxy,
-            ) as proxy_class,
-        ):
-            view = flow.proxy_view = AlexaMediaAuthorizationProxyView(old_handler)
-            assert view.handler is old_handler
+                side_effect=proxy_factory,
+            ):
+                result = await flow.async_step_start_proxy()
+            assert URL(result["url"]).path.endswith("/" + flow_id)
+            return flow
 
-            result = await flow.async_step_start_proxy()
+        first = await start("first")
+        view = hass.data[AUTH_PROXY_NAME]
+        async with RouterClient() as client:
+            response = await client.get(
+                "/auth/alexamedia/proxy/first?config_flow_id=first"
+            )
+            assert await response.text() == "first"
+            # Abandon the first attempt, then create a fresh flow after routes freeze.
+            del flows["first"]
+            second = await start("second")
+            third = await start("third")
+            assert hass.data[AUTH_PROXY_NAME] is view
+            assert hass.http.register_view.call_count == 2
+            assert "first" not in view.handlers
+            for flow_id, code in (("second", "code2"), ("third", "code3")):
+                response = await client.post(
+                    f"/auth/alexamedia/proxy/{flow_id}/ap/maplanding"
+                    f"?openid.oa2.authorization_code={code}"
+                )
+                assert await response.text() == flow_id
+            assert first.login.authorization_code is None
+            assert second.login.authorization_code == "code2"
+            assert third.login.authorization_code == "code3"
+            # The same client/IP cannot revive a stale flow or override ownership.
+            for path in (
+                "/auth/alexamedia/proxy/first/ap/signin",
+                "/auth/alexamedia/proxy/second?config_flow_id=third",
+                "/auth/alexamedia/proxy?config_flow_id=second",
+                "/auth/alexamedia/proxy/unknown/ap/signin",
+            ):
+                assert (await client.get(path)).status == 401
 
-            assert result["step_id"] == "check_proxy"
-            assert flow.proxy_view is view
-            assert view.handler is fresh_proxy.all_handler
-            proxy_class.assert_called_once()
-            fresh_proxy.change_login.assert_called_once_with(flow.login)
+            async def configure(flow_id, user_input):
+                assert flow_id == "second"
+                assert second.login.authorization_code == "code2"
+                await second.async_step_check_proxy()
 
-            request = MagicMock()
-            request.app = {"hass": flow.hass}
-            request.remote = "127.0.0.1"
-            request.url = URL("http://localhost/?config_flow_id=test_flow_id")
-            flow.hass.config_entries.flow.async_progress.return_value = [
-                {"flow_id": flow.flow_id}
-            ]
+            hass.config_entries.flow.async_configure = AsyncMock(side_effect=configure)
+            response = await client.get("/auth/alexamedia/callback?flow_id=second")
+            assert response.status == 200
+            hass.config_entries.flow.async_configure.assert_awaited_once_with(
+                flow_id="second", user_input=None
+            )
+            assert "second" not in view.handlers
+            response = await client.post("/auth/alexamedia/proxy/third/ap/signin")
+            assert await response.text() == "third"
+            assert (await client.get("/auth/alexamedia/callback")).status == 400
+            from homeassistant.data_entry_flow import UnknownFlow
 
-            response = await view.get(request)
-
-            assert response is fresh_proxy.all_handler.return_value
-            fresh_proxy.all_handler.assert_awaited_once_with(request)
-            old_handler.assert_not_awaited()
+            hass.config_entries.flow.async_configure.side_effect = UnknownFlow
+            assert (
+                await client.get("/auth/alexamedia/callback?flow_id=expired")
+            ).status == 400
 
     @pytest.mark.asyncio
-    async def test_separate_views_keep_isolated_handlers(self):
-        """Creating or refreshing another view cannot change a view's dispatch."""
-        first_handler = AsyncMock()
-        second_handler = AsyncMock()
-        fresh_handler = AsyncMock()
-        with patch.object(AlexaMediaAuthorizationProxyView, "known_ips", {}):
-            first_view = AlexaMediaAuthorizationProxyView(first_handler)
-            second_view = AlexaMediaAuthorizationProxyView(second_handler)
-            request = MagicMock()
-            request.remote = "127.0.0.1"
-            request.url = URL("http://localhost/?config_flow_id=test_flow_id")
-            hass = MagicMock()
-            request.app = {"hass": hass}
-            hass.config_entries.flow.async_progress.return_value = [
-                {"flow_id": "test_flow_id"}
-            ]
+    @pytest.mark.parametrize("method", ["get", "post"])
+    @pytest.mark.parametrize(
+        ("callback_url", "allowed"),
+        [
+            (None, True),
+            ("http://localhost/auth/alexamedia/callback?flow_id=first", True),
+            ("http://localhost/auth/alexamedia/callback?flow_id=second", False),
+            ("http://localhost/auth/alexamedia/callback", False),
+            ("http://localhost/auth/alexamedia/callback?flow_id=", False),
+            ("", False),
+            ("not-a-url", False),
+            ("http://[invalid/?flow_id=first", False),
+        ],
+    )
+    async def test_callback_flow_ownership(self, method, callback_url, allowed):
+        """Validate supplied callbacks before invoking the owning flow's handler."""
+        from aiohttp import web
+        from aiohttp.test_utils import make_mocked_request
+        from homeassistant.exceptions import Unauthorized
 
-            assert await first_view.get(request) is first_handler.return_value
-            assert await second_view.post(request) is second_handler.return_value
-            second_view.handler = fresh_handler
-            assert await first_view.get(request) is first_handler.return_value
-            assert await second_view.post(request) is fresh_handler.return_value
+        from custom_components.alexa_media.const import DOMAIN
 
-            first_handler.assert_has_awaits([((request,), {}), ((request,), {})])
-            assert first_handler.await_count == 2
-            second_handler.assert_awaited_once_with(request)
-            fresh_handler.assert_awaited_once_with(request)
+        hass = MagicMock()
+        hass.config_entries.flow.async_progress.return_value = [
+            {"flow_id": flow_id, "handler": DOMAIN} for flow_id in ("first", "second")
+        ]
+        view = AlexaMediaAuthorizationProxyView()
+        handler = AsyncMock(return_value=web.Response(text="first"))
+        other = AsyncMock()
+        view.register_handler(hass, "first", handler)
+        view.register_handler(hass, "second", other)
+        url = URL("/auth/alexamedia/proxy/first/ap/signin")
+        if callback_url is not None:
+            url = url.with_query({"callback_url": callback_url})
+        app = web.Application()
+        app["hass"] = hass
+        request = make_mocked_request(method.upper(), str(url), app=app)
+
+        if allowed:
+            result = await getattr(view, method)(
+                request, config_flow_id="first", tail="ap/signin"
+            )
+            assert result.text == "first"
+            handler.assert_awaited_once_with(request, tail="ap/signin")
+        else:
+            with pytest.raises(Unauthorized):
+                await getattr(view, method)(
+                    request, config_flow_id="first", tail="ap/signin"
+                )
+            handler.assert_not_awaited()
+        other.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_refresh_one_flow_does_not_replace_another(self):
+        """A retry updates only its own handler, even from the same client."""
+        from custom_components.alexa_media.const import DOMAIN
+
+        hass = MagicMock()
+        hass.config_entries.flow.async_progress.return_value = [
+            {"flow_id": flow_id, "handler": DOMAIN} for flow_id in ("first", "second")
+        ]
+        view = AlexaMediaAuthorizationProxyView()
+        old, other, fresh = AsyncMock(), AsyncMock(), AsyncMock()
+        view.register_handler(hass, "first", old)
+        view.register_handler(hass, "second", other)
+        view.register_handler(hass, "first", fresh)
+        request = MagicMock()
+        request.app = {"hass": hass}
+        request.query = {}
+        await view.post(request, config_flow_id="first", tail="ap/signin")
+        await view.get(request, config_flow_id="second")
+        fresh.assert_awaited_once_with(request, tail="ap/signin")
+        other.assert_awaited_once_with(request)
+        old.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_inflight_request_keeps_handler_when_another_flow_retries(self):
+        """Overlapping requests retain ownership while a third handler is installed."""
+        from aiohttp import web
+
+        from custom_components.alexa_media.const import DOMAIN
+
+        hass = MagicMock()
+        hass.config_entries.flow.async_progress.return_value = [
+            {"flow_id": flow_id, "handler": DOMAIN} for flow_id in ("first", "second")
+        ]
+        view = AlexaMediaAuthorizationProxyView()
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def slow_handler(request, **kwargs):
+            entered.set()
+            await release.wait()
+            return web.Response(text="first")
+
+        first = AsyncMock(side_effect=slow_handler)
+        old_second = AsyncMock()
+        fresh_second = AsyncMock(return_value=web.Response(text="second"))
+        view.register_handler(hass, "first", first)
+        view.register_handler(hass, "second", old_second)
+        request = MagicMock()
+        request.app = {"hass": hass}
+        request.query = {}
+        pending = asyncio.create_task(view.post(request, config_flow_id="first"))
+        try:
+            await asyncio.wait_for(entered.wait(), timeout=2)
+            view.register_handler(hass, "second", fresh_second)
+            response = await view.post(request, config_flow_id="second")
+            assert response.text == "second"
+        finally:
+            release.set()
+            response = await asyncio.wait_for(pending, timeout=2)
+        assert response.text == "first"
+        first.assert_awaited_once_with(request)
+        fresh_second.assert_awaited_once_with(request)
+        old_second.assert_not_awaited()
 
 
 class TestConfigFlowRegionalDomain:

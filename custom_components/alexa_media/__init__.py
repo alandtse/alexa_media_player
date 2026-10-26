@@ -1459,10 +1459,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         ].setdefault(serial, {"dnd": True})
                         break
 
+            # Cached devices keep the last volume, so drop it if this refresh has none
+            device.pop("notification_volume", None)
             # Speaker groups report a volume too, but can't ring alarms
             if "TIMERS_AND_ALARMS" in device.get("capabilities", []):
                 for dev in notification_states or []:
-                    if dev["deviceSerialNumber"] == serial:
+                    if (
+                        dev.get("deviceSerialNumber") == serial
+                        and "volumeLevel" in dev
+                        and "softwareVersion" in dev
+                    ):
                         device["notification_volume"] = dev["volumeLevel"]
                         device["notification_software_version"] = dev["softwareVersion"]
                         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][

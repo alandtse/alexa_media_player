@@ -98,6 +98,33 @@ ALARM_SCHEMA = vol.Schema(
 )
 
 
+def alarm_days(alarm: dict[str, Any]) -> list[str]:
+    """Return the days an alarm repeats on, empty if it doesn't repeat."""
+    # recurringPattern only names the first day when an alarm repeats on a few.
+    week_days = safe_get(alarm, ["rRuleData", "byWeekDays"])
+    if week_days:
+        return [day for day in ALARM_DAYS if day[:2].upper() in week_days]
+    iso_days = RECURRING_PATTERN_ISO_SET.get(alarm.get("recurringPattern")) or ()
+    return [day for iso, day in enumerate(ALARM_DAYS, 1) if iso in iso_days]
+
+
+def alarm_recurrence(days: list[str]) -> dict[str, Any] | None:
+    """Return the alarms API repeat rule for days, None for a one-off."""
+    if set(days) == set(ALARM_DAYS):
+        return {"freq": "DAILY", "byDay": [], "interval": 1}
+    if days:
+        by_day = [day[:2].upper() for day in ALARM_DAYS if day in days]
+        return {"freq": "WEEKLY", "byDay": by_day, "interval": 1}
+    return None
+
+
+def alarm_sound(alarm: dict[str, Any]) -> str | None:
+    """Return the tone id to send back when changing an alarm."""
+    if alarm.get("musicAlarmId"):
+        return f"MUSIC-{alarm['musicAlarmId']}"
+    return safe_get(alarm, ["sound", "id"])
+
+
 def next_alarm_time(
     alarm_time: datetime.time, days: list[str], start: datetime.date | None = None
 ) -> str:
@@ -467,18 +494,12 @@ class AlexaMediaServices:
         login_obj, serial, device_type = self._resolve_device(entity_id)
         if not login_obj:
             return False
-        recurrence = None
-        if set(days) == set(ALARM_DAYS):
-            recurrence = {"freq": "DAILY", "byDay": [], "interval": 1}
-        elif days:
-            by_day = [day[:2].upper() for day in ALARM_DAYS if day in days]
-            recurrence = {"freq": "WEEKLY", "byDay": by_day, "interval": 1}
         success = await AlexaAPI.create_alarm(
             login_obj,
             serial,
             device_type,
             next_alarm_time(call.data.get(ATTR_TIME), days),
-            recurrence,
+            alarm_recurrence(days),
         )
         return self._alarm_changed(
             success, login_obj, serial, entity_id, SERVICE_CREATE_ALARM
@@ -499,18 +520,15 @@ class AlexaMediaServices:
         )
         if not alarm:
             return False
-        iso_days = RECURRING_PATTERN_ISO_SET.get(alarm.get("recurringPattern")) or ()
-        when = next_alarm_time(
-            datetime.time.fromisoformat(alarm["originalTime"][:8]),
-            [ALARM_DAYS[day - 1] for day in iso_days],
-            datetime.date.fromisoformat(alarm["originalDate"]),
-        )
-        if alarm.get("musicAlarmId"):
-            sound_id = f"MUSIC-{alarm['musicAlarmId']}"
-        else:
-            sound_id = safe_get(alarm, ["sound", "id"])
+        try:
+            alarm_time = datetime.time.fromisoformat(alarm["originalTime"][:8])
+            start = datetime.date.fromisoformat(alarm["originalDate"])
+        except (KeyError, TypeError, ValueError):
+            _LOGGER.error("Alarm %s on %s has no time", alarm.get("id"), entity_id)
+            return False
+        when = next_alarm_time(alarm_time, alarm_days(alarm), start)
         success = await AlexaAPI.enable_alarm(
-            login_obj, alarm["notificationIndex"], when, sound_id
+            login_obj, alarm["notificationIndex"], when, alarm_sound(alarm)
         )
         return self._alarm_changed(
             success, login_obj, serial, entity_id, SERVICE_ENABLE_ALARM

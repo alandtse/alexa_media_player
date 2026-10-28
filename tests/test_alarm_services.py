@@ -143,6 +143,14 @@ async def test_create_alarm_failed():
             "2026-10-24T06:30:00",
             "system_alerts_melodic_02",
         ),
+        (
+            {
+                "recurringPattern": "XXXX-WXX-1",
+                "rRuleData": {"byWeekDays": ["MO", "WE"]},
+            },
+            "2026-10-21T06:30:00",
+            "system_alerts_melodic_02",
+        ),
         ({"musicAlarmId": "music-1"}, "2026-10-21T06:30:00", "MUSIC-music-1"),
     ],
 )
@@ -155,6 +163,17 @@ async def test_enable_alarm(changes, when, sound_id):
     schedule.assert_called_once_with(
         services.hass, EMAIL, device_serial=SERIAL, reason="enable_alarm"
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing", ["originalTime", "originalDate"])
+async def test_enable_alarm_without_time(missing):
+    alarm = {k: v for k, v in ALARM.items() if k != missing}
+    services, _, schedule = make_services(alarm)
+    with patch.object(AlexaAPI, "enable_alarm", AsyncMock()) as enable:
+        assert not await services.enable_alarm(call(alarm_id="idx-1"))
+    enable.assert_not_awaited()
+    schedule.assert_not_called()
 
 
 @pytest.mark.asyncio

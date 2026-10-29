@@ -14,7 +14,7 @@ import logging
 from typing import Any, Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
-from alexapy.errors import AlexapyConnectionError
+from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
@@ -483,8 +483,22 @@ class AlexaMediaServices:
                 return login_obj, serial, alarm, time_zone
         raise ServiceValidationError(f"Alarm {alarm_id} not found on {entity_id}")
 
-    def _alarm_changed(self, success, login_obj, serial, entity_id, service) -> bool:
-        """Refresh the alarm list after a change, or raise if Amazon refused it."""
+    async def _change_alarm(
+        self, request, login_obj, serial, entity_id, service
+    ) -> bool:
+        """Send an alarm change and refresh the alarm list, or raise if it failed."""
+        try:
+            success = await request
+        except AlexapyLoginError as err:
+            if not await login_obj.test_loggedin():
+                report_relogin_required(self.hass, login_obj, login_obj.email)
+            raise HomeAssistantError(
+                f"Alexa login failed during {service} for {entity_id}"
+            ) from err
+        except (AlexapyConnectionError, AlexapyTooManyRequestsError) as err:
+            raise HomeAssistantError(
+                f"Couldn't reach Amazon for {service} on {entity_id}"
+            ) from err
         if not success:
             raise HomeAssistantError(f"Amazon refused {service} for {entity_id}")
         schedule_refresh = self._functions.get("schedule_notifications_refresh")
@@ -494,7 +508,6 @@ class AlexaMediaServices:
             )
         return True
 
-    @_catch_login_errors
     async def create_alarm(self, call: ServiceCall) -> bool:
         """Create an alarm on a device.
 
@@ -509,18 +522,20 @@ class AlexaMediaServices:
         login_obj, serial, device_type, time_zone = self._resolve_alarm_device(
             entity_id
         )
-        success = await AlexaAPI.create_alarm(
+        return await self._change_alarm(
+            AlexaAPI.create_alarm(
+                login_obj,
+                serial,
+                device_type,
+                next_alarm_time(call.data.get(ATTR_TIME), days, time_zone=time_zone),
+                alarm_recurrence(days),
+            ),
             login_obj,
             serial,
-            device_type,
-            next_alarm_time(call.data.get(ATTR_TIME), days, time_zone=time_zone),
-            alarm_recurrence(days),
-        )
-        return self._alarm_changed(
-            success, login_obj, serial, entity_id, SERVICE_CREATE_ALARM
+            entity_id,
+            SERVICE_CREATE_ALARM,
         )
 
-    @_catch_login_errors
     async def enable_alarm(self, call: ServiceCall) -> bool:
         """Turn an alarm on.
 
@@ -541,14 +556,16 @@ class AlexaMediaServices:
                 f"Alarm {alarm.get('id')} on {entity_id} has no time"
             ) from err
         when = next_alarm_time(alarm_time, alarm_days(alarm), start, time_zone)
-        success = await AlexaAPI.enable_alarm(
-            login_obj, alarm["notificationIndex"], when, alarm_sound(alarm)
-        )
-        return self._alarm_changed(
-            success, login_obj, serial, entity_id, SERVICE_ENABLE_ALARM
+        return await self._change_alarm(
+            AlexaAPI.enable_alarm(
+                login_obj, alarm["notificationIndex"], when, alarm_sound(alarm)
+            ),
+            login_obj,
+            serial,
+            entity_id,
+            SERVICE_ENABLE_ALARM,
         )
 
-    @_catch_login_errors
     async def disable_alarm(self, call: ServiceCall) -> bool:
         """Turn an alarm off without deleting it.
 
@@ -561,12 +578,14 @@ class AlexaMediaServices:
         login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
-        success = await AlexaAPI.disable_alarm(login_obj, alarm["notificationIndex"])
-        return self._alarm_changed(
-            success, login_obj, serial, entity_id, SERVICE_DISABLE_ALARM
+        return await self._change_alarm(
+            AlexaAPI.disable_alarm(login_obj, alarm["notificationIndex"]),
+            login_obj,
+            serial,
+            entity_id,
+            SERVICE_DISABLE_ALARM,
         )
 
-    @_catch_login_errors
     async def delete_alarm(self, call: ServiceCall) -> bool:
         """Delete an alarm.
 
@@ -584,9 +603,12 @@ class AlexaMediaServices:
         notification = {
             k: v for k, v in alarm.items() if not isinstance(v, datetime.datetime)
         }
-        success = await AlexaAPI.delete_notification(login_obj, notification)
-        return self._alarm_changed(
-            success, login_obj, serial, entity_id, SERVICE_DELETE_ALARM
+        return await self._change_alarm(
+            AlexaAPI.delete_notification(login_obj, notification),
+            login_obj,
+            serial,
+            entity_id,
+            SERVICE_DELETE_ALARM,
         )
 
     async def get_history_records(self, call: ServiceCall) -> bool:

@@ -4,7 +4,8 @@ import datetime
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from alexapy import AlexaAPI
+from alexapy import AlexaAPI, AlexapyLoginError
+from alexapy.errors import AlexapyTooManyRequestsError
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.util import dt as dt_util
 import pytest
@@ -264,6 +265,40 @@ async def test_delete_alarm_failed():
         pytest.raises(HomeAssistantError),
     ):
         await services.delete_alarm(call(alarm_id="idx-1"))
+    schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("logged_in", [True, False])
+async def test_alarm_login_error(logged_in):
+    services, login, schedule = make_services()
+    login.test_loggedin = AsyncMock(return_value=logged_in)
+    with (
+        patch.object(
+            AlexaAPI, "disable_alarm", AsyncMock(side_effect=AlexapyLoginError)
+        ),
+        patch(
+            "custom_components.alexa_media.services.report_relogin_required"
+        ) as relogin,
+        pytest.raises(HomeAssistantError),
+    ):
+        await services.disable_alarm(call(alarm_id="idx-1"))
+    assert relogin.called is not logged_in
+    schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_alarm_rate_limited():
+    services, _, schedule = make_services()
+    with (
+        patch.object(
+            AlexaAPI,
+            "create_alarm",
+            AsyncMock(side_effect=AlexapyTooManyRequestsError),
+        ),
+        pytest.raises(HomeAssistantError),
+    ):
+        await services.create_alarm(call(time=datetime.time(7, 0), days=[]))
     schedule.assert_not_called()
 
 

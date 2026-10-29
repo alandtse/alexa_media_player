@@ -16,6 +16,7 @@ from typing import Any, Callable
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.util import dt as dt_util, slugify
 import voluptuous as vol
@@ -126,10 +127,16 @@ def alarm_sound(alarm: dict[str, Any]) -> str | None:
 
 
 def next_alarm_time(
-    alarm_time: datetime.time, days: list[str], start: datetime.date | None = None
+    alarm_time: datetime.time,
+    days: list[str],
+    start: datetime.date | None = None,
+    time_zone: datetime.tzinfo | None = None,
 ) -> str:
-    """Return the next ring on one of days (any day if empty), not before start."""
-    now = dt_util.now().replace(tzinfo=None)
+    """Return the next ring on one of days (any day if empty), not before start.
+
+    Amazon reads the time in the Echo's own time zone, so pass that if known.
+    """
+    now = dt_util.now(time_zone).replace(tzinfo=None)
     when = datetime.datetime.combine(max(start or now.date(), now.date()), alarm_time)
     while when <= now or (days and ALARM_DAYS[when.weekday()] not in days):
         when += datetime.timedelta(days=1)
@@ -451,11 +458,21 @@ class AlexaMediaServices:
         _LOGGER.debug("Disabled Amazon Kids on %s", entity_id)
         return True
 
-    def _resolve_alarm(self, entity_id, alarm_id):
-        """Resolve a media_player entity_id and alarm id to (login_obj, serial, alarm)."""
-        login_obj, serial, _ = self._resolve_device(entity_id)
+    def _resolve_alarm_device(self, entity_id):
+        """Resolve a media_player entity_id to (login_obj, serial, device_type, time_zone)."""
+        login_obj, serial, device_type = self._resolve_device(entity_id)
         if not login_obj:
-            return None, None, None
+            raise ServiceValidationError(f"{entity_id} is not an Alexa Media device")
+        time_zone_id = safe_get(
+            self.hass.data[DATA_ALEXAMEDIA]["accounts"],
+            [login_obj.email, "devices", "media_player", serial, "timeZoneId"],
+        )
+        time_zone = dt_util.get_time_zone(time_zone_id) if time_zone_id else None
+        return login_obj, serial, device_type, time_zone
+
+    def _resolve_alarm(self, entity_id, alarm_id):
+        """Resolve a media_player entity_id and alarm id to (login_obj, serial, alarm, time_zone)."""
+        login_obj, serial, _, time_zone = self._resolve_alarm_device(entity_id)
         alarms = safe_get(
             self.hass.data[DATA_ALEXAMEDIA]["accounts"],
             [login_obj.email, "notifications", serial, "Alarm"],
@@ -463,15 +480,13 @@ class AlexaMediaServices:
         )
         for index, alarm in alarms.items():
             if alarm_id in (index, alarm.get("id")):
-                return login_obj, serial, alarm
-        _LOGGER.error("Alarm %s not found on %s", alarm_id, entity_id)
-        return None, None, None
+                return login_obj, serial, alarm, time_zone
+        raise ServiceValidationError(f"Alarm {alarm_id} not found on {entity_id}")
 
     def _alarm_changed(self, success, login_obj, serial, entity_id, service) -> bool:
-        """Refresh the alarm list after a change, or log the failure."""
+        """Refresh the alarm list after a change, or raise if Amazon refused it."""
         if not success:
-            _LOGGER.error("%s failed for %s", service, entity_id)
-            return False
+            raise HomeAssistantError(f"Amazon refused {service} for {entity_id}")
         schedule_refresh = self._functions.get("schedule_notifications_refresh")
         if callable(schedule_refresh):
             schedule_refresh(
@@ -491,14 +506,14 @@ class AlexaMediaServices:
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
         days = call.data.get(ATTR_DAYS)
-        login_obj, serial, device_type = self._resolve_device(entity_id)
-        if not login_obj:
-            return False
+        login_obj, serial, device_type, time_zone = self._resolve_alarm_device(
+            entity_id
+        )
         success = await AlexaAPI.create_alarm(
             login_obj,
             serial,
             device_type,
-            next_alarm_time(call.data.get(ATTR_TIME), days),
+            next_alarm_time(call.data.get(ATTR_TIME), days, time_zone=time_zone),
             alarm_recurrence(days),
         )
         return self._alarm_changed(
@@ -515,18 +530,17 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
-        login_obj, serial, alarm = self._resolve_alarm(
+        login_obj, serial, alarm, time_zone = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
-        if not alarm:
-            return False
         try:
             alarm_time = datetime.time.fromisoformat(alarm["originalTime"][:8])
             start = datetime.date.fromisoformat(alarm["originalDate"])
-        except (KeyError, TypeError, ValueError):
-            _LOGGER.error("Alarm %s on %s has no time", alarm.get("id"), entity_id)
-            return False
-        when = next_alarm_time(alarm_time, alarm_days(alarm), start)
+        except (KeyError, TypeError, ValueError) as err:
+            raise ServiceValidationError(
+                f"Alarm {alarm.get('id')} on {entity_id} has no time"
+            ) from err
+        when = next_alarm_time(alarm_time, alarm_days(alarm), start, time_zone)
         success = await AlexaAPI.enable_alarm(
             login_obj, alarm["notificationIndex"], when, alarm_sound(alarm)
         )
@@ -544,11 +558,9 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
-        login_obj, serial, alarm = self._resolve_alarm(
+        login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
-        if not alarm:
-            return False
         success = await AlexaAPI.disable_alarm(login_obj, alarm["notificationIndex"])
         return self._alarm_changed(
             success, login_obj, serial, entity_id, SERVICE_DISABLE_ALARM
@@ -564,13 +576,14 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
-        login_obj, serial, alarm = self._resolve_alarm(
+        login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
-        if not alarm:
-            return False
-        # date_time is added by this integration and may hold a datetime.
-        notification = {k: v for k, v in alarm.items() if k != "date_time"}
+        # The sensors add datetimes (date_time, a snoozed alarm's snoozedToTime),
+        # which can't be sent as JSON.
+        notification = {
+            k: v for k, v in alarm.items() if not isinstance(v, datetime.datetime)
+        }
         success = await AlexaAPI.delete_notification(login_obj, notification)
         return self._alarm_changed(
             success, login_obj, serial, entity_id, SERVICE_DELETE_ALARM

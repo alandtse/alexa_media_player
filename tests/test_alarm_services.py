@@ -1,9 +1,12 @@
 """Tests for the create, enable, disable and delete alarm services."""
 
 import datetime
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from alexapy import AlexaAPI
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.util import dt as dt_util
 import pytest
 import voluptuous as vol
 
@@ -118,8 +121,11 @@ async def test_create_alarm(days, when, recurrence):
 @pytest.mark.asyncio
 async def test_create_alarm_failed():
     services, _, schedule = make_services()
-    with patch.object(AlexaAPI, "create_alarm", AsyncMock(return_value=False)):
-        assert not await services.create_alarm(call(time=datetime.time(6, 30), days=[]))
+    with (
+        patch.object(AlexaAPI, "create_alarm", AsyncMock(return_value=False)),
+        pytest.raises(HomeAssistantError),
+    ):
+        await services.create_alarm(call(time=datetime.time(6, 30), days=[]))
     schedule.assert_not_called()
 
 
@@ -170,8 +176,11 @@ async def test_enable_alarm(changes, when, sound_id):
 async def test_enable_alarm_without_time(missing):
     alarm = {k: v for k, v in ALARM.items() if k != missing}
     services, _, schedule = make_services(alarm)
-    with patch.object(AlexaAPI, "enable_alarm", AsyncMock()) as enable:
-        assert not await services.enable_alarm(call(alarm_id="idx-1"))
+    with (
+        patch.object(AlexaAPI, "enable_alarm", AsyncMock()) as enable,
+        pytest.raises(ServiceValidationError),
+    ):
+        await services.enable_alarm(call(alarm_id="idx-1"))
     enable.assert_not_awaited()
     schedule.assert_not_called()
 
@@ -206,18 +215,66 @@ async def test_delete_alarm_drops_date_time():
 
 
 @pytest.mark.asyncio
+async def test_delete_snoozed_alarm():
+    """A snoozed alarm's snoozedToTime is a datetime once the sensor has seen it."""
+    snoozed = {
+        **ALARM,
+        "status": "SNOOZED",
+        "snoozedToTime": datetime.datetime(2026, 10, 20, 7, 9),
+    }
+    services, _, _ = make_services(snoozed)
+    with patch.object(
+        AlexaAPI, "delete_notification", AsyncMock(return_value=True)
+    ) as delete:
+        assert await services.delete_alarm(call(alarm_id="idx-1"))
+
+    sent = delete.call_args.args[1]
+    assert "snoozedToTime" not in sent
+    json.dumps(sent)
+
+
+@pytest.mark.asyncio
+async def test_create_alarm_uses_echo_time_zone():
+    """The next ring is worked out in the Echo's time zone, not HA's."""
+    services, login, _ = make_services()
+    services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["devices"] = {
+        "media_player": {SERIAL: {"timeZoneId": "Asia/Tokyo"}}
+    }
+    tokyo = dt_util.get_time_zone("Asia/Tokyo")
+    # 07:00 for HA, but already 16:00 on the Echo
+    with (
+        patch(
+            "custom_components.alexa_media.services.dt_util.now",
+            side_effect=lambda tz=None: (
+                NOW + datetime.timedelta(hours=9) if tz is tokyo else NOW
+            ),
+        ),
+        patch.object(AlexaAPI, "create_alarm", AsyncMock(return_value=True)) as create,
+    ):
+        await services.create_alarm(call(time=datetime.time(8, 0), days=[]))
+
+    assert create.call_args.args[3] == "2026-10-21T08:00:00"
+
+
+@pytest.mark.asyncio
 async def test_delete_alarm_failed():
     services, _, schedule = make_services()
-    with patch.object(AlexaAPI, "delete_notification", AsyncMock(return_value=False)):
-        assert not await services.delete_alarm(call(alarm_id="idx-1"))
+    with (
+        patch.object(AlexaAPI, "delete_notification", AsyncMock(return_value=False)),
+        pytest.raises(HomeAssistantError),
+    ):
+        await services.delete_alarm(call(alarm_id="idx-1"))
     schedule.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_unknown_alarm():
     services, _, schedule = make_services()
-    with patch.object(AlexaAPI, "disable_alarm", AsyncMock()) as disable:
-        assert not await services.disable_alarm(call(alarm_id="missing"))
+    with (
+        patch.object(AlexaAPI, "disable_alarm", AsyncMock()) as disable,
+        pytest.raises(ServiceValidationError),
+    ):
+        await services.disable_alarm(call(alarm_id="missing"))
     disable.assert_not_awaited()
     schedule.assert_not_called()
 
@@ -226,6 +283,9 @@ async def test_unknown_alarm():
 async def test_unknown_device():
     services, _, _ = make_services()
     services._resolve_device.return_value = (None, None, None)
-    with patch.object(AlexaAPI, "create_alarm", AsyncMock()) as create:
-        assert not await services.create_alarm(call(time=datetime.time(6, 30), days=[]))
+    with (
+        patch.object(AlexaAPI, "create_alarm", AsyncMock()) as create,
+        pytest.raises(ServiceValidationError),
+    ):
+        await services.create_alarm(call(time=datetime.time(6, 30), days=[]))
     create.assert_not_awaited()

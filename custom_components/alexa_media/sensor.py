@@ -56,6 +56,11 @@ _LOGGER = logging.getLogger(__name__)
 
 LOCAL_TIMEZONE = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
 
+# Lowest physically possible reading per Alexa temperature scale. The cloud
+# has been seen returning -280 CELSIUS for an Echo that had just reconnected
+# to the network; treat anything below absolute zero as no reading.
+_ABSOLUTE_ZERO = {"CELSIUS": -273.15, "FAHRENHEIT": -459.67, "KELVIN": 0}
+
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     # pylint: disable=too-many-locals
@@ -416,11 +421,25 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
         super()._handle_coordinator_update()
 
     def _get_temperature_value(self, value):
-        if value and "value" in value:
-            if getattr(self, "_debug", False):
-                _LOGGER.debug("TemperatureSensor value: %s", value.get("value"))
-            return value.get("value")
-        return None
+        if not value or "value" not in value:
+            return None
+        raw = value.get("value")
+        if getattr(self, "_debug", False):
+            _LOGGER.debug("TemperatureSensor value: %s", raw)
+        floor = _ABSOLUTE_ZERO.get(value.get("scale"))
+        try:
+            below_floor = floor is not None and float(raw) < floor
+        except (TypeError, ValueError):
+            below_floor = False
+        if below_floor:
+            _LOGGER.debug(
+                "%s: ignoring impossible temperature %s %s",
+                self._device_name,
+                raw,
+                value.get("scale"),
+            )
+            return None
+        return raw
 
     def _get_temperature_scale(self, value):
         if value and "scale" in value:

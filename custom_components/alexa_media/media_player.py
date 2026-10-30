@@ -545,7 +545,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     hide_email(self._login.email),
                     self.name,
                 )
-                if self._connected_bluetooth:
+                if self._has_connected_bluetooth_source:
                     if (
                         not self._session
                         or self._session.get("mediaId") != "BluetoothMediaId"
@@ -623,8 +623,12 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
                     self._set_attrs(self._session)
 
-                else:
-                    # This executes when self._connected_bluetooth evaluates to None/False
+                elif (
+                    not self._connected_bluetooth
+                    and self._session
+                    and self._session.get("mediaId") == "BluetoothMediaId"
+                ):
+                    # Clear the old Bluetooth session, not native Echo playback.
                     _LOGGER.debug(
                         "%s: Cleaning up Bluetooth state and session for %s",
                         hide_email(self._login.email),
@@ -1092,6 +1096,17 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     return device["friendlyName"]
         return source
 
+    @property
+    def _has_connected_bluetooth_source(self) -> bool:
+        """Return whether a connected peer advertises A2DP-SOURCE."""
+        devices = (self._bluetooth_state or {}).get("pairedDeviceList") or []
+
+        return any(
+            device.get("connected") is True
+            and "A2DP-SOURCE" in (device.get("profiles") or [])
+            for device in devices
+        )
+
     def _get_bluetooth_list(self):
         sources = []
         if self._bluetooth_state.get("pairedDeviceList"):
@@ -1209,7 +1224,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
         # Fix: Intercept and explicitly return standard Home Assistant player states
         # based on Amazon's streaming state string profile
-        if self._connected_bluetooth and self._bluetooth_state:
+        if self._has_connected_bluetooth_source:
             streaming_state = self._bluetooth_state.get("streamingState")
             if streaming_state == "MUSIC":
                 return MediaPlayerState.PLAYING
@@ -1354,7 +1369,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def media_artist(self):
         """Return the artist of current playing media, music track only."""
-        if self._connected_bluetooth:
+        if self._has_connected_bluetooth_source:
             source_name = self._source or self._connected_bluetooth
             # Intercept if it's empty, None, or explicitly stuck on Amazon's generic boot string
             if not self._media_artist or self._media_artist == "Streaming":
@@ -1364,7 +1379,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def media_album_name(self):
         """Return the album name of current playing media, music track only."""
-        if self._connected_bluetooth and self._source:
+        if self._has_connected_bluetooth_source and self._source:
             return None
         return self._media_album_name
 
@@ -1372,14 +1387,14 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def media_duration(self):
         """Return the duration of current playing media in seconds."""
         # Fix: Force None to stop Home Assistant core from falling back to zero-bound tracking
-        if self._connected_bluetooth:
+        if self._has_connected_bluetooth_source:
             return None
         return self._media_duration
 
     @property
     def media_position(self):
         """Return the position of current playing media in seconds."""
-        if self._connected_bluetooth:
+        if self._has_connected_bluetooth_source:
             return None
         return self._media_pos
 

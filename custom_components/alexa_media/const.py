@@ -52,6 +52,7 @@ DEPENDENT_ALEXA_COMPONENTS = [
     "light",
     "binary_sensor",
     "select",
+    "number",
 ]
 
 HTTP_COOKIE_HEADER = "# HTTP Cookie File"

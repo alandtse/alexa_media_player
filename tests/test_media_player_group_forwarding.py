@@ -189,6 +189,30 @@ async def test_bluetooth_not_forwarded(group, member):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("command", "api_method"), COMMANDS)
+async def test_bluetooth_while_group_plays_not_forwarded(
+    group, member, command, api_method
+):
+    """Bluetooth started on the member while its group plays stays with the
+    member, though the group's playing report is still held."""
+    await _group_reports(group, member, "PLAYING")
+    with patch.object(member, "_get_connected_bluetooth", return_value="Phone"):
+        await member._handle_event(
+            {
+                "bluetooth_change": {
+                    "deviceSerialNumber": MEMBER,
+                    "streamingState": "MUSIC",
+                }
+            }
+        )
+
+    await getattr(member, command)()
+
+    getattr(group, command).assert_not_awaited()
+    assert _member_calls(member, api_method) == 1
+
+
+@pytest.mark.asyncio
 async def test_idle_bluetooth_still_forwarded(group, member):
     """A paired phone that isn't playing doesn't stop forwarding to the group."""
     await _group_reports(group, member, "PAUSED")

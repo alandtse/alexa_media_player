@@ -1567,23 +1567,22 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def _get_session_parent(self) -> Optional["AlexaClient"]:
         """Return the group whose playing or paused session this device mirrors.
 
-        A playing group is always used. A paused one is used unless this device
-        is showing or streaming Bluetooth audio of its own or has left the group.
+        Neither is used while this device is showing or streaming Bluetooth
+        audio of its own. A playing group is otherwise always used, and a paused
+        one unless this device has left the group.
         """
+        streaming_bluetooth = (
+            self._connected_bluetooth
+            and (self._bluetooth_state or {}).get("streamingState") == "MUSIC"
+        ) or (self._session or {}).get("mediaId") == "BluetoothMediaId"
+        if streaming_bluetooth:
+            return None
         if self._playing_parent:
             return self._playing_parent
         parent_serial = safe_get(
             self._player_info or self._session, ["dopplerId", "parentSerialNumber"]
         )
-        streaming_bluetooth = (
-            self._connected_bluetooth
-            and (self._bluetooth_state or {}).get("streamingState") == "MUSIC"
-        ) or (self._session or {}).get("mediaId") == "BluetoothMediaId"
-        if (
-            not self.hass
-            or streaming_bluetooth
-            or parent_serial not in (self._parent_clusters or [])
-        ):
+        if not self.hass or parent_serial not in (self._parent_clusters or []):
             return None
         parent = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self._login.email][
             "entities"

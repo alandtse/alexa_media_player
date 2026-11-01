@@ -140,9 +140,9 @@ class AmazonKidsState:
         return next(iter(self._options.values()), None)
 
     async def async_start(self) -> None:
-        """Do a first refresh and schedule periodic updates."""
+        """Initialize unknown devices and schedule periodic updates."""
         if self._unsub is not None:
-            # Already polling for this account; entities get data via listeners.
+            await self.async_refresh(only_unknown=True)
             return
         self._unsub = async_track_time_interval(
             self.hass, self._async_interval, KIDS_SCAN_INTERVAL
@@ -159,17 +159,30 @@ class AmazonKidsState:
     async def _async_interval(self, now) -> None:
         await self.async_refresh()
 
-    async def async_refresh(self) -> None:
-        """Refresh child profiles and the state of all tracked devices.
+    async def async_refresh(self, *, only_unknown: bool = False) -> None:
+        """Refresh child profiles and tracked device states.
 
         Refreshes are serialized: a device command refreshes right after it
         completes, and without the lock a slower poll already in flight could
         finish last and write back the assignment it read before the command.
+        Starts during active polling use ``only_unknown`` to initialize devices
+        without re-reading cached states or changing the polling timer.
         """
         async with self._refresh_lock:
-            await self._async_refresh()
+            devices = None
+            if only_unknown:
+                # Recheck after waiting: another refresh may have initialized
+                # these devices already. Failed reads remain eligible to retry.
+                devices = {
+                    serial: device_type
+                    for serial, device_type in self._tracked.items()
+                    if self.state(serial)["kids"] is None
+                }
+                if not devices:
+                    return
+            await self._async_refresh(devices)
 
-    async def _async_refresh(self) -> None:
+    async def _async_refresh(self, devices: dict[str, str] | None = None) -> None:
         try:
             children = await AlexaAPI.get_child_profiles(self.login)
         except Exception as ex:  # noqa: BLE001  pylint: disable=broad-except
@@ -183,7 +196,9 @@ class AmazonKidsState:
         else:
             self._set_children(children or [])
         # Snapshot: a platform still setting up may track a device meanwhile.
-        for serial, device_type in list(self._tracked.items()):
+        for serial, device_type in list(
+            (self._tracked if devices is None else devices).items()
+        ):
             previous = self.devices.get(serial) or {}
             kids = None
             try:

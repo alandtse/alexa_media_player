@@ -63,6 +63,11 @@
     }
   },
   "entity": {
+    "number": {
+      "notification_volume": {
+        "name": "Alarm and notification volume"
+      }
+    },
     "sensor": {
       "air_quality": {
         "name": "Air quality"

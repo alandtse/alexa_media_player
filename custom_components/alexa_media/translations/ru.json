@@ -63,6 +63,11 @@
     }
   },
   "entity": {
+    "number": {
+      "notification_volume": {
+        "name": "Громкость сигналов тревоги и уведомлений"
+      }
+    },
     "sensor": {
       "air_quality": {
         "name": "Качество воздуха"

@@ -63,6 +63,11 @@
     }
   },
   "entity": {
+    "number": {
+      "notification_volume": {
+        "name": "Głośność alarmów i powiadomień"
+      }
+    },
     "sensor": {
       "air_quality": {
         "name": "Jakość powietrza"

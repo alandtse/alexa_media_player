@@ -495,7 +495,11 @@ class AlexaMediaServices:
             raise HomeAssistantError(
                 f"Alexa login failed during {service} for {entity_id}"
             ) from err
-        except (AlexapyConnectionError, AlexapyTooManyRequestsError) as err:
+        except (
+            AlexapyConnectionError,
+            AlexapyTooManyRequestsError,
+            TimeoutError,
+        ) as err:
             raise HomeAssistantError(
                 f"Couldn't reach Amazon for {service} on {entity_id}"
             ) from err
@@ -555,7 +559,13 @@ class AlexaMediaServices:
             raise ServiceValidationError(
                 f"Alarm {alarm.get('id')} on {entity_id} has no time"
             ) from err
-        when = next_alarm_time(alarm_time, alarm_days(alarm), start, time_zone)
+        days = alarm_days(alarm)
+        # Don't guess the next ring of a repeat we can't read, such as monthly.
+        if alarm.get("recurringPattern") and not days:
+            raise ServiceValidationError(
+                f"Can't tell when alarm {alarm.get('id')} on {entity_id} repeats"
+            )
+        when = next_alarm_time(alarm_time, days, start, time_zone)
         return await self._change_alarm(
             AlexaAPI.enable_alarm(
                 login_obj, alarm["notificationIndex"], when, alarm_sound(alarm)
@@ -598,10 +608,12 @@ class AlexaMediaServices:
         login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
-        # The sensors add datetimes (date_time, a snoozed alarm's snoozedToTime),
-        # which can't be sent as JSON.
+        # Send Amazon's own fields back. date_time is ours, and the sensors turn
+        # a snoozed alarm's snoozedToTime into a datetime, which isn't JSON.
         notification = {
-            k: v for k, v in alarm.items() if not isinstance(v, datetime.datetime)
+            k: v
+            for k, v in alarm.items()
+            if k != "date_time" and not isinstance(v, datetime.datetime)
         }
         return await self._change_alarm(
             AlexaAPI.delete_notification(login_obj, notification),

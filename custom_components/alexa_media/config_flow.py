@@ -108,7 +108,6 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
 
     VERSION = CONFIG_VERSION
 
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
     proxy: AlexaProxy = None
 
     def _get_default_amazon_domain(self) -> str:

@@ -7,9 +7,12 @@ import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from custom_components.alexa_media.sensor import (
     AlarmSensor,
     AlexaMediaNotificationSensor,
+    TemperatureSensor,
 )
 
 
@@ -336,3 +339,52 @@ class TestNotificationSensorAvailability:
             )
             sensor._handle_event({"player_state": None})
             mock_update.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ({"value": 28.5, "scale": "CELSIUS"}, 28.5),
+        ({"value": 72, "scale": "FAHRENHEIT"}, 72),
+        ({"value": 300, "scale": "KELVIN"}, 300),
+        ({"value": -280, "scale": "CELSIUS"}, None),
+        ({"value": "-280", "scale": "CELSIUS"}, None),
+        ({"value": -460, "scale": "FAHRENHEIT"}, None),
+        ({"value": -1, "scale": "KELVIN"}, None),
+        ({"value": -280}, -280),
+        ({"value": -280, "scale": []}, -280),
+        ({"value": -280, "scale": {}}, -280),
+        ({"value": "n/a", "scale": "CELSIUS"}, "n/a"),
+        ({"scale": "CELSIUS"}, None),
+        (None, None),
+    ],
+)
+def test_temperature_sensor_get_value(value, expected) -> None:
+    """Readings below absolute zero are treated as no reading."""
+    sensor = object.__new__(TemperatureSensor)
+    sensor._debug = False
+    sensor._device_name = "Echo"
+    assert sensor._get_temperature_value(value) == expected
+
+
+def test_temperature_sensor_update_ignores_impossible_value() -> None:
+    """A coordinator update with a reading below absolute zero sets no value."""
+    sensor = object.__new__(TemperatureSensor)
+    sensor._debug = False
+    sensor._device_name = "Echo"
+    sensor.coordinator = object()
+    sensor.alexa_entity_id = "temperature"
+    sensor._attr_native_value = 27.6
+
+    with (
+        patch(
+            "custom_components.alexa_media.sensor.parse_temperature_from_coordinator",
+            return_value={"value": -280, "scale": "CELSIUS"},
+        ),
+        patch(
+            "custom_components.alexa_media.sensor.CoordinatorEntity._handle_coordinator_update"
+        ),
+    ):
+        sensor._handle_coordinator_update()
+
+    assert sensor._attr_native_value is None

@@ -27,11 +27,7 @@ Allows for control of Amazon Echo products as home assistant media devices with 
 
 # [Documentation](https://github.com/alandtse/alexa_media_player/wiki)
 
-Please see the [wiki](https://github.com/alandtse/alexa_media_player/wiki).
-
-# Installation and Configuration
-
-Please see the [wiki](https://github.com/alandtse/alexa_media_player/wiki/Configuration).
+- [Installation and Configuration](https://github.com/alandtse/alexa_media_player/wiki/Configuration).
 
 # Changelog
 

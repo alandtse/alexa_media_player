@@ -163,6 +163,66 @@
           "description": "Echo device to disable Amazon Kids on"
         }
       }
+    },
+    "create_alarm": {
+      "name": "Create alarm",
+      "description": "Creates an alarm on an Echo.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device to set the alarm on"
+        },
+        "time": {
+          "name": "Time",
+          "description": "Time the alarm rings"
+        },
+        "days": {
+          "name": "Repeat on",
+          "description": "Days to repeat on. Leave empty for a one-off alarm."
+        }
+      }
+    },
+    "enable_alarm": {
+      "name": "Enable alarm",
+      "description": "Turns on an Echo alarm.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device the alarm is on"
+        },
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor"
+        }
+      }
+    },
+    "disable_alarm": {
+      "name": "Disable alarm",
+      "description": "Turns off an Echo alarm without deleting it.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device the alarm is on"
+        },
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor"
+        }
+      }
+    },
+    "delete_alarm": {
+      "name": "Delete alarm",
+      "description": "Deletes an Echo alarm.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device the alarm is on"
+        },
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor"
+        }
+      }
     }
   },
   "entity": {

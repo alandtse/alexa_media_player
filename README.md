@@ -29,6 +29,22 @@ Allows for control of Amazon Echo products as home assistant media devices with 
 
 Please see the [wiki.](https://github.com/alandtse/alexa_media_player/wiki/Configuration)
 
+## Authentication cookie storage
+
+Since alexapy 1.33, authentication cookies are stored in
+`<config>/.storage/alexa_media.<account>.cookies` using alexapy's versioned JSON
+format (`alexapy.cookies`), replacing the legacy `.pickle` format. Renaming the
+file does not convert it to a pickle; companion tools must support the JSON
+format to import the session. alexapy can migrate supported legacy cookie files
+when loading them.
+
+Removing a config entry deletes its current `.cookies` file. If removal reports
+an error, the log identifies the cookie file to delete manually before re-adding
+the integration (with the account name obscured). The `force_logout` action marks
+accounts for reauthentication; it does not delete their cookie files. Cookie
+files contain authentication credentials and should not be shared or attached to
+issues.
+
 # Further Documentation
 
 Please see the [wiki](https://github.com/alandtse/alexa_media_player/wiki)

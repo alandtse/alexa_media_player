@@ -262,7 +262,6 @@ async def create_air_quality_sensors(
         last_index = len(subsensors) - 1
         seen_sensor_types: set[str] = set()
 
-        # Create each discovered AIAQM metric.
         for idx, subsensor in enumerate(subsensors):
             prefix = "└─" if idx == last_index else "├─"
             sensor_type = subsensor.get("sensorType")

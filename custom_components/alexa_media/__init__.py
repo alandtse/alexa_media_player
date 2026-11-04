@@ -825,6 +825,7 @@ async def async_setup_entry(hass, config_entry):
                 "binary_sensor": [],
                 "alarm_control_panel": {},
                 "smart_switch": [],
+                "button": {},
             },
             "excluded": {},
             "new_devices": True,

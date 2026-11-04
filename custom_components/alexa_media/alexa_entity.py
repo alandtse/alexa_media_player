@@ -488,13 +488,30 @@ def parse_alexa_entities(
                         asset_id = entry.get("assetId")
 
                     # Only treat Alexa.AirQuality assetIds as real AIAQM sensors.
-                    # Text-only friendlyNames (e.g. @type "text") must be ignored to avoid
-                    # creating extra sensors such as PM10.
+                    # Preserve existing asset-based sensor types and unique IDs.
                     if isinstance(asset_id, str) and asset_id.startswith(
                         "Alexa.AirQuality."
                     ):
                         sensor_type = asset_id
                         break
+
+                # PM10 is advertised by a text resource rather than an assetId.
+                # Match the metric, never the numeric instance (which can vary).
+                if not sensor_type and any(
+                    isinstance(entry, dict)
+                    and isinstance(entry.get("value"), dict)
+                    and isinstance(entry["value"].get("text"), str)
+                    and entry["value"]["text"].strip().casefold()
+                    == "particulate matter pm10"
+                    for entry in friendly
+                ):
+                    properties = cap.get("properties") or {}
+                    if (
+                        properties.get("retrievable") is True
+                        and properties.get("readOnly") is True
+                    ):
+                        sensor_type = "Alexa.AirQuality.ParticulateMatterPM10"
+                        unit = "Alexa.Unit.Density.MicroGramsPerCubicMeter"
 
                 if not sensor_type:
                     continue

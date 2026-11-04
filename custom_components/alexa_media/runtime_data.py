@@ -116,7 +116,6 @@ class AlexaRuntimeData:
                 CONF_SCAN_INTERVAL,
                 DEFAULT_SCAN_INTERVAL,
             )
-
             from .helpers import config_entry_option
 
             self.options = {

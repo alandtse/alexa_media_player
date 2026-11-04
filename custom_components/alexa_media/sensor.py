@@ -262,7 +262,7 @@ async def create_air_quality_sensors(
         last_index = len(subsensors) - 1
         seen_sensor_types: set[str] = set()
 
-        # Each AIAQM has 5 different sensors.
+        # Create each discovered AIAQM metric.
         for idx, subsensor in enumerate(subsensors):
             prefix = "└─" if idx == last_index else "├─"
             sensor_type = subsensor.get("sensorType")
@@ -489,6 +489,9 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_translation_key = AIR_QUALITY_TRANSLATION_KEYS.get(
             sensor_name, "air_quality"
         )
+        if sensor_name == "Alexa.AirQuality.ParticulateMatterPM10":
+            self._attr_translation_key = None
+            self._attr_name = "PM10"
         # tidy up name for unique_id and logging
         self._sensor_name = sensor_name.replace("Alexa.AirQuality.", "")
         self._sensor_name = "".join(

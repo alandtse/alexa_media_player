@@ -148,6 +148,32 @@ def is_air_quality_sensor(appliance: dict[str, Any]) -> bool:
     )
 
 
+def get_led_indicator_instance(appliance: dict[str, Any]) -> str | None:
+    """Find a readable, writable LED toggle by its discovery resources."""
+    for cap in appliance.get("capabilities", []):
+        if cap.get("interfaceName") != "Alexa.ToggleController":
+            continue
+        props = cap.get("properties") or {}
+        if props.get("retrievable") is not True or props.get("readOnly") is not False:
+            continue
+        if not any(p.get("name") == "toggleState" for p in props.get("supported", [])):
+            continue
+        instance = cap.get("instance")
+        if not isinstance(instance, (str, int)) or isinstance(instance, bool):
+            continue
+        if not str(instance):
+            continue
+        for friendly in safe_get(cap, ["resources", "friendlyNames"], []):
+            text = safe_get(friendly, ["value", "text"], "")
+            if isinstance(text, str) and text.strip().casefold() in {
+                "enable led indicator",
+                "led indicator",
+                "led",
+            }:
+                return str(instance)
+    return None
+
+
 def is_light(appliance: dict[str, Any]) -> bool:
     """Is the given appliance a light controlled locally by an Echo."""
     return (
@@ -260,6 +286,7 @@ class AlexaAIAQMEntity(AlexaEntity):
 
     device_serial: str
     sensors: list[dict[str, str]]
+    led_indicator_instance: str | None
 
 
 class AlexaBinaryEntity(AlexaEntity):
@@ -484,6 +511,7 @@ def parse_alexa_entities(
                 **processed_appliance,
                 "device_serial": device_serial,
                 "sensors": sensors,
+                "led_indicator_instance": get_led_indicator_instance(appliance),
             }
             aiaqm_entities.append(aiaqm_entity)
 

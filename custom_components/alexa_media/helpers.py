@@ -29,6 +29,13 @@ _LOGGER = logging.getLogger(__name__)
 ArgType = TypeVar("ArgType")
 
 
+def config_entry_option(config_entry, key: str, default: Any | None = None) -> Any:
+    """Return an option, preferring ConfigEntry.options over legacy data."""
+    if key in config_entry.options:
+        return config_entry.options[key]
+    return config_entry.data.get(key, default)
+
+
 def _norm_filter_token(value: Any) -> str | None:
     """Normalize a single filter token for reliable matching."""
     if value is None:

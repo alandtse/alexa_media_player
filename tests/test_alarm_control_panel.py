@@ -44,7 +44,7 @@ def mock_alexapy_helpers():
             side_effect=lambda x: str(x) if x else "",
         ),
         patch(
-            "custom_components.alexa_media.alexa_media.hide_email",
+            "custom_components.alexa_media.entity.hide_email",
             side_effect=lambda x: str(x) if x else "",
         ),
         patch(

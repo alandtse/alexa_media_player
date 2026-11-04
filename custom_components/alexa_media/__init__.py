@@ -108,6 +108,7 @@ from .helpers import (
     _existing_serials,
     alarm_just_dismissed,
     calculate_uuid,
+    config_entry_option,
     hide_email,
     report_relogin_required,
     safe_get,
@@ -529,6 +530,17 @@ async def async_setup(hass, config):
     metrics = hass.data[DOMAIN]["metrics"]
     metrics.start_boot_tracking()
 
+    if "services" not in hass.data[DATA_ALEXAMEDIA]:
+
+        async def _service_update_last_called(login_obj):
+            """Update last_called for the account behind a login object."""
+            await _async_update_last_called_global(hass, login_obj, login_obj.email)
+
+        hass.data[DATA_ALEXAMEDIA]["services"] = alexa_services = AlexaMediaServices(
+            hass, update_last_called=_service_update_last_called
+        )
+        await alexa_services.register()
+
     integration = await async_get_integration(hass, DOMAIN)
     integration_name = integration.name or "<not available>"
     _LOGGER.info(
@@ -847,17 +859,27 @@ async def async_setup_entry(hass, config_entry):
     # Refreshed on every attempt: the account dict survives setup retries and
     # a failed setup, so options saved in the meantime would otherwise be lost.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"] = {
-        CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
-        CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
-        CONF_QUEUE_DELAY: config_entry.data.get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
-        CONF_SCAN_INTERVAL: config_entry.data.get(
-            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        CONF_INCLUDE_DEVICES: config_entry_option(
+            config_entry, CONF_INCLUDE_DEVICES, ""
         ),
-        CONF_PUBLIC_URL: config_entry.data.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),
-        CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.data.get(
-            CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
+        CONF_EXCLUDE_DEVICES: config_entry_option(
+            config_entry, CONF_EXCLUDE_DEVICES, ""
         ),
-        CONF_DEBUG: config_entry.data.get(CONF_DEBUG, False),
+        CONF_QUEUE_DELAY: config_entry_option(
+            config_entry, CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
+        ),
+        CONF_SCAN_INTERVAL: config_entry_option(
+            config_entry, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        ),
+        CONF_PUBLIC_URL: config_entry_option(
+            config_entry, CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
+        ),
+        CONF_EXTENDED_ENTITY_DISCOVERY: config_entry_option(
+            config_entry,
+            CONF_EXTENDED_ENTITY_DISCOVERY,
+            DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+        ),
+        CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, False),
     }
     uuid_dict = await calculate_uuid(hass, email, url)
     uuid = uuid_dict["uuid"]
@@ -988,7 +1010,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # pylint: disable=too-many-statements,too-many-locals
     """Set up a alexa api based on host parameter."""
 
-    debug = config_entry.data.get(CONF_DEBUG, False)
+    debug = config_entry_option(config_entry, CONF_DEBUG, False)
 
     # Record metrics
     metrics = get_metrics(hass)
@@ -3227,12 +3249,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.debug("[BOOT] first_refresh in %.2fs", time.monotonic() - _t)
 
-    # Register services (fast - just registers callbacks)
-    hass.data[DATA_ALEXAMEDIA]["services"] = alexa_services = AlexaMediaServices(
-        hass, functions={"update_last_called": update_last_called}
-    )
-    await alexa_services.register()
-
     # Update last_called in background to avoid blocking
     _LOGGER.debug("%s: setup_alexa: Scheduling last_called update", hide_email(email))
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called_init_task"] = (
@@ -3346,12 +3362,10 @@ async def async_unload_entry(hass, entry) -> bool:
             hass.data[DATA_ALEXAMEDIA]["config_flows"].pop(flow)
     # Clean up hass.data
     if not hass.data[DATA_ALEXAMEDIA].get("accounts"):
-        _LOGGER.debug("Removing accounts data and services")
+        _LOGGER.debug("Removing accounts data")
         hass.data[DATA_ALEXAMEDIA].pop("accounts")
-        alexa_services = hass.data[DATA_ALEXAMEDIA].get("services")
-        if alexa_services:
-            await alexa_services.unregister()
-            hass.data[DATA_ALEXAMEDIA].pop("services")
+        # Services stay registered for the lifetime of Home Assistant so they
+        # remain available while the integration has no loaded config entry.
         # Per-run collectors recreated by the next setup. Leaving them behind
         # keeps DATA_ALEXAMEDIA truthy, so the data structure below is never
         # removed and stale boot metrics survive into the next setup.
@@ -3447,7 +3461,7 @@ async def update_listener(hass, config_entry):
     for key, old_value in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
         "options"
     ].items():
-        new_value = config_entry.data.get(key)
+        new_value = config_entry_option(config_entry, key)
         if new_value is not None and new_value != old_value:
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key] = new_value
             _LOGGER.debug(

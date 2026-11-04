@@ -121,9 +121,13 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
 
 
 class AlexaMediaServices:
-    def __init__(self, hass: HomeAssistant, functions: dict[str, Callable[..., Any]]):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        update_last_called: Callable[..., Any] | None = None,
+    ):
         self.hass = hass
-        self._functions = functions
+        self._update_last_called = update_last_called
 
     async def register(self) -> None:
         """Register Alexa Media custom services."""
@@ -189,7 +193,7 @@ class AlexaMediaServices:
                                                 If None, all accounts are updated.
         """
         requested_emails = call.data.get(ATTR_EMAIL)
-        update_last_called = self._functions.get("update_last_called")
+        update_last_called = self._update_last_called
 
         if not callable(update_last_called):
             _LOGGER.error(

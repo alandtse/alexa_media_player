@@ -3321,9 +3321,9 @@ async def async_unload_entry(hass, entry) -> bool:
         amazon_kids.async_stop()
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["amazon_kids"] = None
 
-    for display_state in hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-        "display_states", {}
-    ).values():
+    for display_state in (
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("display_states", {}).values()
+    ):
         display_state.async_stop()
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
 

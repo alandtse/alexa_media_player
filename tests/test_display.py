@@ -7,13 +7,13 @@ import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.display import (
+    SETTING_ADAPTIVE_BRIGHTNESS,
+    SETTING_BRIGHTNESS,
+    SETTING_DISPLAY_POWER,
     AlexaAdaptiveBrightnessSwitch,
     AlexaDisplayBrightness,
     AlexaDisplayPowerSwitch,
     DisplayState,
-    SETTING_ADAPTIVE_BRIGHTNESS,
-    SETTING_BRIGHTNESS,
-    SETTING_DISPLAY_POWER,
     _decode_setting,
     async_get_device_setting,
     async_get_display_state,

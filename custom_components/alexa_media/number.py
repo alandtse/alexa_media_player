@@ -17,6 +17,7 @@ from homeassistant.helpers.entity import EntityCategory
 
 from . import CONF_EMAIL, DATA_ALEXAMEDIA, DOMAIN as ALEXA_DOMAIN, hide_email
 from .alexa_media import AlexaMedia
+from .display import AlexaDisplayBrightness, async_get_display_state, supports_display
 from .helpers import _catch_login_errors, add_devices, safe_get
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,6 +42,25 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         number = AlexaNotificationVolume(client)
         account_dict["entities"]["number"][key] = number
         devices.append(number)
+
+    # Add display brightness for Echo Show and Echo Dot with clock devices.
+    login_obj = account_dict.get("login_obj")
+    for key, device in account_dict["devices"]["media_player"].items():
+        if not supports_display(device):
+            continue
+        if login_obj is None or key not in account_dict["entities"]["media_player"]:
+            raise ConfigEntryNotReady
+        client = account_dict["entities"]["media_player"][key]
+        entity_key = f"{key}_display_brightness"
+        if entity_key in account_dict["entities"]["number"]:
+            continue
+        display_state = await async_get_display_state(
+            hass, account_dict, login_obj, device, client
+        )
+        number = AlexaDisplayBrightness(display_state)
+        account_dict["entities"]["number"][entity_key] = number
+        devices.append(number)
+
     return await add_devices(hide_email(account), devices, add_devices_callback)
 
 

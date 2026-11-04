@@ -243,6 +243,7 @@ ALEXA_ICON_CONVERSION = {
     "Alexa.AirQuality.Humidity": "mdi:water-percent",
     "Alexa.AirQuality.IndoorAirQuality": "mdi:numeric",
     "Alexa.AirQuality.ParticulateMatter": "mdi:blur",
+    "Alexa.AirQuality.ParticulateMatterPM10": "mdi:blur",
     "Alexa.AirQuality.VolatileOrganicCompounds": "mdi:air-filter",
 }
 ALEXA_ICON_DEFAULT = "mdi:molecule"
@@ -251,6 +252,7 @@ ALEXA_ICON_DEFAULT = "mdi:molecule"
 # Maps Alexa sensor types to Home Assistant SensorDeviceClass
 ALEXA_AIR_QUALITY_DEVICE_CLASS = {
     "Alexa.AirQuality.ParticulateMatter": "pm25",
+    "Alexa.AirQuality.ParticulateMatterPM10": "pm10",
     "Alexa.AirQuality.CarbonMonoxide": "carbon_monoxide",
     "Alexa.AirQuality.IndoorAirQuality": "aqi",
     "Alexa.AirQuality.VolatileOrganicCompounds": "aqi",

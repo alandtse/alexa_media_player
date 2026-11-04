@@ -11,8 +11,8 @@ query AQMEndpoints {
 }
 """
 
-# Same endpoint feature operation used by aioamazondevices. The legacy entityId
-# used for state polling is distinct from the endpoint id required for control.
+# The legacy entityId used for state polling differs from the endpoint id
+# required for control.
 _SET_FEATURE = """
 mutation setEndpointFeatures($setEndpointFeaturesInput: SetEndpointFeaturesInput!) {
   setEndpointFeatures(setEndpointFeaturesInput: $setEndpointFeaturesInput) {

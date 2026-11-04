@@ -8,6 +8,7 @@ import pytest
 
 from custom_components.alexa_media.alexa_entity import parse_alexa_entities
 from custom_components.alexa_media.sensor import create_air_quality_sensors
+from custom_components.alexa_media.switch import LEDIndicatorSwitch
 
 UNIT = "Alexa.Unit.Density.MicroGramsPerCubicMeter"
 LEGACY = {
@@ -132,3 +133,56 @@ def test_unrelated_text_and_absent_pm10_preserve_legacy(appliance):
     appliance["capabilities"].pop(-2)
     assert parse_alexa_entities([appliance]) == before
     assert len(before["aiaqm"][0]["sensors"]) == 5
+
+
+async def test_pm10_and_led_share_device_and_keep_independent_states(appliance):
+    """Discover both features together and isolate range and toggle updates."""
+    appliance["capabilities"].append(
+        {
+            "interfaceName": "Alexa.ToggleController",
+            "instance": "11",
+            "properties": {
+                "supported": [{"name": "toggleState"}],
+                "retrievable": True,
+                "readOnly": False,
+            },
+            "resources": {"friendlyNames": [{"value": {"text": "LED"}}]},
+        }
+    )
+    details = parse_alexa_entities([appliance])["aiaqm"][0]
+    assert details["led_indicator_instance"] == "11"
+    assert len(details["sensors"]) == 6
+    coordinator = MagicMock()
+    pm10_state = {
+        "namespace": "Alexa.RangeController",
+        "name": "rangeValue",
+        "instance": "7",
+        "value": 12.5,
+    }
+    led_state = {
+        "namespace": "Alexa.ToggleController",
+        "name": "toggleState",
+        "instance": "11",
+        "value": "ON",
+    }
+    coordinator.data = {"aqm-entity": [pm10_state, led_state]}
+    sensors = await create_air_quality_sensors(
+        {"coordinator": coordinator, "entities": {"sensor": {}}}, [details]
+    )
+    pm10 = next(s for s in sensors if s.device_class == SensorDeviceClass.PM10)
+    led = LEDIndicatorSwitch(coordinator, MagicMock(), details)
+    assert led.device_info["identifiers"] == pm10.device_info["identifiers"]
+    assert led.is_on is True
+    assert pm10.native_value == 12.5
+    pm10.async_write_ha_state = MagicMock()
+    led_state["value"] = "OFF"
+    pm10._handle_coordinator_update()
+    assert led.is_on is False
+    assert pm10.native_value == 12.5
+    pm10_state["value"] = 0
+    pm10._handle_coordinator_update()
+    assert pm10.native_value == 0
+    assert led.is_on is False
+    coordinator.data["aqm-entity"] = [pm10_state]
+    assert led.is_on is None
+    assert pm10.native_value == 0

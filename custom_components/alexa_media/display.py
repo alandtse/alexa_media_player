@@ -197,9 +197,13 @@ class DisplayState:
     async def async_set(self, setting: str, value: Any) -> bool:
         """Set one display setting and update the cached value."""
         async with self._refresh_lock:
-            success = await async_set_device_setting(
-                self.login, self.device_account_id, setting, value
-            )
+            try:
+                success = await async_set_device_setting(
+                    self.login, self.device_account_id, setting, value
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Unable to set %s: %s", setting, err)
+                success = False
             if success:
                 self._values[setting] = value
                 self._async_notify()

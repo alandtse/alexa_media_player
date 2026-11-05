@@ -149,6 +149,22 @@ async def test_display_state_set_refreshes_on_failure():
     state.async_refresh.assert_awaited_once()
 
 
+@pytest.mark.asyncio
+async def test_display_state_set_refreshes_on_exception():
+    """A transport exception is treated as a failed write and refreshed."""
+    state = _state()
+    state.async_refresh = AsyncMock()
+
+    with patch(
+        "custom_components.alexa_media.display.async_set_device_setting",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("network down"),
+    ):
+        assert not await state.async_set(SETTING_DISPLAY_POWER, "OFF")
+
+    state.async_refresh.assert_awaited_once()
+
+
 def test_display_power_entity():
     """The power switch reflects and changes the cached state."""
     state = _state()

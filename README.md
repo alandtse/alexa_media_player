@@ -44,15 +44,15 @@ Allows for control of Amazon Echo products as home assistant media devices with 
 
 # Services
 
-| Service | Description |
-| --- | --- |
-| `alexa_media.force_logout` | Mark one or all accounts for reauthentication. |
-| `alexa_media.restore_volume` | Restore the previous volume of a media player. |
-| `alexa_media.get_history_records` | Store recent voice-history records on a media player. |
-| `alexa_media.update_last_called` | Refresh which Echo received the last voice command. |
-| `alexa_media.enable_network_discovery` | Re-run Alexa network discovery. |
-| `alexa_media.amazon_kids_enable` | Assign an Echo to an Amazon Kids child profile. |
-| `alexa_media.amazon_kids_disable` | Release an Echo from Amazon Kids. |
+| Service                                | Description                                           |
+| -------------------------------------- | ----------------------------------------------------- |
+| `alexa_media.force_logout`             | Mark one or all accounts for reauthentication.        |
+| `alexa_media.restore_volume`           | Restore the previous volume of a media player.        |
+| `alexa_media.get_history_records`      | Store recent voice-history records on a media player. |
+| `alexa_media.update_last_called`       | Refresh which Echo received the last voice command.   |
+| `alexa_media.enable_network_discovery` | Re-run Alexa network discovery.                       |
+| `alexa_media.amazon_kids_enable`       | Assign an Echo to an Amazon Kids child profile.       |
+| `alexa_media.amazon_kids_disable`      | Release an Echo from Amazon Kids.                     |
 
 # Events
 

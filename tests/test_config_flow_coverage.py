@@ -41,7 +41,7 @@ from custom_components.alexa_media.const import (
 )
 
 EMAIL = "test@example.com"  # noqa: S105
-PASSWORD = "secret"  # noqa: S105
+PASSWORD = "secret"  # noqa: S105  # nosec B105
 URL = "amazon.com"
 
 

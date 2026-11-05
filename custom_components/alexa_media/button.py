@@ -109,6 +109,11 @@ class AlexaRestartButton(ButtonEntity):
         """Return whether the Echo is available."""
         return bool(self._client.available)
 
+    @property
+    def _client_name(self) -> str:
+        """Return the friendly name across older and newer media players."""
+        return getattr(self._client, "device_name", None) or self._client.name
+
     async def async_added_to_hass(self) -> None:
         """Track media player availability changes."""
         entity_id = getattr(self._client, "entity_id", None)
@@ -138,12 +143,12 @@ class AlexaRestartButton(ButtonEntity):
                 self.hass, self._client._login, self._client._login.email
             )
             raise HomeAssistantError(
-                f"Unable to restart {self._client.name}: {err}"
+                f"Unable to restart {self._client_name}: {err}"
             ) from err
         except AlexapyConnectionError as err:
             raise HomeAssistantError(
-                f"Unable to restart {self._client.name}: {err}"
+                f"Unable to restart {self._client_name}: {err}"
             ) from err
 
         if not success:
-            raise HomeAssistantError(f"Unable to restart {self._client.name}")
+            raise HomeAssistantError(f"Unable to restart {self._client_name}")

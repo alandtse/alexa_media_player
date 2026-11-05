@@ -128,6 +128,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     alexa_client,
                 )
     # Add display controls for Echo Show and Echo Dot with clock devices.
+    display_devices: list[SwitchDevice] = []
     login_obj = account_dict.get("login_obj")
     for key, device in account_dict["devices"]["media_player"].items():
         if not supports_display(device):
@@ -153,7 +154,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 continue
             display_switch = class_(display_state)
             switch_dict[switch_key] = display_switch
-            devices.append(display_switch)
+            display_devices.append(display_switch)
 
     # Add Amazon Smart Plug devices
     switch_entities = safe_get(account_dict, ["devices", "smart_switch"], [])
@@ -204,6 +205,16 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         include_filter,
         exclude_filter,
     )
+    if display_devices:
+        # These are already scoped by the media-player filter; applying the
+        # name filter again would drop them because their names are "Display"
+        # and "Adaptive brightness", not the Echo name.
+        result = (
+            await add_devices(
+                hide_email(account), display_devices, add_devices_callback
+            )
+            and result
+        )
     if kids_devices:
         await kids_state.async_start()
         # Already scoped via the media_player entities, so no extra name filter.

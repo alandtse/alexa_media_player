@@ -223,6 +223,36 @@ class TestSmartSwitchCreation:
             assert len(mock_account_dict["entities"]["smart_switch"]) == 0
 
 
+@pytest.mark.asyncio
+async def test_unload_removes_every_switch(mock_hass):
+    """Unload iterates switch types, not the device serial key."""
+    email = "test@example.com"  # noqa: S105
+    dnd = MagicMock()
+    dnd.async_remove = AsyncMock()
+    shuffle = MagicMock()
+    shuffle.async_remove = AsyncMock()
+    mock_hass.data = {
+        DATA_ALEXAMEDIA: {
+            "accounts": {
+                email: {
+                    "entities": {
+                        "switch": {"serial-1": {"dnd": dnd, "shuffle": shuffle}},
+                        "amazon_kids_switch": [],
+                    }
+                }
+            }
+        }
+    }
+    entry = MagicMock()
+    entry.data = {"email": email}
+
+    from custom_components.alexa_media.switch import async_unload_entry
+
+    assert await async_unload_entry(mock_hass, entry)
+    dnd.async_remove.assert_awaited_once()
+    shuffle.async_remove.assert_awaited_once()
+
+
 class TestHueEmulatedDetection:
     """Tests for emulated_hue detection logic."""
 

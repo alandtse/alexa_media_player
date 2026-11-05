@@ -110,8 +110,10 @@ class TestNotifyDevicesProperty:
         """Test devices returns media players when accounts exist."""
         mock_player_1 = MagicMock()
         mock_player_1.name = "Living Room Echo"
+        mock_player_1.device_name = "Living Room Echo"
         mock_player_2 = MagicMock()
         mock_player_2.name = "Kitchen Echo"
+        mock_player_2.device_name = "Kitchen Echo"
 
         service = self._create_service(
             {

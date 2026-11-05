@@ -232,6 +232,9 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaClient(MediaPlayerDevice, AlexaMedia):
     """Representation of a Alexa device."""
 
+    _attr_has_entity_name = True
+    _attr_name = None
+
     def __init__(self, device, login, second_account_index=0):
         """Initialize the Alexa device."""
         super().__init__(self, login)
@@ -543,7 +546,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 _LOGGER.debug(
                     "%s: Updating '%s' Bluetooth_state",
                     hide_email(self._login.email),
-                    self.name,
+                    self.device_name,
                 )
                 if self._connected_bluetooth:
                     if (
@@ -628,7 +631,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: Cleaning up Bluetooth state and session for %s",
                         hide_email(self._login.email),
-                        self.name,
+                        self.device_name,
                     )
 
                     # Clear out media detail instance variables completely
@@ -656,7 +659,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: %s state update: %s",
                         hide_email(self._login.email),
-                        self.name,
+                        self.device_name,
                         player_state["audioPlayerState"],
                     )
                     if player_state["audioPlayerState"] == "PLAYING":
@@ -678,7 +681,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: %s media update: %s",
                         hide_email(self._login.email),
-                        self.name,
+                        self.device_name,
                         player_state["mediaReferenceId"],
                     )
                     await self.async_update()
@@ -687,7 +690,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: %s volume updated: %s",
                         hide_email(self._login.email),
-                        self.name,
+                        self.device_name,
                         player_state["volumeSetting"],
                     )
                     if self._session:
@@ -717,7 +720,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 _LOGGER.debug(
                     "%s: %s checking for potential state update due to push activity on %s",
                     hide_email(self._login.email),
-                    self.name,
+                    self.device_name,
                     hide_serial(event_serial),
                 )
                 # allow delay before trying to refresh to avoid http 400 errors
@@ -757,7 +760,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: %s repeat updated to: %s %s",
                         hide_email(self._login.email),
-                        self.name,
+                        self.device_name,
                         self._repeat,
                         queue_state["loopMode"],
                     )
@@ -769,7 +772,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: %s shuffle updated to: %s %s",
                         hide_email(self._login.email),
-                        self.name,
+                        self.device_name,
                         self._shuffle,
                         queue_state["playBackOrder"],
                     )
@@ -1187,7 +1190,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         )
 
     @property
-    def name(self):
+    def device_name(self):
         """Return the name of the device."""
         return self._device_name
 
@@ -1312,7 +1315,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: %s playing; scheduling update in %s seconds",
                         hide_email(email),
-                        self.name,
+                        self.device_name,
                         PLAY_SCAN_INTERVAL,
                     )
                     async_call_later(
@@ -1326,7 +1329,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: Disabling polling and scheduling last update in 300 seconds for %s",
                         hide_email(email),
-                        self.name,
+                        self.device_name,
                     )
                     async_call_later(
                         self.hass,
@@ -1337,7 +1340,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                     _LOGGER.debug(
                         "%s: Disabling polling for %s",
                         hide_email(email),
-                        self.name,
+                        self.device_name,
                     )
         else:
             self._should_poll = False
@@ -1570,7 +1573,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         _LOGGER.debug(
             "%s: %s sending PLAY command; state=%s media_id=%s",
             hide_email(self._login.email),
-            self.name,
+            self.device_name,
             self.state,
             self._session.get("mediaId") if self._session else None,
         )
@@ -1581,7 +1584,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             _LOGGER.debug(
                 "%s: %s PLAY precheck: is_bt=%s state=%s media_id=%s transport=%s",
                 hide_email(self._login.email),
-                self.name,
+                self.device_name,
                 is_bt,
                 self.state,
                 self._session.get("mediaId") if self._session else None,
@@ -1591,7 +1594,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             _LOGGER.debug(
                 "%s: %s PLAY result: %s",
                 hide_email(self._login.email),
-                self.name,
+                self.device_name,
                 result,
             )
         if not is_http2_enabled(self.hass, self._login.email):
@@ -1612,6 +1615,26 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.pause())
             else:
                 await self.alexa_api.pause()
+        if not is_http2_enabled(self.hass, self._login.email):
+            await self.async_update()
+
+    @_catch_login_errors
+    async def async_media_seek(self, position: float) -> None:
+        """Seek to a position in seconds."""
+        if not self.available or self.state not in [
+            MediaPlayerState.PLAYING,
+            MediaPlayerState.PAUSED,
+        ]:
+            return
+        if self._playing_parent:
+            await self._playing_parent.async_media_seek(position)
+            return
+        await self.alexa_api.set_media(
+            {
+                "type": "SeekCommand",
+                "mediaPosition": int(position * 1000),
+            }
+        )
         if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 
@@ -2038,7 +2061,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         """
         return {
             "identifiers": {(ALEXA_DOMAIN, self.unique_id)},
-            "name": self.name,
+            "name": self.device_name,
             "manufacturer": "Amazon",
             "model": MODEL_IDS.get(
                 self._device_type, f"{self._device_family} {self._device_type}"

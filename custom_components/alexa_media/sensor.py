@@ -16,7 +16,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfTemperature, __version__ as HA_VERSION
+from homeassistant.const import PERCENTAGE, UnitOfTemperature, __version__ as HA_VERSION
 from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers import device_registry as dr
@@ -38,6 +38,7 @@ from . import (
 from .alexa_entity import (
     parse_air_quality_from_coordinator,
     parse_temperature_from_coordinator,
+    parse_value_from_coordinator,
 )
 from .const import (
     ALEXA_AIR_QUALITY_DEVICE_CLASS,
@@ -45,6 +46,7 @@ from .const import (
     ALEXA_ICON_DEFAULT,
     ALEXA_UNIT_CONVERSION,
     CONF_DEBUG,
+    CONF_EXTENDED_ENTITY_DISCOVERY,
     EPOCH_MS_THRESHOLD,
     RECURRING_DAY,
     RECURRING_PATTERN,
@@ -148,9 +150,15 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             account_dict, aiaqm_entities, debug=debug
         )
 
+    # Battery sensors for contact sensors discovered through Alexa.
+    battery_sensors = []
+    binary_entities = safe_get(account_dict, ["devices", "binary_sensor"], [])
+    if binary_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
+        battery_sensors = create_battery_sensors(account_dict, binary_entities)
+
     return await add_devices(
         hide_email(account),
-        devices + temperature_sensors + air_quality_sensors,
+        devices + temperature_sensors + air_quality_sensors + battery_sensors,
         add_devices_callback,
         include_filter,
         exclude_filter,
@@ -318,6 +326,23 @@ async def create_air_quality_sensors(
                 sensor.unique_id
             ] = sensor
             devices.append(sensor)
+    return devices
+
+
+def create_battery_sensors(account_dict, binary_entities):
+    """Create battery sensors for contact sensors that report a battery level."""
+    devices = []
+    coordinator = account_dict["coordinator"]
+
+    for entity in binary_entities:
+        if not entity.get("battery_level"):
+            continue
+        sensor = AlexaBatterySensor(coordinator, entity)
+        account_dict["entities"]["sensor"].setdefault(entity["id"], {})[
+            "Battery"
+        ] = sensor
+        devices.append(sensor)
+
     return devices
 
 
@@ -551,6 +576,43 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
             value_str,
             unit_str,
         )
+        super()._handle_coordinator_update()
+
+
+class AlexaBatterySensor(SensorEntity, CoordinatorEntity):
+    """Battery level of a contact sensor discovered through Alexa."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "battery"
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = PERCENTAGE
+
+    def __init__(self, coordinator, details):
+        """Initialize the battery sensor."""
+        super().__init__(coordinator)
+        self.alexa_entity_id = details["id"]
+        self._name = details["name"]
+        self._attr_unique_id = f"{self.alexa_entity_id}_battery"
+        self._attr_device_info = dr.DeviceInfo(
+            identifiers={(ALEXA_DOMAIN, self.alexa_entity_id)},
+            name=self._name,
+        )
+        self._update_value()
+
+    def _update_value(self):
+        """Read the battery level from the coordinator."""
+        self._attr_native_value = parse_value_from_coordinator(
+            self.coordinator,
+            self.alexa_entity_id,
+            "Alexa.BatteryLevelSensor",
+            "batteryLevel",
+        )
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._update_value()
         super()._handle_coordinator_update()
 
 
@@ -890,7 +952,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
             _LOGGER.warning(
                 "There is an old format alarm on %s set for %s. "
                 " This alarm should be removed in the Alexa app and recreated. ",
-                self._client.name,
+                self._client.device_name,
                 dt.as_local(value[1][self._sensor_property]),
             )
         else:
@@ -900,7 +962,7 @@ class AlexaMediaNotificationSensor(SensorEntity):
                 "Please confirm the timezone in the Alexa app is correct. "
                 "Debugging info: \nRaw: %s \nNaive Time: %s "
                 "\nTimezone: %s",
-                self._client.name,
+                self._client.device_name,
                 value[1],
                 naive_time,
                 self._client._timezone,  # pylint: disable=protected-access

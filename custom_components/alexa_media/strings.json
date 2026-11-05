@@ -186,6 +186,9 @@
       "temperature": {
         "name": "Temperature"
       },
+      "battery": {
+        "name": "Battery"
+      },
       "air_quality": {
         "name": "Air quality"
       },

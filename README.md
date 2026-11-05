@@ -66,8 +66,8 @@ There are no integration-specific conditions.
 
 # Installation and Configuration
 
-Install through HACS or copy `custom_components/alexa_media` into your Home
-Assistant configuration directory, restart Home Assistant, then add the
+Install through HACS or copy the `custom_components/alexa_media` directory to
+`<config>/custom_components/alexa_media`, restart Home Assistant, then add the
 integration from **Settings > Devices & services**. You need an Amazon account
 with access to the Alexa devices. If two-step verification is enabled, have the
 authenticator key or the current OTP ready.

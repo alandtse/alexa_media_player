@@ -1504,6 +1504,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     .get(serial)
                     .refresh(device, skip_api=True)
                 )
+        async_dispatcher_send(
+            hass,
+            f"{DOMAIN}_{hide_email(email)}"[0:32],
+            {"availability_update": True},
+        )
         _LOGGER.debug(
             "%s: Existing: %s New: %s;"
             " Filtered out by not being in include: %s "

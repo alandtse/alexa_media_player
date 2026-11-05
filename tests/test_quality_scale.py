@@ -114,7 +114,7 @@ async def test_async_setup_registers_services_once():
 async def test_force_logout_without_accounts_raises_service_error():
     """Registered services stay callable but explain that no account is loaded."""
     hass = MagicMock()
-    hass.data = {DATA_ALEXAMEDIA: {}}
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: {}}}}
     services = AlexaMediaServices(hass)
     call = MagicMock()
     call.data = {}

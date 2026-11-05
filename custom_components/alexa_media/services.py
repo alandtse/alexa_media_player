@@ -148,12 +148,17 @@ class AlexaMediaServices:
 
     def _get_accounts(self) -> dict[str, Any]:
         """Return loaded accounts or raise a user-facing service error."""
-        accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts")
-        if not accounts:
+        accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts") or {}
+        loaded = {
+            email: account
+            for email, account in accounts.items()
+            if account.get("login_obj") is not None
+        }
+        if not loaded:
             raise ServiceValidationError(
                 "No Alexa Media accounts are loaded. Add or reload an account first."
             )
-        return accounts
+        return loaded
 
     async def force_logout(self, call: ServiceCall) -> bool:
         """Handle force logout service request.

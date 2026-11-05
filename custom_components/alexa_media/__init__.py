@@ -3182,22 +3182,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     _LOGGER.debug("Setting up Alexa devices for %s", hide_email(login_obj.email))
     config = config_entry.data
     email = config.get(CONF_EMAIL)
-    include = (
-        cv.ensure_list_csv(config[CONF_INCLUDE_DEVICES])
-        if config[CONF_INCLUDE_DEVICES]
-        else ""
-    )
+    include_value = config_entry_option(config_entry, CONF_INCLUDE_DEVICES, "")
+    include = cv.ensure_list_csv(include_value) if include_value else ""
     _LOGGER.debug("include: %s", include)
-    exclude = (
-        cv.ensure_list_csv(config[CONF_EXCLUDE_DEVICES])
-        if config[CONF_EXCLUDE_DEVICES]
-        else ""
-    )
+    exclude_value = config_entry_option(config_entry, CONF_EXCLUDE_DEVICES, "")
+    exclude = cv.ensure_list_csv(exclude_value) if exclude_value else ""
     _LOGGER.debug("exclude: %s", exclude)
+    scan_value = config_entry_option(
+        config_entry, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+    )
     scan_interval: float = (
-        config.get(CONF_SCAN_INTERVAL).total_seconds()
-        if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)
-        else config.get(CONF_SCAN_INTERVAL)
+        scan_value.total_seconds() if isinstance(scan_value, timedelta) else scan_value
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
 

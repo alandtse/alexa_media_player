@@ -3,6 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.exceptions import ServiceValidationError
 import pytest
 
@@ -124,6 +125,28 @@ async def test_force_logout_without_accounts_raises_service_error():
 
 
 @pytest.mark.asyncio
+async def test_last_called_reports_requested_account_not_loaded():
+    """An explicit email that is not loaded is reported, not silently skipped."""
+    hass = MagicMock()
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "accounts": {
+                EMAIL: {
+                    "login_obj": MagicMock(email=EMAIL),
+                    "config_entry": MagicMock(state=ConfigEntryState.LOADED),
+                }
+            }
+        }
+    }
+    services = AlexaMediaServices(hass, update_last_called=AsyncMock())
+    call = MagicMock()
+    call.data = {"email": ["other@example.com"]}
+
+    with pytest.raises(ServiceValidationError):
+        await services.last_call_handler(call)
+
+
+@pytest.mark.asyncio
 async def test_update_last_called_service_uses_registered_callback():
     """The service calls the injected update_last_called implementation."""
     login = MagicMock(email=EMAIL)
@@ -134,6 +157,7 @@ async def test_update_last_called_service_uses_registered_callback():
             "accounts": {
                 EMAIL: {
                     "login_obj": login,
+                    "config_entry": MagicMock(state=ConfigEntryState.LOADED),
                     "service_update_last_called_task": None,
                 }
             }

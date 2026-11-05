@@ -16,6 +16,7 @@ from typing import Any, Callable
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
 from homeassistant.auth.permissions.const import POLICY_CONTROL
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import (
     HomeAssistantError,
@@ -367,6 +368,8 @@ class AlexaMediaServices:
             email: account
             for email, account in accounts.items()
             if account.get("login_obj") is not None
+            and getattr(account.get("config_entry"), "state", None)
+            == ConfigEntryState.LOADED
         }
         if not loaded:
             raise ServiceValidationError(
@@ -431,8 +434,15 @@ class AlexaMediaServices:
             return
 
         _LOGGER.debug("Service update_last_called called for: %s", requested_emails)
+        accounts = self._get_accounts()
+        if requested_emails:
+            missing = [email for email in requested_emails if email not in accounts]
+            if missing:
+                raise ServiceValidationError(
+                    "No loaded Alexa Media account found for: " + ", ".join(missing)
+                )
 
-        for email, account_dict in self._get_accounts().items():
+        for email, account_dict in accounts.items():
             if requested_emails and email not in requested_emails:
                 continue
 

@@ -35,6 +35,23 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("%s: Loading numbers", hide_email(account))
+
+    # Validate display readiness before storing any entity, otherwise a later
+    # ConfigEntryNotReady would leave unregistered entries behind for a retry.
+    login_obj = account_dict.get("login_obj")
+    display_keys = [
+        key
+        for key, device in account_dict["devices"]["media_player"].items()
+        if supports_display(device)
+    ]
+    if display_keys and (
+        login_obj is None
+        or any(
+            key not in account_dict["entities"]["media_player"] for key in display_keys
+        )
+    ):
+        raise ConfigEntryNotReady
+
     for key in account_dict["devices"]["number"]:
         client = account_dict["entities"]["media_player"].get(key)
         if client is None or key in account_dict["entities"]["number"]:
@@ -44,12 +61,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         devices.append(number)
 
     # Add display brightness for Echo Show and Echo Dot with clock devices.
-    login_obj = account_dict.get("login_obj")
     for key, device in account_dict["devices"]["media_player"].items():
         if not supports_display(device):
             continue
-        if login_obj is None or key not in account_dict["entities"]["media_player"]:
-            raise ConfigEntryNotReady
         client = account_dict["entities"]["media_player"][key]
         entity_key = f"{key}_display_brightness"
         if entity_key in account_dict["entities"]["number"]:

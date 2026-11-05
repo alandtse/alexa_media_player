@@ -196,15 +196,18 @@ class DisplayState:
 
     async def async_set(self, setting: str, value: Any) -> bool:
         """Set one display setting and update the cached value."""
-        success = await async_set_device_setting(
-            self.login, self.device_account_id, setting, value
-        )
-        if success:
-            self._values[setting] = value
-            self._async_notify()
-        else:
-            await self.async_refresh()
-        return success
+        async with self._refresh_lock:
+            success = await async_set_device_setting(
+                self.login, self.device_account_id, setting, value
+            )
+            if success:
+                self._values[setting] = value
+                self._async_notify()
+                return True
+
+        # Do not call async_refresh while holding the lock: it is not re-entrant.
+        await self.async_refresh()
+        return False
 
 
 async def async_get_display_state(

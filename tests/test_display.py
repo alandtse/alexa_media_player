@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
@@ -300,6 +300,36 @@ async def test_number_setup_creates_display_brightness():
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
 
     assert f"{SERIAL}_display_brightness" in account_dict["entities"]["number"]
+
+
+@pytest.mark.asyncio
+async def test_number_setup_checks_display_before_storing_entities():
+    """A missing display media player must not leave half-stored numbers."""
+    from custom_components.alexa_media.number import async_setup_platform
+
+    account_dict = {
+        "devices": {
+            "media_player": {
+                SERIAL: {
+                    "serialNumber": SERIAL,
+                    "deviceType": SHOW_TYPE,
+                    "deviceFamily": "ECHO_SHOW",
+                    "deviceAccountId": "account-id",
+                    "capabilities": [],
+                }
+            },
+            "number": {SERIAL: {"notification_volume": True}},
+        },
+        "entities": {"media_player": {}, "number": {}},
+        "login_obj": MagicMock(),
+    }
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
+
+    with pytest.raises(ConfigEntryNotReady):
+        await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+
+    assert account_dict["entities"]["number"] == {}
 
 
 @pytest.mark.asyncio

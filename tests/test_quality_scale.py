@@ -125,6 +125,28 @@ async def test_force_logout_without_accounts_raises_service_error():
 
 
 @pytest.mark.asyncio
+async def test_force_logout_rejects_requested_account_not_loaded():
+    """A request naming an unloaded account is rejected before any change."""
+    hass = MagicMock()
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "accounts": {
+                EMAIL: {
+                    "login_obj": MagicMock(email=EMAIL),
+                    "config_entry": MagicMock(state=ConfigEntryState.LOADED),
+                }
+            }
+        }
+    }
+    services = AlexaMediaServices(hass)
+    call = MagicMock()
+    call.data = {"email": ["other@example.com"]}
+
+    with pytest.raises(ServiceValidationError):
+        await services.force_logout(call)
+
+
+@pytest.mark.asyncio
 async def test_last_called_reports_requested_account_not_loaded():
     """An explicit email that is not loaded is reported, not silently skipped."""
     hass = MagicMock()

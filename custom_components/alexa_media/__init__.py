@@ -1169,6 +1169,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 # Backwards compat if some installs still have a single sensor stored
                 entities_to_monitor.add(airq.alexa_entity_id)
 
+            battery = per_serial.get("Battery")
+            if battery and battery.enabled:
+                entities_to_monitor.add(battery.alexa_entity_id)
+
         for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
             "light", []
         ):

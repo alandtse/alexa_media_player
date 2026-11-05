@@ -163,6 +163,19 @@ class AlexaMediaServices:
             )
         return loaded
 
+    @staticmethod
+    def _validate_requested_emails(
+        requested_emails: list[str] | None, accounts: dict[str, Any]
+    ) -> None:
+        """Reject requests that name accounts that are not loaded."""
+        if not requested_emails:
+            return
+        missing = [email for email in requested_emails if email not in accounts]
+        if missing:
+            raise ServiceValidationError(
+                "No loaded Alexa Media account found for: " + ", ".join(missing)
+            )
+
     async def force_logout(self, call: ServiceCall) -> bool:
         """Handle force logout service request.
 
@@ -177,6 +190,7 @@ class AlexaMediaServices:
         _LOGGER.debug("Service force_logout called for: %s", requested_emails)
 
         accounts = self._get_accounts()
+        self._validate_requested_emails(requested_emails, accounts)
         success = False
 
         for email, account_dict in accounts.items():
@@ -221,12 +235,7 @@ class AlexaMediaServices:
 
         _LOGGER.debug("Service update_last_called called for: %s", requested_emails)
         accounts = self._get_accounts()
-        if requested_emails:
-            missing = [email for email in requested_emails if email not in accounts]
-            if missing:
-                raise ServiceValidationError(
-                    "No loaded Alexa Media account found for: " + ", ".join(missing)
-                )
+        self._validate_requested_emails(requested_emails, accounts)
 
         for email, account_dict in accounts.items():
             if requested_emails and email not in requested_emails:
@@ -513,6 +522,7 @@ class AlexaMediaServices:
         target_emails: list[str] = data.get(ATTR_EMAIL, [])
 
         accounts = self._get_accounts()
+        self._validate_requested_emails(target_emails, accounts)
         any_matched = False
 
         for email, account_dict in accounts.items():

@@ -31,14 +31,14 @@ async def test_restart_refreshes_token_then_sends_bearer_request():
     calls = []
     login = MagicMock()
     login.url = "amazon.com"
-    login.access_token = "old-token"
+    login.access_token = "old-token"  # nosec B105
     login._ssl = False
     login.session = MagicMock()
     login.session.post.return_value = FakeResponse(200)
 
     async def _auth(_login):
         calls.append("auth")
-        login.access_token = "new-token"
+        login.access_token = "new-token"  # nosec B105
 
     login.session.post.side_effect = lambda *args, **kwargs: (
         calls.append("post") or FakeResponse(200)
@@ -69,7 +69,7 @@ async def test_restart_returns_false_for_non_2xx():
     login = MagicMock()
     login.email = EMAIL
     login.url = "amazon.com"
-    login.access_token = "token"
+    login.access_token = "token"  # nosec B105
     login._ssl = False
     login.session = MagicMock()
     login.session.post.return_value = FakeResponse(403)

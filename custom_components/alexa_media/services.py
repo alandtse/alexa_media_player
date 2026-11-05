@@ -360,6 +360,15 @@ class AlexaMediaServices:
         for service_def in SERVICE_DEFS:
             self.hass.services.async_remove(DOMAIN, service_def.name)
 
+    def _get_accounts(self) -> dict[str, Any]:
+        """Return loaded accounts or raise a user-facing service error."""
+        accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts")
+        if not accounts:
+            raise ServiceValidationError(
+                "No Alexa Media accounts are loaded. Add or reload an account first."
+            )
+        return accounts
+
     async def force_logout(self, call: ServiceCall) -> bool:
         """Handle force logout service request.
 
@@ -373,7 +382,7 @@ class AlexaMediaServices:
         requested_emails = call.data.get(ATTR_EMAIL)
         _LOGGER.debug("Service force_logout called for: %s", requested_emails)
 
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+        accounts = self._get_accounts()
         success = False
 
         for email, account_dict in accounts.items():
@@ -418,7 +427,7 @@ class AlexaMediaServices:
 
         _LOGGER.debug("Service update_last_called called for: %s", requested_emails)
 
-        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+        for email, account_dict in self._get_accounts().items():
             if requested_emails and email not in requested_emails:
                 continue
 
@@ -444,10 +453,11 @@ class AlexaMediaServices:
                     )
                 finally:
                     # Clean up task reference when done
-                    if email in self.hass.data[DATA_ALEXAMEDIA]["accounts"]:
-                        self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop(
-                            "service_update_last_called_task", None
-                        )
+                    accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get(
+                        "accounts", {}
+                    )
+                    if email in accounts:
+                        accounts[email].pop("service_update_last_called_task", None)
 
             # Cancel any existing task for this account before creating a new one
             existing_task = account_dict.get("service_update_last_called_task")
@@ -525,8 +535,7 @@ class AlexaMediaServices:
             _LOGGER.error("Entity %s not found or not part of %s", entity_id, DOMAIN)
             return None, None, None
         unique_id = entity_entry.unique_id
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
-        for email, account_dict in accounts.items():
+        for email, account_dict in self._get_accounts().items():
             for device in AlexaAPI.devices.get(email, []):
                 serial = device.get("serialNumber")
                 if not serial:
@@ -1007,7 +1016,7 @@ class AlexaMediaServices:
                 history_data_total.append(entry)
 
         # Iterate accounts and collect history
-        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+        for email, account_dict in self._get_accounts().items():
             login_obj = account_dict["login_obj"]
             try:
                 await _collect_history_for_account(login_obj)
@@ -1053,7 +1062,7 @@ class AlexaMediaServices:
         data = call.data or {}
         target_emails: list[str] = data.get(ATTR_EMAIL, [])
 
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+        accounts = self._get_accounts()
         any_matched = False
 
         for email, account_dict in accounts.items():

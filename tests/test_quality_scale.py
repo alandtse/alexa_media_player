@@ -3,6 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.exceptions import ServiceValidationError
 import pytest
 
 from custom_components.alexa_media import async_setup
@@ -61,18 +62,19 @@ async def test_options_flow_writes_options_only():
 
     result = await handler.async_step_init(user_input)
 
-    handler.hass.config_entries.async_update_entry.assert_called_once()
-    kwargs = handler.hass.config_entries.async_update_entry.call_args.kwargs
-    assert "data" not in kwargs
-    assert kwargs["options"] == {
-        "public_url": "https://example.com/",
-        "include_devices": "Kitchen",
-        "exclude_devices": "Garage",
-        "scan_interval": 60,
-        "queue_delay": 1.5,
-        "extended_entity_discovery": True,
-        "debug": False,
-    }
+    handler.hass.config_entries.async_update_entry.assert_not_called()
+    handler.async_create_entry.assert_called_once_with(
+        title="",
+        data={
+            "public_url": "https://example.com/",
+            "include_devices": "Kitchen",
+            "exclude_devices": "Garage",
+            "scan_interval": 60,
+            "queue_delay": 1.5,
+            "extended_entity_discovery": True,
+            "debug": False,
+        },
+    )
     assert result == {"type": "create_entry"}
 
 
@@ -106,6 +108,19 @@ async def test_async_setup_registers_services_once():
     services_cls.assert_called_once()
     services.register.assert_awaited_once()
     assert hass.data[DATA_ALEXAMEDIA]["services"] is services
+
+
+@pytest.mark.asyncio
+async def test_force_logout_without_accounts_raises_service_error():
+    """Registered services stay callable but explain that no account is loaded."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {}}
+    services = AlexaMediaServices(hass)
+    call = MagicMock()
+    call.data = {}
+
+    with pytest.raises(ServiceValidationError):
+        await services.force_logout(call)
 
 
 @pytest.mark.asyncio

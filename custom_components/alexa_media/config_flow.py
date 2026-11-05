@@ -1140,10 +1140,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_EXCLUDE_DEVICES
                 ].strip()
 
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, options=user_input
-            )
-            return self.async_create_entry(title="", data={})
+            # The options-flow manager writes the returned data to
+            # ConfigEntry.options once the flow finishes.
+            return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
             step_id="init",

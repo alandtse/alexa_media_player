@@ -62,11 +62,12 @@ def mock_hass(mock_account_dict):
 
 
 @pytest.fixture
-def button(mock_client, mock_account_dict):
+def button(mock_hass, mock_client, mock_account_dict):
     """Create a restart button attached to the mock account."""
     entity = AlexaRestartButton(
         mock_client, mock_account_dict["devices"]["media_player"][SERIAL]
     )
+    entity.hass = mock_hass
     return entity
 
 
@@ -86,6 +87,21 @@ async def test_setup_creates_button_for_capable_device(mock_hass, mock_account_d
     assert buttons[SERIAL].unique_id == f"{SERIAL}_restart"
     assert mock_add_devices.call_args_list[0].args[1] == [buttons[SERIAL]]
     assert mock_add_devices.call_args_list[1].args[1] == []
+
+
+@pytest.mark.asyncio
+async def test_setup_does_not_store_button_when_registration_fails(
+    mock_hass, mock_account_dict
+):
+    """A failed registration must not hide the button from the next retry."""
+    with patch(
+        "custom_components.alexa_media.button.add_devices",
+        new_callable=AsyncMock,
+        return_value=False,
+    ):
+        assert not await async_setup_platform(mock_hass, {"email": EMAIL}, MagicMock())
+
+    assert mock_account_dict["entities"]["button"] == {}
 
 
 @pytest.mark.asyncio
@@ -125,14 +141,36 @@ async def test_press_raises_when_restart_fails(button):
 
 @pytest.mark.asyncio
 async def test_press_raises_when_login_fails(button):
-    """A login error is surfaced to Home Assistant."""
-    with patch(
-        "custom_components.alexa_media.button.async_restart_device",
-        new_callable=AsyncMock,
-        side_effect=AlexapyLoginError("not logged in"),
+    """A login error is surfaced and triggers the relogin flow."""
+    with (
+        patch(
+            "custom_components.alexa_media.button.async_restart_device",
+            new_callable=AsyncMock,
+            side_effect=AlexapyLoginError("not logged in"),
+        ),
+        patch(
+            "custom_components.alexa_media.button.report_relogin_required"
+        ) as mock_report,
     ):
         with pytest.raises(HomeAssistantError):
             await button.async_press()
+
+    mock_report.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_added_to_hass_tracks_media_player_state(button, mock_client):
+    """The button refreshes when the media player availability changes."""
+    mock_client.entity_id = "media_player.kitchen"
+    button.async_on_remove = MagicMock()
+
+    with patch(
+        "custom_components.alexa_media.button.async_track_state_change_event"
+    ) as mock_track:
+        await button.async_added_to_hass()
+
+    mock_track.assert_called_once()
+    assert mock_track.call_args.args[1] == ["media_player.kitchen"]
 
 
 @pytest.mark.asyncio

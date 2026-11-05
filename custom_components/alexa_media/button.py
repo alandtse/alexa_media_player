@@ -12,11 +12,19 @@ import logging
 from alexapy import AlexapyConnectionError, AlexapyLoginError
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import CONF_EMAIL
+from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.event import async_track_state_change_event
 
 from . import DATA_ALEXAMEDIA, DOMAIN
-from .helpers import add_devices, async_restart_device, hide_email, safe_get
+from .helpers import (
+    add_devices,
+    async_restart_device,
+    hide_email,
+    report_relogin_required,
+    safe_get,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +43,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     entities = account_dict.setdefault("entities", {})
     buttons = entities.setdefault("button", {})
+    staged: dict[str, AlexaRestartButton] = {}
 
     for key, device in account_dict["devices"]["media_player"].items():
         if "ALEXA_DEVICE_REBOOT" not in device.get("capabilities", []):
@@ -52,10 +61,13 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             raise ConfigEntryNotReady
 
         button = AlexaRestartButton(client, device)
-        buttons[key] = button
+        staged[key] = button
         devices.append(button)
 
-    return await add_devices(hide_email(account), devices, add_devices_callback)
+    added = await add_devices(hide_email(account), devices, add_devices_callback)
+    if added:
+        buttons.update(staged)
+    return added
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
@@ -95,7 +107,22 @@ class AlexaRestartButton(ButtonEntity):
     @property
     def available(self) -> bool:
         """Return whether the Echo is available."""
-        return self._client.available
+        return bool(self._client.available)
+
+    async def async_added_to_hass(self) -> None:
+        """Track media player availability changes."""
+        entity_id = getattr(self._client, "entity_id", None)
+        if entity_id:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass, [entity_id], self._handle_client_state
+                )
+            )
+
+    @callback
+    def _handle_client_state(self, _event) -> None:
+        """Refresh the button when its media player state changes."""
+        self.async_write_ha_state()
 
     async def async_press(self) -> None:
         """Restart the Echo."""
@@ -106,7 +133,14 @@ class AlexaRestartButton(ButtonEntity):
                 self._device_type,
                 self._client.device_serial_number,
             )
-        except (AlexapyLoginError, AlexapyConnectionError) as err:
+        except AlexapyLoginError as err:
+            report_relogin_required(
+                self.hass, self._client._login, self._client._login.email
+            )
+            raise HomeAssistantError(
+                f"Unable to restart {self._client.name}: {err}"
+            ) from err
+        except AlexapyConnectionError as err:
             raise HomeAssistantError(
                 f"Unable to restart {self._client.name}: {err}"
             ) from err

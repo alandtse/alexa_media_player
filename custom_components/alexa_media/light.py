@@ -34,6 +34,7 @@ from . import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
+    DOMAIN as ALEXA_DOMAIN,
     hide_email,
 )
 from .alexa_entity import (

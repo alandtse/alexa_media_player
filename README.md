@@ -81,9 +81,9 @@ Detailed configuration options are documented in the
 2. Remove the `alexa_media` custom component directory.
 3. Restart Home Assistant.
 
-The integration stores its login cookies under `.storage/alexa_media.*.cookies`.
-Removing the config entry removes its runtime entities; delete the cookie files
-manually if you also want to discard the Amazon session.
+Removing the config entry normally deletes the login cookie file
+`.storage/alexa_media.<email>.pickle` and the runtime entities. If automatic
+cleanup fails, delete that file manually to discard the Amazon session.
 
 # Further Documentation
 

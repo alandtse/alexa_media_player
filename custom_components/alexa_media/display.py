@@ -15,7 +15,7 @@ import json
 import logging
 from typing import Any
 
-from alexapy import AlexaAPI, AlexaLogin
+from alexapy import AlexaAPI, AlexaLogin, hide_serial
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import PERCENTAGE
@@ -203,7 +203,12 @@ class DisplayState:
                     self.login, self.device_account_id, setting, value
                 )
             except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("%s: Unable to set %s: %s", self.serial, setting, err)
+                _LOGGER.warning(
+                    "%s: Unable to set %s: %s",
+                    hide_serial(self.serial),
+                    setting,
+                    err,
+                )
                 success = False
             if success:
                 self._values[setting] = value
@@ -219,7 +224,7 @@ class DisplayState:
         except asyncio.TimeoutError:
             _LOGGER.warning(
                 "%s: Timed out refreshing display after failed %s write",
-                self.serial,
+                hide_serial(self.serial),
                 setting,
             )
         return False

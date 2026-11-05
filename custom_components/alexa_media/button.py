@@ -14,8 +14,8 @@ from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import CONF_EMAIL
 from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.event import async_track_state_change_event
 
 from . import DATA_ALEXAMEDIA, DOMAIN
 from .helpers import (
@@ -116,13 +116,13 @@ class AlexaRestartButton(ButtonEntity):
 
     async def async_added_to_hass(self) -> None:
         """Track media player availability changes."""
-        entity_id = getattr(self._client, "entity_id", None)
-        if entity_id:
-            self.async_on_remove(
-                async_track_state_change_event(
-                    self.hass, [entity_id], self._handle_client_state
-                )
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                f"{DOMAIN}_{hide_email(self._client._login.email)}"[0:32],
+                self._handle_client_state,
             )
+        )
 
     @callback
     def _handle_client_state(self, _event) -> None:

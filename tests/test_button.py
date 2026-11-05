@@ -159,18 +159,17 @@ async def test_press_raises_when_login_fails(button):
 
 
 @pytest.mark.asyncio
-async def test_added_to_hass_tracks_media_player_state(button, mock_client):
-    """The button refreshes when the media player availability changes."""
-    mock_client.entity_id = "media_player.kitchen"
+async def test_added_to_hass_tracks_account_events(button):
+    """The button refreshes on account events without needing an entity ID."""
     button.async_on_remove = MagicMock()
 
     with patch(
-        "custom_components.alexa_media.button.async_track_state_change_event"
-    ) as mock_track:
+        "custom_components.alexa_media.button.async_dispatcher_connect"
+    ) as mock_connect:
         await button.async_added_to_hass()
 
-    mock_track.assert_called_once()
-    assert mock_track.call_args.args[1] == ["media_player.kitchen"]
+    mock_connect.assert_called_once()
+    assert mock_connect.call_args.args[1].startswith("alexa_media_")
 
 
 @pytest.mark.asyncio

@@ -24,9 +24,6 @@ from custom_components.alexa_media.config_flow import (
 )
 from custom_components.alexa_media.const import (
     AUTH_PROXY_NAME,
-    DOMAIN,
-)
-from custom_components.alexa_media.const import (
     CONF_DEBUG,
     CONF_EXCLUDE_DEVICES,
     CONF_EXTENDED_ENTITY_DISCOVERY,
@@ -40,6 +37,7 @@ from custom_components.alexa_media.const import (
     CONF_TOTP_REGISTER,
     DATA_ALEXAMEDIA,
     DEFAULT_HASS_URL,
+    DOMAIN,
 )
 
 EMAIL = "test@example.com"  # noqa: S105

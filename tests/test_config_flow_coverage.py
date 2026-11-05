@@ -252,8 +252,8 @@ def _login(status=None):
     login.login = AsyncMock()
     login.close = AsyncMock()
     login.reported_account_domain = None
-    login.access_token = "access"  # nosec B105
-    login.refresh_token = "refresh"  # nosec B105
+    login.access_token = "access"  # noqa: S105  # nosec B105
+    login.refresh_token = "refresh"  # noqa: S105  # nosec B105
     login.expires_in = 3600
     login.mac_dms = "mac"
     login.code_verifier = "verifier"
@@ -830,7 +830,7 @@ async def test_callback_view_success_and_bad_flow():
     hass.config_entries.flow.async_configure.assert_awaited_once()
 
     bad = _request(hass, path="/auth/alexamedia/callback")
-    with pytest.raises(Exception):
+    with pytest.raises(web.HTTPBadRequest):
         await view.get(bad)
 
 

@@ -80,6 +80,34 @@ async def test_options_flow_writes_options_only():
 
 
 @pytest.mark.asyncio
+async def test_options_flow_keeps_empty_public_url():
+    """An empty public URL must stay empty, not become a root URL."""
+    entry = MagicMock()
+    entry.data = {"email": EMAIL}
+    entry.options = {}
+    entry.entry_id = "entry-id"
+
+    handler = OptionsFlowHandler(entry)
+    handler.hass = MagicMock()
+    handler._config_entry = entry
+    handler.async_create_entry = MagicMock(return_value={"type": "create_entry"})
+
+    user_input = {
+        "public_url": "",
+        "include_devices": "",
+        "exclude_devices": "",
+        "scan_interval": 60,
+        "queue_delay": 1.5,
+        "extended_entity_discovery": False,
+        "debug": False,
+    }
+
+    await handler.async_step_init(user_input)
+
+    assert handler.async_create_entry.call_args.kwargs["data"]["public_url"] == ""
+
+
+@pytest.mark.asyncio
 async def test_async_setup_registers_services_once():
     """Services are registered from async_setup, not per config entry."""
     hass = MagicMock()

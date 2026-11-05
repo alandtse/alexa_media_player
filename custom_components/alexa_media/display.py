@@ -29,6 +29,7 @@ from .const import DOMAIN, MODEL_IDS
 _LOGGER = logging.getLogger(__name__)
 
 DISPLAY_SCAN_INTERVAL = timedelta(minutes=15)
+DISPLAY_REFRESH_TIMEOUT = 30
 
 SETTING_DISPLAY_POWER = "displayPower"
 SETTING_BRIGHTNESS = "brightness"
@@ -202,7 +203,7 @@ class DisplayState:
                     self.login, self.device_account_id, setting, value
                 )
             except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("Unable to set %s: %s", setting, err)
+                _LOGGER.warning("%s: Unable to set %s: %s", self.serial, setting, err)
                 success = False
             if success:
                 self._values[setting] = value
@@ -210,7 +211,17 @@ class DisplayState:
                 return True
 
         # Do not call async_refresh while holding the lock: it is not re-entrant.
-        await self.async_refresh()
+        # Bound the fallback so a throttled API cannot hold later writes hostage.
+        try:
+            await asyncio.wait_for(
+                self.async_refresh(), timeout=DISPLAY_REFRESH_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "%s: Timed out refreshing display after failed %s write",
+                self.serial,
+                setting,
+            )
         return False
 
 

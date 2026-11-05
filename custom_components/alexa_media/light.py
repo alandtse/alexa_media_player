@@ -127,6 +127,9 @@ def color_modes(details) -> list:
 class AlexaLight(CoordinatorEntity, LightEntity):
     """A light controlled by an Echo."""
 
+    _attr_has_entity_name = True
+    _attr_name = None
+
     def __init__(self, coordinator, login, details):
         """Initialize alexa light entity."""
         super().__init__(coordinator)
@@ -149,9 +152,17 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         self._requested_hs = None
 
     @property
-    def name(self):
+    def device_name(self):
         """Return name."""
         return self._name
+
+    @property
+    def device_info(self):
+        """Return device information for the light."""
+        return {
+            "identifiers": {(ALEXA_DOMAIN, self.alexa_entity_id)},
+            "name": self._name,
+        }
 
     @property
     def unique_id(self):

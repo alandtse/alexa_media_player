@@ -119,13 +119,13 @@ class AlexaNotificationService(BaseNotificationService):
                 #     "Testing item: %s against (%s, %s, %s, %s)",
                 #     item,
                 #     alexa,
-                #     alexa.name,
+                #     alexa.device_name,
                 #     hide_serial(alexa.unique_id),
                 #     alexa.entity_id,
                 # )
                 if item in (
                     alexa,
-                    alexa.name,
+                    alexa.device_name,
                     alexa.unique_id,
                     alexa.entity_id,
                     alexa.device_serial_number,
@@ -135,7 +135,7 @@ class AlexaNotificationService(BaseNotificationService):
                     elif type_ == "serialnumbers":
                         converted = alexa.device_serial_number
                     elif type_ == "names":
-                        converted = alexa.name
+                        converted = alexa.device_name
                     elif type_ == "entity_ids":
                         converted = alexa.entity_id
                     devices.append(converted)

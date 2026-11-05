@@ -365,7 +365,8 @@ class TestAlarmControlPanelProperties:
         """Test name property returns friendly name with last 5 chars of appliance_id."""
         panel = self._create_panel()
         # Friendly name should be "Alexa Guard " + last 5 chars of appliance_id
-        assert panel.name == "Alexa Guard 12345"
+        assert panel.device_name == "Alexa Guard 12345"
+        assert panel.name is None
 
     def test_state_returns_armed_away(self):
         """Test state property returns armed away when coordinator says ARMED_AWAY."""

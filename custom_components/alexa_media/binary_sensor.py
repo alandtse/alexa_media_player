@@ -116,6 +116,8 @@ class AlexaContact(CoordinatorEntity, BinarySensorEntity):
     """A contact sensor controlled by an Echo."""
 
     _attr_device_class = BinarySensorDeviceClass.DOOR
+    _attr_has_entity_name = True
+    _attr_name = None
 
     def __init__(self, coordinator: CoordinatorEntity, details: dict):
         """Initialize alexa contact sensor.
@@ -130,7 +132,7 @@ class AlexaContact(CoordinatorEntity, BinarySensorEntity):
         self._name = details["name"]
 
     @property
-    def name(self):
+    def device_name(self):
         """Return name."""
         return self._name
 
@@ -138,6 +140,14 @@ class AlexaContact(CoordinatorEntity, BinarySensorEntity):
     def unique_id(self):
         """Return unique id."""
         return self.alexa_entity_id
+
+    @property
+    def device_info(self):
+        """Group the contact and battery sensors under one device."""
+        return {
+            "identifiers": {(DATA_ALEXAMEDIA, self.alexa_entity_id)},
+            "name": self._name,
+        }
 
     @property
     def is_on(self):

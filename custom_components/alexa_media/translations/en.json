@@ -98,6 +98,9 @@
       },
       "temperature": {
         "name": "Temperature"
+      },
+      "battery": {
+        "name": "Battery"
       }
     },
     "switch": {

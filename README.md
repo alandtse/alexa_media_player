@@ -25,9 +25,65 @@ Allows for control of Amazon Echo products as home assistant media devices with 
   - Album Name
   - Album Image
 
+# Features
+
+- Media player controls: play, pause, stop, next/previous, volume, mute,
+  shuffle, repeat, Bluetooth source selection and media metadata.
+- Send speech, announcements, mobile push notifications and drop-in
+  notifications through `notify.alexa_media`.
+- Run Alexa routines, skills, sounds and text commands from `play_media`.
+- Next alarm, timer and reminder sensors with dismissal events.
+- Do Not Disturb, shuffle and repeat switches; alarm and notification volume.
+- Echo temperature, Amazon Indoor Air Quality Monitor sensors and Alexa Guard.
+- Amazon Kids child-mode switch, select and binary sensor.
+- Optional extended discovery of lights, smart plugs/switches, contact sensors
+  and their battery levels through Alexa.
+- Echo Show / Echo Dot with clock display power, brightness and adaptive
+  brightness controls.
+- Restart button for Echo devices that support remote reboot.
+
+# Services
+
+| Service | Description |
+| --- | --- |
+| `alexa_media.force_logout` | Mark one or all accounts for reauthentication. |
+| `alexa_media.restore_volume` | Restore the previous volume of a media player. |
+| `alexa_media.get_history_records` | Store recent voice-history records on a media player. |
+| `alexa_media.update_last_called` | Refresh which Echo received the last voice command. |
+| `alexa_media.enable_network_discovery` | Re-run Alexa network discovery. |
+| `alexa_media.amazon_kids_enable` | Assign an Echo to an Amazon Kids child profile. |
+| `alexa_media.amazon_kids_disable` | Release an Echo from Amazon Kids. |
+
+# Events
+
+- `alexa_media_voice_command`: fired for each new voice-history record with the
+  command, response and timestamp.
+- `alexa_media_alarm_dismissal_event`: fired when an alarm is dismissed.
+- `alexa_media_notification_event`: fired when an alarm, timer or reminder is
+  due.
+
+There are no integration-specific conditions.
+
 # Installation and Configuration
 
-Please see the [wiki.](https://github.com/alandtse/alexa_media_player/wiki/Configuration)
+Install through HACS or copy `custom_components/alexa_media` into your Home
+Assistant configuration directory, restart Home Assistant, then add the
+integration from **Settings > Devices & services**. You need an Amazon account
+with access to the Alexa devices. If two-step verification is enabled, have the
+authenticator key or the current OTP ready.
+
+Detailed configuration options are documented in the
+[wiki](https://github.com/alandtse/alexa_media_player/wiki/Configuration).
+
+# Removal
+
+1. Remove the integration from **Settings > Devices & services**.
+2. Remove the `alexa_media` custom component directory.
+3. Restart Home Assistant.
+
+The integration stores its login cookies under `.storage/alexa_media.*.cookies`.
+Removing the config entry removes its runtime entities; delete the cookie files
+manually if you also want to discard the Amazon session.
 
 # Further Documentation
 

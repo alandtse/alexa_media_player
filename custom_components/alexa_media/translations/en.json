@@ -64,6 +64,9 @@
   },
   "entity": {
     "number": {
+      "display_brightness": {
+        "name": "Display brightness"
+      },
       "notification_volume": {
         "name": "Alarm and notification volume"
       }
@@ -101,6 +104,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Adaptive brightness"
+      },
+      "display_power": {
+        "name": "Display"
+      },
       "do_not_disturb": {
         "name": "Do not disturb"
       },

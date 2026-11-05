@@ -1204,6 +1204,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         return self._device_serial_number
 
     @property
+    def cluster_members(self):
+        """Return the serial numbers of the group members."""
+        return self._cluster_members or []
+
+    @property
     def session(self):
         """Return the session, if any."""
         return self._session

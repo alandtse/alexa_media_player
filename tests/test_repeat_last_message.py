@@ -224,7 +224,7 @@ class TestRepeatLastMessage:
         kitchen.alexa_api.send_tts.reset_mock()
         office.alexa_api.send_tts.reset_mock()
 
-        with pytest.raises(ServiceValidationError, match="media_player.unknown"):
+        with pytest.raises(ServiceValidationError, match=r"media_player\.unknown"):
             await self._repeat(
                 hass,
                 ["media_player.kitchen", "media_player.unknown", "media_player.office"],

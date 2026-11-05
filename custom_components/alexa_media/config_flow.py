@@ -944,9 +944,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             # Remove accidental whitespace introduced by mobile keyboards/paste.
             self.config[CONF_URL] = "".join(user_input[CONF_URL].split())
         if CONF_PUBLIC_URL in user_input:
-            if not user_input[CONF_PUBLIC_URL].endswith("/"):
-                user_input[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL] + "/"
-            self.config[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL]
+            public_url = user_input.get(CONF_PUBLIC_URL) or ""
+            if public_url and not public_url.endswith("/"):
+                public_url += "/"
+            user_input[CONF_PUBLIC_URL] = public_url
+            self.config[CONF_PUBLIC_URL] = public_url
         if CONF_SCAN_INTERVAL in user_input:
             self.config[CONF_SCAN_INTERVAL] = (
                 user_input[CONF_SCAN_INTERVAL]
@@ -1127,7 +1129,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             # Options belong in ConfigEntry.options. Credentials and the Amazon
             # region stay in ConfigEntry.data and are not touched here.
-            if CONF_PUBLIC_URL in user_input and not user_input[
+            if user_input.get(CONF_PUBLIC_URL) and not user_input[
                 CONF_PUBLIC_URL
             ].endswith("/"):
                 user_input[CONF_PUBLIC_URL] = f"{user_input[CONF_PUBLIC_URL]}/"

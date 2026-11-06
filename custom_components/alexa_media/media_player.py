@@ -29,8 +29,8 @@ from homeassistant.components.media_player.const import (
     RepeatMode,
 )
 from homeassistant.const import CONF_EMAIL, CONF_NAME, CONF_PASSWORD, STATE_UNAVAILABLE
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
@@ -232,6 +232,11 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaClient(MediaPlayerDevice, AlexaMedia):
     """Representation of a Alexa device."""
 
+    # Keep message text out of the recorder
+    _unrecorded_attributes = frozenset(
+        {"last_message", "last_message_type", "last_message_timestamp"}
+    )
+
     def __init__(self, device, login, second_account_index=0):
         """Initialize the Alexa device."""
         super().__init__(self, login)
@@ -284,6 +289,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._last_called_timestamp = None
         self._last_called_summary = None
         self._last_called_response = None
+        # Last notify message
+        self._last_message = None
         # Do not Disturb state
         self._dnd = None
         # Polling state
@@ -1197,6 +1204,11 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         return self._device_serial_number
 
     @property
+    def cluster_members(self):
+        """Return the serial numbers of the group members."""
+        return self._cluster_members or []
+
+    @property
     def session(self):
         """Return the session, if any."""
         return self._session
@@ -1758,6 +1770,51 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 message, customer_id=self._customer_id, **kwargs
             )
 
+    @callback
+    def async_set_last_message(
+        self,
+        message: str,
+        message_type: str,
+        title: Optional[str] = None,
+        method: Optional[str] = None,
+    ) -> None:
+        """Store the last TTS or announcement notify sent to this device."""
+        if not message:
+            return
+        self._last_message = {
+            "message": message,
+            "type": message_type,
+            "title": title,
+            "method": method,
+            "timestamp": util.dt.utcnow(),
+        }
+        if self.hass and self.entity_id:
+            self.async_write_ha_state()
+
+    async def async_repeat_last_message(self) -> None:
+        """Send the last TTS or announcement to this device again."""
+        if not self._last_message:
+            raise ServiceValidationError(f"No message to repeat on {self.entity_id}")
+        if not self.available:
+            raise ServiceValidationError(
+                f"Can't repeat the last message, {self.entity_id} is unavailable"
+            )
+        account = self.hass.data[DATA_ALEXAMEDIA].get("accounts", {}).get(self.email)
+        if account is None:
+            raise ServiceValidationError(f"No account found for {self.entity_id}")
+        queue_delay = account["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY)
+        message = self._last_message["message"]
+        if self._last_message["type"] == "announce":
+            await self.async_send_announcement(
+                message,
+                targets=[self.device_serial_number],
+                title=self._last_message["title"],
+                method=self._last_message["method"],
+                queue_delay=queue_delay,
+            )
+        else:
+            await self.async_send_tts(message, queue_delay=queue_delay)
+
     @_catch_login_errors
     async def async_play_tts_cloud_say(self, public_url, media_id, **kwargs):
         file_name = media_id
@@ -2003,6 +2060,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     @property
     def extra_state_attributes(self):
         """Return the state attributes."""
+        last_message = self._last_message or {}
         attr = {
             "locale": self._locale,
             "available": self.available,
@@ -2014,6 +2072,9 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "bluetooth_list": self._bluetooth_list,
             "history_records": self._history_records,
             "previous_volume": self._previous_volume,
+            "last_message": last_message.get("message"),
+            "last_message_type": last_message.get("type"),
+            "last_message_timestamp": last_message.get("timestamp"),
         }
         return attr
 

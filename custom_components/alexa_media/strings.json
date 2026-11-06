@@ -163,6 +163,16 @@
           "description": "Echo device to disable Amazon Kids on"
         }
       }
+    },
+    "repeat_last_message": {
+      "name": "Repeat Last Message",
+      "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media players:",
+          "description": "Echo devices to repeat the last message on"
+        }
+      }
     }
   },
   "entity": {

@@ -95,6 +95,7 @@ SERVICE_FORCE_LOGOUT = "force_logout"
 SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 SERVICE_AMAZON_KIDS_ENABLE = "amazon_kids_enable"
 SERVICE_AMAZON_KIDS_DISABLE = "amazon_kids_disable"
+SERVICE_REPEAT_LAST_MESSAGE = "repeat_last_message"
 
 # Backoff durations for the last-called probe worker
 LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0

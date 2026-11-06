@@ -216,6 +216,18 @@ class TestRepeatLastMessage:
         await self._repeat(hass, "media_player.kitchen")
         kitchen.alexa_api.send_tts.assert_awaited_once()
 
+    async def test_missing_account_does_not_repeat(self, hass):
+        """The service fails cleanly if the Echo's account has gone."""
+        (kitchen,) = await self._setup(hass, "Kitchen")
+        await self._notify(hass, "Dinner is ready", ["media_player.kitchen"])
+        kitchen.alexa_api.send_tts.reset_mock()
+        accounts = hass.data[DATA_ALEXAMEDIA]["accounts"]
+        accounts["new@example.com"] = accounts.pop(EMAIL)
+
+        with pytest.raises(ServiceValidationError, match="No account found"):
+            await self._repeat(hass, "media_player.kitchen")
+        kitchen.alexa_api.send_tts.assert_not_called()
+
     async def test_service_repeats_each_entity(self, hass):
         """Each Echo in the list repeats its own message, then unknown ones fail."""
         kitchen, office = await self._setup(hass, "Kitchen", "Office")

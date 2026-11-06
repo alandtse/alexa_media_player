@@ -1799,9 +1799,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             raise ServiceValidationError(
                 f"Can't repeat the last message, {self.entity_id} is unavailable"
             )
-        queue_delay = self.hass.data[DATA_ALEXAMEDIA]["accounts"][self.email][
-            "options"
-        ].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY)
+        account = self.hass.data[DATA_ALEXAMEDIA].get("accounts", {}).get(self.email)
+        if account is None:
+            raise ServiceValidationError(f"No account found for {self.entity_id}")
+        queue_delay = account["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY)
         message = self._last_message["message"]
         if self._last_message["type"] == "announce":
             await self.async_send_announcement(

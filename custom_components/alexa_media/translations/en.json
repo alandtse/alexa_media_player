@@ -63,6 +63,11 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Restart"
+      }
+    },
     "number": {
       "display_brightness": {
         "name": "Display brightness"

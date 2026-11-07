@@ -226,6 +226,11 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Restart"
+      }
+    },
     "number": {
       "notification_volume": {
         "name": "Alarm and notification volume"

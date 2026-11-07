@@ -13,7 +13,7 @@ import hashlib
 import logging
 from typing import Any, Callable, Optional, TypeVar, overload
 
-from alexapy import AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
+from alexapy import AlexaAPI, AlexapyLoginCloseRequested, AlexapyLoginError, hide_email
 from alexapy.alexalogin import AlexaLogin
 from dictor import dictor
 from homeassistant.const import CONF_EMAIL, CONF_URL
@@ -502,6 +502,47 @@ def alarm_just_dismissed(
     # We also know the alarm's status rules out a snooze.
     # The only remaining possibility is that this alarm was just dismissed.
     return True
+
+
+async def async_restart_device(
+    login: AlexaLogin, device_type: str, serial: str
+) -> bool:
+    """Restart an Echo device through the Alexa device reboot endpoint.
+
+    The reboot endpoint uses the OAuth access token instead of the web session
+    cookies. ``get_authentication`` is used first because it goes through
+    alexapy's token refresh path, so a stale token is renewed before we read it.
+    """
+    if not device_type or not serial:
+        return False
+
+    await AlexaAPI.get_authentication(login)
+    access_token = login.access_token
+    if not access_token:
+        raise AlexapyLoginError("No access token available for device reboot")
+
+    url = f"https://alexa.{login.url}/v1/alexa/device/reboot/{device_type}/{serial}"
+    headers = {
+        "authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json; charset=UTF-8",
+        "User-Agent": "AlexaMediaPlayer",
+    }
+    payload = {"deviceSerialNumber": serial, "deviceType": device_type}
+
+    async with login.session.post(
+        url, json=payload, headers=headers, ssl=login._ssl
+    ) as response:
+        if 200 <= response.status < 300:
+            return True
+        _LOGGER.debug(
+            "%s: Device reboot for %s returned %s: %s",
+            hide_email(login.email),
+            serial,
+            response.status,
+            await response.text(),
+        )
+        return False
 
 
 def is_http2_enabled(hass: HomeAssistant | None, login_email: str) -> bool:

@@ -34,6 +34,12 @@ from .alexa_media import AlexaMedia
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .aqm_led import resolve_endpoint_id, set_led_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
+from .display import (
+    AlexaAdaptiveBrightnessSwitch,
+    AlexaDisplayPowerSwitch,
+    async_get_display_state,
+    supports_display,
+)
 from .helpers import (
     _catch_login_errors,
     _coerce_filter,
@@ -128,6 +134,35 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     hide_email(account),
                     alexa_client,
                 )
+    # Add display controls for Echo Show and Echo Dot with clock devices.
+    display_devices: list[SwitchDevice] = []
+    login_obj = account_dict.get("login_obj")
+    for key, device in account_dict["devices"]["media_player"].items():
+        if not supports_display(device):
+            continue
+        client = account_dict["entities"]["media_player"].get(key)
+        if login_obj is None or client is None:
+            _LOGGER.debug(
+                "%s: Media player %s not loaded yet; delaying display setup",
+                hide_email(account),
+                hide_serial(key),
+            )
+            raise ConfigEntryNotReady
+
+        display_state = await async_get_display_state(
+            hass, account_dict, login_obj, device, client
+        )
+        switch_dict = account_dict["entities"]["switch"].setdefault(key, {})
+        for switch_key, class_ in (
+            ("display_power", AlexaDisplayPowerSwitch),
+            ("adaptive_brightness", AlexaAdaptiveBrightnessSwitch),
+        ):
+            if switch_key in switch_dict:
+                continue
+            display_switch = class_(display_state)
+            switch_dict[switch_key] = display_switch
+            display_devices.append(display_switch)
+
     # Add Amazon Smart Plug devices
     switch_entities = safe_get(account_dict, ["devices", "smart_switch"], [])
     hue_emulated_enabled = "emulated_hue" in hass.config.as_dict().get(
@@ -201,7 +236,20 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     )
     if led_devices:
         result = (
-            await add_devices(hide_email(account), led_devices, add_devices_callback)
+            await add_devices(
+                hide_email(account), led_devices, add_devices_callback
+            )
+            and result
+        )
+
+    if display_devices:
+        # These are already scoped by the media-player filter; applying the
+        # name filter again would drop them because their names are "Display"
+        # and "Adaptive brightness", not the Echo name.
+        result = (
+            await add_devices(
+                hide_email(account), display_devices, add_devices_callback
+            )
             and result
         )
     if kids_devices:

@@ -229,6 +229,9 @@
     "number": {
       "notification_volume": {
         "name": "Alarm and notification volume"
+      },
+      "display_brightness": {
+        "name": "Display brightness"
       }
     },
     "switch": {
@@ -240,6 +243,12 @@
       },
       "repeat": {
         "name": "Repeat"
+      },
+      "display_power": {
+        "name": "Display"
+      },
+      "adaptive_brightness": {
+        "name": "Adaptive brightness"
       }
     },
     "sensor": {

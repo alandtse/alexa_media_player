@@ -835,6 +835,7 @@ async def async_setup_entry(hass, config_entry):
             "http2": None,
             "auth_info": None,
             "amazon_kids": None,
+            "display_states": {},
             "second_account_index": 0,
             "should_get_network": True,
             "first_run": True,
@@ -3323,6 +3324,12 @@ async def async_unload_entry(hass, entry) -> bool:
     if amazon_kids:
         amazon_kids.async_stop()
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["amazon_kids"] = None
+
+    for display_state in (
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("display_states", {}).values()
+    ):
+        display_state.async_stop()
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

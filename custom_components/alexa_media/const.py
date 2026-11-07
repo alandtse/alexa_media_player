@@ -414,7 +414,7 @@ MODEL_IDS = {
     "A3R9S4ZZECZ6YL": "Fire Tablet HD 10",
     "A3RBAYBE7VM004": "Echo Studio",
     "A3RCTOK2V0A4ZG": "LG TV",
-    "A3RMGO6LYLH7YN": "Echo Dot (Gen4)",
+    "A3RMGO6LYLH7YN": "Echo (Gen4)",
     "A3S5BH2HU6VAYF": "Echo Dot (Gen2)",
     "A3SSG6GR8UU7SN": "Echo Sub",
     "A3SSWQ04XYPXBH": "Generic Tablet",

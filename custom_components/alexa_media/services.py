@@ -330,6 +330,20 @@ class AlexaMediaServices:
         _LOGGER.error("Child profile '%s' not found in household", child)
         return None
 
+    async def _async_refresh_kids(self, login_obj) -> None:
+        """Refresh the shared Amazon Kids state of the account after a change.
+
+        Without this the switch, select and binary sensor only show a change
+        made by a service at their next poll, up to five minutes later.
+        """
+        for account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].values():
+            if account_dict.get("login_obj") is not login_obj:
+                continue
+            kids_state = account_dict.get("amazon_kids")
+            if kids_state is not None:
+                await kids_state.async_refresh()
+            return
+
     @_catch_login_errors
     async def amazon_kids_enable(self, call: ServiceCall) -> bool:
         """Enable Amazon Kids on a device by assigning it to a child profile.
@@ -349,6 +363,7 @@ class AlexaMediaServices:
             return False
         await AlexaAPI.enable_child_mode(login_obj, serial, device_type, child_id)
         _LOGGER.debug("Enabled Amazon Kids on %s for child %s", entity_id, child)
+        await self._async_refresh_kids(login_obj)
         return True
 
     @_catch_login_errors
@@ -365,6 +380,7 @@ class AlexaMediaServices:
             return False
         await AlexaAPI.disable_child_mode(login_obj, serial, device_type)
         _LOGGER.debug("Disabled Amazon Kids on %s", entity_id)
+        await self._async_refresh_kids(login_obj)
         return True
 
     async def get_history_records(self, call: ServiceCall) -> bool:

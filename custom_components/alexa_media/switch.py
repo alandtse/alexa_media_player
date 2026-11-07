@@ -236,9 +236,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     )
     if led_devices:
         result = (
-            await add_devices(
-                hide_email(account), led_devices, add_devices_callback
-            )
+            await add_devices(hide_email(account), led_devices, add_devices_callback)
             and result
         )
 

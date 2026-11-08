@@ -429,11 +429,7 @@ class AlexaMediaServices:
         return None
 
     async def _async_refresh_kids(self, login_obj) -> None:
-        """Refresh the shared Amazon Kids state of the account after a change.
-
-        Without this the switch, select and binary sensor only show a change
-        made by a service at their next poll, up to five minutes later.
-        """
+        """Refresh the shared Amazon Kids state of the account."""
         for account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].values():
             if account_dict.get("login_obj") is not login_obj:
                 continue
@@ -611,7 +607,6 @@ class AlexaMediaServices:
                 f"Alarm {alarm.get('id')} on {entity_id} has no time"
             ) from err
         days = alarm_days(alarm)
-        # Don't guess the next ring of a repeat we can't read, such as monthly.
         if alarm.get("recurringPattern") and not days:
             raise ServiceValidationError(
                 f"Can't tell when alarm {alarm.get('id')} on {entity_id} repeats"

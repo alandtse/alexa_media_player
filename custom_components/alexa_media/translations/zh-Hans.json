@@ -63,7 +63,15 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Restart"
+      }
+    },
     "number": {
+      "display_brightness": {
+        "name": "Display brightness"
+      },
       "notification_volume": {
         "name": "Alarm and notification volume"
       }
@@ -101,6 +109,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Adaptive brightness"
+      },
+      "display_power": {
+        "name": "Display"
+      },
       "do_not_disturb": {
         "name": "Do not disturb"
       },
@@ -165,6 +179,66 @@
         }
       },
       "name": "Enable Amazon Kids"
+    },
+    "create_alarm": {
+      "description": "Creates an alarm on an Echo.",
+      "fields": {
+        "days": {
+          "description": "Days to repeat on. Leave empty for a one-off alarm.",
+          "name": "Repeat on"
+        },
+        "entity_id": {
+          "description": "Echo device to set the alarm on",
+          "name": "Select media player:"
+        },
+        "time": {
+          "description": "Time the alarm rings",
+          "name": "Time"
+        }
+      },
+      "name": "Create alarm"
+    },
+    "delete_alarm": {
+      "description": "Deletes an Echo alarm.",
+      "fields": {
+        "alarm_id": {
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor",
+          "name": "Alarm ID"
+        },
+        "entity_id": {
+          "description": "Echo device the alarm is on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Delete alarm"
+    },
+    "disable_alarm": {
+      "description": "Turns off an Echo alarm without deleting it.",
+      "fields": {
+        "alarm_id": {
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor",
+          "name": "Alarm ID"
+        },
+        "entity_id": {
+          "description": "Echo device the alarm is on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Disable alarm"
+    },
+    "enable_alarm": {
+      "description": "Turns on an Echo alarm.",
+      "fields": {
+        "alarm_id": {
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor",
+          "name": "Alarm ID"
+        },
+        "entity_id": {
+          "description": "Echo device the alarm is on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Enable alarm"
     },
     "enable_network_discovery": {
       "description": "重新启用 Alexa 网络发现功能，以便在下一个轮询周期中重新发现所选帐户的 Alexa 设备。",

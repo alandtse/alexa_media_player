@@ -53,6 +53,7 @@ DEPENDENT_ALEXA_COMPONENTS = [
     "binary_sensor",
     "select",
     "number",
+    "button",
 ]
 
 HTTP_COOKIE_HEADER = "# HTTP Cookie File"
@@ -96,6 +97,10 @@ SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 SERVICE_AMAZON_KIDS_ENABLE = "amazon_kids_enable"
 SERVICE_AMAZON_KIDS_DISABLE = "amazon_kids_disable"
 SERVICE_REPEAT_LAST_MESSAGE = "repeat_last_message"
+SERVICE_CREATE_ALARM = "create_alarm"
+SERVICE_ENABLE_ALARM = "enable_alarm"
+SERVICE_DISABLE_ALARM = "disable_alarm"
+SERVICE_DELETE_ALARM = "delete_alarm"
 
 # Backoff durations for the last-called probe worker
 LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0
@@ -169,6 +174,9 @@ ATTR_EMAIL = "email"
 ATTR_ENTITY_ID = "entity_id"
 ATTR_NUM_ENTRIES = "entries"
 ATTR_CHILD = "child"
+ATTR_ALARM_ID = "alarm_id"
+ATTR_TIME = "time"
+ATTR_DAYS = "days"
 COMMON_BUCKET_COUNTS = (
     "accounts",
     "devices",
@@ -408,7 +416,7 @@ MODEL_IDS = {
     "A3R9S4ZZECZ6YL": "Fire Tablet HD 10",
     "A3RBAYBE7VM004": "Echo Studio",
     "A3RCTOK2V0A4ZG": "LG TV",
-    "A3RMGO6LYLH7YN": "Echo Dot (Gen4)",
+    "A3RMGO6LYLH7YN": "Echo (Gen4)",
     "A3S5BH2HU6VAYF": "Echo Dot (Gen2)",
     "A3SSG6GR8UU7SN": "Echo Sub",
     "A3SSWQ04XYPXBH": "Generic Tablet",

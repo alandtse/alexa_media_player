@@ -164,6 +164,66 @@
         }
       }
     },
+    "create_alarm": {
+      "name": "Create alarm",
+      "description": "Creates an alarm on an Echo.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device to set the alarm on"
+        },
+        "time": {
+          "name": "Time",
+          "description": "Time the alarm rings"
+        },
+        "days": {
+          "name": "Repeat on",
+          "description": "Days to repeat on. Leave empty for a one-off alarm."
+        }
+      }
+    },
+    "enable_alarm": {
+      "name": "Enable alarm",
+      "description": "Turns on an Echo alarm.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device the alarm is on"
+        },
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor"
+        }
+      }
+    },
+    "disable_alarm": {
+      "name": "Disable alarm",
+      "description": "Turns off an Echo alarm without deleting it.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device the alarm is on"
+        },
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor"
+        }
+      }
+    },
+    "delete_alarm": {
+      "name": "Delete alarm",
+      "description": "Deletes an Echo alarm.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device the alarm is on"
+        },
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor"
+        }
+      }
+    },
     "repeat_last_message": {
       "name": "Repeat Last Message",
       "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
@@ -176,9 +236,17 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Restart"
+      }
+    },
     "number": {
       "notification_volume": {
         "name": "Alarm and notification volume"
+      },
+      "display_brightness": {
+        "name": "Display brightness"
       }
     },
     "switch": {
@@ -190,6 +258,12 @@
       },
       "repeat": {
         "name": "Repeat"
+      },
+      "display_power": {
+        "name": "Display"
+      },
+      "adaptive_brightness": {
+        "name": "Adaptive brightness"
       }
     },
     "sensor": {

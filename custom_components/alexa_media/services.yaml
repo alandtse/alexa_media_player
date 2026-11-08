@@ -102,6 +102,70 @@ amazon_kids_disable:
           domain: media_player
           integration: alexa_media
 
+create_alarm:
+  name: Create alarm
+  description: Create an alarm on an Echo.
+  fields:
+    entity_id:
+      name: Entity
+      description: Alexa Media Player device to set the alarm on.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
+    time:
+      name: Time
+      description: Time the alarm rings.
+      required: true
+      example: "06:30:00"
+      selector:
+        time:
+    days:
+      name: Repeat on
+      description: Days to repeat on. Leave empty for a one-off alarm.
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+            - sat
+            - sun
+
+enable_alarm:
+  name: Enable alarm
+  description: Turn on an Echo alarm.
+  fields: &alarm_fields
+    entity_id:
+      name: Entity
+      description: Alexa Media Player device the alarm is on.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
+    alarm_id:
+      name: Alarm ID
+      description: The alarm's id, from the sorted_all attribute of the device's next alarm sensor.
+      required: true
+      selector:
+        text:
+
+disable_alarm:
+  name: Disable alarm
+  description: Turn off an Echo alarm without deleting it.
+  fields: *alarm_fields
+
+delete_alarm:
+  name: Delete alarm
+  description: Delete an Echo alarm.
+  fields: *alarm_fields
+
 repeat_last_message:
   name: Repeat Last Message
   description: >

@@ -370,3 +370,65 @@ async def test_display_state_is_shared_per_device():
     )
 
     assert first is second
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "entity_class,setting,initial,updated,attribute,expected",
+    [
+        (AlexaDisplayPowerSwitch, SETTING_DISPLAY_POWER, "OFF", "ON", "is_on", True),
+        (
+            AlexaAdaptiveBrightnessSwitch,
+            SETTING_ADAPTIVE_BRIGHTNESS,
+            "OFF",
+            "ON",
+            "is_on",
+            True,
+        ),
+        (AlexaDisplayBrightness, SETTING_BRIGHTNESS, 10, 75, "native_value", 75),
+    ],
+)
+async def test_display_entities_receive_shared_state_updates(
+    entity_class, setting, initial, updated, attribute, expected
+):
+    """Shared polling and successful writes update every listener-driven entity."""
+    state = _state()
+    entity = entity_class(state)
+    entity.async_write_ha_state = MagicMock()
+    removers = []
+    entity.async_on_remove = removers.append
+    values = {setting: initial}
+
+    async def _get(_login, _account_id, key):
+        return values.get(key)
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_track_time_interval"
+        ) as track,
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch(
+            "custom_components.alexa_media.display.async_set_device_setting",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+    ):
+        await entity.async_added_to_hass()
+        assert not entity.should_poll
+        track.assert_called_once()
+        entity.async_write_ha_state.assert_called_once()
+        values[setting] = updated
+        await track.call_args.args[1](None)
+        assert getattr(entity, attribute) == expected
+        assert entity.async_write_ha_state.call_count == 2
+        assert await state.async_set(setting, initial)
+        assert state.value(setting) == initial
+        assert entity.async_write_ha_state.call_count == 3
+        for remove in removers:
+            remove()
+        state._async_notify()
+        assert entity.async_write_ha_state.call_count == 3
+        state.async_stop()

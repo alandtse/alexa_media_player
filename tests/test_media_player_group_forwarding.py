@@ -201,10 +201,19 @@ async def test_bluetooth_while_group_plays_not_forwarded(
             {
                 "bluetooth_change": {
                     "deviceSerialNumber": MEMBER,
+                    "pairedDeviceList": [
+                        {
+                            "friendlyName": "Phone",
+                            "connected": True,
+                            "profiles": ["A2DP-SOURCE"],
+                        }
+                    ],
                     "streamingState": "MUSIC",
                 }
             }
         )
+
+    assert member._session["mediaId"] == "BluetoothMediaId"
 
     await getattr(member, command)()
 
@@ -235,10 +244,19 @@ async def test_paused_bluetooth_session_not_forwarded(group, member):
             {
                 "bluetooth_change": {
                     "deviceSerialNumber": MEMBER,
+                    "pairedDeviceList": [
+                        {
+                            "friendlyName": "Phone",
+                            "connected": True,
+                            "profiles": ["A2DP-SOURCE"],
+                        }
+                    ],
                     "streamingState": "NONE",
                 }
             }
         )
+
+    assert member._session["mediaId"] == "BluetoothMediaId"
 
     await member.async_media_play()
 

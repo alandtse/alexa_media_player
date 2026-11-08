@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from alexapy import AlexapyLoginError
 import pytest
 
 from custom_components.alexa_media.helpers import async_restart_device
@@ -64,7 +65,8 @@ async def test_restart_refreshes_token_then_sends_bearer_request():
 
 
 @pytest.mark.asyncio
-async def test_restart_returns_false_for_non_2xx():
+@pytest.mark.parametrize("status", [400, 404, 429, 500])
+async def test_restart_returns_false_for_non_2xx(status):
     """A rejected reboot returns False instead of claiming success."""
     login = MagicMock()
     login.email = EMAIL
@@ -72,10 +74,27 @@ async def test_restart_returns_false_for_non_2xx():
     login.access_token = "token"  # nosec B105
     login._ssl = False
     login.session = MagicMock()
-    login.session.post.return_value = FakeResponse(403)
+    login.session.post.return_value = FakeResponse(status)
 
     with patch(
         "custom_components.alexa_media.helpers.AlexaAPI.get_authentication",
         new_callable=AsyncMock,
     ):
         assert not await async_restart_device(login, DEVICE_TYPE, SERIAL)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [401, 403])
+async def test_restart_raises_for_authentication_failure(status):
+    """Rejected credentials propagate to the button's relogin handling."""
+    login = MagicMock()
+    login.url = "amazon.com"
+    login.access_token = "token"  # nosec B105
+    login.session.post.return_value = FakeResponse(status)
+
+    with patch(
+        "custom_components.alexa_media.helpers.AlexaAPI.get_authentication",
+        new_callable=AsyncMock,
+    ):
+        with pytest.raises(AlexapyLoginError, match=f"HTTP {status}"):
+            await async_restart_device(login, DEVICE_TYPE, SERIAL)

@@ -187,11 +187,10 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     "Switch '%s' has not been added because it may originate from emulated_hue",
                     switch_entity["name"],
                 )
-    # AQM controls accompany the built-in AQM sensors, independently of extended
-    # discovery. Store alongside smart switches so the coordinator polls them.
     led_devices = []
     led_include = _coerce_filter(include_filter)
     led_exclude = _coerce_filter(exclude_filter)
+    switches = account_dict["entities"].setdefault("smart_switch", [])
     for details in account_dict["devices"].get("aiaqm", []):
         if not details.get("led_indicator_instance"):
             continue
@@ -200,12 +199,12 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             not led_include and device_name in led_exclude
         ):
             continue
+        unique_id = f"{details['id']}_led_indicator"
+        if any(entity.unique_id == unique_id for entity in switches):
+            continue
         switch = LEDIndicatorSwitch(
             account_dict["coordinator"], account_dict["login_obj"], details
         )
-        switches = account_dict["entities"].setdefault("smart_switch", [])
-        if any(entity.unique_id == switch.unique_id for entity in switches):
-            continue
         switches.append(switch)
         led_devices.append(switch)
 

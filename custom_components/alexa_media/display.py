@@ -187,7 +187,7 @@ class DisplayState:
                 if isinstance(value, Exception):
                     _LOGGER.debug(
                         "%s: Unable to read display setting %s: %s",
-                        self.serial,
+                        hide_serial(self.serial),
                         setting,
                         value,
                     )
@@ -216,7 +216,6 @@ class DisplayState:
                 return True
 
         # Do not call async_refresh while holding the lock: it is not re-entrant.
-        # Bound the fallback so a throttled API cannot hold later writes hostage.
         try:
             await asyncio.wait_for(
                 self.async_refresh(), timeout=DISPLAY_REFRESH_TIMEOUT

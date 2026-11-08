@@ -535,6 +535,10 @@ async def async_restart_device(
     ) as response:
         if 200 <= response.status < 300:
             return True
+        if response.status in (401, 403):
+            raise AlexapyLoginError(
+                f"Device reboot authentication failed: HTTP {response.status}"
+            )
         _LOGGER.debug(
             "%s: Device reboot for %s returned %s: %s",
             hide_email(login.email),

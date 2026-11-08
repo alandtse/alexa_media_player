@@ -60,7 +60,6 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         account_dict["entities"]["number"][key] = number
         devices.append(number)
 
-    # Add display brightness for Echo Show and Echo Dot with clock devices.
     for key, device in account_dict["devices"]["media_player"].items():
         if not supports_display(device):
             continue
@@ -121,11 +120,6 @@ class AlexaNotificationVolume(NumberEntity, AlexaMedia):
         ].get(self._client.device_serial_number, {})
 
     @property
-    def _client_name(self) -> str:
-        """Return the friendly name across older and newer media players."""
-        return getattr(self._client, "device_name", None) or self._client.name
-
-    @property
     def available(self):
         """Return the availability of the number."""
         return (
@@ -150,7 +144,7 @@ class AlexaNotificationVolume(NumberEntity, AlexaMedia):
             int(value),
         ):
             raise HomeAssistantError(
-                f"Could not set the alarm volume of {self._client_name}"
+                f"Could not set the alarm volume of {self._client.name}"
             )
         device["notification_volume"] = int(value)
         self.async_write_ha_state()

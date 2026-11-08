@@ -134,7 +134,6 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     hide_email(account),
                     alexa_client,
                 )
-    # Add display controls for Echo Show and Echo Dot with clock devices.
     display_devices: list[SwitchDevice] = []
     login_obj = account_dict.get("login_obj")
     for key, device in account_dict["devices"]["media_player"].items():
@@ -240,9 +239,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         )
 
     if display_devices:
-        # These are already scoped by the media-player filter; applying the
-        # name filter again would drop them because their names are "Display"
-        # and "Adaptive brightness", not the Echo name.
+        # Do not apply include/exclude filters to these entities.
         result = (
             await add_devices(
                 hide_email(account), display_devices, add_devices_callback

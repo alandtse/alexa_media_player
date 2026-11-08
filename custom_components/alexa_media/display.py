@@ -187,7 +187,7 @@ class DisplayState:
                 if isinstance(value, Exception):
                     _LOGGER.debug(
                         "%s: Unable to read display setting %s: %s",
-                        self.serial,
+                        hide_serial(self.serial),
                         setting,
                         value,
                     )
@@ -216,7 +216,6 @@ class DisplayState:
                 return True
 
         # Do not call async_refresh while holding the lock: it is not re-entrant.
-        # Bound the fallback so a throttled API cannot hold later writes hostage.
         try:
             await asyncio.wait_for(
                 self.async_refresh(), timeout=DISPLAY_REFRESH_TIMEOUT
@@ -255,6 +254,7 @@ def _device_info(client) -> dict[str, Any]:
 class AlexaDisplayPowerSwitch(SwitchEntity):
     """Turn the Echo display on or off."""
 
+    _attr_should_poll = False
     _attr_has_entity_name = True
     _attr_translation_key = "display_power"
     _attr_entity_category = EntityCategory.CONFIG
@@ -296,6 +296,7 @@ class AlexaDisplayPowerSwitch(SwitchEntity):
 class AlexaAdaptiveBrightnessSwitch(SwitchEntity):
     """Enable or disable adaptive brightness on an Echo display."""
 
+    _attr_should_poll = False
     _attr_has_entity_name = True
     _attr_translation_key = "adaptive_brightness"
     _attr_entity_category = EntityCategory.CONFIG
@@ -337,6 +338,7 @@ class AlexaAdaptiveBrightnessSwitch(SwitchEntity):
 class AlexaDisplayBrightness(NumberEntity):
     """Set the brightness of an Echo display."""
 
+    _attr_should_poll = False
     _attr_has_entity_name = True
     _attr_translation_key = "display_brightness"
     _attr_entity_category = EntityCategory.CONFIG

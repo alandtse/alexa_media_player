@@ -41,6 +41,7 @@ class AmazonKidsState:
         self._listeners: list = []
         self._refresh_lock = asyncio.Lock()
         self._unsub = None
+        self._refresh_tasks: set[asyncio.Task] = set()
 
     def track(self, serial: str, device_type: str) -> None:
         """Register a device to be polled."""
@@ -140,24 +141,37 @@ class AmazonKidsState:
         return next(iter(self._options.values()), None)
 
     async def async_start(self) -> None:
-        """Initialize unknown devices and schedule periodic updates."""
-        if self._unsub is not None:
-            await self.async_refresh(only_unknown=True)
-            return
-        self._unsub = async_track_time_interval(
-            self.hass, self._async_interval, KIDS_SCAN_INTERVAL
+        """Schedule initialization without holding up platform setup."""
+        only_unknown = self._unsub is not None
+        if not only_unknown:
+            self._unsub = async_track_time_interval(
+                self.hass, self._async_interval, KIDS_SCAN_INTERVAL
+            )
+        self._async_schedule_refresh(only_unknown=only_unknown)
+
+    @callback
+    def _async_schedule_refresh(self, *, only_unknown: bool = False) -> asyncio.Task:
+        """Track background refreshes so unload also cancels queued work."""
+        task = self.hass.async_create_background_task(
+            self.async_refresh(only_unknown=only_unknown),
+            "alexa_media Amazon Kids refresh",
         )
-        await self.async_refresh()
+        self._refresh_tasks.add(task)
+        task.add_done_callback(self._refresh_tasks.discard)
+        return task
 
     @callback
     def async_stop(self) -> None:
-        """Cancel the polling timer."""
+        """Cancel the polling timer and any pending background refreshes."""
         if self._unsub:
             self._unsub()
             self._unsub = None
+        for task in self._refresh_tasks:
+            task.cancel()
 
     async def _async_interval(self, now) -> None:
-        await self.async_refresh()
+        if self._unsub is not None:
+            await self._async_schedule_refresh()
 
     async def async_refresh(self, *, only_unknown: bool = False) -> None:
         """Refresh child profiles and tracked device states.

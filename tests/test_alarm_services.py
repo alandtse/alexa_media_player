@@ -65,6 +65,85 @@ def call(**data):
     return MagicMock(data={"entity_id": ENTITY_ID, **data})
 
 
+RECURRING_ALARM = {
+    **ALARM,
+    "deviceSerialNumber": SERIAL,
+    "deviceType": DEVICE_TYPE,
+    "alarmLabel": "Weekday test alarm",
+    "originalDate": "2026-10-21",
+    "date_time": datetime.datetime(2026, 10, 21, 6, 30),
+    "recurringPattern": "XXXX-WD",
+    "status": "ON",
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("alarm_id", [RECURRING_ALARM["id"], "idx-1"])
+async def test_skip_next_alarm_registered(alarm_id):
+    services, login, schedule = make_services(RECURRING_ALARM.copy())
+    del services._resolve_device
+    services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["login_obj"] = login
+    await services.register()
+    registered = {
+        args[1]: (args[2], kwargs["schema"])
+        for args, kwargs in services.hass.services.async_register.call_args_list
+    }
+    handler, schema = registered["skip_next_alarm"]
+    with (
+        patch("custom_components.alexa_media.services.er.async_get") as registry,
+        patch.object(
+            AlexaAPI,
+            "devices",
+            {EMAIL: [{"serialNumber": SERIAL, "deviceType": DEVICE_TYPE}]},
+        ),
+        patch.object(
+            AlexaAPI, "skip_next_alarm", autospec=True, return_value=True
+        ) as skip,
+    ):
+        registry.return_value.async_get.return_value = MagicMock(
+            platform="alexa_media", unique_id=SERIAL
+        )
+        assert await handler(MagicMock(data=schema(call(alarm_id=alarm_id).data)))
+
+    registry.return_value.async_get.assert_called_once_with(ENTITY_ID)
+    skip.assert_awaited_once_with(login, "idx-1")
+    schedule.assert_called_once_with(
+        services.hass, EMAIL, device_serial=SERIAL, reason="skip_next_alarm"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("changes", "alarm_id"),
+    [
+        ({"recurringPattern": None}, "idx-1"),
+        ({"status": "OFF"}, "idx-1"),
+        ({"notificationIndex": None}, "idx-1"),
+        ({}, f"{DEVICE_TYPE}-OTHER-SERIAL-idx-1"),
+    ],
+)
+async def test_skip_next_alarm_rejects_invalid_target(changes, alarm_id):
+    services, _, schedule = make_services({**RECURRING_ALARM, **changes})
+    with (
+        patch.object(AlexaAPI, "skip_next_alarm", autospec=True) as skip,
+        pytest.raises(ServiceValidationError),
+    ):
+        await services.skip_next_alarm(call(alarm_id=alarm_id))
+    skip.assert_not_awaited()
+    schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_skip_next_alarm_refused():
+    services, _, schedule = make_services(RECURRING_ALARM.copy())
+    with (
+        patch.object(AlexaAPI, "skip_next_alarm", autospec=True, return_value=False),
+        pytest.raises(HomeAssistantError),
+    ):
+        await services.skip_next_alarm(call(alarm_id="idx-1"))
+    schedule.assert_not_called()
+
+
 @pytest.mark.parametrize(
     ("alarm_time", "days", "start", "expected"),
     [

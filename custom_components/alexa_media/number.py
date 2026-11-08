@@ -17,6 +17,7 @@ from homeassistant.helpers.entity import EntityCategory
 
 from . import CONF_EMAIL, DATA_ALEXAMEDIA, DOMAIN as ALEXA_DOMAIN, hide_email
 from .alexa_media import AlexaMedia
+from .display import AlexaDisplayBrightness, async_get_display_state, supports_display
 from .helpers import _catch_login_errors, add_devices, safe_get
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,6 +35,23 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     _LOGGER.debug("%s: Loading numbers", hide_email(account))
+
+    # Validate display readiness before storing any entity, otherwise a later
+    # ConfigEntryNotReady would leave unregistered entries behind for a retry.
+    login_obj = account_dict.get("login_obj")
+    display_keys = [
+        key
+        for key, device in account_dict["devices"]["media_player"].items()
+        if supports_display(device)
+    ]
+    if display_keys and (
+        login_obj is None
+        or any(
+            key not in account_dict["entities"]["media_player"] for key in display_keys
+        )
+    ):
+        raise ConfigEntryNotReady
+
     for key in account_dict["devices"]["number"]:
         client = account_dict["entities"]["media_player"].get(key)
         if client is None or key in account_dict["entities"]["number"]:
@@ -41,6 +59,21 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         number = AlexaNotificationVolume(client)
         account_dict["entities"]["number"][key] = number
         devices.append(number)
+
+    for key, device in account_dict["devices"]["media_player"].items():
+        if not supports_display(device):
+            continue
+        client = account_dict["entities"]["media_player"][key]
+        entity_key = f"{key}_display_brightness"
+        if entity_key in account_dict["entities"]["number"]:
+            continue
+        display_state = await async_get_display_state(
+            hass, account_dict, login_obj, device, client
+        )
+        number = AlexaDisplayBrightness(display_state)
+        account_dict["entities"]["number"][entity_key] = number
+        devices.append(number)
+
     return await add_devices(hide_email(account), devices, add_devices_callback)
 
 

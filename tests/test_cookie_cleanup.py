@@ -62,14 +62,19 @@ async def test_remove_delegates_to_alexapy(removal_context, caplog):
 
 
 @pytest.mark.asyncio
-async def test_remove_failure_reports_current_path(removal_context, caplog):
+@pytest.mark.parametrize("raises", [True, False])
+async def test_remove_failure_reports_current_path(removal_context, caplog, raises):
     """Manual cleanup guidance names the JSON file without exposing the account."""
     namespace, hass, entry, cookie = removal_context
-    namespace["AlexaLogin"].return_value.delete_cookiefile.side_effect = OSError(
-        "denied"
-    )
-    assert await namespace["async_remove_entry"](hass, entry)
+    delete = namespace["AlexaLogin"].return_value.delete_cookiefile
+    if raises:
+        delete.side_effect = OSError("denied")
+    with caplog.at_level(logging.DEBUG):
+        assert await namespace["async_remove_entry"](hass, entry)
+    delete.assert_awaited_once_with()
     assert cookie.exists()
+    assert "Cookiefile %s deleted." not in [record.msg for record in caplog.records]
+    assert any(record.levelno == logging.ERROR for record in caplog.records)
     assert "Manually delete cookiefile" in caplog.text
     assert f"alexa_media.{hide_email(entry.data['email'])}.cookies" in caplog.text
     assert all(

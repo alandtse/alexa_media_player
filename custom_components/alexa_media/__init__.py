@@ -3412,7 +3412,14 @@ async def async_remove_entry(hass, entry) -> bool:
     if callable(getattr(AlexaLogin, "delete_cookiefile", None)):
         try:
             await login_obj.delete_cookiefile()
-            _LOGGER.debug("Cookiefile %s deleted.", obfuscated_cookiefile)
+            if os.path.exists(cookiefile):
+                _LOGGER.error(
+                    "delete_cookiefile() failed;"
+                    " Manually delete cookiefile before re-adding the integration: %s",
+                    obfuscated_cookiefile,
+                )
+            else:
+                _LOGGER.debug("Cookiefile %s deleted.", obfuscated_cookiefile)
         except Exception as ex:
             _LOGGER.error(
                 "delete_cookiefile() exception: %s;"

@@ -91,11 +91,24 @@ jobs:
           git add custom_components/alexa_media/translations/*.json
           git commit -m "docs: update localization" -a
       - name: Python Semantic Release
+        id: release
         uses: python-semantic-release/python-semantic-release@v10.2.0
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           commit: true
           push: true
+      - name: Credit PR authors in release notes
+        if: steps.release.outputs.released == 'true'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          retries: 3
+          script: |
+            const attribute = require('./.github/scripts/attribute-release-notes.cjs');
+            await attribute({github, context, core, tag: process.env.RELEASE_TAG});
       # Pack the alexa_media_player dir as a zip and upload to the release
       - name: Zip alexa_media dir
         run: |

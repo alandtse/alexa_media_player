@@ -255,6 +255,7 @@ def _device_info(client) -> dict[str, Any]:
 class AlexaDisplayPowerSwitch(SwitchEntity):
     """Turn the Echo display on or off."""
 
+    _attr_should_poll = False
     _attr_has_entity_name = True
     _attr_translation_key = "display_power"
     _attr_entity_category = EntityCategory.CONFIG
@@ -296,6 +297,7 @@ class AlexaDisplayPowerSwitch(SwitchEntity):
 class AlexaAdaptiveBrightnessSwitch(SwitchEntity):
     """Enable or disable adaptive brightness on an Echo display."""
 
+    _attr_should_poll = False
     _attr_has_entity_name = True
     _attr_translation_key = "adaptive_brightness"
     _attr_entity_category = EntityCategory.CONFIG
@@ -337,6 +339,7 @@ class AlexaAdaptiveBrightnessSwitch(SwitchEntity):
 class AlexaDisplayBrightness(NumberEntity):
     """Set the brightness of an Echo display."""
 
+    _attr_should_poll = False
     _attr_has_entity_name = True
     _attr_translation_key = "display_brightness"
     _attr_entity_category = EntityCategory.CONFIG

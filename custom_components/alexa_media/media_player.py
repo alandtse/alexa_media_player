@@ -248,6 +248,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         self._device_name = None
         self._device_serial_number = None
         self._device_type = None
+        self._device_type_friendly_name = None
         self._device_family = None
         self._device_owner_customer_id = None
         self._software_version = None
@@ -829,6 +830,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._device_name = device["accountName"]
             self._device_family = device["deviceFamily"]
             self._device_type = device["deviceType"]
+            self._device_type_friendly_name = device.get("deviceTypeFriendlyName")
             self._device_serial_number = device["serialNumber"]
             self._app_device_list = device["appDeviceList"]
             self._device_owner_customer_id = device["deviceOwnerCustomerId"]
@@ -2071,16 +2073,43 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 - `name`: device display name
                 - `manufacturer`: device manufacturer (always "Amazon")
                 - `model`: device model string
+                - `model_id`: Amazon's internal device type
+                - `hw_version`: hardware generation, when explicitly described
                 - `serial_number`: device serial number (unique_id)
                 - `sw_version`: software version
         """
+        friendly_name = self._device_type_friendly_name
+        model = (
+            friendly_name.strip()
+            if isinstance(friendly_name, str) and friendly_name.strip()
+            else MODEL_IDS.get(
+                self._device_type, f"{self._device_family} {self._device_type}"
+            )
+        )
+        # Only split explicit generation suffixes; model numbers (e.g. Show 8)
+        # and unrecognized descriptions must remain intact.
+        generation = re.fullmatch(
+            r"(?P<model>.+?)\s+\((?:Gen\s*(?P<gen>[1-9]\d*)|"
+            r"(?P<ordinal>[1-9]\d*)(?:st|nd|rd|th)\s+Gen(?:eration)?)\)",  # codespell:ignore nd
+            model,
+            re.IGNORECASE,
+        )
+        hw_version = None
+        if generation:
+            number = int(generation["gen"] or generation["ordinal"])
+            suffixes = {1: "st", 2: "nd", 3: "rd"}  # codespell:ignore nd
+            suffix = (
+                "th" if 10 <= number % 100 <= 20 else suffixes.get(number % 10, "th")
+            )
+            model = generation["model"].strip()
+            hw_version = f"{number}{suffix} Gen"
         return {
             "identifiers": {(ALEXA_DOMAIN, self.unique_id)},
             "name": self.name,
             "manufacturer": "Amazon",
-            "model": MODEL_IDS.get(
-                self._device_type, f"{self._device_family} {self._device_type}"
-            ),
+            "model": model,
+            "model_id": self._device_type,
+            "hw_version": hw_version,
             "serial_number": self.device_serial_number,
             "sw_version": self._software_version,
         }

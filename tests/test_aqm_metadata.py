@@ -108,13 +108,10 @@ def test_other_aqm_metadata(metric, suffix, device_class, icon, unit):
     assert sensor.device_info["identifiers"] == {("alexa_media", "serial")}
 
 
-def test_voc_english_translations():
-    """Keep the existing translation key and update English fallback copies."""
-    for path in [ROOT / "strings.json", ROOT / "translations" / "en.json"]:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        assert data["entity"]["sensor"][KEY] == {
-            "name": "Volatile organic compounds index"
-        }
+def test_voc_source_name():
+    """Keep the source translation key; Lokalise manages localized names."""
+    data = json.loads((ROOT / "strings.json").read_text(encoding="utf-8"))
+    assert data["entity"]["sensor"][KEY] == {"name": "Volatile organic compounds index"}
 
 
 async def test_existing_registry_identity(tmp_path):

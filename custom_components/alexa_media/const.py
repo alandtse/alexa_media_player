@@ -249,7 +249,7 @@ ALEXA_UNIT_CONVERSION = {
 ALEXA_ICON_CONVERSION = {
     "Alexa.AirQuality.CarbonMonoxide": "mdi:molecule-co",
     "Alexa.AirQuality.Humidity": "mdi:water-percent",
-    "Alexa.AirQuality.IndoorAirQuality": "mdi:numeric",
+    "Alexa.AirQuality.IndoorAirQuality": "mdi:gauge",
     "Alexa.AirQuality.ParticulateMatter": "mdi:blur",
     "Alexa.AirQuality.VolatileOrganicCompounds": "mdi:air-filter",
 }
@@ -261,7 +261,8 @@ ALEXA_AIR_QUALITY_DEVICE_CLASS = {
     "Alexa.AirQuality.ParticulateMatter": "pm25",
     "Alexa.AirQuality.CarbonMonoxide": "carbon_monoxide",
     "Alexa.AirQuality.IndoorAirQuality": "aqi",
-    "Alexa.AirQuality.VolatileOrganicCompounds": "aqi",
+    # Amazon reports a unitless VOC index, not a concentration (see #3072).
+    "Alexa.AirQuality.VolatileOrganicCompounds": None,
     "Alexa.AirQuality.Humidity": "humidity",
 }
 

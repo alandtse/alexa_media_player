@@ -55,8 +55,18 @@ integration when upgrading PSR. No PSR monkeypatch or custom commit parser is us
 
 The action stays pinned to v10.2.0. Version selection, release commit/tag/push,
 ZIP creation/upload and master-to-dev synchronization remain with the existing
-workflow. Python 3.13 matches the pinned action's container. Preparation needs
-only the existing `GH_TOKEN` and read access to pull requests.
+workflow. Python 3.13 matches the pinned action's container. Preparation runs in
+its own job with the automatic `GITHUB_TOKEN`, limited to contents and pull-request
+read access. Checkout credentials are not persisted. The generated templates pass
+through a run-scoped artifact (including hidden components); the release job checks
+out the exact source SHA recorded by preparation and restores the `master` branch.
+Only the release job receives contents-write permission for the existing dev sync
+and retains the existing release secret for PSR and asset upload.
+
+Preparation installs the complete dependency set from
+`.github/requirements/release-notes.txt` using `pip --require-hashes`. Regenerate it
+for Python 3.13/Linux from `release-notes.in` with `uv pip compile --generate-hashes`.
+The attribution test workflow also installs this locked dependency set.
 
 ## Validation
 

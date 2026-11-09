@@ -20,6 +20,9 @@ from semantic_release.cli.config import (
 from semantic_release.cli.util import load_raw_config_file
 from urllib3.util.retry import Retry
 
+REQUEST_TIMEOUT_SECONDS = 30
+MAX_RETRIES = 3
+
 TEMPLATE_DIR = Path(".github/.release-templates")
 PR_LINK = """                commit.linked_merge_request
               )"""
@@ -35,7 +38,6 @@ def author_link(user):
         return ""
     if not re.fullmatch(r"[a-z\d-]+(?:\[bot\])?", login, re.I):
         return ""
-    # Bots have /apps/name profiles; normal accounts must link to their login.
     profile = f"apps/{login[:-5]}" if login.endswith("[bot]") else login
     if url.lower() != f"https://github.com/{profile}".lower():
         return ""
@@ -56,10 +58,8 @@ def collect_authors(history, client, owner, repo):
             if number not in cache:
                 response = client.get(
                     f"https://api.github.com/repos/{owner}/{repo}/pulls/{number}",
-                    timeout=30,
+                    timeout=REQUEST_TIMEOUT_SECONDS,
                 )
-                # A deleted/inaccessible PR has no available attribution. Other
-                # failures abort before PSR can commit or publish inconsistent notes.
                 if response.status_code == 404:
                     print(
                         f"::warning::PR #{number} is unavailable; leaving it uncredited"
@@ -67,7 +67,15 @@ def collect_authors(history, client, owner, repo):
                     cache[number] = ""
                 else:
                     response.raise_for_status()
-                    cache[number] = author_link(response.json().get("user"))
+                    try:
+                        payload = response.json()
+                    except requests.exceptions.JSONDecodeError as error:
+                        raise ValueError(
+                            f"PR #{number}: response is not valid JSON"
+                        ) from error
+                    if not isinstance(payload, dict):
+                        raise ValueError(f"PR #{number}: expected a JSON object")
+                    cache[number] = author_link(payload.get("user"))
             if cache[number]:
                 authors[commit.hexsha] = cache[number]
     return authors
@@ -92,7 +100,6 @@ def prepare_templates(destination, authors):
         PR_LINK, PR_LINK + ' ~ pr_authors.get(commit.hexsha, "")'
     )
     macro_file.write_text(macro, encoding="utf-8")
-    # JSON string escaping also prevents author metadata from becoming Jinja code.
     (destination / ".components/.authors.j2").write_text(
         "{% set pr_authors = " + json.dumps(authors, sort_keys=True) + " %}",
         encoding="utf-8",
@@ -122,7 +129,7 @@ def main():
             "https://",
             HTTPAdapter(
                 max_retries=Retry(
-                    total=3,
+                    total=MAX_RETRIES,
                     backoff_factor=1,
                     status_forcelist=[429, 500, 502, 503, 504],
                     allowed_methods=["GET"],

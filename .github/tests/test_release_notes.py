@@ -29,13 +29,16 @@ spec.loader.exec_module(prepare)
 
 
 def user(login):
+    """Return valid GitHub user metadata."""
     return {"login": login, "html_url": f"https://github.com/{login}"}
 
 
 def client_for(users):
+    """Mock PR lookups for the supplied author records."""
     client = Mock()
 
     def get(url, timeout):
+        """Return the configured response for a PR lookup."""
         assert timeout == 30
         number = int(url.rsplit("/", 1)[1])
         value = users[number]
@@ -53,6 +56,7 @@ def client_for(users):
 
 
 def history_for(*references):
+    """Build unreleased parsed commits for lookup tests."""
     return SimpleNamespace(
         unreleased={
             "fix": [
@@ -64,6 +68,7 @@ def history_for(*references):
 
 
 def test_actual_pr_author_cache_direct_commits_and_missing_users():
+    """Verify actual pr author cache direct commits and missing users."""
     history = history_for("#10", "#10", "", "#11", "#12", "!13", "#0")
     client = client_for({10: user("alice"), 11: None, 12: 404})
     authors = prepare.collect_authors(history, client, "owner", "repo")
@@ -90,10 +95,12 @@ def test_actual_pr_author_cache_direct_commits_and_missing_users():
     ],
 )
 def test_invalid_metadata(metadata):
+    """Verify invalid metadata."""
     assert prepare.author_link(metadata) == ""
 
 
 def test_bots():
+    """Verify bots."""
     assert (
         prepare.author_link(
             {
@@ -106,13 +113,42 @@ def test_bots():
 
 
 def test_api_failure_aborts_preparation():
+    """Verify api failure aborts preparation."""
     client = client_for({10: requests.HTTPError("unavailable")})
     with pytest.raises(requests.HTTPError):
         prepare.collect_authors(history_for("#10"), client, "owner", "repo")
 
 
+@pytest.mark.parametrize("payload", [None, [], "unexpected", 123])
+def test_non_object_response_identifies_pr(payload):
+    """Reject non-object API responses with the affected PR number."""
+    client = client_for({10: None})
+    response = Mock(status_code=200)
+    response.json.return_value = payload
+    client.get.side_effect = None
+    client.get.return_value = response
+    with pytest.raises(ValueError, match=r"PR #10: expected a JSON object"):
+        prepare.collect_authors(history_for("#10"), client, "owner", "repo")
+
+
+def test_invalid_json_identifies_pr_and_preserves_cause():
+    """Contextualize decoding failures without swallowing unrelated errors."""
+    client = client_for({10: None})
+    response = Mock(status_code=200)
+    error = requests.exceptions.JSONDecodeError("Invalid JSON", "bad", 0)
+    response.json.side_effect = error
+    client.get.side_effect = None
+    client.get.return_value = response
+    with pytest.raises(
+        ValueError, match=r"PR #10: response is not valid JSON"
+    ) as caught:
+        prepare.collect_authors(history_for("#10"), client, "owner", "repo")
+    assert caught.value.__cause__ is error
+
+
 @pytest.fixture
 def project(tmp_path, monkeypatch):
+    """Create a temporary release repository with representative commits."""
     monkeypatch.chdir(tmp_path)
     repo = Repo.init(tmp_path, initial_branch="master")
     repo.create_remote("origin", "https://github.com/alandtse/alexa_media_player.git")
@@ -147,6 +183,7 @@ def project(tmp_path, monkeypatch):
 
 
 def runtime_and_history(repo):
+    """Load the configured PSR runtime and parsed release history."""
     runtime = RuntimeContext.from_raw_config(
         RawConfig.model_validate(load_raw_config_file(Path("pyproject.toml"))),
         GlobalCommandLineOptions(),
@@ -161,6 +198,7 @@ def runtime_and_history(repo):
 
 
 def run_release(monkeypatch):
+    """Run PSR locally while capturing remote pushes and publication."""
     published = []
     pushes = []
     monkeypatch.setattr(
@@ -174,12 +212,14 @@ def run_release(monkeypatch):
 
 
 def normalize(text):
+    """Collapse wrapping differences for content comparisons."""
     return " ".join(text.split())
 
 
 def test_real_release_commits_changelog_and_publishes_same_authors(
     project, monkeypatch
 ):
+    """Verify real release commits changelog and publishes same authors."""
     repo, old, commits = project
     _, history = runtime_and_history(repo)
     client = client_for({10: user("alice"), 11: user("bob"), 12: None})
@@ -221,6 +261,7 @@ def test_real_release_commits_changelog_and_publishes_same_authors(
 
 
 def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
+    """Verify empty snapshot matches upstream byte for byte."""
     from semantic_release.cli.changelog_writer import (
         generate_release_notes,
         write_changelog_files,
@@ -282,6 +323,7 @@ def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
 
 
 def test_main_prepares_snapshot_before_release(project, monkeypatch):
+    """Verify main prepares snapshot before release."""
     session = requests.Session()
     mocked = client_for({10: user("alice"), 11: user("bob"), 12: None})
     monkeypatch.setattr(session, "get", mocked.get)
@@ -296,6 +338,7 @@ def test_main_prepares_snapshot_before_release(project, monkeypatch):
 
 
 def test_breaking_change_and_bot_profile(project, monkeypatch):
+    """Verify breaking change and bot profile."""
     repo, _, _ = project
     Path("example.txt").write_text("breaking")
     repo.index.add(["example.txt"])
@@ -327,6 +370,7 @@ def test_breaking_change_and_bot_profile(project, monkeypatch):
 
 
 def test_preparation_failure_writes_no_templates(project, monkeypatch):
+    """Verify preparation failure writes no templates."""
     session = requests.Session()
     monkeypatch.setattr(
         session, "get", Mock(side_effect=requests.ConnectionError("offline"))
@@ -340,13 +384,15 @@ def test_preparation_failure_writes_no_templates(project, monkeypatch):
 
 
 def test_version_pin_checked_before_template_generation(tmp_path, monkeypatch):
+    """Verify version pin checked before template generation."""
     monkeypatch.setattr(prepare, "version", lambda _: "11.0.0")
-    with pytest.raises(RuntimeError, match="10.2.0"):
+    with pytest.raises(RuntimeError, match=re.escape("10.2.0")):
         prepare.prepare_templates(tmp_path / "templates", {})
     assert not (tmp_path / "templates").exists()
 
 
 def test_excluded_commits_do_not_trigger_author_lookup(project):
+    """Verify excluded commits do not trigger author lookup."""
     repo, _, _ = project
     config = Path("pyproject.toml")
     config.write_text(
@@ -362,6 +408,7 @@ def test_excluded_commits_do_not_trigger_author_lookup(project):
 
 
 def test_first_release_stays_masked(project, monkeypatch):
+    """Verify first release stays masked."""
     repo, _, _ = project
     repo.delete_tag("v1.0.0")
     Path("CHANGELOG.md").write_text("", newline="\n")

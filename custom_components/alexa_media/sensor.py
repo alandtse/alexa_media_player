@@ -433,7 +433,7 @@ class TemperatureSensor(SensorEntity, CoordinatorEntity):
                 "%s: ignoring impossible temperature %s %s",
                 self._device_name,
                 raw,
-                value.get("scale"),
+                scale,
             )
             return None
         return raw

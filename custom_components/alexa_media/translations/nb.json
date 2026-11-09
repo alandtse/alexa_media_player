@@ -63,7 +63,15 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Start på nytt"
+      }
+    },
     "number": {
+      "display_brightness": {
+        "name": "Skjermens lysstyrke"
+      },
       "notification_volume": {
         "name": "Alarm- og varslingsvolum"
       }
@@ -101,6 +109,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Adaptiv lysstyrke"
+      },
+      "display_power": {
+        "name": "Vis"
+      },
       "do_not_disturb": {
         "name": "Ikke forstyrr"
       },
@@ -165,6 +179,66 @@
         }
       },
       "name": "Aktiver Amazon Kids"
+    },
+    "create_alarm": {
+      "description": "Oppretter en alarm på et ekko.",
+      "fields": {
+        "days": {
+          "description": "Dager å gjenta på. La stå tomt for en engangsalarm.",
+          "name": "Gjenta på"
+        },
+        "entity_id": {
+          "description": "Ekko-enhet for å stille inn alarmen",
+          "name": "Velg mediespiller:"
+        },
+        "time": {
+          "description": "Tidspunktet da alarmen ringer",
+          "name": "Tid"
+        }
+      },
+      "name": "Opprett alarm"
+    },
+    "delete_alarm": {
+      "description": "Sletter en ekkoalarm.",
+      "fields": {
+        "alarm_id": {
+          "description": "Alarmens ID, fra sorted_all-attributtet til enhetens neste alarmsensor",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Echo-enhet, alarmen er på",
+          "name": "Velg mediespiller:"
+        }
+      },
+      "name": "Slett alarm"
+    },
+    "disable_alarm": {
+      "description": "Slår av en ekkoalarm uten å slette den.",
+      "fields": {
+        "alarm_id": {
+          "description": "Alarmens ID, fra sorted_all-attributtet til enhetens neste alarmsensor",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Echo-enhet, alarmen er på",
+          "name": "Velg mediespiller:"
+        }
+      },
+      "name": "Deaktiver alarmen"
+    },
+    "enable_alarm": {
+      "description": "Slår på en ekkoalarm.",
+      "fields": {
+        "alarm_id": {
+          "description": "Alarmens ID, fra sorted_all-attributtet til enhetens neste alarmsensor",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Echo-enhet, alarmen er på",
+          "name": "Velg mediespiller:"
+        }
+      },
+      "name": "Aktiver alarm"
     },
     "enable_network_discovery": {
       "description": "Aktiverer Alexa-nettverksoppdagelse på nytt, slik at neste avstemningssyklus vil oppdage Alexa-enheter på nytt for de valgte kontoene.",

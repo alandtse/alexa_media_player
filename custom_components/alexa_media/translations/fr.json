@@ -63,7 +63,15 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Redémarrage"
+      }
+    },
     "number": {
+      "display_brightness": {
+        "name": "Luminosité de l'écran"
+      },
       "notification_volume": {
         "name": "Volume d'alarme et de notification"
       }
@@ -101,6 +109,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Luminosité adaptative"
+      },
+      "display_power": {
+        "name": "Affichage"
+      },
       "do_not_disturb": {
         "name": "Ne pas déranger"
       },
@@ -165,6 +179,66 @@
         }
       },
       "name": "Activer Amazon Kids"
+    },
+    "create_alarm": {
+      "description": "Crée une alarme sur un Echo.",
+      "fields": {
+        "days": {
+          "description": "Nombre de jours de répétition. Laisser vide pour une alarme ponctuelle.",
+          "name": "Répéter sur"
+        },
+        "entity_id": {
+          "description": "Appareil Echo pour régler l'alarme",
+          "name": "Sélectionner le lecteur multimédia :"
+        },
+        "time": {
+          "description": "Programmez la sonnerie du réveil",
+          "name": "Temps"
+        }
+      },
+      "name": "Créer une alarme"
+    },
+    "delete_alarm": {
+      "description": "Supprime une alarme Echo.",
+      "fields": {
+        "alarm_id": {
+          "description": "L'identifiant de l'alarme, provenant de l'attribut sorted_all du capteur d'alarme suivant de l'appareil.",
+          "name": "ID d'alarme"
+        },
+        "entity_id": {
+          "description": "L'alarme de l'appareil Echo est activée.",
+          "name": "Sélectionner le lecteur multimédia :"
+        }
+      },
+      "name": "Supprimer l'alarme"
+    },
+    "disable_alarm": {
+      "description": "Désactive une alarme Echo sans la supprimer.",
+      "fields": {
+        "alarm_id": {
+          "description": "L'identifiant de l'alarme, provenant de l'attribut sorted_all du capteur d'alarme suivant de l'appareil.",
+          "name": "ID d'alarme"
+        },
+        "entity_id": {
+          "description": "L'alarme de l'appareil Echo est activée.",
+          "name": "Sélectionner le lecteur multimédia :"
+        }
+      },
+      "name": "Désactiver l'alarme"
+    },
+    "enable_alarm": {
+      "description": "Active une alarme Echo.",
+      "fields": {
+        "alarm_id": {
+          "description": "L'identifiant de l'alarme, provenant de l'attribut sorted_all du capteur d'alarme suivant de l'appareil.",
+          "name": "ID d'alarme"
+        },
+        "entity_id": {
+          "description": "L'alarme de l'appareil Echo est activée.",
+          "name": "Sélectionner le lecteur multimédia :"
+        }
+      },
+      "name": "Activer l'alarme"
     },
     "enable_network_discovery": {
       "description": "Réactive la découverte du réseau Alexa afin que le prochain cycle d'interrogation redécouvre les appareils Alexa pour les comptes sélectionnés.",

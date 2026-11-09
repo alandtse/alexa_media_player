@@ -421,11 +421,6 @@ class DNDSwitch(AlexaMediaSwitch):
         """Return the icon of the switch."""
         return super()._icon("mdi:minus-circle", "mdi:minus-circle-off")
 
-    @property
-    def entity_category(self):
-        """Return the entity category of the switch."""
-        return EntityCategory.CONFIG
-
     def _handle_event(self, event):
         """Handle events."""
         try:
@@ -586,6 +581,7 @@ class AmazonKidsSwitch(SwitchDevice):
 
     _attr_has_entity_name = True
     _attr_name = "Amazon Kids"
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_icon = "mdi:account-child"
     _attr_should_poll = False
 

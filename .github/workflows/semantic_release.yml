@@ -48,10 +48,10 @@ jobs:
           else
             echo "Lokalise download failed or no translations found, proceeding with existing translations..."
           fi
-      - name: Set up Python 3.8
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: "3.13"
       # #----------------------------------------------
       # #  -----  install & configure poetry  -----
       # #----------------------------------------------
@@ -90,25 +90,18 @@ jobs:
         run: |
           git add custom_components/alexa_media/translations/*.json
           git commit -m "docs: update localization" -a
+      - name: Prepare shared changelog and release attribution
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          python -m pip install python-semantic-release==10.2.0
+          python .github/scripts/prepare-release-notes.py
       - name: Python Semantic Release
-        id: release
         uses: python-semantic-release/python-semantic-release@v10.2.0
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           commit: true
           push: true
-      - name: Credit PR authors in release notes
-        if: steps.release.outputs.released == 'true'
-        continue-on-error: true
-        uses: actions/github-script@v7
-        env:
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        with:
-          github-token: ${{ secrets.GH_TOKEN }}
-          retries: 3
-          script: |
-            const attribute = require('./.github/scripts/attribute-release-notes.cjs');
-            await attribute({github, context, core, tag: process.env.RELEASE_TAG});
       # Pack the alexa_media_player dir as a zip and upload to the release
       - name: Zip alexa_media dir
         run: |

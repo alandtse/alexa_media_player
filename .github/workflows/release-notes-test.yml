@@ -3,10 +3,11 @@ name: Release note attribution tests
 on:
   pull_request:
     paths:
-      - .github/scripts/attribute-release-notes.cjs
-      - .github/tests/attribute-release-notes.test.cjs
+      - .github/scripts/prepare-release-notes.py
+      - .github/tests/test_release_notes.py
       - .github/workflows/release-notes-test.yml
       - .github/workflows/semantic_release.yml
+      - pyproject.toml
   workflow_dispatch:
 
 permissions:
@@ -17,7 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: "20"
-      - run: node --test .github/tests/attribute-release-notes.test.cjs
+          python-version: "3.13"
+      - run: python -m pip install python-semantic-release==10.2.0 pytest
+      - run: python -m pytest -c /dev/null .github/tests/test_release_notes.py

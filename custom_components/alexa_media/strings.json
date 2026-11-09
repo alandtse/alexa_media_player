@@ -273,7 +273,7 @@
         "name": "Indoor air quality"
       },
       "air_quality_particulate_matter": {
-        "name": "Particulate matter"
+        "name": "PM2.5"
       },
       "air_quality_volatile_organic_compounds": {
         "name": "Volatile organic compounds index"

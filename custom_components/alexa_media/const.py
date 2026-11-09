@@ -261,7 +261,7 @@ ALEXA_AIR_QUALITY_DEVICE_CLASS = {
     "Alexa.AirQuality.ParticulateMatter": "pm25",
     "Alexa.AirQuality.CarbonMonoxide": "carbon_monoxide",
     "Alexa.AirQuality.IndoorAirQuality": "aqi",
-    # Amazon reports a unitless VOC index, not a concentration (see #3072).
+    # Amazon reports a unitless VOC index, so no concentration device class applies.
     "Alexa.AirQuality.VolatileOrganicCompounds": None,
     "Alexa.AirQuality.Humidity": "humidity",
 }

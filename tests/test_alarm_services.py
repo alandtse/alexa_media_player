@@ -124,6 +124,7 @@ async def test_skip_next_alarm_registered(alarm_id):
     ],
 )
 async def test_skip_next_alarm_rejects_invalid_target(changes, alarm_id):
+    """Reject invalid alarm targets before calling Alexa or refreshing notifications."""
     services, _, schedule = make_services({**RECURRING_ALARM, **changes})
     with (
         patch.object(AlexaAPI, "skip_next_alarm", autospec=True) as skip,
@@ -136,6 +137,7 @@ async def test_skip_next_alarm_rejects_invalid_target(changes, alarm_id):
 
 @pytest.mark.asyncio
 async def test_skip_next_alarm_refused():
+    """Report a refused skip without scheduling a notification refresh."""
     services, _, schedule = make_services(RECURRING_ALARM.copy())
     with (
         patch.object(AlexaAPI, "skip_next_alarm", autospec=True, return_value=False),

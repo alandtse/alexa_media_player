@@ -80,6 +80,7 @@ RECURRING_ALARM = {
 @pytest.mark.asyncio
 @pytest.mark.parametrize("alarm_id", [RECURRING_ALARM["id"], "idx-1"])
 async def test_skip_next_alarm_registered(alarm_id):
+    """Verify both alarm ID formats through the registered service."""
     services, login, schedule = make_services(RECURRING_ALARM.copy())
     del services._resolve_device
     services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["login_obj"] = login

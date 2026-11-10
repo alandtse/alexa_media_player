@@ -178,7 +178,6 @@ list_alarms:
           domain: media_player
           integration: alexa_media
 
-
 enable_alarm:
   name: Enable alarm
   description: Turn on an Echo alarm.

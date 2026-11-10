@@ -16,9 +16,9 @@ from typing import Any, Callable
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.helpers.storage import Store
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util, slugify
 import voluptuous as vol
 
@@ -140,7 +140,9 @@ def resolve_alarm_schedule(
         preset = requested_days[0]
         if preset in ALARM_DAY_PRESETS:
             days = list(ALARM_DAY_PRESETS[preset])
-            return next_alarm_time(alarm_time, days, time_zone=time_zone), alarm_recurrence(days)
+            return next_alarm_time(
+                alarm_time, days, time_zone=time_zone
+            ), alarm_recurrence(days)
 
         # One-off dates must never roll forward silently via next_alarm_time().
         now = dt_util.now(time_zone).replace(tzinfo=None)
@@ -601,9 +603,11 @@ class AlexaMediaServices:
         import uuid
 
         result = {}
-        notifications = self.hass.data[DATA_ALEXAMEDIA]["accounts"].get(
-            login_obj.email, {}
-        ).get("notifications", {})
+        notifications = (
+            self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+            .get(login_obj.email, {})
+            .get("notifications", {})
+        )
         for device_notifications in notifications.values():
             if not isinstance(device_notifications, dict):
                 continue
@@ -616,7 +620,10 @@ class AlexaMediaServices:
                 provider = alarm.get("provider")
                 entity = alarm.get("musicEntity")
                 asset_id = alarm.get("musicAlarmId")
-                if not all(isinstance(v, str) and v.strip() for v in (provider, entity, asset_id)):
+                if not all(
+                    isinstance(v, str) and v.strip()
+                    for v in (provider, entity, asset_id)
+                ):
                     continue
                 try:
                     uuid.UUID(asset_id)
@@ -657,9 +664,7 @@ class AlexaMediaServices:
                     "Music alarms require both music_provider and music_entity"
                 )
         elif music_provider or music_entity:
-            raise ServiceValidationError(
-                "Music parameters require alarm_type: music"
-            )
+            raise ServiceValidationError("Music parameters require alarm_type: music")
         login_obj, serial, device_type, time_zone = self._resolve_alarm_device(
             entity_id
         )
@@ -682,7 +687,9 @@ class AlexaMediaServices:
             try:
                 uuid.UUID(music_alarm_id)
             except ValueError as err:
-                raise ServiceValidationError("Stored music asset ID is invalid") from err
+                raise ServiceValidationError(
+                    "Stored music asset ID is invalid"
+                ) from err
         return await self._change_alarm(
             AlexaAPI.create_alarm(
                 login_obj,
@@ -702,25 +709,30 @@ class AlexaMediaServices:
         """Return cached Alexa alarm metadata without exposing serials or IDs."""
         entity_id = call.data[ATTR_ENTITY_ID]
         login_obj, serial, _, _ = self._resolve_alarm_device(entity_id)
-        alarms = safe_get(
-            self.hass.data[DATA_ALEXAMEDIA]["accounts"],
-            [login_obj.email, "notifications", serial, "Alarm"],
-            {},
-        ) or {}
+        alarms = (
+            safe_get(
+                self.hass.data[DATA_ALEXAMEDIA]["accounts"],
+                [login_obj.email, "notifications", serial, "Alarm"],
+                {},
+            )
+            or {}
+        )
         await self._learn_music_assets(login_obj)
         result = []
         for alarm in alarms.values():
-            result.append({
-                "date": alarm.get("originalDate"),
-                "time": alarm.get("originalTime"),
-                "status": alarm.get("status"),
-                "recurring_pattern": alarm.get("recurringPattern"),
-                "days": alarm_days(alarm),
-                "is_music": bool(alarm.get("musicAlarmId")),
-                "music_entity": alarm.get("musicEntity"),
-                "provider": alarm.get("provider"),
-                "sound": safe_get(alarm, ["sound", "displayName"]),
-            })
+            result.append(
+                {
+                    "date": alarm.get("originalDate"),
+                    "time": alarm.get("originalTime"),
+                    "status": alarm.get("status"),
+                    "recurring_pattern": alarm.get("recurringPattern"),
+                    "days": alarm_days(alarm),
+                    "is_music": bool(alarm.get("musicAlarmId")),
+                    "music_entity": alarm.get("musicEntity"),
+                    "provider": alarm.get("provider"),
+                    "sound": safe_get(alarm, ["sound", "displayName"]),
+                }
+            )
         result.sort(key=lambda a: (a["date"] or "", a["time"] or ""))
         return {"entity_id": entity_id, "alarms": result, "count": len(result)}
 

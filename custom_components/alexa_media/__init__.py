@@ -57,6 +57,7 @@ import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
+from .connectivity import connectivity_state
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
@@ -748,6 +749,9 @@ async def async_setup_entry(hass, config_entry):
     async def relogin(event=None) -> None:
         """Relogin to Alexa."""
         if hide_email(email) == event.data.get("email"):
+            connectivity_state(
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+            ).invalidate()
             _LOGGER.debug("%s: Received relogin request: %s", hide_email(email), event)
             login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
                 "login_obj"
@@ -1032,9 +1036,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if not account:
             return None
 
+        connectivity = connectivity_state(account)
         login_obj = account.get("login_obj")
         if not login_obj or not _network_allowed(login_obj):
+            connectivity.invalidate()
             return None
+        connectivity_generation = connectivity.generation
+        # AlexaPy returns this same list on its no-data cache fallback.
+        previous_api_devices = AlexaAPI.devices.get(email)
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
         existing_serials = set(_existing_serials(hass, login_obj))
         existing_serials |= _entity_backed_serials(account)
@@ -1370,6 +1379,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
 
         except (AlexapyLoginError, JSONDecodeError):
+            connectivity.invalidate()
             _LOGGER.debug(
                 "%s: Alexa API disconnected; attempting to relogin : status %s",
                 hide_email(email),
@@ -1505,6 +1515,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     .get(serial)
                     .refresh(device, skip_api=True)
                 )
+        connectivity.inventory(
+            devices,
+            connectivity_generation,
+            cached=_used_cached_devices,
+            previous_inventory=previous_api_devices,
+        )
         async_dispatcher_send(
             hass,
             f"{DOMAIN}_{hide_email(email)}"[0:32],
@@ -1606,6 +1622,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["first_run"] = False
 
+        connectivity.account_available = True
+        connectivity.notify()
         return entity_state
 
     @_catch_login_errors
@@ -2848,6 +2866,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
 
                 elif command == "PUSH_DOPPLER_CONNECTION_CHANGE":
+                    connectivity_state(account).push(serial, json_payload)
                     # Player availability update
                     if serial and serial in existing_serials:
                         _LOGGER.debug(
@@ -3212,6 +3231,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             scan_interval=scan_interval,
         )
 
+        coordinator.echo_connectivity = connectivity_state(
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+        )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["coordinator"] = coordinator
         # Set correct interval now that http2 status is known
         coordinator.set_http2_status(bool(http2_enabled))

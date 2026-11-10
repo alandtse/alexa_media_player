@@ -131,7 +131,7 @@ async def test_skip_next_alarm_rejects_invalid_target(changes, alarm_id):
         pytest.raises(ServiceValidationError),
     ):
         await services.skip_next_alarm(call(alarm_id=alarm_id))
-    skip.assert_not_awaited()
+    skip.assert_not_called()
     schedule.assert_not_called()
 
 

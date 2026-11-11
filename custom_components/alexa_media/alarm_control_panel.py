@@ -133,6 +133,9 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEntity):
     """Implementation of Alexa Media Player alarm control panel."""
 
+    _attr_has_entity_name = True
+    _attr_name = None
+
     def __init__(self, login, coordinator, guard_entity, media_players=None) -> None:
         """Initialize the Alexa device."""
         AlexaMedia.__init__(self, None, login)
@@ -216,9 +219,18 @@ class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEnt
         return self._guard_entity_id
 
     @property
-    def name(self):
+    def device_name(self):
         """Return the name of the device."""
         return self._friendly_name
+
+    @property
+    def device_info(self):
+        """Return device information for the Guard panel."""
+        return {
+            "identifiers": {(ALEXA_DOMAIN, self._guard_entity_id)},
+            "name": self._friendly_name,
+            "manufacturer": "Amazon",
+        }
 
     @property
     def state(self):

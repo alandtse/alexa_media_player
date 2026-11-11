@@ -144,7 +144,7 @@ class AlexaNotificationVolume(NumberEntity, AlexaMedia):
             int(value),
         ):
             raise HomeAssistantError(
-                f"Could not set the alarm volume of {self._client.name}"
+                f"Could not set the alarm volume of {self._client.device_name}"
             )
         device["notification_volume"] = int(value)
         self.async_write_ha_state()

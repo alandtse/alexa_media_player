@@ -234,8 +234,8 @@ async def async_unload_entry(hass, entry) -> bool:
     account = entry.data[CONF_EMAIL]
     _LOGGER.debug("Attempting to unload switch")
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
-    for key, switches in account_dict["entities"]["switch"].items():
-        for device in switches[key].values():
+    for switches in account_dict["entities"]["switch"].values():
+        for device in switches.values():
             _LOGGER.debug("Removing %s", device)
             await device.async_remove()
     for kids_switch in account_dict["entities"]["amazon_kids_switch"]:
@@ -492,6 +492,9 @@ class RepeatSwitch(AlexaMediaSwitch):
 
 
 class SmartSwitch(CoordinatorEntity, SwitchDevice):
+    _attr_has_entity_name = True
+    _attr_name = None
+
     def __init__(self, coordinator, login, details):
         """Initialize alexa light entity."""
         super().__init__(coordinator)
@@ -508,9 +511,17 @@ class SmartSwitch(CoordinatorEntity, SwitchDevice):
         self._requested_power = None
 
     @property
-    def name(self):
+    def device_name(self):
         """Return name."""
         return self._name
+
+    @property
+    def device_info(self):
+        """Return device information for the smart switch."""
+        return {
+            "identifiers": {(ALEXA_DOMAIN, self.alexa_entity_id)},
+            "name": self._name,
+        }
 
     @property
     def unique_id(self):

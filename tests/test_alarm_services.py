@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from alexapy import AlexaAPI, AlexapyLoginError
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.util import dt as dt_util
 import pytest
@@ -84,6 +85,9 @@ async def test_skip_next_alarm_registered(alarm_id):
     services, login, schedule = make_services(RECURRING_ALARM.copy())
     del services._resolve_device
     services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["login_obj"] = login
+    services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["config_entry"] = MagicMock(
+        state=ConfigEntryState.LOADED
+    )
     await services.register()
     registered = {
         args[1]: (args[2], kwargs["schema"])

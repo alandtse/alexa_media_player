@@ -229,3 +229,40 @@ def test_alexapy_no_data_fallback_is_not_fresh():
     # A successful JSON response produces a distinct list, even if equal.
     state.inventory([dict(devices[0])], state.generation, previous_inventory=devices)
     assert state.values["A"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("registered", [False, True])
+async def test_account_unload_removes_discovery_before_platform_reset(registered):
+    """Forwarded platform unload cannot leave account discovery subscribed."""
+    from custom_components.alexa_media import async_unload_entry as unload_account
+
+    data = account()
+    state = connectivity_state(data)
+    listener = MagicMock()
+    if registered:
+        data["connectivity_discovery_unsub"] = state.add_listener(listener)
+    hass = MagicMock()
+    hass.data = {DOMAIN: {"accounts": {"one@example.com": data}}}
+
+    async def unload_platform(entry, component):
+        # Forwarded unload resets the platform without calling its unload hook.
+        assert "connectivity_discovery_unsub" not in data
+        assert not state._listeners
+        data["entities"][component] = []
+        state.notify()
+        return True
+
+    hass.config_entries.async_forward_entry_unload = AsyncMock(
+        side_effect=unload_platform
+    )
+    with (
+        patch("custom_components.alexa_media.close_connections", AsyncMock()),
+        patch("custom_components.alexa_media.notify_async_unload_entry", AsyncMock()),
+    ):
+        assert await unload_account(
+            hass,
+            SimpleNamespace(data={"email": "one@example.com", "url": "amazon.com"}),
+        )
+    hass.config_entries.async_forward_entry_unload.assert_awaited()
+    listener.assert_not_called()

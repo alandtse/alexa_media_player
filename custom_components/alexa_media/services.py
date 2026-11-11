@@ -15,8 +15,14 @@ from typing import Any, Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
+from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    ServiceValidationError,
+    Unauthorized,
+    UnknownUser,
+)
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.util import dt as dt_util, slugify
 import voluptuous as vol
@@ -491,6 +497,17 @@ class AlexaMediaServices:
 
         """
         entity_ids = call.data[ATTR_ENTITY_ID]
+        if call.context.user_id:
+            user = await self.hass.auth.async_get_user(call.context.user_id)
+            if user is None:
+                raise UnknownUser(context=call.context)
+            for entity_id in entity_ids:
+                if not user.permissions.check_entity(entity_id, POLICY_CONTROL):
+                    raise Unauthorized(
+                        context=call.context,
+                        entity_id=entity_id,
+                        permission=POLICY_CONTROL,
+                    )
         _LOGGER.debug("Service repeat_last_message called for: %s", entity_ids)
         media_players = {
             entity.entity_id: entity

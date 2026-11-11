@@ -1,8 +1,10 @@
 """Tests for the repeat_last_message service."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.auth.permissions.const import POLICY_CONTROL
+from homeassistant.core import Context
+from homeassistant.exceptions import ServiceValidationError, Unauthorized, UnknownUser
 import pytest
 from pytest_homeassistant_custom_component.common import MockEntityPlatform
 
@@ -244,3 +246,39 @@ class TestRepeatLastMessage:
 
         assert kitchen.alexa_api.send_tts.await_args.args == ("Dinner is ready",)
         assert office.alexa_api.send_tts.await_args.args == ("Meeting in 5",)
+
+
+@pytest.mark.parametrize("allowed", [True, False, None])
+async def test_repeat_checks_all_permissions_before_replay(hass, allowed):
+    """Authorize every target before replay, rejecting missing users too."""
+    entity_ids = ["media_player.kitchen", "media_player.office"]
+    players = {entity_id: MagicMock(entity_id=entity_id) for entity_id in entity_ids}
+    for player in players.values():
+        player.async_repeat_last_message = AsyncMock()
+    hass.data[DATA_ALEXAMEDIA] = {
+        "accounts": {EMAIL: {"entities": {"media_player": players}}}
+    }
+    user = MagicMock()
+    user.permissions.check_entity.side_effect = [True, allowed]
+    call = MagicMock(data={"entity_id": entity_ids}, context=Context(user_id="caller"))
+    services = AlexaMediaServices(hass, functions={})
+    with patch.object(
+        hass.auth,
+        "async_get_user",
+        AsyncMock(return_value=user if allowed is not None else None),
+    ) as get_user:
+        if allowed:
+            await services.repeat_last_message(call)
+        else:
+            with pytest.raises(UnknownUser if allowed is None else Unauthorized):
+                await services.repeat_last_message(call)
+        get_user.assert_awaited_once_with("caller")
+    if allowed is not None:
+        assert user.permissions.check_entity.call_args_list == [
+            ((entity_id, POLICY_CONTROL),) for entity_id in entity_ids
+        ]
+    for player in players.values():
+        if allowed:
+            player.async_repeat_last_message.assert_awaited_once_with()
+        else:
+            player.async_repeat_last_message.assert_not_awaited()

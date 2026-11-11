@@ -1,8 +1,10 @@
 """Test Alexa device model and hardware metadata without network calls."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from homeassistant.helpers import device_registry as dr
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.alexa_media.media_player import AlexaClient
 
@@ -97,9 +99,16 @@ def test_second_account_keeps_registry_identifier():
 
 
 @pytest.mark.parametrize("name", [None, "", "Living room"])
-async def test_refresh_updates_friendly_name(name):
+async def test_refresh_updates_friendly_name(name, hass):
     """Read fresh inventory metadata, including removal, independently of name."""
     client = make_client()
+    config_entry = MockConfigEntry(domain="alexa_media")
+    config_entry.add_to_hass(hass)
+    registry = dr.async_get(hass)
+    registered = registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id, **client.device_info
+    )
+    client.hass = hass
     device = {
         "accountName": name,
         "deviceFamily": "ECHO",
@@ -121,11 +130,21 @@ async def test_refresh_updates_friendly_name(name):
             "customerName": "Test",
         },
     }
-    await client.refresh(device, skip_api=True)
+    with patch.object(client, "schedule_update_ha_state"):
+        await client.refresh(device, skip_api=True)
     assert client.device_info["name"] == name
     assert client.device_info["model"] == "Echo Show 8"
     assert client.device_info["hw_version"] == "3rd Gen"
+    registered = registry.async_get(registered.id)
+    assert registered.model == "Echo Show 8"
+    assert registered.model_id == "UNKNOWN"
+    assert registered.hw_version == "3rd Gen"
     device.pop("deviceTypeFriendlyName")
-    await client.refresh(device, skip_api=True)
+    with patch.object(client, "schedule_update_ha_state"):
+        await client.refresh(device, skip_api=True)
     assert client.device_info["model"] == "ECHO UNKNOWN"
     assert client.device_info["hw_version"] is None
+    registered = registry.async_get(registered.id)
+    assert registered.model == "ECHO UNKNOWN"
+    assert registered.model_id == "UNKNOWN"
+    assert registered.hw_version is None

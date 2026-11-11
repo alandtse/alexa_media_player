@@ -31,6 +31,7 @@ from homeassistant.components.media_player.const import (
 from homeassistant.const import CONF_EMAIL, CONF_NAME, CONF_PASSWORD, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
@@ -844,6 +845,17 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._timezone = device["timeZoneId"] if "timeZoneId" in device else "UTC"
             self._dnd = device["dnd"] if "dnd" in device else None
             self._set_authentication_details(device["auth_info"])
+            if self.hass:
+                registry = dr.async_get(self.hass)
+                info = self.device_info
+                if entry := registry.async_get_device(identifiers=info["identifiers"]):
+                    metadata = {
+                        key: info[key]
+                        for key in ("model", "model_id", "hw_version")
+                        if getattr(entry, key) != info[key]
+                    }
+                    if metadata:
+                        registry.async_update_device(entry.id, **metadata)
         session = None
         api_call = False
         if self.available:

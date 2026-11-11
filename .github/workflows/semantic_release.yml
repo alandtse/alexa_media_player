@@ -6,16 +6,59 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      source-sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: master
+          persist-credentials: false
+      - name: Record release source
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Prepare shared changelog and release attribution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install --require-hashes -r .github/requirements/release-notes.txt
+          python .github/scripts/prepare-release-notes.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-note-templates
+          path: .github/.release-templates/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
   deploy:
+    needs: prepare
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: master
+          ref: ${{ needs.prepare.outputs.source-sha }}
           token: ${{ secrets.GH_TOKEN }}
+      - name: Restore release branch
+        run: git checkout -B master
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-note-templates
+          path: .github/.release-templates
       - name: Download lokalise translations
         continue-on-error: true
         run: |
@@ -48,10 +91,10 @@ jobs:
           else
             echo "Lokalise download failed or no translations found, proceeding with existing translations..."
           fi
-      - name: Set up Python 3.8
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: "3.13"
       # #----------------------------------------------
       # #  -----  install & configure poetry  -----
       # #----------------------------------------------

@@ -48,6 +48,12 @@ build_command = "echo"
 branch = "main"
 commit_subject = "[skip ci] {version}"
 
+[tool.semantic_release.changelog]
+template_dir = ".github/.release-templates"
+
+[tool.semantic_release.changelog.environment]
+autoescape = false
+
 [tool.black]
 line-length = 88
 target-version = ['py313']

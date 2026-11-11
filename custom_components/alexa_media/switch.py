@@ -421,11 +421,6 @@ class DNDSwitch(AlexaMediaSwitch):
         """Return the icon of the switch."""
         return super()._icon("mdi:minus-circle", "mdi:minus-circle-off")
 
-    @property
-    def entity_category(self):
-        """Return the entity category of the switch."""
-        return EntityCategory.CONFIG
-
     def _handle_event(self, event):
         """Handle events."""
         try:
@@ -464,11 +459,6 @@ class ShuffleSwitch(AlexaMediaSwitch):
         """Return the icon of the switch."""
         return super()._icon("mdi:shuffle", "mdi:shuffle-disabled")
 
-    @property
-    def entity_category(self):
-        """Return the entity category of the switch."""
-        return EntityCategory.CONFIG
-
 
 class RepeatSwitch(AlexaMediaSwitch):
     """Representation of a Alexa Media Repeat switch."""
@@ -484,11 +474,6 @@ class RepeatSwitch(AlexaMediaSwitch):
     def icon(self):
         """Return the icon of the switch."""
         return super()._icon("mdi:repeat", "mdi:repeat-off")
-
-    @property
-    def entity_category(self):
-        """Return the entity category of the switch."""
-        return EntityCategory.CONFIG
 
 
 class SmartSwitch(CoordinatorEntity, SwitchDevice):
@@ -586,6 +571,7 @@ class AmazonKidsSwitch(SwitchDevice):
 
     _attr_has_entity_name = True
     _attr_name = "Amazon Kids"
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_icon = "mdi:account-child"
     _attr_should_poll = False
 

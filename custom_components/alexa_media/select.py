@@ -12,6 +12,7 @@ import logging
 from alexapy import AlexaAPI
 from homeassistant.components.select import SelectEntity
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.helpers.entity import EntityCategory
 
 from . import CONF_EMAIL, DATA_ALEXAMEDIA, hide_email
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, OPTION_NONE, async_get_state
@@ -82,6 +83,7 @@ class AmazonKidsChildSelect(SelectEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Amazon Kids child"
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_icon = "mdi:account-child-outline"
     _attr_should_poll = False
 

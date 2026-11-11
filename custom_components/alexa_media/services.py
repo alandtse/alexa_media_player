@@ -43,6 +43,7 @@ from .const import (
     SERVICE_GET_HISTORY_RECORDS,
     SERVICE_REPEAT_LAST_MESSAGE,
     SERVICE_RESTORE_VOLUME,
+    SERVICE_SKIP_NEXT_ALARM,
     SERVICE_UPDATE_LAST_CALLED,
 )
 from .helpers import _catch_login_errors, report_relogin_required, safe_get
@@ -214,6 +215,11 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         name=SERVICE_DELETE_ALARM,
         schema=ALARM_SCHEMA,
         handler="delete_alarm",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_SKIP_NEXT_ALARM,
+        schema=ALARM_SCHEMA,
+        handler="skip_next_alarm",
     ),
 )
 
@@ -640,6 +646,29 @@ class AlexaMediaServices:
             serial,
             entity_id,
             SERVICE_DISABLE_ALARM,
+        )
+
+    async def skip_next_alarm(self, call: ServiceCall) -> bool:
+        """Request skipping the next occurrence of an active recurring alarm."""
+        entity_id = call.data[ATTR_ENTITY_ID]
+        login_obj, serial, alarm, _ = self._resolve_alarm(
+            entity_id, call.data[ATTR_ALARM_ID]
+        )
+        index = alarm.get("notificationIndex")
+        if not isinstance(index, str) or not index:
+            raise ServiceValidationError(
+                f"Alarm on {entity_id} has no notification index"
+            )
+        if alarm.get("status") != "ON" or not alarm_days(alarm):
+            raise ServiceValidationError(
+                f"Only active recurring alarms can be skipped on {entity_id}"
+            )
+        return await self._change_alarm(
+            AlexaAPI.skip_next_alarm(login_obj, index),
+            login_obj,
+            serial,
+            entity_id,
+            SERVICE_SKIP_NEXT_ALARM,
         )
 
     async def delete_alarm(self, call: ServiceCall) -> bool:

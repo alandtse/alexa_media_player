@@ -63,7 +63,15 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Neustart"
+      }
+    },
     "number": {
+      "display_brightness": {
+        "name": "Displayhelligkeit"
+      },
       "notification_volume": {
         "name": "Alarm- und Benachrichtigungslautstärke"
       }
@@ -101,6 +109,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Adaptive Helligkeit"
+      },
+      "display_power": {
+        "name": "Anzeige"
+      },
       "do_not_disturb": {
         "name": "Bitte nicht stören"
       },
@@ -165,6 +179,66 @@
         }
       },
       "name": "Amazon Kids aktivieren"
+    },
+    "create_alarm": {
+      "description": "Erzeugt einen Alarm auf einem Echo-Gerät.",
+      "fields": {
+        "days": {
+          "description": "Tage, an denen der Alarm wiederholt werden soll. Für einen einmaligen Alarm leer lassen.",
+          "name": "Wiederholen Sie dies am"
+        },
+        "entity_id": {
+          "description": "Echo-Gerät zum Einstellen des Alarms",
+          "name": "Medienplayer auswählen:"
+        },
+        "time": {
+          "description": "Zeit bis zum Klingeln des Weckers",
+          "name": "Zeit"
+        }
+      },
+      "name": "Alarm erstellen"
+    },
+    "delete_alarm": {
+      "description": "Löscht einen Echo-Alarm.",
+      "fields": {
+        "alarm_id": {
+          "description": "Die Alarm-ID, aus dem Attribut „sorted_all“ des nächsten Alarmsensors des Geräts.",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Echo-Gerät, der Alarm ist eingeschaltet",
+          "name": "Medienplayer auswählen:"
+        }
+      },
+      "name": "Alarm löschen"
+    },
+    "disable_alarm": {
+      "description": "Schaltet einen Echo-Alarm aus, ohne ihn zu löschen.",
+      "fields": {
+        "alarm_id": {
+          "description": "Die Alarm-ID, aus dem Attribut „sorted_all“ des nächsten Alarmsensors des Geräts.",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Echo-Gerät, der Alarm ist eingeschaltet",
+          "name": "Medienplayer auswählen:"
+        }
+      },
+      "name": "Alarm deaktivieren"
+    },
+    "enable_alarm": {
+      "description": "Schaltet einen Echo-Wecker ein.",
+      "fields": {
+        "alarm_id": {
+          "description": "Die Alarm-ID, aus dem Attribut „sorted_all“ des nächsten Alarmsensors des Geräts.",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Echo-Gerät, der Alarm ist eingeschaltet",
+          "name": "Medienplayer auswählen:"
+        }
+      },
+      "name": "Alarm aktivieren"
     },
     "enable_network_discovery": {
       "description": "Aktiviert die Alexa-Netzwerkerkennung erneut, sodass beim nächsten Abfragezyklus die Alexa-Geräte für die ausgewählten Konten erneut erkannt werden.",

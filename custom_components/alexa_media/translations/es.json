@@ -63,7 +63,15 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Reanudar"
+      }
+    },
     "number": {
+      "display_brightness": {
+        "name": "brillo de la pantalla"
+      },
       "notification_volume": {
         "name": "Volumen de alarma y notificación"
       }
@@ -101,6 +109,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Brillo adaptativo"
+      },
+      "display_power": {
+        "name": "Mostrar"
+      },
       "do_not_disturb": {
         "name": "No molestar"
       },
@@ -165,6 +179,66 @@
         }
       },
       "name": "Habilitar Amazon Kids"
+    },
+    "create_alarm": {
+      "description": "Crea una alarma en un Echo.",
+      "fields": {
+        "days": {
+          "description": "Días para repetir. Dejar vacío para una alarma única.",
+          "name": "Repetir en"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo para configurar la alarma",
+          "name": "Seleccione el reproductor multimedia:"
+        },
+        "time": {
+          "description": "Hora en que suena la alarma",
+          "name": "Tiempo"
+        }
+      },
+      "name": "Crear alarma"
+    },
+    "delete_alarm": {
+      "description": "Elimina una alarma de Echo.",
+      "fields": {
+        "alarm_id": {
+          "description": "El ID de la alarma, del atributo sorted_all del sensor de alarma siguiente del dispositivo.",
+          "name": "ID de alarma"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo, la alarma está encendida.",
+          "name": "Seleccione el reproductor multimedia:"
+        }
+      },
+      "name": "Eliminar alarma"
+    },
+    "disable_alarm": {
+      "description": "Desactiva una alarma de Echo sin eliminarla.",
+      "fields": {
+        "alarm_id": {
+          "description": "El ID de la alarma, del atributo sorted_all del sensor de alarma siguiente del dispositivo.",
+          "name": "ID de alarma"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo, la alarma está encendida.",
+          "name": "Seleccione el reproductor multimedia:"
+        }
+      },
+      "name": "Desactivar alarma"
+    },
+    "enable_alarm": {
+      "description": "Enciende una alarma Echo.",
+      "fields": {
+        "alarm_id": {
+          "description": "El ID de la alarma, del atributo sorted_all del sensor de alarma siguiente del dispositivo.",
+          "name": "ID de alarma"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo, la alarma está encendida.",
+          "name": "Seleccione el reproductor multimedia:"
+        }
+      },
+      "name": "Habilitar alarma"
     },
     "enable_network_discovery": {
       "description": "Vuelve a habilitar el descubrimiento de red de Alexa para que el próximo ciclo de sondeo redescubra los dispositivos Alexa para las cuentas seleccionadas.",

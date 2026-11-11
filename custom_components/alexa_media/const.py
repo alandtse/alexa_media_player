@@ -101,6 +101,7 @@ SERVICE_CREATE_ALARM = "create_alarm"
 SERVICE_ENABLE_ALARM = "enable_alarm"
 SERVICE_DISABLE_ALARM = "disable_alarm"
 SERVICE_DELETE_ALARM = "delete_alarm"
+SERVICE_SKIP_NEXT_ALARM = "skip_next_alarm"
 
 # Backoff durations for the last-called probe worker
 LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0

@@ -63,7 +63,15 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Uruchom ponownie"
+      }
+    },
     "number": {
+      "display_brightness": {
+        "name": "Jasność wyświetlacza"
+      },
       "notification_volume": {
         "name": "Głośność alarmów i powiadomień"
       }
@@ -101,6 +109,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Adaptacyjna jasność"
+      },
+      "display_power": {
+        "name": "Sposób wyświetlania"
+      },
       "do_not_disturb": {
         "name": "Nie przeszkadzać"
       },
@@ -165,6 +179,66 @@
         }
       },
       "name": "Włącz Amazon Kids"
+    },
+    "create_alarm": {
+      "description": "Tworzy alarm w urządzeniu Echo.",
+      "fields": {
+        "days": {
+          "description": "Dni do powtórzenia. Pozostaw puste, aby włączyć jednorazowy alarm.",
+          "name": "Powtórz na"
+        },
+        "entity_id": {
+          "description": "Urządzenie echo do ustawienia alarmu",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        },
+        "time": {
+          "description": "Czas, aby zadzwonił budzik",
+          "name": "Czas"
+        }
+      },
+      "name": "Utwórz alarm"
+    },
+    "delete_alarm": {
+      "description": "Usuwa alarm Echo.",
+      "fields": {
+        "alarm_id": {
+          "description": "Identyfikator alarmu z atrybutu sorted_all następnego czujnika alarmu urządzenia",
+          "name": "Identyfikator alarmu"
+        },
+        "entity_id": {
+          "description": "Urządzenie echo alarm jest włączony",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        }
+      },
+      "name": "Usuń alarm"
+    },
+    "disable_alarm": {
+      "description": "Wyłącza alarm Echo bez usuwania go.",
+      "fields": {
+        "alarm_id": {
+          "description": "Identyfikator alarmu z atrybutu sorted_all następnego czujnika alarmu urządzenia",
+          "name": "Identyfikator alarmu"
+        },
+        "entity_id": {
+          "description": "Urządzenie echo alarm jest włączony",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        }
+      },
+      "name": "Wyłącz alarm"
+    },
+    "enable_alarm": {
+      "description": "Włącza alarm Echo.",
+      "fields": {
+        "alarm_id": {
+          "description": "Identyfikator alarmu z atrybutu sorted_all następnego czujnika alarmu urządzenia",
+          "name": "Identyfikator alarmu"
+        },
+        "entity_id": {
+          "description": "Urządzenie echo alarm jest włączony",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        }
+      },
+      "name": "Włącz alarm"
     },
     "enable_network_discovery": {
       "description": "Ponownie włącza wykrywanie sieci Alexa, dzięki czemu kolejny cykl sondowania ponownie wykryje urządzenia Alexa dla wybranych kont.",

@@ -63,7 +63,15 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Ricomincia"
+      }
+    },
     "number": {
+      "display_brightness": {
+        "name": "Luminosità dello schermo"
+      },
       "notification_volume": {
         "name": "Volume di allarme e notifica"
       }
@@ -101,6 +109,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Luminosità adattiva"
+      },
+      "display_power": {
+        "name": "Visualizza"
+      },
       "do_not_disturb": {
         "name": "Non disturbare"
       },
@@ -165,6 +179,66 @@
         }
       },
       "name": "Abilita Amazon Kids"
+    },
+    "create_alarm": {
+      "description": "Crea un allarme su un Echo.",
+      "fields": {
+        "days": {
+          "description": "Giorni in cui ripetere la sessione. Lasciare vuoto per un allarme singolo.",
+          "name": "Riparare su"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo per impostare la sveglia",
+          "name": "Seleziona il lettore multimediale:"
+        },
+        "time": {
+          "description": "Quando suona la sveglia",
+          "name": "Tempo"
+        }
+      },
+      "name": "Creare allarme"
+    },
+    "delete_alarm": {
+      "description": "Elimina un allarme Echo.",
+      "fields": {
+        "alarm_id": {
+          "description": "L'ID dell'allarme, dall'attributo sorted_all del sensore di allarme successivo del dispositivo.",
+          "name": "ID allarme"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo, l'allarme è attivo",
+          "name": "Seleziona il lettore multimediale:"
+        }
+      },
+      "name": "Elimina allarme"
+    },
+    "disable_alarm": {
+      "description": "Disattiva una sveglia Echo senza eliminarla.",
+      "fields": {
+        "alarm_id": {
+          "description": "L'ID dell'allarme, dall'attributo sorted_all del sensore di allarme successivo del dispositivo.",
+          "name": "ID allarme"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo, l'allarme è attivo",
+          "name": "Seleziona il lettore multimediale:"
+        }
+      },
+      "name": "Disattiva allarme"
+    },
+    "enable_alarm": {
+      "description": "Attiva una sveglia Echo.",
+      "fields": {
+        "alarm_id": {
+          "description": "L'ID dell'allarme, dall'attributo sorted_all del sensore di allarme successivo del dispositivo.",
+          "name": "ID allarme"
+        },
+        "entity_id": {
+          "description": "Dispositivo Echo, l'allarme è attivo",
+          "name": "Seleziona il lettore multimediale:"
+        }
+      },
+      "name": "Attiva allarme"
     },
     "enable_network_discovery": {
       "description": "Riattiva la rilevazione della rete Alexa in modo che il successivo ciclo di sondaggio rilevi i dispositivi Alexa per gli account selezionati.",

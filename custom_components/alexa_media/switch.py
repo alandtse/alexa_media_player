@@ -29,9 +29,10 @@ from . import (
     hide_email,
     hide_serial,
 )
-from .alexa_entity import parse_power_from_coordinator
+from .alexa_entity import parse_power_from_coordinator, parse_value_from_coordinator
 from .alexa_media import AlexaMedia
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
+from .aqm_led import resolve_endpoint_id, set_led_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .display import (
     AlexaAdaptiveBrightnessSwitch,
@@ -39,7 +40,13 @@ from .display import (
     async_get_display_state,
     supports_display,
 )
-from .helpers import _catch_login_errors, add_devices, safe_get
+from .helpers import (
+    _catch_login_errors,
+    _coerce_filter,
+    _norm_filter_token,
+    add_devices,
+    safe_get,
+)
 
 try:
     from homeassistant.components.switch import SwitchEntity as SwitchDevice
@@ -179,6 +186,27 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     "Switch '%s' has not been added because it may originate from emulated_hue",
                     switch_entity["name"],
                 )
+    led_devices = []
+    led_include = _coerce_filter(include_filter)
+    led_exclude = _coerce_filter(exclude_filter)
+    switches = account_dict["entities"].setdefault("smart_switch", [])
+    for details in account_dict["devices"].get("aiaqm", []):
+        if not details.get("led_indicator_instance"):
+            continue
+        device_name = _norm_filter_token(details["name"])
+        if (led_include and device_name not in led_include) or (
+            not led_include and device_name in led_exclude
+        ):
+            continue
+        unique_id = f"{details['id']}_led_indicator"
+        if any(entity.unique_id == unique_id for entity in switches):
+            continue
+        switch = LEDIndicatorSwitch(
+            account_dict["coordinator"], account_dict["login_obj"], details
+        )
+        switches.append(switch)
+        led_devices.append(switch)
+
     # Amazon Kids (child mode) switch per capable Echo. Only devices that
     # already have a media_player entity are used, so the configured
     # include/exclude filters are inherited and unique ids stay account scoped.
@@ -204,6 +232,12 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         include_filter,
         exclude_filter,
     )
+    if led_devices:
+        result = (
+            await add_devices(hide_email(account), led_devices, add_devices_callback)
+            and result
+        )
+
     if display_devices:
         # Do not apply include/exclude filters to these entities.
         result = (
@@ -573,6 +607,66 @@ class SmartSwitch(CoordinatorEntity, SwitchDevice):
 
     async def async_turn_off(self, **kwargs):  # pylint:disable=unused-argument
         """Turn off."""
+        await self._set_state(False)
+
+
+class LEDIndicatorSwitch(CoordinatorEntity, SwitchDevice):
+    """The writable LED toggle advertised by an Amazon Air Quality Monitor."""
+
+    _attr_has_entity_name = True
+    _attr_name = "LED Indicator"
+    _attr_icon = "mdi:led-on"
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator, login, details):
+        """Bind control and state to the discovered AQM capability."""
+        super().__init__(coordinator)
+        self._login = login
+        self.alexa_entity_id = details["id"]
+        self._instance = details["led_indicator_instance"]
+        self._endpoint_id = None
+        self._attr_unique_id = f"{self.alexa_entity_id}_led_indicator"
+        serial = details["device_serial"]
+        self._attr_device_info = {
+            "identifiers": {(ALEXA_DOMAIN, serial)},
+            "serial_number": serial,
+            "manufacturer": "Amazon",
+            "model": "Indoor Air Quality Monitor",
+            "name": details["name"],
+        }
+
+    @property
+    def is_on(self):
+        """Read only this instance; an absent state remains unknown."""
+        state = parse_value_from_coordinator(
+            self.coordinator,
+            self.alexa_entity_id,
+            "Alexa.ToggleController",
+            "toggleState",
+            instance=self._instance,
+        )
+        return state == "ON" if state in ("ON", "OFF") else None
+
+    @property
+    def available(self):
+        """Require successful polling and a known LED state."""
+        return super().available and self.is_on is not None
+
+    @_catch_login_errors
+    async def _set_state(self, power_on):
+        if self._endpoint_id is None:
+            self._endpoint_id = await resolve_endpoint_id(
+                self._login, self.alexa_entity_id
+            )
+        await set_led_state(self._login, self._endpoint_id, self._instance, power_on)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_on(self, **kwargs):
+        """Enable the indicator."""
+        await self._set_state(True)
+
+    async def async_turn_off(self, **kwargs):
+        """Disable the indicator."""
         await self._set_state(False)
 
 

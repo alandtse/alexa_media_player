@@ -27,6 +27,7 @@ from alexapy import (
     hide_email,
     obfuscate,
 )
+from authcaptureproxy.examples.amazon_waf import AmazonWAFInterceptor
 from awesomeversion import AwesomeVersion
 from homeassistant import config_entries
 from homeassistant.components.http.view import HomeAssistantView
@@ -398,6 +399,7 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                         )
                     ),
                 )
+                self.proxy.interceptors = [AmazonWAFInterceptor()]
                 self.proxy.session_factory = lambda: create_async_httpx_client(
                     self.hass,
                     verify_ssl=True,

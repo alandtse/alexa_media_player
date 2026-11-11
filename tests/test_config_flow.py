@@ -3,6 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from authcaptureproxy.examples.amazon_waf import AmazonWAFInterceptor
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_URL
 import pytest
 from yarl import URL
@@ -600,6 +601,8 @@ class TestConfigFlowProxyReuse:
             ):
                 result = await flow.async_step_start_proxy()
             assert URL(result["url"]).path.endswith("/" + flow_id)
+            assert len(flow.proxy.interceptors) == 1
+            assert isinstance(flow.proxy.interceptors[0], AmazonWAFInterceptor)
             return flow
 
         first = await start("first")

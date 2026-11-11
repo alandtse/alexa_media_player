@@ -63,7 +63,15 @@
     }
   },
   "entity": {
+    "button": {
+      "restart": {
+        "name": "Opnieuw opstarten"
+      }
+    },
     "number": {
+      "display_brightness": {
+        "name": "Schermhelderheid"
+      },
       "notification_volume": {
         "name": "Alarm- en meldingsvolume"
       }
@@ -101,6 +109,12 @@
       }
     },
     "switch": {
+      "adaptive_brightness": {
+        "name": "Adaptieve helderheid"
+      },
+      "display_power": {
+        "name": "Weergave"
+      },
       "do_not_disturb": {
         "name": "Niet storen"
       },
@@ -165,6 +179,66 @@
         }
       },
       "name": "Amazon Kids inschakelen"
+    },
+    "create_alarm": {
+      "description": "Hiermee wordt een alarm op een Echo ingesteld.",
+      "fields": {
+        "days": {
+          "description": "Dagen waarop dit herhaald moet worden. Laat dit veld leeg voor een eenmalig alarm.",
+          "name": "Herhaal op"
+        },
+        "entity_id": {
+          "description": "Echo-apparaat om het alarm in te stellen",
+          "name": "Selecteer een mediaspeler:"
+        },
+        "time": {
+          "description": "Tijdstip waarop het alarm afgaat",
+          "name": "Tijd"
+        }
+      },
+      "name": "Alarm maken"
+    },
+    "delete_alarm": {
+      "description": "Hiermee wordt een Echo-alarm verwijderd.",
+      "fields": {
+        "alarm_id": {
+          "description": "De alarm-ID, afkomstig uit het `sorted_all` attribuut van de volgende alarmsensor van het apparaat.",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Het alarm van het Echo-apparaat staat aan.",
+          "name": "Selecteer een mediaspeler:"
+        }
+      },
+      "name": "Alarm verwijderen"
+    },
+    "disable_alarm": {
+      "description": "Hiermee wordt een Echo-alarm uitgeschakeld zonder het te verwijderen.",
+      "fields": {
+        "alarm_id": {
+          "description": "De alarm-ID, afkomstig uit het `sorted_all` attribuut van de volgende alarmsensor van het apparaat.",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Het alarm van het Echo-apparaat staat aan.",
+          "name": "Selecteer een mediaspeler:"
+        }
+      },
+      "name": "Alarm uitschakelen"
+    },
+    "enable_alarm": {
+      "description": "Schakelt een Echo-alarm in.",
+      "fields": {
+        "alarm_id": {
+          "description": "De alarm-ID, afkomstig uit het `sorted_all` attribuut van de volgende alarmsensor van het apparaat.",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Het alarm van het Echo-apparaat staat aan.",
+          "name": "Selecteer een mediaspeler:"
+        }
+      },
+      "name": "Alarm inschakelen"
     },
     "enable_network_discovery": {
       "description": "Hiermee wordt de Alexa-netwerkdetectie opnieuw ingeschakeld, zodat de volgende pollingcyclus Alexa-apparaten voor de geselecteerde accounts opnieuw kan detecteren.",

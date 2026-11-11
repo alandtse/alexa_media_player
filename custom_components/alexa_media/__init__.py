@@ -536,8 +536,23 @@ async def async_setup(hass, config):
             """Update last_called for the account behind a login object."""
             await _async_update_last_called_global(hass, login_obj, login_obj.email)
 
+        def _service_schedule_notifications_refresh(
+            hass, email, device_serial=None, reason=""
+        ):
+            """Route refreshes to the requested account's setup-local worker."""
+            account = (
+                hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email, {})
+            )
+            schedule = account.get("schedule_notifications_refresh")
+            if callable(schedule):
+                schedule(hass, email, device_serial=device_serial, reason=reason)
+
         hass.data[DATA_ALEXAMEDIA]["services"] = alexa_services = AlexaMediaServices(
-            hass, update_last_called=_service_update_last_called
+            hass,
+            functions={
+                "update_last_called": _service_update_last_called,
+                "schedule_notifications_refresh": _service_schedule_notifications_refresh,
+            },
         )
         await alexa_services.register()
 
@@ -837,6 +852,7 @@ async def async_setup_entry(hass, config_entry):
                 "binary_sensor": [],
                 "alarm_control_panel": {},
                 "smart_switch": [],
+                "button": {},
             },
             "excluded": {},
             "new_devices": True,
@@ -847,6 +863,7 @@ async def async_setup_entry(hass, config_entry):
             "http2": None,
             "auth_info": None,
             "amazon_kids": None,
+            "display_states": {},
             "second_account_index": 0,
             "should_get_network": True,
             "first_run": True,
@@ -1529,6 +1546,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     .get(serial)
                     .refresh(device, skip_api=True)
                 )
+        async_dispatcher_send(
+            hass,
+            f"{DOMAIN}_{hide_email(email)}"[0:32],
+            {"availability_update": True},
+        )
         _LOGGER.debug(
             "%s: Existing: %s New: %s;"
             " Filtered out by not being in include: %s "
@@ -3248,6 +3270,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.debug("[BOOT] first_refresh in %.2fs", time.monotonic() - _t)
 
+    # Services are registered once in async_setup; attach the setup-local callback.
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+        "schedule_notifications_refresh"
+    ] = _schedule_notifications_refresh
+
     # Update last_called in background to avoid blocking
     _LOGGER.debug("%s: setup_alexa: Scheduling last_called update", hide_email(email))
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_called_init_task"] = (
@@ -3334,6 +3361,12 @@ async def async_unload_entry(hass, entry) -> bool:
     if amazon_kids:
         amazon_kids.async_stop()
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["amazon_kids"] = None
+
+    for display_state in (
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("display_states", {}).values()
+    ):
+        display_state.async_stop()
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

@@ -71,6 +71,7 @@ class AlexaRuntimeData:
             "binary_sensor": [],
             "alarm_control_panel": {},
             "smart_switch": [],
+            "button": {},
         }
     )
     excluded: dict[str, Any] = field(default_factory=dict)

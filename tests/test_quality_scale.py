@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.exceptions import ServiceValidationError
 import pytest
 
-from custom_components.alexa_media import async_setup
+from custom_components.alexa_media import async_setup, async_unload_entry
 from custom_components.alexa_media.config_flow import OptionsFlowHandler
 from custom_components.alexa_media.const import (
     CONF_DEBUG,
@@ -135,6 +135,33 @@ async def test_async_setup_registers_services_once():
 
     metrics_cls.assert_called_with(hass)
     services_cls.assert_called_once()
+    callbacks = services_cls.call_args.kwargs["functions"]
+    assert callable(callbacks["update_last_called"])
+    schedule = MagicMock()
+    other_schedule = MagicMock()
+    hass.data[DATA_ALEXAMEDIA]["accounts"] = {
+        EMAIL: {"schedule_notifications_refresh": schedule},
+        "other@example.com": {"schedule_notifications_refresh": other_schedule},
+    }
+    callbacks["schedule_notifications_refresh"](
+        hass, EMAIL, device_serial="serial", reason="create_alarm"
+    )
+    schedule.assert_called_once_with(
+        hass, EMAIL, device_serial="serial", reason="create_alarm"
+    )
+    other_schedule.assert_not_called()
+    callbacks["schedule_notifications_refresh"](hass, "unloaded@example.com")
+    # The persistent service must look up the current account after reload.
+    replacement = MagicMock()
+    hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL] = {
+        "schedule_notifications_refresh": replacement
+    }
+    callbacks["schedule_notifications_refresh"](hass, EMAIL)
+    replacement.assert_called_once_with(hass, EMAIL, device_serial=None, reason="")
+    assert schedule.call_count == 1
+    del hass.data[DATA_ALEXAMEDIA]["accounts"]
+    callbacks["schedule_notifications_refresh"](hass, EMAIL)
+    assert replacement.call_count == 1
     services.register.assert_awaited_once()
     assert hass.data[DATA_ALEXAMEDIA]["services"] is services
 
@@ -188,7 +215,7 @@ async def test_last_called_reports_requested_account_not_loaded():
             }
         }
     }
-    services = AlexaMediaServices(hass, update_last_called=AsyncMock())
+    services = AlexaMediaServices(hass, functions={"update_last_called": AsyncMock()})
     call = MagicMock()
     call.data = {"email": ["other@example.com"]}
 
@@ -221,7 +248,7 @@ async def test_update_last_called_service_uses_registered_callback():
         return task
 
     hass.async_create_task.side_effect = _create_task
-    services = AlexaMediaServices(hass, update_last_called=callback)
+    services = AlexaMediaServices(hass, functions={"update_last_called": callback})
     call = MagicMock()
     call.data = {"email": [EMAIL]}
 
@@ -229,3 +256,84 @@ async def test_update_last_called_service_uses_registered_callback():
     await asyncio.gather(*tasks)
 
     callback.assert_awaited_once_with(login)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reload_account", [False, True])
+async def test_cancelled_last_called_task_preserves_replacement(reload_account):
+    """A cancelled request cannot hide the task that unload still needs to cancel."""
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def callback(login):
+        started.set()
+        await release.wait()
+
+    def account():
+        return {
+            "login_obj": MagicMock(email=EMAIL),
+            "config_entry": MagicMock(state=ConfigEntryState.LOADED),
+        }
+
+    hass = MagicMock()
+    accounts = {EMAIL: account()}
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": accounts}}
+    hass.async_create_task.side_effect = lambda coro, **kwargs: asyncio.create_task(
+        coro
+    )
+    services = AlexaMediaServices(hass, functions={"update_last_called": callback})
+    call = MagicMock(data={"email": [EMAIL]})
+    await services.last_call_handler(call)
+    old = accounts[EMAIL]["service_update_last_called_task"]
+    await started.wait()
+    if reload_account:
+        old.cancel()
+        accounts[EMAIL] = account()
+    await services.last_call_handler(call)
+    new = accounts[EMAIL]["service_update_last_called_task"]
+    try:
+        await asyncio.gather(old, return_exceptions=True)
+        assert accounts[EMAIL].get("service_update_last_called_task") is new
+    finally:
+        release.set()
+        await asyncio.gather(old, new, return_exceptions=True)
+    assert "service_update_last_called_task" not in accounts[EMAIL]
+
+
+@pytest.mark.asyncio
+async def test_services_survive_unloading_last_account():
+    """Unloading accounts cancels work but keeps the one-time domain services."""
+    hass = MagicMock()
+    services = AlexaMediaServices(hass, functions={"update_last_called": AsyncMock()})
+    other_email = "other@example.com"
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "services": services,
+            "accounts": {
+                EMAIL: {"login_obj": MagicMock()},
+                other_email: {"login_obj": MagicMock()},
+            },
+            "metrics": MagicMock(),
+            "notify_service": MagicMock(),
+        }
+    }
+    await services.register()
+    registrations = hass.services.async_register.call_count
+    with (
+        patch("custom_components.alexa_media.ALEXA_COMPONENTS", []),
+        patch("custom_components.alexa_media.DEPENDENT_ALEXA_COMPONENTS", []),
+        patch(
+            "custom_components.alexa_media.close_connections", new_callable=AsyncMock
+        ),
+    ):
+        assert await async_unload_entry(hass, MagicMock(data={"email": EMAIL}))
+        assert other_email in hass.data[DATA_ALEXAMEDIA]["accounts"]
+        assert await async_unload_entry(hass, MagicMock(data={"email": other_email}))
+    assert hass.data[DATA_ALEXAMEDIA]["services"] is services
+    assert "accounts" not in hass.data[DATA_ALEXAMEDIA]
+    assert "metrics" not in hass.data[DATA_ALEXAMEDIA]
+    assert "notify_service" not in hass.data[DATA_ALEXAMEDIA]
+    assert hass.services.async_register.call_count == registrations
+    hass.services.async_remove.assert_not_called()
+    with pytest.raises(ServiceValidationError):
+        await services.last_call_handler(MagicMock(data={}))

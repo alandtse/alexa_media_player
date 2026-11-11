@@ -290,7 +290,7 @@
         "name": "Particulate matter"
       },
       "air_quality_volatile_organic_compounds": {
-        "name": "Volatile organic compounds"
+        "name": "Volatile organic compounds index"
       },
       "next_alarm": {
         "name": "Next alarm"

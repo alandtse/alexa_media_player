@@ -210,6 +210,20 @@
         }
       }
     },
+    "skip_next_alarm": {
+      "name": "Skip next alarm",
+      "description": "Requests skipping the next occurrence of an active recurring Echo alarm. Check the next alarm sensor after it refreshes before calling again.",
+      "fields": {
+        "entity_id": {
+          "name": "Select media player:",
+          "description": "Echo device the alarm is on"
+        },
+        "alarm_id": {
+          "name": "Alarm ID",
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor"
+        }
+      }
+    },
     "delete_alarm": {
       "name": "Delete alarm",
       "description": "Deletes an Echo alarm.",

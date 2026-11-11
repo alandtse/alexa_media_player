@@ -14,18 +14,22 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import slugify
 
 from . import (
     CONF_EMAIL,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
+    _network_allowed,
     hide_email,
 )
 from .alexa_entity import parse_detection_state_from_coordinator
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
+from .connectivity import connectivity_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .helpers import add_devices, safe_get
 
@@ -46,6 +50,32 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     coordinator = account_dict["coordinator"]
+
+    # Inventory has already passed AMP's device name/capability filters.
+    # Discover independently of media_player entity creation or enablement.
+    def discover_connectivity():
+        known = {
+            entity.unique_id
+            for entity in account_dict["entities"]["binary_sensor"]
+            if isinstance(entity, EchoConnectivitySensor)
+        }
+        entities = []
+        for serial, device in account_dict["devices"]["media_player"].items():
+            if device.get("deviceFamily") not in KIDS_CAPABLE_FAMILIES:
+                continue
+            entity = EchoConnectivitySensor(coordinator, account_dict, serial, account)
+            if entity.unique_id not in known:
+                account_dict["entities"]["binary_sensor"].append(entity)
+                entities.append(entity)
+        if entities:
+            add_devices_callback(entities)
+
+    discover_connectivity()
+    # Also discover devices on later inventory updates without another request.
+    account_dict.setdefault("connectivity_discovery_unsub", lambda: None)()
+    account_dict["connectivity_discovery_unsub"] = connectivity_state(
+        account_dict
+    ).add_listener(discover_connectivity)
     binary_entities = safe_get(account_dict, ["devices", "binary_sensor"], [])
     if binary_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
         for binary_entity in binary_entities:
@@ -106,6 +136,7 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry."""
     account = entry.data[CONF_EMAIL]
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    account_dict.pop("connectivity_discovery_unsub", lambda: None)()
     _LOGGER.debug("Attempting to unload binary sensors")
     for binary_sensor in account_dict["entities"]["binary_sensor"]:
         await binary_sensor.async_remove()
@@ -204,3 +235,49 @@ class AmazonKidsSensor(BinarySensorEntity):
     async def async_added_to_hass(self):
         """Subscribe to shared Amazon Kids state updates."""
         self.async_on_remove(self._kids.async_add_listener(self.async_write_ha_state))
+
+
+class EchoConnectivitySensor(BinarySensorEntity):
+    """Amazon-reported Echo connectivity, independent of player availability."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Connectivity"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+    _attr_should_poll = False
+
+    def __init__(self, coordinator, account, serial, email):
+        """Attach to account observations and the existing Echo registry identity."""
+        self.coordinator = coordinator
+        self._account = account
+        self._serial = serial
+        self._connectivity = connectivity_state(account)
+        self._attr_unique_id = f"{slugify(f'{serial}_{email}')}_connectivity"
+        device_id = (
+            slugify(f"{serial}_{email}")
+            if account.get("second_account_index")
+            else serial
+        )
+        self._attr_device_info = {"identifiers": {(DATA_ALEXAMEDIA, device_id)}}
+
+    @property
+    def is_on(self):
+        """Return unknown until a valid observation, including after failure."""
+        return self._connectivity.values.get(self._serial)
+
+    @property
+    def available(self):
+        """An explicitly offline Echo is available; an unusable account is not."""
+        login = self._account.get("login_obj")
+        return bool(
+            self._connectivity.account_available
+            and self.coordinator.last_update_success
+            and login
+            and _network_allowed(login)
+        )
+
+    async def async_added_to_hass(self):
+        """Listen passively to account observations without coordinator polling."""
+        await super().async_added_to_hass()
+        self.async_on_remove(self._connectivity.add_listener(self.async_write_ha_state))

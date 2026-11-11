@@ -50,6 +50,7 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_method: Async method to fetch data
             scan_interval: Polling interval in seconds (default: SCAN_INTERVAL)
         """
+        self.echo_connectivity = None
         self.runtime_data = runtime_data
         self._scan_interval = scan_interval or SCAN_INTERVAL.total_seconds()
 
@@ -97,3 +98,12 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 new_interval,
                 enabled,
             )
+
+    def async_update_listeners(self) -> None:
+        """Publish account health to passive connectivity listeners."""
+        if self.echo_connectivity is not None:
+            if not self.last_update_success:
+                self.echo_connectivity.invalidate()
+            else:
+                self.echo_connectivity.notify()
+        super().async_update_listeners()

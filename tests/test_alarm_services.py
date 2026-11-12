@@ -16,6 +16,7 @@ from custom_components.alexa_media.services import (
     CREATE_ALARM_SCHEMA,
     AlexaMediaServices,
     next_alarm_time,
+    resolve_alarm_schedule,
 )
 
 EMAIL = "test@example.com"
@@ -439,10 +440,183 @@ def test_date_presets_require_echo_timezone(preset):
         resolve_alarm_schedule(datetime.time(8, 0), [preset], None)
 
 
-def test_music_asset_store_is_private():
-    """Learned music selection names should not be world-readable."""
-    services, login, _ = make_services()
-    with patch("custom_components.alexa_media.services.Store") as store:
-        services._music_store(login)
+MUSIC_ID = "11111111-1111-4111-8111-111111111111"
 
-    assert store.call_args.kwargs["private"] is True
+
+@pytest.mark.parametrize(
+    ("days", "expected_time", "repeat"),
+    [
+        (["today"], "2026-10-20T08:00:00", None),
+        (["tomorrow"], "2026-10-21T08:00:00", None),
+        (
+            ["weekdays"],
+            "2026-10-20T08:00:00",
+            {"freq": "WEEKLY", "byDay": ["MO", "TU", "WE", "TH", "FR"], "interval": 1},
+        ),
+        (
+            ["weekends"],
+            "2026-10-24T08:00:00",
+            {"freq": "WEEKLY", "byDay": ["SA", "SU"], "interval": 1},
+        ),
+        (
+            ["everyday"],
+            "2026-10-20T08:00:00",
+            {"freq": "DAILY", "byDay": [], "interval": 1},
+        ),
+    ],
+)
+def test_alarm_schedule_presets(days, expected_time, repeat):
+    zone = dt_util.get_time_zone("Europe/London")
+    assert resolve_alarm_schedule(datetime.time(8, 0), days, zone) == (
+        expected_time,
+        repeat,
+    )
+
+
+@pytest.mark.parametrize("days", [["today"], ["tomorrow"]])
+def test_alarm_schedule_expired_one_off(days):
+    zone = dt_util.get_time_zone("Europe/London")
+    now = NOW if days == ["today"] else NOW + datetime.timedelta(days=1)
+    with patch(
+        "custom_components.alexa_media.services.dt_util.now", return_value=now
+    ):
+        with pytest.raises(ServiceValidationError, match="already passed"):
+            resolve_alarm_schedule(datetime.time(6, 0), days, zone)
+
+
+@pytest.mark.parametrize(
+    "days",
+    [
+        ["today", "mon"],
+        ["tomorrow", "weekdays"],
+        ["weekdays", "weekends"],
+    ],
+)
+def test_alarm_schedule_rejects_mixed_presets(days):
+    with pytest.raises(ServiceValidationError, match="do not combine"):
+        resolve_alarm_schedule(
+            datetime.time(8, 0), days, dt_util.get_time_zone("Europe/London")
+        )
+
+
+@pytest.mark.parametrize(
+    ("now", "alarm_time", "days", "message"),
+    [
+        (datetime.datetime(2026, 3, 28, 12), datetime.time(1, 30), ["tomorrow"], "does not exist"),
+        (datetime.datetime(2026, 10, 24, 12), datetime.time(1, 30), ["tomorrow"], "ambiguous"),
+    ],
+)
+def test_one_off_alarm_rejects_dst_gap_fold(now, alarm_time, days, message):
+    zone = dt_util.get_time_zone("Europe/London")
+    with patch(
+        "custom_components.alexa_media.services.dt_util.now", return_value=now
+    ):
+        with pytest.raises(ServiceValidationError, match=message):
+            resolve_alarm_schedule(alarm_time, days, zone)
+
+
+@pytest.mark.asyncio
+async def test_music_alarm_created_from_current_alexa_cache():
+    music_alarm = {
+        **ALARM,
+        "provider": "Amazon Music",
+        "musicEntity": "Enya",
+        "musicAlarmId": MUSIC_ID,
+    }
+    services, login, schedule = make_services(music_alarm)
+    with patch.object(AlexaAPI, "create_alarm", autospec=True, return_value=True) as create:
+        assert await services.create_alarm(
+            call(
+                time=datetime.time(8, 0),
+                days=[],
+                alarm_type="music",
+                music_provider="Amazon Music",
+                music_entity="enya",
+            )
+        )
+    create.assert_awaited_once_with(
+        login, SERIAL, DEVICE_TYPE, "2026-10-20T08:00:00", None, f"MUSIC-{MUSIC_ID}"
+    )
+    schedule.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "bad_id", [123, {"uuid": MUSIC_ID}, "not-a-uuid", None]
+)
+async def test_music_alarm_invalid_cached_ids_never_create_alarm(bad_id):
+    services, _, schedule = make_services({
+        **ALARM,
+        "provider": "Amazon Music",
+        "musicEntity": "Enya",
+        "musicAlarmId": bad_id,
+    })
+    with (
+        patch.object(AlexaAPI, "create_alarm", autospec=True) as create,
+        pytest.raises(ServiceValidationError, match="No cached Alexa music alarm"),
+    ):
+        await services.create_alarm(
+            call(
+                time=datetime.time(8, 0),
+                days=[],
+                alarm_type="music",
+                music_provider="Amazon Music",
+                music_entity="Enya",
+            )
+        )
+    create.assert_not_called()
+    schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_music_alarm_not_persisted_across_notification_removal():
+    services, login, schedule = make_services({
+        **ALARM,
+        "provider": "Amazon Music",
+        "musicEntity": "Enya",
+        "musicAlarmId": MUSIC_ID,
+    })
+    assert services._cached_music_assets(login)[services._music_key("Amazon Music", "Enya")] == MUSIC_ID
+    services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["notifications"][SERIAL]["Alarm"] = {}
+    with (
+        patch.object(AlexaAPI, "create_alarm", autospec=True) as create,
+        pytest.raises(ServiceValidationError, match="No cached Alexa music alarm"),
+    ):
+        await services.create_alarm(
+            call(
+                time=datetime.time(8, 0), days=[], alarm_type="music",
+                music_provider="Amazon Music", music_entity="Enya",
+            )
+        )
+    create.assert_not_called()
+    schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_list_alarms_returns_music_without_ids():
+    alarm = {
+        **ALARM, "provider": "Amazon Music", "musicEntity": "Enya",
+        "musicAlarmId": MUSIC_ID,
+    }
+    services, _, _ = make_services(alarm)
+    result = await services.list_alarms(call())
+    assert result["count"] == 1
+    assert result["alarms"][0]["music_entity"] == "Enya"
+    assert result["alarms"][0]["is_music"] is True
+    assert MUSIC_ID not in str(result)
+
+
+@pytest.mark.asyncio
+async def test_no_music_arguments_on_normal_alarm():
+    services, _, _ = make_services()
+    with (
+        patch.object(AlexaAPI, "create_alarm", autospec=True) as create,
+        pytest.raises(ServiceValidationError, match="Music parameters require"),
+    ):
+        await services.create_alarm(
+            call(
+                time=datetime.time(8, 0), days=[],
+                music_entity="Enya", music_provider="Amazon Music",
+            )
+        )
+    create.assert_not_called()

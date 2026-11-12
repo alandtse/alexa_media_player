@@ -718,19 +718,21 @@ async def test_music_cache_ignores_corrupted_notification_entries():
     """Malformed cache records should never generate or persist an identifier."""
     services, login, _ = make_services()
     services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["notifications"] = {
-        SERIAL: {"Alarm": {
-            "bad-shape": ["not", "an", "alarm"],
-            "bad-id": {
-                "provider": "Amazon Music",
-                "musicEntity": "Enya",
-                "musicAlarmId": {"invalid": MUSIC_ID},
-            },
-            "valid": {
-                "provider": "Amazon Music",
-                "musicEntity": "Enya",
-                "musicAlarmId": MUSIC_ID,
-            },
-        }},
+        SERIAL: {
+            "Alarm": {
+                "bad-shape": ["not", "an", "alarm"],
+                "bad-id": {
+                    "provider": "Amazon Music",
+                    "musicEntity": "Enya",
+                    "musicAlarmId": {"invalid": MUSIC_ID},
+                },
+                "valid": {
+                    "provider": "Amazon Music",
+                    "musicEntity": "Enya",
+                    "musicAlarmId": MUSIC_ID,
+                },
+            }
+        },
         "another-device": {"Alarm": "invalid"},
     }
     result = services._cached_music_assets(login)

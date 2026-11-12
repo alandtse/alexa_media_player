@@ -608,7 +608,9 @@ class AlexaMediaServices:
         import hashlib
 
         account_key = hashlib.sha256(login_obj.email.encode("utf-8")).hexdigest()[:20]
-        return Store(self.hass, 1, f"alexa_media_music_assets_{account_key}", private=True)
+        return Store(
+            self.hass, 1, f"alexa_media_music_assets_{account_key}", private=True
+        )
 
     def _cached_music_assets(self, login_obj) -> dict[str, str]:
         """Read valid music assets from currently known account notifications."""

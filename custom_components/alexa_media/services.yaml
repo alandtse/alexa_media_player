@@ -147,7 +147,7 @@ create_alarm:
 
     alarm_type:
       name: Alarm type (experimental)
-      description: Use a previously learned Alexa music asset, matched by provider and station name.
+      description: Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.
       required: false
       default: default
       selector:
@@ -156,12 +156,12 @@ create_alarm:
             - default
             - music
     music_provider:
-      name: Music provider (used to find a learned music alarm)
+      name: Music provider (match a cached Alexa music alarm)
       required: false
       selector:
         text:
     music_entity:
-      name: Music station or content (used to find a learned music alarm)
+      name: Music station or content (match a cached Alexa music alarm)
       required: false
       selector:
         text:

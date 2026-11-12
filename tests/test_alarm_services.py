@@ -690,9 +690,7 @@ def test_next_alarm_time_rejects_dst_transition_gap_and_fold():
         ),
     ],
 )
-def test_recurring_alarms_skip_initial_dst_gap_or_fold(
-    now, days, expected, recurrence
-):
+def test_recurring_alarms_skip_initial_dst_gap_or_fold(now, days, expected, recurrence):
     """Keep the repeat rule while skipping an invalid first local occurrence."""
     zone = dt_util.get_time_zone("Europe/London")
     with patch("custom_components.alexa_media.services.dt_util.now", return_value=now):
@@ -717,7 +715,9 @@ async def test_create_recurring_alarm_across_dst_transition(now, days, expected)
     services._resolve_alarm_device.return_value = (login, SERIAL, DEVICE_TYPE, zone)
     with (
         patch("custom_components.alexa_media.services.dt_util.now", return_value=now),
-        patch.object(AlexaAPI, "create_alarm", autospec=True, return_value=True) as create,
+        patch.object(
+            AlexaAPI, "create_alarm", autospec=True, return_value=True
+        ) as create,
     ):
         assert await services.create_alarm(call(time=datetime.time(1, 30), days=days))
     create.assert_awaited_once_with(

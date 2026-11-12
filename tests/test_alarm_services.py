@@ -115,7 +115,7 @@ async def test_create_alarm(days, when, recurrence):
     ) as create:
         assert await services.create_alarm(call(time=datetime.time(6, 30), days=days))
 
-    create.assert_awaited_once_with(login, SERIAL, DEVICE_TYPE, when, recurrence)
+    create.assert_awaited_once_with(login, SERIAL, DEVICE_TYPE, when, recurrence, None)
     schedule.assert_called_once_with(
         services.hass, EMAIL, device_serial=SERIAL, reason="create_alarm"
     )

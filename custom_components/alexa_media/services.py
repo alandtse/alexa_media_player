@@ -49,6 +49,7 @@ from .const import (
 from .helpers import _catch_login_errors, report_relogin_required, safe_get
 
 _LOGGER = logging.getLogger(__name__)
+_MUSIC_ASSET_LOCKS: dict[str, asyncio.Lock] = {}
 
 
 FORCE_LOGOUT_SCHEMA = vol.Schema(
@@ -145,7 +146,12 @@ def resolve_alarm_schedule(
                 alarm_time, days, time_zone=time_zone
             ), alarm_recurrence(days)
 
-        # One-off dates must never roll forward silently via next_alarm_time().
+        # One-off dates require the Echo's own timezone, not HA's fallback.
+        if time_zone is None:
+            raise ServiceValidationError(
+                "The Echo's timezone is unavailable; cannot schedule today or tomorrow. "
+                "Check the Echo's timezone settings or use a recurring schedule."
+            )
         now = dt_util.now(time_zone).replace(tzinfo=None)
         date = now.date() + datetime.timedelta(days=1 if preset == "tomorrow" else 0)
         when = datetime.datetime.combine(date, alarm_time)
@@ -602,7 +608,7 @@ class AlexaMediaServices:
         import hashlib
 
         account_key = hashlib.sha256(login_obj.email.encode("utf-8")).hexdigest()[:20]
-        return Store(self.hass, 1, f"alexa_media_music_assets_{account_key}")
+        return Store(self.hass, 1, f"alexa_media_music_assets_{account_key}", private=True)
 
     def _cached_music_assets(self, login_obj) -> dict[str, str]:
         """Read valid music assets from currently known account notifications."""
@@ -640,15 +646,17 @@ class AlexaMediaServices:
 
     async def _learn_music_assets(self, login_obj) -> dict[str, str]:
         """Save any known music alarm assets for reuse after alarms are deleted."""
-        store = self._music_store(login_obj)
-        saved = await store.async_load() or {}
-        if not isinstance(saved, dict):
-            saved = {}
-        current = self._cached_music_assets(login_obj)
-        if current:
-            saved.update(current)
-            await store.async_save(saved)
-        return saved
+        lock = _MUSIC_ASSET_LOCKS.setdefault(login_obj.email, asyncio.Lock())
+        async with lock:
+            store = self._music_store(login_obj)
+            saved = await store.async_load() or {}
+            if not isinstance(saved, dict):
+                saved = {}
+            current = self._cached_music_assets(login_obj)
+            if current:
+                saved.update(current)
+                await store.async_save(saved)
+            return saved
 
     async def create_alarm(self, call: ServiceCall) -> bool:
         """Create an alarm on a device.

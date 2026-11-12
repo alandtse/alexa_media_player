@@ -429,6 +429,7 @@ async def test_unknown_device():
         await services.create_alarm(call(time=datetime.time(6, 30), days=[]))
     create.assert_not_awaited()
 
+
 @pytest.mark.parametrize("preset", ["today", "tomorrow"])
 def test_date_presets_require_echo_timezone(preset):
     """Do not substitute HA's timezone when Echo timezone is unknown."""

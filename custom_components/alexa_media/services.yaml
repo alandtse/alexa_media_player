@@ -206,3 +206,10 @@ delete_alarm:
   name: Delete alarm
   description: Delete an Echo alarm.
   fields: *alarm_fields
+
+skip_next_alarm:
+  name: Skip next alarm
+  description: >-
+    Request skipping the next occurrence of an active recurring Echo alarm.
+    Check the next alarm sensor after it refreshes before calling again.
+  fields: *alarm_fields

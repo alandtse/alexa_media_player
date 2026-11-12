@@ -18,7 +18,6 @@ from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
-from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util, slugify
 import voluptuous as vol
 
@@ -49,7 +48,6 @@ from .const import (
 from .helpers import _catch_login_errors, report_relogin_required, safe_get
 
 _LOGGER = logging.getLogger(__name__)
-_MUSIC_ASSET_LOCKS: dict[str, asyncio.Lock] = {}
 
 
 FORCE_LOGOUT_SCHEMA = vol.Schema(
@@ -125,6 +123,32 @@ def alarm_days(alarm: dict[str, Any]) -> list[str]:
     return [day for iso, day in enumerate(ALARM_DAYS, 1) if iso in iso_days]
 
 
+def _validate_local_alarm_time(
+    when: datetime.datetime, time_zone: datetime.tzinfo | None
+) -> None:
+    """Reject nonexistent and ambiguous Echo-local DST times.
+
+    Alexa's alarm API receives local timestamps without an offset or fold.
+    Explicitly reject times we cannot represent unambiguously.
+    """
+    if time_zone is None:
+        return
+    valid_offsets = set()
+    for fold in (0, 1):
+        aware = when.replace(tzinfo=time_zone, fold=fold)
+        round_trip = aware.astimezone(datetime.timezone.utc).astimezone(time_zone)
+        if round_trip.replace(tzinfo=None) == when:
+            valid_offsets.add(aware.utcoffset())
+    if not valid_offsets:
+        raise ServiceValidationError(
+            "Alarm time does not exist in the Echo's timezone (DST transition)"
+        )
+    if len(valid_offsets) > 1:
+        raise ServiceValidationError(
+            "Alarm time is ambiguous in the Echo's timezone (DST transition)"
+        )
+
+
 def resolve_alarm_schedule(
     alarm_time: datetime.time,
     requested_days: list[str],
@@ -155,6 +179,7 @@ def resolve_alarm_schedule(
         now = dt_util.now(time_zone).replace(tzinfo=None)
         date = now.date() + datetime.timedelta(days=1 if preset == "tomorrow" else 0)
         when = datetime.datetime.combine(date, alarm_time)
+        _validate_local_alarm_time(when, time_zone)
         if when <= now:
             raise ServiceValidationError(
                 f"The requested time for {preset} has already passed in the Echo's local timezone"
@@ -199,6 +224,7 @@ def next_alarm_time(
     when = datetime.datetime.combine(max(start or now.date(), now.date()), alarm_time)
     while when <= now or (days and ALARM_DAYS[when.weekday()] not in days):
         when += datetime.timedelta(days=1)
+    _validate_local_alarm_time(when, time_zone)
     return when.isoformat(timespec="seconds")
 
 
@@ -603,15 +629,6 @@ class AlexaMediaServices:
         """Use an exact, case-insensitive provider and content match."""
         return f"{provider.strip().casefold()}\n{entity.strip().casefold()}"
 
-    def _music_store(self, login_obj) -> Store:
-        """Keep learned assets separate for each Alexa account."""
-        import hashlib
-
-        account_key = hashlib.sha256(login_obj.email.encode("utf-8")).hexdigest()[:20]
-        return Store(
-            self.hass, 1, f"alexa_media_music_assets_{account_key}", private=True
-        )
-
     def _cached_music_assets(self, login_obj) -> dict[str, str]:
         """Read valid music assets from currently known account notifications."""
         import uuid
@@ -646,20 +663,6 @@ class AlexaMediaServices:
                 result[self._music_key(provider, entity)] = asset_id
         return result
 
-    async def _learn_music_assets(self, login_obj) -> dict[str, str]:
-        """Save any known music alarm assets for reuse after alarms are deleted."""
-        lock = _MUSIC_ASSET_LOCKS.setdefault(login_obj.email, asyncio.Lock())
-        async with lock:
-            store = self._music_store(login_obj)
-            saved = await store.async_load() or {}
-            if not isinstance(saved, dict):
-                saved = {}
-            current = self._cached_music_assets(login_obj)
-            if current:
-                saved.update(current)
-                await store.async_save(saved)
-            return saved
-
     async def create_alarm(self, call: ServiceCall) -> bool:
         """Create an alarm on a device.
 
@@ -690,21 +693,20 @@ class AlexaMediaServices:
         if alarm_type == "music":
             import uuid
 
-            # Learn from all currently cached Alexa alarms before resolving.
-            learned = await self._learn_music_assets(login_obj)
-            music_alarm_id = learned.get(self._music_key(music_provider, music_entity))
+            # Read only current Alexa notification metadata; never persist IDs.
+            cached = self._cached_music_assets(login_obj)
+            music_alarm_id = cached.get(self._music_key(music_provider, music_entity))
             if not music_alarm_id:
                 raise ServiceValidationError(
-                    f"No learned music asset for '{music_entity}' on "
-                    f"'{music_provider}'. First create a music alarm by voice, "
-                    "refresh Alexa Media Player alarms, then run "
-                    "alexa_media.list_alarms to save the station. No alarm created."
+                    f"No cached Alexa music alarm for '{music_entity}' on "
+                    f"'{music_provider}'. Create the selection in Alexa first "
+                    "and refresh Alexa Media Player notifications. No alarm created."
                 )
             try:
                 uuid.UUID(music_alarm_id)
-            except ValueError as err:
+            except (ValueError, TypeError, AttributeError) as err:
                 raise ServiceValidationError(
-                    "Stored music asset ID is invalid"
+                    "Cached music alarm ID is invalid"
                 ) from err
         return await self._change_alarm(
             AlexaAPI.create_alarm(
@@ -733,7 +735,6 @@ class AlexaMediaServices:
             )
             or {}
         )
-        await self._learn_music_assets(login_obj)
         result = []
         for alarm in alarms.values():
             result.append(

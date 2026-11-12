@@ -473,13 +473,11 @@ def test_alarm_schedule_presets(days, expected_time, repeat):
     )
 
 
-@pytest.mark.parametrize("days", [["today"], ["tomorrow"]])
-def test_alarm_schedule_expired_one_off(days):
+def test_alarm_schedule_expired_today():
+    """Only today's alarm time can already have passed."""
     zone = dt_util.get_time_zone("Europe/London")
-    now = NOW if days == ["today"] else NOW + datetime.timedelta(days=1)
-    with patch("custom_components.alexa_media.services.dt_util.now", return_value=now):
-        with pytest.raises(ServiceValidationError, match="already passed"):
-            resolve_alarm_schedule(datetime.time(6, 0), days, zone)
+    with pytest.raises(ServiceValidationError, match="already passed"):
+        resolve_alarm_schedule(datetime.time(6, 0), ["today"], zone)
 
 
 @pytest.mark.parametrize(
@@ -644,3 +642,96 @@ async def test_no_music_arguments_on_normal_alarm():
             )
         )
     create.assert_not_called()
+
+
+def test_next_alarm_time_rejects_dst_transition_gap_and_fold():
+    """Non-date-preset alarms must not silently select invalid local times."""
+    zone = dt_util.get_time_zone("Europe/London")
+    for now, error in [
+        (datetime.datetime(2026, 3, 28, 12), "does not exist"),
+        (datetime.datetime(2026, 10, 24, 12), "ambiguous"),
+    ]:
+        with (
+            patch(
+                "custom_components.alexa_media.services.dt_util.now",
+                return_value=now,
+            ),
+            pytest.raises(ServiceValidationError, match=error),
+        ):
+            next_alarm_time(datetime.time(1, 30), [], time_zone=zone)
+
+
+@pytest.mark.asyncio
+async def test_music_selection_is_isolated_between_alexa_accounts():
+    """An alarm ID from one Alexa account must not be reused for another."""
+    services, _, schedule = make_services(
+        {
+            **ALARM,
+            "musicAlarmId": MUSIC_ID,
+            "musicEntity": "Enya",
+            "provider": "Amazon Music",
+        }
+    )
+    other_email = "another@example.com"
+    other_login = MagicMock(email=other_email)
+    services.hass.data[DATA_ALEXAMEDIA]["accounts"][other_email] = {
+        "notifications": {SERIAL: {"Alarm": {}}}
+    }
+    services._resolve_device.return_value = (other_login, SERIAL, DEVICE_TYPE)
+    with (
+        patch.object(AlexaAPI, "create_alarm", autospec=True) as create,
+        pytest.raises(ServiceValidationError, match="No cached Alexa music alarm"),
+    ):
+        await services.create_alarm(
+            call(
+                time=datetime.time(8, 0),
+                days=[],
+                alarm_type="music",
+                music_provider="Amazon Music",
+                music_entity="Enya",
+            )
+        )
+    create.assert_not_called()
+    schedule.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_music_alarm_required_arguments():
+    services, _, _ = make_services()
+    with (
+        patch.object(AlexaAPI, "create_alarm", autospec=True) as create,
+        pytest.raises(ServiceValidationError, match="both music_provider"),
+    ):
+        await services.create_alarm(
+            call(
+                time=datetime.time(8, 0),
+                days=[],
+                alarm_type="music",
+                music_entity="Enya",
+            )
+        )
+    create.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_music_cache_ignores_corrupted_notification_entries():
+    """Malformed cache records should never generate or persist an identifier."""
+    services, login, _ = make_services()
+    services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["notifications"] = {
+        SERIAL: {"Alarm": {
+            "bad-shape": ["not", "an", "alarm"],
+            "bad-id": {
+                "provider": "Amazon Music",
+                "musicEntity": "Enya",
+                "musicAlarmId": {"invalid": MUSIC_ID},
+            },
+            "valid": {
+                "provider": "Amazon Music",
+                "musicEntity": "Enya",
+                "musicAlarmId": MUSIC_ID,
+            },
+        }},
+        "another-device": {"Alarm": "invalid"},
+    }
+    result = services._cached_music_assets(login)
+    assert result == {services._music_key("Amazon Music", "Enya"): MUSIC_ID}

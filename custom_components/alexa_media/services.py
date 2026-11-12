@@ -222,10 +222,21 @@ def next_alarm_time(
     """
     now = dt_util.now(time_zone).replace(tzinfo=None)
     when = datetime.datetime.combine(max(start or now.date(), now.date()), alarm_time)
-    while when <= now or (days and ALARM_DAYS[when.weekday()] not in days):
-        when += datetime.timedelta(days=1)
-    _validate_local_alarm_time(when, time_zone)
-    return when.isoformat(timespec="seconds")
+    while True:
+        if when <= now or (days and ALARM_DAYS[when.weekday()] not in days):
+            when += datetime.timedelta(days=1)
+            continue
+        try:
+            _validate_local_alarm_time(when, time_zone)
+        except ServiceValidationError:
+            if not days:
+                # One-off alarms cannot represent a DST gap or fold.
+                raise
+            # For a recurring alarm, keep its repeat rule and choose the next
+            # valid matching occurrence as the initial scheduledTime.
+            when += datetime.timedelta(days=1)
+            continue
+        return when.isoformat(timespec="seconds")
 
 
 @dataclass(frozen=True)

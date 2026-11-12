@@ -661,6 +661,76 @@ def test_next_alarm_time_rejects_dst_transition_gap_and_fold():
             next_alarm_time(datetime.time(1, 30), [], time_zone=zone)
 
 
+@pytest.mark.parametrize(
+    ("now", "days", "expected", "recurrence"),
+    [
+        (
+            datetime.datetime(2026, 3, 28, 12),
+            ["everyday"],
+            "2026-03-30T01:30:00",
+            {"freq": "DAILY", "byDay": [], "interval": 1},
+        ),
+        (
+            datetime.datetime(2026, 3, 28, 12),
+            ["weekends"],
+            "2026-04-04T01:30:00",
+            {"freq": "WEEKLY", "byDay": ["SA", "SU"], "interval": 1},
+        ),
+        (
+            datetime.datetime(2026, 10, 24, 12),
+            ["everyday"],
+            "2026-10-26T01:30:00",
+            {"freq": "DAILY", "byDay": [], "interval": 1},
+        ),
+        (
+            datetime.datetime(2026, 10, 24, 12),
+            ["sun"],
+            "2026-11-01T01:30:00",
+            {"freq": "WEEKLY", "byDay": ["SU"], "interval": 1},
+        ),
+    ],
+)
+def test_recurring_alarms_skip_initial_dst_gap_or_fold(
+    now, days, expected, recurrence
+):
+    """Keep the repeat rule while skipping an invalid first local occurrence."""
+    zone = dt_util.get_time_zone("Europe/London")
+    with patch("custom_components.alexa_media.services.dt_util.now", return_value=now):
+        assert resolve_alarm_schedule(datetime.time(1, 30), days, zone) == (
+            expected,
+            recurrence,
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("now", "days", "expected"),
+    [
+        (datetime.datetime(2026, 3, 28, 12), ["everyday"], "2026-03-30T01:30:00"),
+        (datetime.datetime(2026, 10, 24, 12), ["everyday"], "2026-10-26T01:30:00"),
+    ],
+)
+async def test_create_recurring_alarm_across_dst_transition(now, days, expected):
+    """DST transition must not prevent submitting a recurring alarm to Alexa."""
+    services, login, schedule = make_services()
+    zone = dt_util.get_time_zone("Europe/London")
+    services._resolve_alarm_device.return_value = (login, SERIAL, DEVICE_TYPE, zone)
+    with (
+        patch("custom_components.alexa_media.services.dt_util.now", return_value=now),
+        patch.object(AlexaAPI, "create_alarm", autospec=True, return_value=True) as create,
+    ):
+        assert await services.create_alarm(call(time=datetime.time(1, 30), days=days))
+    create.assert_awaited_once_with(
+        login,
+        SERIAL,
+        DEVICE_TYPE,
+        expected,
+        {"freq": "DAILY", "byDay": [], "interval": 1},
+        None,
+    )
+    schedule.assert_called_once()
+
+
 @pytest.mark.asyncio
 async def test_music_selection_is_isolated_between_alexa_accounts():
     """An alarm ID from one Alexa account must not be reused for another."""

@@ -428,3 +428,20 @@ async def test_unknown_device():
     ):
         await services.create_alarm(call(time=datetime.time(6, 30), days=[]))
     create.assert_not_awaited()
+
+@pytest.mark.parametrize("preset", ["today", "tomorrow"])
+def test_date_presets_require_echo_timezone(preset):
+    """Do not substitute HA's timezone when Echo timezone is unknown."""
+    from custom_components.alexa_media.services import resolve_alarm_schedule
+
+    with pytest.raises(ServiceValidationError, match="Echo's timezone is unavailable"):
+        resolve_alarm_schedule(datetime.time(8, 0), [preset], None)
+
+
+def test_music_asset_store_is_private():
+    """Learned music selection names should not be world-readable."""
+    services, login, _ = make_services()
+    with patch("custom_components.alexa_media.services.Store") as store:
+        services._music_store(login)
+
+    assert store.call_args.kwargs["private"] is True

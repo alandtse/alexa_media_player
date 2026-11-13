@@ -714,7 +714,9 @@ async def test_create_recurring_alarm_across_dst_transition(now, days, expected)
     zone = dt_util.get_time_zone("Europe/London")
     with (
         patch.object(
-            services, "_resolve_alarm_device", return_value=(login, SERIAL, DEVICE_TYPE, zone)
+            services,
+            "_resolve_alarm_device",
+            return_value=(login, SERIAL, DEVICE_TYPE, zone),
         ),
         patch("custom_components.alexa_media.services.dt_util.now", return_value=now),
         patch.object(

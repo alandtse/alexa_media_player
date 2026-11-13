@@ -122,8 +122,11 @@ create_alarm:
       selector:
         time:
     days:
-      name: Repeat on
-      description: Days to repeat on. Leave empty for a one-off alarm.
+      name: Alarm days
+      description: >
+        Select today or tomorrow for a one-off alarm; weekdays, weekends or
+        everyday for a repeating alarm; or select specific weekdays.
+        Use presets alone. Leave empty for the next occurrence of the time.
       required: false
       selector:
         select:
@@ -136,6 +139,44 @@ create_alarm:
             - fri
             - sat
             - sun
+            - weekdays
+            - weekends
+            - everyday
+            - today
+            - tomorrow
+
+    alarm_type:
+      name: Alarm type (experimental)
+      description: Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.
+      required: false
+      default: default
+      selector:
+        select:
+          options:
+            - default
+            - music
+    music_provider:
+      name: Music provider (match a cached Alexa music alarm)
+      required: false
+      selector:
+        text:
+    music_entity:
+      name: Music station or content (match a cached Alexa music alarm)
+      required: false
+      selector:
+        text:
+
+list_alarms:
+  name: List alarms (experimental)
+  description: Returns cached alarm metadata for one Echo, including music station/provider.
+  fields:
+    entity_id:
+      name: Entity
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
 
 enable_alarm:
   name: Enable alarm

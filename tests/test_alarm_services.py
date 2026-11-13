@@ -712,8 +712,10 @@ async def test_create_recurring_alarm_across_dst_transition(now, days, expected)
     """DST transition must not prevent submitting a recurring alarm to Alexa."""
     services, login, schedule = make_services()
     zone = dt_util.get_time_zone("Europe/London")
-    services._resolve_alarm_device.return_value = (login, SERIAL, DEVICE_TYPE, zone)
     with (
+        patch.object(
+            services, "_resolve_alarm_device", return_value=(login, SERIAL, DEVICE_TYPE, zone)
+        ),
         patch("custom_components.alexa_media.services.dt_util.now", return_value=now),
         patch.object(
             AlexaAPI, "create_alarm", autospec=True, return_value=True

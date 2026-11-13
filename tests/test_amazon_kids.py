@@ -27,6 +27,7 @@ def kids(request):
             "custom_components.alexa_media.amazon_kids.async_track_time_interval"
         ) as timer,
     ):
+        api.supports_child_profiles = AsyncMock(return_value=True)
         api.get_child_profiles = AsyncMock(return_value=[])
         api.get_child_mode = AsyncMock(return_value=False)
         api.get_device_child = AsyncMock(return_value="child-id")
@@ -364,3 +365,149 @@ async def test_switch_setup_does_not_wait_for_profiles(kids, tmp_path):
     finally:
         state.async_stop()
         await asyncio.gather(*state._refresh_tasks, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_entities_wait_for_parent_dashboard(kids):
+    """Switch and select appear once a refresh finds the parent dashboard."""
+    state, api, _ = kids
+    api.supports_child_profiles.return_value = False
+    added = []
+
+    async def add_switches():
+        added.append("switch")
+
+    async def add_selects():
+        added.append("select")
+
+    state.track("A", "echo")
+    await state.async_add_when_dashboard(add_switches)
+    await state.async_add_when_dashboard(add_selects)
+    await state.async_refresh()
+    # No dashboard (amazon.nl, or DNS not ready yet): nothing is added, but
+    # the binary sensor's child mode state is still read.
+    assert added == []
+    assert state.dashboard_available is False
+    assert state.state("A")["kids"] is False
+
+    api.supports_child_profiles.return_value = True
+    await state.async_refresh()
+    assert added == ["switch", "select"]
+    assert state.dashboard_available is True
+
+    # Found once: later polls neither look up nor add again, and a platform
+    # set up after that adds its entities right away.
+    await state.async_refresh()
+    assert api.supports_child_profiles.await_count == 2
+
+    async def add_late():
+        added.append("late")
+
+    await state.async_add_when_dashboard(add_late)
+    assert added == ["switch", "select", "late"]
+
+
+@pytest.mark.asyncio
+async def test_failed_dashboard_check_or_add_does_not_stop_the_poll(kids):
+    """A failing lookup or platform leaves the poll and other platforms working."""
+    state, api, _ = kids
+    api.supports_child_profiles.side_effect = OSError("resolver down")
+    added = []
+
+    async def add_broken():
+        raise RuntimeError("platform failed")
+
+    async def add_selects():
+        added.append("select")
+
+    state.track("A", "echo")
+    await state.async_add_when_dashboard(add_broken)
+    await state.async_add_when_dashboard(add_selects)
+    await state.async_refresh()
+    assert state.dashboard_available is None
+    assert added == []
+    assert state.state("A")["kids"] is False
+
+    api.supports_child_profiles.side_effect = None
+    await state.async_refresh()
+    assert added == ["select"]
+    assert state.dashboard_available is True
+
+
+@pytest.mark.asyncio
+async def test_stop_drops_entities_waiting_for_dashboard(kids):
+    """Entities still waiting are not added after the account is unloaded."""
+    state, api, _ = kids
+    api.supports_child_profiles.return_value = False
+    added = []
+
+    async def add_switches():
+        added.append("switch")
+
+    await state.async_add_when_dashboard(add_switches)
+    await state.async_refresh()
+    state.async_stop()
+    api.supports_child_profiles.return_value = True
+    await state.async_refresh()
+    assert added == []
+
+
+@pytest.mark.asyncio
+async def test_select_setup_skips_marketplace_without_dashboard(kids, tmp_path):
+    """Without a parent dashboard the select platform adds no entities."""
+    from homeassistant.core import HomeAssistant
+
+    from custom_components.alexa_media.const import DATA_ALEXAMEDIA
+    from custom_components.alexa_media.select import async_setup_platform
+
+    state, api, _ = kids
+    api.supports_child_profiles.return_value = False
+    hass = HomeAssistant(str(tmp_path))
+    state.hass = hass
+    account = {
+        "devices": {
+            "media_player": {"A": {"deviceFamily": "ECHO", "deviceType": "echo"}}
+        },
+        "entities": {
+            "media_player": {"A": MagicMock(device_serial_number="A")},
+            "select": [],
+        },
+        "login_obj": state.login,
+        "amazon_kids": state,
+    }
+    hass.data[DATA_ALEXAMEDIA] = {"accounts": {"test@example.com": account}}
+    try:
+        with patch(
+            "custom_components.alexa_media.select.add_devices",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as add:
+            assert (
+                await async_setup_platform(
+                    hass, {"email": "test@example.com"}, MagicMock()
+                )
+                is True
+            )
+            await drain_refreshes(state)
+            add.assert_not_awaited()
+            assert account["entities"]["select"] == []
+            assert state.state("A")["kids"] is False
+    finally:
+        state.async_stop()
+        await asyncio.gather(*state._refresh_tasks, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_alexapy_without_dashboard_check_keeps_entities(kids):
+    """An alexapy that cannot check the dashboard still gets the entities."""
+    state, api, _ = kids
+    del api.supports_child_profiles
+    added = []
+
+    async def add_switches():
+        added.append("switch")
+
+    await state.async_add_when_dashboard(add_switches)
+    await state.async_refresh()
+    assert added == ["switch"]
+    assert state.dashboard_available is True

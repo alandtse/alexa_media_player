@@ -46,14 +46,20 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         if not device_type or client is None:
             continue
         kids_state.track(client.device_serial_number, device_type)
-        select = AmazonKidsChildSelect(kids_state, login_obj, client, device_type)
-        account_dict["entities"]["select"].append(select)
-        devices.append(select)
+        devices.append(
+            AmazonKidsChildSelect(kids_state, login_obj, client, device_type)
+        )
 
     if not devices:
         return True
+
+    async def _add_kids_selects() -> None:
+        account_dict["entities"]["select"].extend(devices)
+        await add_devices(hide_email(account), devices, add_devices_callback)
+
+    await kids_state.async_add_when_dashboard(_add_kids_selects)
     await kids_state.async_start()
-    return await add_devices(hide_email(account), devices, add_devices_callback)
+    return True
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):

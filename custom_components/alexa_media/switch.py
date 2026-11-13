@@ -193,9 +193,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         if not device_type or client is None:
             continue
         kids_state.track(client.device_serial_number, device_type)
-        kids_switch = AmazonKidsSwitch(kids_state, login_obj, client, device_type)
-        account_dict["entities"]["amazon_kids_switch"].append(kids_switch)
-        kids_devices.append(kids_switch)
+        kids_devices.append(
+            AmazonKidsSwitch(kids_state, login_obj, client, device_type)
+        )
 
     result = await add_devices(
         hide_email(account),
@@ -213,12 +213,14 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             and result
         )
     if kids_devices:
-        await kids_state.async_start()
-        # Already scoped via the media_player entities, so no extra name filter.
-        result = (
+
+        async def _add_kids_switches() -> None:
+            account_dict["entities"]["amazon_kids_switch"].extend(kids_devices)
+            # Already scoped via the media_player entities, so no name filter.
             await add_devices(hide_email(account), kids_devices, add_devices_callback)
-            and result
-        )
+
+        await kids_state.async_add_when_dashboard(_add_kids_switches)
+        await kids_state.async_start()
     return result
 
 

@@ -119,6 +119,8 @@ LAST_CALLED_STALE_FUDGE_MS = 5_000  # allow some clock/ordering jitter
 LAST_CALLED_SUCCESS_PACE_S = 4.0  # post-success pacing to avoid hammering
 LAST_CALLED_LOOKBACK_MS = 60_000
 LAST_CALLED_ITEMS = 10
+LAST_CALLED_HISTORY_MAX_PAGES = 25
+LAST_CALLED_HISTORY_BUDGET_S = 10.0  # between pages; alexapy owns request backoff
 LAST_CALLED_COALESCE_WINDOW_MS = 2000
 
 # Tuning constants for notification retries

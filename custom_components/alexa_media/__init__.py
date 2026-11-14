@@ -83,6 +83,8 @@ from .const import (
     LAST_CALLED_COALESCE_WINDOW_MS,
     LAST_CALLED_CONN_BACKOFF_S,
     LAST_CALLED_DEBOUNCE_S,
+    LAST_CALLED_HISTORY_BUDGET_S,
+    LAST_CALLED_HISTORY_MAX_PAGES,
     LAST_CALLED_ITEMS,
     LAST_CALLED_LOGIN_BACKOFF_S,
     LAST_CALLED_LOOKBACK_MS,
@@ -224,15 +226,8 @@ def _remove_last_called_activity_queue_entries(
 
 
 def _valid_utterance_type(record: dict) -> bool:
-    """Filter utterance types similar to Node-RED/alexa-remote logic."""
-    utterance_type = record.get("utteranceType")
-    if utterance_type in {
-        "DEVICE_ARBITRATION",
-        "ASR_TIMEOUT",
-        "WAKE_WORD_ONLY",
-    }:
-        return False
-    return True
+    """Accept spoken requests only, excluding routine and tap activity."""
+    return record.get("utteranceType") == "GENERAL"
 
 
 def _push_healthy(account: dict) -> bool:
@@ -358,7 +353,7 @@ def _select_last_called_payload_from_records(
     existing_serials_local: set[str],
 ) -> tuple[dict | None, set[tuple[str, str | None]]]:
     """Select the best last_called payload from raw customer history records."""
-    if not records or not queue_snapshot:
+    if not records:
         return None, set()
 
     watermark = int(account.get("last_called_customer_history_ts") or 0)
@@ -390,9 +385,11 @@ def _select_last_called_payload_from_records(
         if not _valid_utterance_type(record):
             continue
 
-        summary = ((record.get("description") or {}).get("summary") or "").strip()
+        description = record.get("description")
+        summary = description.get("summary") if isinstance(description, dict) else None
         if not _valid_voice_summary(summary):
             continue
+        summary = summary.strip()
 
         try:
             ts = int(record.get("creationTimestamp") or 0)
@@ -404,6 +401,15 @@ def _select_last_called_payload_from_records(
 
         if ts <= int(last_pushed_activity.get(serial) or 0):
             continue
+
+        payload = {
+            "serialNumber": serial,
+            "timestamp": ts,
+            "summary": summary,
+            "response": (record.get("alexaResponse") or "").strip() or None,
+        }
+        if not queue_snapshot:
+            return payload, set()
 
         for key, queued in queue_by_key.items():
             queued_serial, _queued_customer = key
@@ -424,12 +430,6 @@ def _select_last_called_payload_from_records(
             if queued_ts and ts < (queued_ts - LAST_CALLED_STALE_FUDGE_MS):
                 continue
 
-            payload = {
-                "serialNumber": serial,
-                "timestamp": ts,
-                "summary": summary,
-                "response": (record.get("alexaResponse") or "").strip() or None,
-            }
             return payload, {key}
 
     return None, set()
@@ -592,6 +592,8 @@ def _store_and_dispatch_last_called(
         payload["timestamp"] = ts
 
     prev = stored_data.get("last_called")
+    if prev and ts <= int(prev.get("timestamp") or 0) and prev != payload:
+        return
     changed = prev != payload
 
     if ts > 0:
@@ -616,6 +618,209 @@ def _store_and_dispatch_last_called(
             f"{DOMAIN}_{hide_email(email)}"[0:32],
             {"last_called_change": payload},
         )
+
+
+async def _async_get_last_called_history(
+    login_obj,
+    account,
+    serials,
+    queue_snapshot=None,
+    *,
+    start_time=None,
+    end_time=None,
+    max_record_size=LAST_CALLED_ITEMS,
+    on_payload=None,
+) -> list[dict] | None:
+    """Resume bounded public-page scans; publish selection before overlap finishes.
+
+    The cursor and event baseline are account-local, in-memory state. A fresh
+    head check between bursts prevents old overlap work hiding new interactions.
+    Cancellation keeps the checkpoint; a replaced login/session discards it.
+    """
+    kind = "push" if queue_snapshot else "poll"
+    scans = account.setdefault("last_called_history_scans", {})
+    state = scans.get(kind)
+    scope = (
+        login_obj,
+        login_obj.session,
+        login_obj.url,
+        getattr(login_obj, "email", None),
+    )
+    if state and (
+        state["scope"][0] is not scope[0]
+        or state["scope"][1] is not scope[1]
+        or state["scope"][2:] != scope[2:]
+    ):
+        scans.pop(kind, None)
+        state = None
+    if state is None:
+        now = int(time.time() * 1000)
+        start = max(
+            now - 7 * 24 * 3600 * 1000, start_time if start_time is not None else 0
+        )
+        end = end_time if end_time is not None else now + 24 * 3600 * 1000
+        watermark = int(account.get("last_called_customer_history_ts") or 0)
+        event_watermark = int(account.get("last_called_overlap_ts", watermark))
+        if queue_snapshot:
+            account.setdefault("last_called_overlap_ts", event_watermark)
+        earliest = min(
+            (
+                int(q.get("activity_ts") or 0)
+                for q in queue_snapshot or []
+                if q.get("activity_ts")
+            ),
+            default=0,
+        )
+        floor = (
+            max(
+                start,
+                (event_watermark or earliest) - LAST_CALLED_STALE_FUDGE_MS,
+                int(account.get("last_called_voice_floor_ts") or 0),
+            )
+            if queue_snapshot
+            else max(start, watermark)
+        )
+        state = {
+            "scope": scope,
+            "start": start,
+            "end": end,
+            "size": max_record_size,
+            "floor": floor,
+            "cursor": None,
+            "records": [],
+            "payload": None,
+            "voice_account": {
+                key: (set(value) if isinstance(value, set) else value)
+                for key, value in account.items()
+                if key.startswith("last_called_voice_")
+                or key == "last_called_customer_history_ts"
+            },
+        }
+        scans[kind] = state
+        if queue_snapshot:
+            state["voice_account"]["last_called_customer_history_ts"] = event_watermark
+    while True:
+        delay = (
+            float(account.get("last_called_history_next_allowed") or 0)
+            - time.monotonic()
+        )
+        if delay > 0:
+            await asyncio.sleep(delay)
+        deadline = time.monotonic() + LAST_CALLED_HISTORY_BUDGET_S
+        resuming = state["cursor"] is not None
+        for index in range(LAST_CALLED_HISTORY_MAX_PAGES):
+            # A slow head recheck must not consume every resumed burst and
+            # starve the saved continuation. Reserve one request for progress.
+            if index > (1 if resuming else 0) and time.monotonic() >= deadline:
+                break
+            # Every resumed burst first checks the current head. It must not
+            # replace the saved continuation or the original query bounds.
+            head = index == 0 and state["cursor"] is not None
+            page = await AlexaAPI.get_customer_history_page(
+                login_obj,
+                start_time=state["start"],
+                end_time=(
+                    max(state["end"], int(time.time() * 1000)) if head else state["end"]
+                ),
+                max_record_size=state["size"],
+                continuation=None if head else state["cursor"],
+            )
+            if page.status == "error":
+                # Invalid cursors cannot be retried. Transient failures can
+                # retry the same cursor. Transport discards HTTP error details,
+                # so bound failures without cursor progress to recover expiry.
+                state["failures"] = state.get("failures", 0) + 1
+                if page.continuation is None or state["failures"] >= 3:
+                    scans.pop(kind, None)
+                    if page.continuation is not None:
+                        account["last_called_history_next_allowed"] = (
+                            time.monotonic() + LAST_CALLED_HISTORY_BUDGET_S
+                        )
+                        if account.get("last_called_probe_event") is not None:
+                            account["last_called_probe_event"].set()
+                return None
+            if not head:
+                state["failures"] = 0
+            # Excluded routine/arbitration floods must not grow the retained
+            # overlap buffer. Page timestamps still control traversal below.
+            if not head:
+                state["records"].extend(
+                    r
+                    for r in page.records
+                    if _valid_utterance_type(r)
+                    and r.get("deviceSerialNumber") in serials
+                )
+            active_queue = (
+                (_snapshot_last_called_activity_queue(account) or queue_snapshot)
+                if queue_snapshot
+                else []
+            )
+            payload, _ = _select_last_called_payload_from_records(
+                page.records, active_queue, account, serials
+            )
+            if payload and (
+                state["payload"] is None
+                or payload["timestamp"] > state["payload"]["timestamp"]
+            ):
+                state["payload"] = payload
+                if on_payload is not None:
+                    await on_payload(login_obj, payload)
+                if not queue_snapshot:
+                    account["last_called_overlap_ts"] = max(
+                        int(account.get("last_called_overlap_ts") or 0),
+                        payload["timestamp"],
+                    )
+                    scans.pop(kind, None)
+                    return page.records
+            if head:
+                continue
+            state["cursor"] = page.continuation
+            timestamps = []
+            for record in page.records:
+                try:
+                    timestamps.append(int(record.get("creationTimestamp") or 0))
+                except (TypeError, ValueError):
+                    pass
+            reached_floor = (
+                timestamps
+                and len(timestamps) == len(page.records)
+                and all(0 < ts <= state["floor"] for ts in timestamps)
+            )
+            if page.status == "exhausted" or reached_floor:
+                scans.pop(kind, None)
+                if queue_snapshot:
+                    event_payload, _ = _select_last_called_payload_from_records(
+                        state["records"], active_queue, state["voice_account"], serials
+                    )
+                    account["last_called_history_result"] = event_payload
+                    account["last_called_history_voice_account"] = state[
+                        "voice_account"
+                    ]
+                    recheck = state["payload"] is not None and (
+                        event_payload is None
+                        or state["payload"]["timestamp"] > event_payload["timestamp"]
+                    )
+                    account["last_called_history_recheck"] = recheck
+                    if recheck and account.get("last_called_probe_event") is not None:
+                        account["last_called_probe_event"].set()
+                return state["records"]
+        # Pause only the work, not its progress. No new trigger is required.
+        account["last_called_history_next_allowed"] = (
+            time.monotonic() + LAST_CALLED_HISTORY_BUDGET_S
+        )
+
+
+async def _async_select_last_called(hass, login_obj, email) -> dict | None:
+    """Select spoken history without requiring a push; caller serializes calls."""
+    account = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+    if account is None:
+        return None
+    serials = set(_existing_serials(hass, login_obj)) | _entity_backed_serials(account)
+    records = await _async_get_last_called_history(login_obj, account, serials)
+    if not isinstance(records, list):
+        return None
+    payload, _ = _select_last_called_payload_from_records(records, [], account, serials)
+    return payload
 
 
 async def _async_update_last_called_global(
@@ -656,10 +861,12 @@ async def _async_update_last_called_global(
             if account:
                 api_lock = account.get("last_called_api_lock")
             if api_lock is None:
-                last_called = await AlexaAPI.get_last_device_serial(login_obj)
+                last_called = await _async_select_last_called(hass, login_obj, email)
             else:
                 async with api_lock:
-                    last_called = await AlexaAPI.get_last_device_serial(login_obj)
+                    last_called = await _async_select_last_called(
+                        hass, login_obj, email
+                    )
         except asyncio.CancelledError:
             # Task cancelled during unload/shutdown; propagate cancellation.
             raise
@@ -1807,6 +2014,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     trigger_cmd = str(
                         account_live.get("last_called_probe_trigger_cmd") or "push"
                     )
+                    trigger_generation = account_live.get(
+                        "last_called_probe_generation", 0
+                    )
 
                     for attempt in range(LAST_CALLED_RETRY_LIMIT + 1):
                         if account_live["last_called_probe_event"].is_set():
@@ -1823,10 +2033,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                         "SERVICE_REFRESH",
                                         "POLL_REFRESH",
                                     ):
-                                        last_called = (
-                                            await AlexaAPI.get_last_device_serial(
-                                                login_live, items=LAST_CALLED_ITEMS
-                                            )
+                                        last_called = await _async_select_last_called(
+                                            hass, login_live, email
                                         )
                                         if isinstance(
                                             last_called, dict
@@ -1862,12 +2070,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 )
 
                             try:
-                                records = await AlexaAPI.get_customer_history_records(
-                                    login_live,
-                                    start_time=start_time,
-                                    end_time=end_time,
-                                    max_record_size=max_record_size,
-                                )
+                                async with account_live["last_called_api_lock"]:
+                                    records = await _async_get_last_called_history(
+                                        login_live,
+                                        account_live,
+                                        set(_existing_serials(hass, login_live))
+                                        | _entity_backed_serials(account_live),
+                                        queue_snapshot,
+                                        start_time=start_time,
+                                        end_time=end_time,
+                                        max_record_size=max_record_size,
+                                        on_payload=update_last_called,
+                                    )
                             except TypeError as exc:
                                 # A serialization TypeError (e.g. a None header key
                                 # when the login is half-torn-down) is not transient
@@ -1997,6 +2211,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 existing_serials_local,
                             )
                         )
+                        completed_payload = account_live.pop(
+                            "last_called_history_result", None
+                        )
+                        if payload is None:
+                            payload = completed_payload
+                            if payload:
+                                resolved_keys = {
+                                    (q.get("serial"), q.get("customer_id"))
+                                    for q in queue_snapshot
+                                    if q.get("serial") == payload["serialNumber"]
+                                }
 
                         _debug(
                             "last_called queue match (%s): queued=%s matched=%s resolved=%s",
@@ -2049,11 +2274,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
                                 try:
                                     async with account_live["last_called_api_lock"]:
-                                        last_called = (
-                                            await AlexaAPI.get_last_device_serial(
-                                                login_live,
-                                                items=LAST_CALLED_ITEMS,
-                                            )
+                                        last_called = await _async_select_last_called(
+                                            hass, login_live, email
                                         )
                                     if isinstance(
                                         last_called, dict
@@ -2113,8 +2335,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         media_players = (account_live.get("entities") or {}).get(
                             "media_player"
                         ) or {}
+                        voice_account = account_live.pop(
+                            "last_called_history_voice_account", account_live
+                        )
                         for voice_record in _take_new_voice_records(
-                            account_live,
+                            voice_account,
                             records,
                             int(payload["timestamp"]),
                             earliest_ts,
@@ -2129,15 +2354,34 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 },
                             )
 
-                        await update_last_called(login_live, payload)
+                        if voice_account is not account_live:
+                            for key, value in voice_account.items():
+                                if key.startswith("last_called_voice_"):
+                                    account_live[key] = value
+                        account_live["last_called_overlap_ts"] = max(
+                            int(account_live.get("last_called_overlap_ts") or 0),
+                            int(payload["timestamp"]),
+                        )
+                        current = account_live.get("last_called") or {}
+                        if int(payload["timestamp"]) > int(
+                            current.get("timestamp") or 0
+                        ):
+                            await update_last_called(login_live, payload)
                         account_live["last_called_last_pushed_activity"][
                             payload["serialNumber"]
                         ] = payload["timestamp"]
-                        _remove_last_called_activity_queue_entries(
-                            account_live, resolved_keys
-                        )
-                        account_live["last_called_probe_trigger_ts"] = 0
-                        account_live["last_called_probe_event"].clear()
+                        if account_live.get(
+                            "last_called_probe_generation", 0
+                        ) == trigger_generation and not account_live.pop(
+                            "last_called_history_recheck", False
+                        ):
+                            _remove_last_called_activity_queue_entries(
+                                account_live, resolved_keys
+                            )
+                            account_live["last_called_probe_trigger_ts"] = 0
+                            account_live["last_called_probe_event"].clear()
+                        else:
+                            account_live["last_called_probe_event"].set()
                         break
             except asyncio.CancelledError:
                 raise
@@ -2156,6 +2400,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             account_live = accounts.get(email)
             if not account_live:
                 return
+
+            account_live["last_called_probe_generation"] = (
+                account_live.get("last_called_probe_generation", 0) + 1
+            )
 
             if trigger_ts_ms is not None:
                 try:
@@ -2226,10 +2474,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 api_lock = account.get("last_called_api_lock") if account else None
 
                 if api_lock is None:
-                    last_called = await AlexaAPI.get_last_device_serial(login_obj)
+                    last_called = await _async_select_last_called(
+                        hass, login_obj, email
+                    )
                 else:
                     async with api_lock:
-                        last_called = await AlexaAPI.get_last_device_serial(login_obj)
+                        last_called = await _async_select_last_called(
+                            hass, login_obj, email
+                        )
 
             except asyncio.CancelledError:
                 raise

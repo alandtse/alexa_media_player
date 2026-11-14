@@ -137,7 +137,10 @@ def load_helpers():
             for target in node.targets:
                 if isinstance(target, ast.Name) and target.id in ns:
                     ns[target.id] = ast.literal_eval(node.value)
-    exec(compile(ast.Module(body=nodes, type_ignores=[]), str(SOURCE), "exec"), ns)
+    # Compile only selected helpers from this repository, never external input.
+    exec(
+        compile(ast.Module(body=nodes, type_ignores=[]), str(SOURCE), "exec"), ns
+    )  # nosec B102
     return SimpleNamespace(**ns)
 
 
@@ -172,7 +175,8 @@ class LastCalledSelectionTests(unittest.TestCase):
             session=SimpleNamespace(closed=False),
             status={"login_successful": True},
             url="amazon.ca",
-            csrf_token="token",
+            # Dummy fixture, never used for authentication.
+            csrf_token="token",  # nosec B106
             csrf_token_created_at=NOW // 1000,
             get_csrf_token=AsyncMock(return_value="fresh-token"),
         )

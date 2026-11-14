@@ -19,7 +19,8 @@ class HistoryContinuationTests(TestCase):
         self.login = SimpleNamespace(
             session=SimpleNamespace(closed=False),
             url="amazon.ca",
-            csrf_token="csrf",
+            # Dummy fixture, never used for authentication.
+            csrf_token="csrf",  # nosec B106
             csrf_token_created_at=NOW // 1000,
         )
         self.request = self.m.AlexaAPI._static_request
@@ -360,7 +361,7 @@ class HistoryContinuationTests(TestCase):
                     if isinstance(target, ast.Name) and target.id.startswith(
                         "LAST_CALLED"
                     ):
-                        ns[target.id] = eval(
+                        ns[target.id] = eval(  # nosec B307
                             compile(ast.Expression(node.value), str(SOURCE), "eval"),
                             {"__builtins__": {}},
                             ns,
@@ -382,7 +383,8 @@ class HistoryContinuationTests(TestCase):
             if isinstance(node, ast.AsyncFunctionDef)
             and node.name == "_last_called_probe_worker"
         )
-        exec(
+        # Compile only the worker from this repository to isolate HA dependencies.
+        exec(  # nosec B102
             compile(ast.Module(body=[worker], type_ignores=[]), str(SOURCE), "exec"), ns
         )
         with self.assertRaises(asyncio.CancelledError):
@@ -472,7 +474,8 @@ class HistoryAsyncLifecycleTests(IsolatedAsyncioTestCase):
         login = SimpleNamespace(
             session=object(),
             url="amazon.ca",
-            csrf_token="csrf",
+            # Dummy fixture, never used for authentication.
+            csrf_token="csrf",  # nosec B106
             csrf_token_created_at=NOW // 1000,
         )
         request = m.AlexaAPI._static_request
@@ -524,7 +527,8 @@ class HistoryAsyncLifecycleTests(IsolatedAsyncioTestCase):
         login = SimpleNamespace(
             session=object(),
             url="amazon.ca",
-            csrf_token="csrf",
+            # Dummy fixture, never used for authentication.
+            csrf_token="csrf",  # nosec B106
             csrf_token_created_at=NOW // 1000,
         )
         account = {}

@@ -53,13 +53,15 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if not devices:
         return True
 
-    async def _add_kids_selects() -> None:
-        account_dict["entities"]["select"].extend(devices)
-        await add_devices(hide_email(account), devices, add_devices_callback)
+    async def _add_kids_selects() -> bool:
+        selects = account_dict["entities"]["select"]
+        # A failed add is retried, so only list the selects once.
+        selects.extend([s for s in devices if s not in selects])
+        return await add_devices(hide_email(account), devices, add_devices_callback)
 
-    await kids_state.async_add_when_dashboard(_add_kids_selects)
+    result = await kids_state.async_add_when_dashboard(_add_kids_selects)
     await kids_state.async_start()
-    return True
+    return result
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):

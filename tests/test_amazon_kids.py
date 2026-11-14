@@ -376,9 +376,11 @@ async def test_entities_wait_for_parent_dashboard(kids):
 
     async def add_switches():
         added.append("switch")
+        return True
 
     async def add_selects():
         added.append("select")
+        return True
 
     state.track("A", "echo")
     await state.async_add_when_dashboard(add_switches)
@@ -402,8 +404,9 @@ async def test_entities_wait_for_parent_dashboard(kids):
 
     async def add_late():
         added.append("late")
+        return True
 
-    await state.async_add_when_dashboard(add_late)
+    assert await state.async_add_when_dashboard(add_late) is True
     assert added == ["switch", "select", "late"]
 
 
@@ -413,12 +416,17 @@ async def test_failed_dashboard_check_or_add_does_not_stop_the_poll(kids):
     state, api, _ = kids
     api.supports_child_profiles.side_effect = OSError("resolver down")
     added = []
+    broken = True
 
     async def add_broken():
-        raise RuntimeError("platform failed")
+        if broken:
+            raise RuntimeError("platform failed")
+        added.append("switch")
+        return True
 
     async def add_selects():
         added.append("select")
+        return True
 
     state.track("A", "echo")
     await state.async_add_when_dashboard(add_broken)
@@ -433,6 +441,37 @@ async def test_failed_dashboard_check_or_add_does_not_stop_the_poll(kids):
     assert added == ["select"]
     assert state.dashboard_available is True
 
+    # The failed platform is retried on later polls until it is added, and
+    # then neither platform is added again.
+    await state.async_refresh()
+    assert added == ["select"]
+    broken = False
+    await state.async_refresh()
+    await state.async_refresh()
+    assert added == ["select", "switch"]
+
+
+@pytest.mark.asyncio
+async def test_unsuccessful_add_is_retried(kids):
+    """An add that reports failure is retried, including one made right away."""
+    state, _, _ = kids
+    results = [False, True]
+    calls = []
+
+    async def add_switches():
+        calls.append("switch")
+        return results.pop(0)
+
+    await state.async_refresh()
+    assert state.dashboard_available is True
+    # The dashboard is known, so the add runs right away and reports failure.
+    assert await state.async_add_when_dashboard(add_switches) is False
+    assert calls == ["switch"]
+
+    await state.async_refresh()
+    await state.async_refresh()
+    assert calls == ["switch", "switch"]
+
 
 @pytest.mark.asyncio
 async def test_stop_drops_entities_waiting_for_dashboard(kids):
@@ -443,6 +482,7 @@ async def test_stop_drops_entities_waiting_for_dashboard(kids):
 
     async def add_switches():
         added.append("switch")
+        return True
 
     await state.async_add_when_dashboard(add_switches)
     await state.async_refresh()
@@ -498,6 +538,52 @@ async def test_select_setup_skips_marketplace_without_dashboard(kids, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_select_setup_reports_and_retries_failed_add(kids, tmp_path):
+    """A failed add fails setup, is retried and lists each select only once."""
+    from homeassistant.core import HomeAssistant
+
+    from custom_components.alexa_media.const import DATA_ALEXAMEDIA
+    from custom_components.alexa_media.select import async_setup_platform
+
+    state, _, _ = kids
+    hass = HomeAssistant(str(tmp_path))
+    state.hass = hass
+    account = {
+        "devices": {
+            "media_player": {"A": {"deviceFamily": "ECHO", "deviceType": "echo"}}
+        },
+        "entities": {
+            "media_player": {"A": MagicMock(device_serial_number="A")},
+            "select": [],
+        },
+        "login_obj": state.login,
+        "amazon_kids": state,
+    }
+    hass.data[DATA_ALEXAMEDIA] = {"accounts": {"test@example.com": account}}
+    await state.async_refresh()
+    assert state.dashboard_available is True
+    try:
+        with patch(
+            "custom_components.alexa_media.select.add_devices",
+            new_callable=AsyncMock,
+            side_effect=[False, True],
+        ) as add:
+            assert (
+                await async_setup_platform(
+                    hass, {"email": "test@example.com"}, MagicMock()
+                )
+                is False
+            )
+            await drain_refreshes(state)
+            await state.async_refresh()
+            assert add.await_count == 2
+            assert len(account["entities"]["select"]) == 1
+    finally:
+        state.async_stop()
+        await asyncio.gather(*state._refresh_tasks, return_exceptions=True)
+
+
+@pytest.mark.asyncio
 async def test_alexapy_without_dashboard_check_keeps_entities(kids):
     """An alexapy that cannot check the dashboard still gets the entities."""
     state, api, _ = kids
@@ -506,6 +592,7 @@ async def test_alexapy_without_dashboard_check_keeps_entities(kids):
 
     async def add_switches():
         added.append("switch")
+        return True
 
     await state.async_add_when_dashboard(add_switches)
     await state.async_refresh()

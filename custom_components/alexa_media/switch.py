@@ -214,12 +214,18 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         )
     if kids_devices:
 
-        async def _add_kids_switches() -> None:
-            account_dict["entities"]["amazon_kids_switch"].extend(kids_devices)
+        async def _add_kids_switches() -> bool:
+            kids_switches = account_dict["entities"]["amazon_kids_switch"]
+            # A failed add is retried, so only list the switches once.
+            kids_switches.extend([s for s in kids_devices if s not in kids_switches])
             # Already scoped via the media_player entities, so no name filter.
-            await add_devices(hide_email(account), kids_devices, add_devices_callback)
+            return await add_devices(
+                hide_email(account), kids_devices, add_devices_callback
+            )
 
-        await kids_state.async_add_when_dashboard(_add_kids_switches)
+        result = (
+            await kids_state.async_add_when_dashboard(_add_kids_switches) and result
+        )
         await kids_state.async_start()
     return result
 

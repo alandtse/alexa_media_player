@@ -1,13 +1,13 @@
 """Budget and publication regressions for the public history-page adapter."""
 
-import asyncio
 import ast
+import asyncio
 import random
+from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import Mock
 
 from test_last_called_selection import NOW, immediate_async, load_helpers, record
-from types import SimpleNamespace
 
 
 class HistoryContinuationTests(TestCase):

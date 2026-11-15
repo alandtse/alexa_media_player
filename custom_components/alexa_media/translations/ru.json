@@ -183,6 +183,10 @@
     "create_alarm": {
       "description": "Создает будильник на устройстве Echo.",
       "fields": {
+        "alarm_type": {
+          "description": "Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.",
+          "name": "Alarm type (experimental)"
+        },
         "days": {
           "description": "Количество дней для повтора. Оставьте поле пустым для одноразового будильника.",
           "name": "Повторить"
@@ -190,6 +194,12 @@
         "entity_id": {
           "description": "Устройство Echo для установки будильника",
           "name": "Выберите медиа плеер:"
+        },
+        "music_entity": {
+          "name": "Music station or content (match a cached Alexa music alarm)"
+        },
+        "music_provider": {
+          "name": "Music provider (match a cached Alexa music alarm)"
         },
         "time": {
           "description": "Время звонка будильника",
@@ -274,6 +284,25 @@
       },
       "name": "Получить исторические записи"
     },
+    "list_alarms": {
+      "description": "Returns cached alarm metadata for one Echo, including music station/provider.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity"
+        }
+      },
+      "name": "List alarms (experimental)"
+    },
+    "repeat_last_message": {
+      "description": "Отправляет последнее сообщение или объявление, отправленное службой уведомлений на устройство Echo, повторно. Сообщения сохраняются до перезапуска Home Assistant или перезагрузки интеграции.",
+      "fields": {
+        "entity_id": {
+          "description": "Устройства эхо-сигнала для повтора последнего сообщения",
+          "name": "Выберите медиаплеер:"
+        }
+      },
+      "name": "Повторить последнее сообщение"
+    },
     "restore_volume": {
       "description": "Восстановить предыдущий уровень громкости на медиа плеере Alexa",
       "fields": {
@@ -283,6 +312,20 @@
         }
       },
       "name": "Восстановить предыдущий том"
+    },
+    "skip_next_alarm": {
+      "description": "Запросы пропускают следующее срабатывание активного повторяющегося сигнала тревоги Echo. Перед повторным вызовом проверьте датчик следующей тревоги после его обновления.",
+      "fields": {
+        "alarm_id": {
+          "description": "Идентификатор сигнала тревоги берется из атрибута sorted_all следующего датчика сигнала тревоги устройства.",
+          "name": "Идентификатор тревоги"
+        },
+        "entity_id": {
+          "description": "Устройство Echo, будильник включен.",
+          "name": "Выберите медиа плеер:"
+        }
+      },
+      "name": "Пропустить следующий будильник"
     },
     "update_last_called": {
       "description": "Принудительное обновление последнего вызванного устройства для каждого аккаунта Алекса.",

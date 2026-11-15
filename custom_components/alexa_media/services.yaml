@@ -1,7 +1,7 @@
 #  SPDX-License-Identifier: Apache-2.0
 force_logout:
   # Description of the service
-  description: Force logout of Alexa Login account and deletion of .pickle. Intended for debugging use.
+  description: Mark Alexa Login accounts for reauthentication. Intended for debugging use.
   # Different fields that your service accepts
   fields:
     # Key of the field
@@ -213,3 +213,20 @@ skip_next_alarm:
     Request skipping the next occurrence of an active recurring Echo alarm.
     Check the next alarm sensor after it refreshes before calling again.
   fields: *alarm_fields
+
+repeat_last_message:
+  name: Repeat Last Message
+  description: >
+    Sends the last TTS message or announcement sent to an Echo by the notify
+    service again. Messages are kept until Home Assistant restarts or the
+    integration reloads.
+  fields:
+    entity_id:
+      name: Entity
+      description: Alexa Media Player devices to repeat the last message on.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
+          multiple: true

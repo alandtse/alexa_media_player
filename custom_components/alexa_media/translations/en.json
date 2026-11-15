@@ -93,7 +93,7 @@
         "name": "Particulate matter"
       },
       "air_quality_volatile_organic_compounds": {
-        "name": "Volatile organic compounds"
+        "name": "Volatile organic compounds index"
       },
       "next_alarm": {
         "name": "Next alarm"
@@ -292,6 +292,16 @@
         }
       },
       "name": "List alarms (experimental)"
+    },
+    "repeat_last_message": {
+      "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo devices to repeat the last message on",
+          "name": "Select media players:"
+        }
+      },
+      "name": "Repeat Last Message"
     },
     "restore_volume": {
       "description": "Restore previous volume level on Alexa media player device",

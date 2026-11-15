@@ -283,14 +283,14 @@ tzdata = ">=2024.1"
 
 [[package]]
 name = "alexapy"
-version = "1.34.0"
+version = "1.35.0"
 description = "Python API to control Amazon Echo Devices Programmatically."
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "alexapy-1.34.0-py3-none-any.whl", hash = "sha256:4a36519032012dec559cb510c0f4197acab393f46d03427aae1f2195a0476629"},
-    {file = "alexapy-1.34.0.tar.gz", hash = "sha256:45fedf5e8886246366a9a64e37f788b8b48c6a70ddc13c8eda7bee28fbed4a64"},
+    {file = "alexapy-1.35.0-py3-none-any.whl", hash = "sha256:0a8f25bbb7a2f0f633465ef4328da42b3e454942ef16ff6e99e3dbf5a1e970de"},
+    {file = "alexapy-1.35.0.tar.gz", hash = "sha256:466f628202aae525b5122c35e6a65a6ca2fa01daaa21acbf62e11453afb96399"},
 ]
 
 [package.dependencies]
@@ -2718,14 +2718,14 @@ files = [
 
 [[package]]
 name = "nltk"
-version = "3.10.3"
+version = "3.10.4"
 description = "Natural Language Toolkit"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "nltk-3.10.3-py3-none-any.whl", hash = "sha256:ff9598a8e20518ee0d557745890cc4435b9578489e2dcbc69c4f81fa060caf7c"},
-    {file = "nltk-3.10.3.tar.gz", hash = "sha256:bb9327a461c3811c2fa4900e03840401f2126adfb30c0072827c433bd2444ea4"},
+    {file = "nltk-3.10.4-py3-none-any.whl", hash = "sha256:769ba5413f265b7d3e87cd163cc28efa01e29eeef8bb6080bc907949d9fcfb51"},
+    {file = "nltk-3.10.4.tar.gz", hash = "sha256:44679f4e9220abfd496d2c8cdb22f8425ccbe557604f9aa5cacb1c44003dabc1"},
 ]
 
 [package.dependencies]
@@ -4963,14 +4963,14 @@ files = [
 
 [[package]]
 name = "soupsieve"
-version = "2.9"
+version = "4.0"
 description = "A modern CSS selector implementation for Beautiful Soup."
 optional = false
-python-versions = ">=3.10"
+python-versions = ">=3.11.5"
 groups = ["main"]
 files = [
-    {file = "soupsieve-2.9-py3-none-any.whl", hash = "sha256:a2b2c76d67df2382d245409fd71e321a571717e58463efa32ace87dcadac2c12"},
-    {file = "soupsieve-2.9.tar.gz", hash = "sha256:acee8417325c5653e1377dc31eccad59eb82cbc65942afe6174c53b3aaad63fc"},
+    {file = "soupsieve-4.0-py3-none-any.whl", hash = "sha256:5e7494bfce90e06676cfb4c5c2cf22243e98e5cf24646bb1ecdda46d318550a0"},
+    {file = "soupsieve-4.0.tar.gz", hash = "sha256:ccd6470b256394ac44b08b86fd94b30a17d335a5335c8a3d15565f7b03d3c8cf"},
 ]
 
 [[package]]
@@ -6024,4 +6024,4 @@ ifaddr = ">=0.1.7"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "1b29a5a2608a13a6bf22d3792acb4c18724eae88c38e872acbe5dc21f1738c3b"
+content-hash = "32f97dd243217d82f8699ae92f9bf5c501f4b731c8994811a3973d101aba2c58"

@@ -15,8 +15,14 @@ from typing import Any, Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
-from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.auth.permissions.const import POLICY_CONTROL
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    ServiceValidationError,
+    Unauthorized,
+    UnknownUser,
+)
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.util import dt as dt_util, slugify
 import voluptuous as vol
@@ -41,7 +47,9 @@ from .const import (
     SERVICE_ENABLE_NETWORK_DISCOVERY,
     SERVICE_FORCE_LOGOUT,
     SERVICE_GET_HISTORY_RECORDS,
+    SERVICE_REPEAT_LAST_MESSAGE,
     SERVICE_RESTORE_VOLUME,
+    SERVICE_SKIP_NEXT_ALARM,
     SERVICE_UPDATE_LAST_CALLED,
 )
 from .helpers import _catch_login_errors, report_relogin_required, safe_get
@@ -80,15 +88,29 @@ AMAZON_KIDS_ENABLE_SCHEMA = vol.Schema(
     }
 )
 AMAZON_KIDS_DISABLE_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
+REPEAT_LAST_MESSAGE_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_ids})
 
 ALARM_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+ALARM_DAY_PRESETS = {
+    "weekdays": ("mon", "tue", "wed", "thu", "fri"),
+    "weekends": ("sat", "sun"),
+    "everyday": ALARM_DAYS,
+}
+ALARM_DATE_PRESETS = ("today", "tomorrow")
+ALARM_DAY_OPTIONS = (*ALARM_DAYS, *ALARM_DAY_PRESETS, *ALARM_DATE_PRESETS)
+MUSIC_ALARM_TYPES = ("default", "music")
+LIST_ALARMS_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
+
 CREATE_ALARM_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ENTITY_ID): cv.entity_id,
         vol.Required(ATTR_TIME): cv.time,
         vol.Optional(ATTR_DAYS, default=[]): vol.All(
-            cv.ensure_list, [vol.In(ALARM_DAYS)]
+            cv.ensure_list, [vol.In(ALARM_DAY_OPTIONS)]
         ),
+        vol.Optional("alarm_type", default="default"): vol.In(MUSIC_ALARM_TYPES),
+        vol.Optional("music_provider"): cv.string,
+        vol.Optional("music_entity"): cv.string,
     }
 )
 ALARM_SCHEMA = vol.Schema(
@@ -107,6 +129,76 @@ def alarm_days(alarm: dict[str, Any]) -> list[str]:
         return [day for day in ALARM_DAYS if day[:2].upper() in week_days]
     iso_days = RECURRING_PATTERN_ISO_SET.get(alarm.get("recurringPattern")) or ()
     return [day for iso, day in enumerate(ALARM_DAYS, 1) if iso in iso_days]
+
+
+def _validate_local_alarm_time(
+    when: datetime.datetime, time_zone: datetime.tzinfo | None
+) -> None:
+    """Reject nonexistent and ambiguous Echo-local DST times.
+
+    Alexa's alarm API receives local timestamps without an offset or fold.
+    Explicitly reject times we cannot represent unambiguously.
+    """
+    if time_zone is None:
+        return
+    valid_offsets = set()
+    for fold in (0, 1):
+        aware = when.replace(tzinfo=time_zone, fold=fold)
+        round_trip = aware.astimezone(datetime.timezone.utc).astimezone(time_zone)
+        if round_trip.replace(tzinfo=None) == when:
+            valid_offsets.add(aware.utcoffset())
+    if not valid_offsets:
+        raise ServiceValidationError(
+            "Alarm time does not exist in the Echo's timezone (DST transition)"
+        )
+    if len(valid_offsets) > 1:
+        raise ServiceValidationError(
+            "Alarm time is ambiguous in the Echo's timezone (DST transition)"
+        )
+
+
+def resolve_alarm_schedule(
+    alarm_time: datetime.time,
+    requested_days: list[str],
+    time_zone: datetime.tzinfo | None,
+) -> tuple[str, dict[str, Any] | None]:
+    """Resolve days/presets to an Alexa-local alarm time and repeat rule."""
+    presets = set(ALARM_DAY_PRESETS) | set(ALARM_DATE_PRESETS)
+    selected = set(requested_days)
+    if selected & presets:
+        if len(requested_days) != 1:
+            raise ServiceValidationError(
+                "Use today, tomorrow, weekdays, weekends or everyday alone; "
+                "do not combine a preset with other days"
+            )
+        preset = requested_days[0]
+        if preset in ALARM_DAY_PRESETS:
+            days = list(ALARM_DAY_PRESETS[preset])
+            return next_alarm_time(
+                alarm_time, days, time_zone=time_zone
+            ), alarm_recurrence(days)
+
+        # One-off dates require the Echo's own timezone, not HA's fallback.
+        if time_zone is None:
+            raise ServiceValidationError(
+                "The Echo's timezone is unavailable; cannot schedule today or tomorrow. "
+                "Check the Echo's timezone settings or use a recurring schedule."
+            )
+        now = dt_util.now(time_zone).replace(tzinfo=None)
+        date = now.date() + datetime.timedelta(days=1 if preset == "tomorrow" else 0)
+        when = datetime.datetime.combine(date, alarm_time)
+        _validate_local_alarm_time(when, time_zone)
+        if when <= now:
+            raise ServiceValidationError(
+                f"The requested time for {preset} has already passed in the Echo's local timezone"
+            )
+        return when.isoformat(timespec="seconds"), None
+
+    # Preserve v1.3.1 behaviour for empty days and individual weekdays.
+    return (
+        next_alarm_time(alarm_time, requested_days, time_zone=time_zone),
+        alarm_recurrence(requested_days),
+    )
 
 
 def alarm_recurrence(days: list[str]) -> dict[str, Any] | None:
@@ -138,9 +230,21 @@ def next_alarm_time(
     """
     now = dt_util.now(time_zone).replace(tzinfo=None)
     when = datetime.datetime.combine(max(start or now.date(), now.date()), alarm_time)
-    while when <= now or (days and ALARM_DAYS[when.weekday()] not in days):
-        when += datetime.timedelta(days=1)
-    return when.isoformat(timespec="seconds")
+    while True:
+        if when <= now or (days and ALARM_DAYS[when.weekday()] not in days):
+            when += datetime.timedelta(days=1)
+            continue
+        try:
+            _validate_local_alarm_time(when, time_zone)
+        except ServiceValidationError:
+            if not days:
+                # One-off alarms cannot represent a DST gap or fold.
+                raise
+            # For a recurring alarm, keep its repeat rule and choose the next
+            # valid matching occurrence as the initial scheduledTime.
+            when += datetime.timedelta(days=1)
+            continue
+        return when.isoformat(timespec="seconds")
 
 
 @dataclass(frozen=True)
@@ -189,9 +293,19 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         handler="amazon_kids_disable",
     ),
     AlexaServiceDef(
+        name=SERVICE_REPEAT_LAST_MESSAGE,
+        schema=REPEAT_LAST_MESSAGE_SCHEMA,
+        handler="repeat_last_message",
+    ),
+    AlexaServiceDef(
         name=SERVICE_CREATE_ALARM,
         schema=CREATE_ALARM_SCHEMA,
         handler="create_alarm",
+    ),
+    AlexaServiceDef(
+        name="list_alarms",
+        schema=LIST_ALARMS_SCHEMA,
+        handler="list_alarms",
     ),
     AlexaServiceDef(
         name=SERVICE_ENABLE_ALARM,
@@ -207,6 +321,11 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         name=SERVICE_DELETE_ALARM,
         schema=ALARM_SCHEMA,
         handler="delete_alarm",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_SKIP_NEXT_ALARM,
+        schema=ALARM_SCHEMA,
+        handler="skip_next_alarm",
     ),
 )
 
@@ -225,6 +344,11 @@ class AlexaMediaServices:
                 service_def.name,
                 handler,
                 schema=service_def.schema,
+                supports_response=(
+                    SupportsResponse.ONLY
+                    if service_def.name == "list_alarms"
+                    else SupportsResponse.NONE
+                ),
             )
 
     async def unregister(self) -> None:
@@ -470,6 +594,57 @@ class AlexaMediaServices:
         await self._async_refresh_kids(login_obj)
         return True
 
+    async def repeat_last_message(self, call: ServiceCall) -> None:
+        """Handle repeat last message service request.
+
+        Arguments:
+            call.ATTR_ENTITY_ID {List[str]} -- Alexa Media Player entities.
+
+        """
+        entity_ids = call.data[ATTR_ENTITY_ID]
+        if call.context.user_id:
+            user = await self.hass.auth.async_get_user(call.context.user_id)
+            if user is None:
+                raise UnknownUser(context=call.context)
+            for entity_id in entity_ids:
+                if not user.permissions.check_entity(entity_id, POLICY_CONTROL):
+                    raise Unauthorized(
+                        context=call.context,
+                        entity_id=entity_id,
+                        permission=POLICY_CONTROL,
+                    )
+        _LOGGER.debug("Service repeat_last_message called for: %s", entity_ids)
+        media_players = {
+            entity.entity_id: entity
+            for account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].values()
+            for entity in account_dict["entities"]["media_player"].values()
+            # Disabled entities get an entity_id but are never added to hass
+            if entity.hass
+        }
+        errors = []
+        validation_only = True
+        for entity_id in entity_ids:
+            if entity_id not in media_players:
+                errors.append(f"Entity {entity_id} not found or not part of {DOMAIN}")
+                continue
+            try:
+                await media_players[entity_id].async_repeat_last_message()
+            except ServiceValidationError as err:
+                errors.append(str(err))
+            except (
+                HomeAssistantError,
+                AlexapyConnectionError,
+                AlexapyLoginError,
+                AlexapyTooManyRequestsError,
+            ) as err:
+                validation_only = False
+                errors.append(f"{entity_id}: {err}")
+        if errors:
+            message = "; ".join(errors)
+            if validation_only:
+                raise ServiceValidationError(message)
+            raise HomeAssistantError(message)
+
     def _resolve_alarm_device(self, entity_id):
         """Resolve a media_player entity_id to (login_obj, serial, device_type, time_zone)."""
         login_obj, serial, device_type = self._resolve_device(entity_id)
@@ -524,6 +699,45 @@ class AlexaMediaServices:
             )
         return True
 
+    @staticmethod
+    def _music_key(provider: str, entity: str) -> str:
+        """Use an exact, case-insensitive provider and content match."""
+        return f"{provider.strip().casefold()}\n{entity.strip().casefold()}"
+
+    def _cached_music_assets(self, login_obj) -> dict[str, str]:
+        """Read valid music assets from currently known account notifications."""
+        import uuid
+
+        result = {}
+        notifications = (
+            self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+            .get(login_obj.email, {})
+            .get("notifications", {})
+        )
+        for device_notifications in notifications.values():
+            if not isinstance(device_notifications, dict):
+                continue
+            alarms = device_notifications.get("Alarm", {})
+            if not isinstance(alarms, dict):
+                continue
+            for alarm in alarms.values():
+                if not isinstance(alarm, dict):
+                    continue
+                provider = alarm.get("provider")
+                entity = alarm.get("musicEntity")
+                asset_id = alarm.get("musicAlarmId")
+                if not all(
+                    isinstance(v, str) and v.strip()
+                    for v in (provider, entity, asset_id)
+                ):
+                    continue
+                try:
+                    uuid.UUID(asset_id)
+                except ValueError:
+                    continue
+                result[self._music_key(provider, entity)] = asset_id
+        return result
+
     async def create_alarm(self, call: ServiceCall) -> bool:
         """Create an alarm on a device.
 
@@ -535,22 +749,84 @@ class AlexaMediaServices:
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
         days = call.data.get(ATTR_DAYS)
+        alarm_type = call.data.get("alarm_type", "default")
+        music_provider = call.data.get("music_provider")
+        music_entity = call.data.get("music_entity")
+        if alarm_type == "music":
+            if not music_provider or not music_entity:
+                raise ServiceValidationError(
+                    "Music alarms require both music_provider and music_entity"
+                )
+        elif music_provider or music_entity:
+            raise ServiceValidationError("Music parameters require alarm_type: music")
         login_obj, serial, device_type, time_zone = self._resolve_alarm_device(
             entity_id
         )
+        alarm_when, alarm_repeat = resolve_alarm_schedule(
+            call.data.get(ATTR_TIME), days, time_zone
+        )
+        if alarm_type == "music":
+            import uuid
+
+            # Read only current Alexa notification metadata; never persist IDs.
+            cached = self._cached_music_assets(login_obj)
+            music_alarm_id = cached.get(self._music_key(music_provider, music_entity))
+            if not music_alarm_id:
+                raise ServiceValidationError(
+                    f"No cached Alexa music alarm for '{music_entity}' on "
+                    f"'{music_provider}'. Create the selection in Alexa first "
+                    "and refresh Alexa Media Player notifications. No alarm created."
+                )
+            try:
+                uuid.UUID(music_alarm_id)
+            except (ValueError, TypeError, AttributeError) as err:
+                raise ServiceValidationError(
+                    "Cached music alarm ID is invalid"
+                ) from err
         return await self._change_alarm(
             AlexaAPI.create_alarm(
                 login_obj,
                 serial,
                 device_type,
-                next_alarm_time(call.data.get(ATTR_TIME), days, time_zone=time_zone),
-                alarm_recurrence(days),
+                alarm_when,
+                alarm_repeat,
+                f"MUSIC-{music_alarm_id}" if alarm_type == "music" else None,
             ),
             login_obj,
             serial,
             entity_id,
             SERVICE_CREATE_ALARM,
         )
+
+    async def list_alarms(self, call: ServiceCall) -> dict[str, Any]:
+        """Return cached Alexa alarm metadata without exposing serials or IDs."""
+        entity_id = call.data[ATTR_ENTITY_ID]
+        login_obj, serial, _, _ = self._resolve_alarm_device(entity_id)
+        alarms = (
+            safe_get(
+                self.hass.data[DATA_ALEXAMEDIA]["accounts"],
+                [login_obj.email, "notifications", serial, "Alarm"],
+                {},
+            )
+            or {}
+        )
+        result = []
+        for alarm in alarms.values():
+            result.append(
+                {
+                    "date": alarm.get("originalDate"),
+                    "time": alarm.get("originalTime"),
+                    "status": alarm.get("status"),
+                    "recurring_pattern": alarm.get("recurringPattern"),
+                    "days": alarm_days(alarm),
+                    "is_music": bool(alarm.get("musicAlarmId")),
+                    "music_entity": alarm.get("musicEntity"),
+                    "provider": alarm.get("provider"),
+                    "sound": safe_get(alarm, ["sound", "displayName"]),
+                }
+            )
+        result.sort(key=lambda a: (a["date"] or "", a["time"] or ""))
+        return {"entity_id": entity_id, "alarms": result, "count": len(result)}
 
     async def enable_alarm(self, call: ServiceCall) -> bool:
         """Turn an alarm on.
@@ -605,6 +881,29 @@ class AlexaMediaServices:
             serial,
             entity_id,
             SERVICE_DISABLE_ALARM,
+        )
+
+    async def skip_next_alarm(self, call: ServiceCall) -> bool:
+        """Request skipping the next occurrence of an active recurring alarm."""
+        entity_id = call.data[ATTR_ENTITY_ID]
+        login_obj, serial, alarm, _ = self._resolve_alarm(
+            entity_id, call.data[ATTR_ALARM_ID]
+        )
+        index = alarm.get("notificationIndex")
+        if not isinstance(index, str) or not index:
+            raise ServiceValidationError(
+                f"Alarm on {entity_id} has no notification index"
+            )
+        if alarm.get("status") != "ON" or not alarm_days(alarm):
+            raise ServiceValidationError(
+                f"Only active recurring alarms can be skipped on {entity_id}"
+            )
+        return await self._change_alarm(
+            AlexaAPI.skip_next_alarm(login_obj, index),
+            login_obj,
+            serial,
+            entity_id,
+            SERVICE_SKIP_NEXT_ALARM,
         )
 
     async def delete_alarm(self, call: ServiceCall) -> bool:

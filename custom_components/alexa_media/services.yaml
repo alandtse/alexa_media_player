@@ -1,7 +1,7 @@
 #  SPDX-License-Identifier: Apache-2.0
 force_logout:
   # Description of the service
-  description: Force logout of Alexa Login account and deletion of .pickle. Intended for debugging use.
+  description: Mark Alexa Login accounts for reauthentication. Intended for debugging use.
   # Different fields that your service accepts
   fields:
     # Key of the field
@@ -122,8 +122,11 @@ create_alarm:
       selector:
         time:
     days:
-      name: Repeat on
-      description: Days to repeat on. Leave empty for a one-off alarm.
+      name: Alarm days
+      description: >
+        Select today or tomorrow for a one-off alarm; weekdays, weekends or
+        everyday for a repeating alarm; or select specific weekdays.
+        Use presets alone. Leave empty for the next occurrence of the time.
       required: false
       selector:
         select:
@@ -136,6 +139,44 @@ create_alarm:
             - fri
             - sat
             - sun
+            - weekdays
+            - weekends
+            - everyday
+            - today
+            - tomorrow
+
+    alarm_type:
+      name: Alarm type (experimental)
+      description: Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.
+      required: false
+      default: default
+      selector:
+        select:
+          options:
+            - default
+            - music
+    music_provider:
+      name: Music provider (match a cached Alexa music alarm)
+      required: false
+      selector:
+        text:
+    music_entity:
+      name: Music station or content (match a cached Alexa music alarm)
+      required: false
+      selector:
+        text:
+
+list_alarms:
+  name: List alarms (experimental)
+  description: Returns cached alarm metadata for one Echo, including music station/provider.
+  fields:
+    entity_id:
+      name: Entity
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
 
 enable_alarm:
   name: Enable alarm
@@ -165,3 +206,27 @@ delete_alarm:
   name: Delete alarm
   description: Delete an Echo alarm.
   fields: *alarm_fields
+
+skip_next_alarm:
+  name: Skip next alarm
+  description: >-
+    Request skipping the next occurrence of an active recurring Echo alarm.
+    Check the next alarm sensor after it refreshes before calling again.
+  fields: *alarm_fields
+
+repeat_last_message:
+  name: Repeat Last Message
+  description: >
+    Sends the last TTS message or announcement sent to an Echo by the notify
+    service again. Messages are kept until Home Assistant restarts or the
+    integration reloads.
+  fields:
+    entity_id:
+      name: Entity
+      description: Alexa Media Player devices to repeat the last message on.
+      required: true
+      selector:
+        entity:
+          domain: media_player
+          integration: alexa_media
+          multiple: true

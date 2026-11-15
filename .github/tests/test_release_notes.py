@@ -127,9 +127,12 @@ def test_bots():
 def test_api_failure_discards_partial_authors(error, capsys):
     """Warn and discard the whole snapshot when any lookup fails."""
     client = client_for({10: user("alice"), 11: error, 12: user("bob")})
-    assert prepare.collect_authors(
-        history_for("#10", "#11", "#12"), client, "owner", "repo"
-    ) == {}
+    assert (
+        prepare.collect_authors(
+            history_for("#10", "#11", "#12"), client, "owner", "repo"
+        )
+        == {}
+    )
     assert client.get.call_count == 2
     assert "::warning::PR #11: author lookup failed" in capsys.readouterr().out
 
@@ -469,13 +472,13 @@ def test_noop_release_has_no_side_effects(project, monkeypatch, prepared):
     head = repo.head.commit.hexsha
     tags = [tag.name for tag in repo.tags]
     for method in ["git_push_branch", "git_push_tag"]:
-        monkeypatch.setattr(GitProject, method, Mock(side_effect=AssertionError(method)))
+        monkeypatch.setattr(
+            GitProject, method, Mock(side_effect=AssertionError(method))
+        )
     monkeypatch.setattr(
         Github, "create_release", Mock(side_effect=AssertionError("publication"))
     )
-    result = CliRunner().invoke(
-        semantic_release, ["--noop", "version", "--skip-build"]
-    )
+    result = CliRunner().invoke(semantic_release, ["--noop", "version", "--skip-build"])
     assert result.exit_code == 0, result.output + repr(result.exception)
     assert "1.1.0" in result.output
     assert repo.head.commit.hexsha == head

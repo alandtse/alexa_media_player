@@ -2,7 +2,6 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from alexapy.errors import AlexapyConnectionError
 from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.core import Context
 from homeassistant.exceptions import (
@@ -258,8 +257,8 @@ class TestRepeatLastMessage:
         kitchen, office = await self._setup(hass, "Kitchen", "Office")
         await self._notify(hass, "Dinner is ready", ["media_player.kitchen"])
         await self._notify(hass, "Meeting in 5", ["media_player.office"])
-        kitchen.alexa_api.send_tts = AsyncMock(
-            side_effect=AlexapyConnectionError("boom")
+        kitchen.async_repeat_last_message = AsyncMock(
+            side_effect=HomeAssistantError("boom")
         )
         office.alexa_api.send_tts.reset_mock()
 

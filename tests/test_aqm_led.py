@@ -319,3 +319,43 @@ async def test_setup_filters_and_duplicates(appliance, include, exclude, count):
         ]
         assert len(added_leds) == count
         assert len(account["entities"]["smart_switch"]) == count
+
+
+@pytest.mark.parametrize("supported", [None, [None], "toggleState", {}, 42, []])
+def test_malformed_led_properties_preserve_discovery(appliance, supported):
+    """Malformed LED metadata must not abort discovery of other devices."""
+    appliance["capabilities"][1]["properties"]["supported"] = supported
+    other = deepcopy(appliance)
+    other["entityId"] = "other-entity"
+    other["applianceId"] = "other-appliance"
+    other["capabilities"][1]["properties"]["supported"] = [{"name": "toggleState"}]
+
+    assert get_led_indicator_instance(appliance) is None
+    parsed = parse_alexa_entities([appliance, other])
+    assert [entity["id"] for entity in parsed["aiaqm"]] == [
+        "aqm-entity",
+        "other-entity",
+    ]
+    assert [entity["led_indicator_instance"] for entity in parsed["aiaqm"]] == [
+        None,
+        "11",
+    ]
+
+
+def test_mixed_supported_properties(appliance):
+    """Ignore malformed entries while retaining a valid toggle property."""
+    appliance["capabilities"][1]["properties"]["supported"] = [
+        None,
+        "invalid",
+        42,
+        {"name": "toggleState"},
+    ]
+    assert get_led_indicator_instance(appliance) == "11"
+
+
+def test_malformed_led_capability_does_not_hide_later_toggle(appliance):
+    """Continue looking for a valid LED capability after malformed metadata."""
+    valid = deepcopy(appliance["capabilities"][1])
+    appliance["capabilities"][1]["properties"]["supported"] = None
+    appliance["capabilities"].append(valid)
+    assert get_led_indicator_instance(appliance) == "11"

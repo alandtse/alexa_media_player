@@ -1,5 +1,6 @@
 """Instance-aware AQM LED control through Alexa's endpoint feature API."""
 
+from aiohttp import ClientError
 from alexapy import AlexaAPI
 from homeassistant.exceptions import HomeAssistantError
 
@@ -25,15 +26,25 @@ mutation setEndpointFeatures($setEndpointFeaturesInput: SetEndpointFeaturesInput
 
 async def _graphql(login, query, variables=None):
     """Send a GraphQL request using AMP's authenticated Alexa session."""
-    response = await AlexaAPI._static_request(  # pylint: disable=protected-access
-        "post",
-        login,
-        "/nexus/v1/graphql",
-        data={"query": query, "variables": variables or {}},
-    )
+    try:
+        response = await AlexaAPI._static_request(  # pylint: disable=protected-access
+            "post",
+            login,
+            "/nexus/v1/graphql",
+            data={"query": query, "variables": variables or {}},
+        )
+    except (ClientError, TimeoutError) as err:
+        raise HomeAssistantError("Alexa LED control request failed") from err
     if response is None:
         raise HomeAssistantError("No response from Alexa LED control")
-    body = await response.json(content_type=None)
+    if not 200 <= response.status < 300:
+        raise HomeAssistantError(
+            f"Alexa LED control returned HTTP {response.status}"
+        )
+    try:
+        body = await response.json(content_type=None)
+    except (ValueError, ClientError, TimeoutError) as err:
+        raise HomeAssistantError("Alexa LED control returned invalid JSON") from err
     if (
         not isinstance(body, dict)
         or body.get("errors")

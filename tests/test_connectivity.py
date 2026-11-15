@@ -8,6 +8,7 @@ import pytest
 
 from custom_components.alexa_media.binary_sensor import (
     EchoConnectivitySensor,
+    _is_echo,
     async_setup_platform,
     async_unload_entry,
 )
@@ -28,7 +29,11 @@ def account():
             status={"login_successful": True},
         ),
         "coordinator": MagicMock(last_update_success=True),
-        "devices": {"media_player": {"A": {"deviceFamily": "ECHO"}}},
+        "devices": {
+            "media_player": {
+                "A": {"deviceFamily": "ECHO", "accountName": "Kitchen Echo"}
+            }
+        },
         "entities": {"media_player": {}, "binary_sensor": []},
         "options": {},
     }
@@ -129,11 +134,13 @@ def test_account_failure_and_recovery(failure):
 
 
 @pytest.mark.asyncio
-async def test_discovery_disabled_player_cleanup_zero_requests():
+@pytest.mark.parametrize("family", ["ECHO", "ECHO_AUTO"])
+async def test_discovery_disabled_player_cleanup_zero_requests(family):
     """Inventory discovery honors filtered devices without needing a player."""
     data = account()
     hass = MagicMock()
     hass.data = {DOMAIN: {"accounts": {"one@example.com": data}}}
+    data["devices"]["media_player"]["A"]["deviceFamily"] = family
     added = MagicMock()
     with (
         patch("custom_components.alexa_media.binary_sensor.async_get_state") as kids,
@@ -146,9 +153,16 @@ async def test_discovery_disabled_player_cleanup_zero_requests():
         await async_setup_platform(hass, {"email": "one@example.com"}, added)
         sensor = added.call_args.args[0][0]
         assert isinstance(sensor, EchoConnectivitySensor)
-        assert len(data["entities"]["binary_sensor"]) == 1
+        assert not data["entities"]["binary_sensor"]
+        assert sensor.device_info["name"] == "Kitchen Echo"
         state = connectivity_state(data)
-        state.notify()
+        with patch(
+            "custom_components.alexa_media.binary_sensor.EchoConnectivitySensor",
+            wraps=EchoConnectivitySensor,
+        ) as construct:
+            state.notify()
+            state.notify()
+            construct.assert_not_called()
         added.assert_called_once()
         # A newly accepted device is discovered; an excluded device is absent
         # from AMP's filtered media_player inventory and cannot create an entity.
@@ -156,7 +170,8 @@ async def test_discovery_disabled_player_cleanup_zero_requests():
         data["devices"]["media_player"]["group"] = {"deviceFamily": "WHA"}
         state.notify()
         assert added.call_count == 2
-        assert len(data["entities"]["binary_sensor"]) == 2
+        assert not data["entities"]["binary_sensor"]
+        sensor.async_remove = AsyncMock()
         kids.return_value.async_start.assert_not_called()
         data["coordinator"].async_add_listener.assert_not_called()
         data["coordinator"].async_request_refresh.assert_not_called()
@@ -166,6 +181,7 @@ async def test_discovery_disabled_player_cleanup_zero_requests():
         await async_unload_entry(
             hass, SimpleNamespace(data={"email": "one@example.com"})
         )
+        sensor.async_remove.assert_not_awaited()
         assert not state._listeners
 
 
@@ -206,13 +222,17 @@ async def test_entity_listener_removed_on_unload():
     sensor.async_on_remove = callbacks.append
     sensor.async_write_ha_state = MagicMock()
     await sensor.async_added_to_hass()
+    assert data["entities"]["binary_sensor"] == [sensor]
     state = connectivity_state(data)
     state.inventory([{"serialNumber": "A", "online": True}], 0)
     sensor.async_write_ha_state.assert_called_once()
     for callback in callbacks:
         callback()
+    assert not data["entities"]["binary_sensor"]
     state.push("A", {"dopplerConnectionState": "OFFLINE"})
     sensor.async_write_ha_state.assert_called_once()
+    await sensor.async_added_to_hass()
+    assert data["entities"]["binary_sensor"] == [sensor]
     data["coordinator"].async_add_listener.assert_not_called()
     data["coordinator"].async_request_refresh.assert_not_called()
 
@@ -266,3 +286,73 @@ async def test_account_unload_removes_discovery_before_platform_reset(registered
         )
     hass.config_entries.async_forward_entry_unload.assert_awaited()
     listener.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "family",
+    [
+        "ECHO",
+        "ECHO_SHOW",
+        "ECHO_SPOT",
+        "ECHO_AUTO",
+        "ROOK",
+        "KNIGHT",
+        "REAVER",
+        "MANTIS",
+    ],
+)
+def test_echo_families(family):
+    """Connectivity eligibility is independent of Amazon Kids support."""
+    assert _is_echo({"deviceFamily": family})
+
+
+@pytest.mark.parametrize(
+    "family", ["WHA", "FIRE_TV", "TABLET", "SONOS", "ECHOLOCATION", "UNKNOWN", None, 1]
+)
+def test_non_echo_families(family):
+    """An online field alone does not identify a physical Echo."""
+    assert not _is_echo({"deviceFamily": family, "online": True})
+
+
+@pytest.mark.asyncio
+async def test_unload_removes_all_added_connectivity_sensors():
+    """Removal callbacks may shrink the tracking list during unload."""
+    data = account()
+    data["devices"]["media_player"]["B"] = {"deviceFamily": "ECHO"}
+    hass = MagicMock()
+    hass.data = {DOMAIN: {"accounts": {"one@example.com": data}}}
+    sensors = []
+    for serial in ("A", "B"):
+        sensor = EchoConnectivitySensor(
+            data["coordinator"], data, serial, "one@example.com"
+        )
+        callbacks = []
+        sensor.async_on_remove = callbacks.append
+        await sensor.async_added_to_hass()
+
+        async def remove(callbacks=callbacks):
+            for callback in callbacks:
+                callback()
+
+        sensor.async_remove = AsyncMock(side_effect=remove)
+        sensors.append(sensor)
+    await async_unload_entry(hass, SimpleNamespace(data={"email": "one@example.com"}))
+    for sensor in sensors:
+        sensor.async_remove.assert_awaited_once()
+    assert not data["entities"]["binary_sensor"]
+    assert not connectivity_state(data)._listeners
+
+
+@pytest.mark.parametrize("success", [False, True])
+def test_refresh_completion_preserves_failure_invalidation(success):
+    """Every completed failed refresh invalidates without listener notification."""
+    coordinator = object.__new__(AlexaMediaCoordinator)
+    state = coordinator.echo_connectivity = EchoConnectivityState()
+    state.inventory([{"serialNumber": "A", "online": True}], 0)
+    coordinator.last_update_success = success
+    with patch(
+        "homeassistant.helpers.update_coordinator.DataUpdateCoordinator._async_refresh_finished"
+    ):
+        coordinator._async_refresh_finished()
+    assert state.values["A"] is (True if success else None)
+    assert state.account_available is success

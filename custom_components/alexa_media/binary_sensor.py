@@ -36,6 +36,21 @@ from .helpers import add_devices, safe_get
 _LOGGER = logging.getLogger(__name__)
 
 
+def _is_echo(device):
+    """Recognize Echo families, including legacy display family names."""
+    family = device.get("deviceFamily")
+    return isinstance(family, str) and (
+        family == "ECHO"
+        or family.startswith("ECHO_")
+        or family in {"ROOK", "KNIGHT", "REAVER", "MANTIS"}
+    )
+
+
+def _connectivity_unique_id(serial, email):
+    """Return the account-scoped discovery identity without creating an entity."""
+    return f"{slugify(f'{serial}_{email}')}_connectivity"
+
+
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa sensor platform."""
     devices: list[BinarySensorEntity] = []
@@ -53,20 +68,19 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     # Inventory has already passed AMP's device name/capability filters.
     # Discover independently of media_player entity creation or enablement.
+    discovered = set()
+
     def discover_connectivity():
-        known = {
-            entity.unique_id
-            for entity in account_dict["entities"]["binary_sensor"]
-            if isinstance(entity, EchoConnectivitySensor)
-        }
         entities = []
         for serial, device in account_dict["devices"]["media_player"].items():
-            if device.get("deviceFamily") not in KIDS_CAPABLE_FAMILIES:
+            if not _is_echo(device):
                 continue
+            unique_id = _connectivity_unique_id(serial, account)
+            if unique_id in discovered:
+                continue
+            discovered.add(unique_id)
             entity = EchoConnectivitySensor(coordinator, account_dict, serial, account)
-            if entity.unique_id not in known:
-                account_dict["entities"]["binary_sensor"].append(entity)
-                entities.append(entity)
+            entities.append(entity)
         if entities:
             add_devices_callback(entities)
 
@@ -138,7 +152,7 @@ async def async_unload_entry(hass, entry) -> bool:
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
     account_dict.pop("connectivity_discovery_unsub", lambda: None)()
     _LOGGER.debug("Attempting to unload binary sensors")
-    for binary_sensor in account_dict["entities"]["binary_sensor"]:
+    for binary_sensor in tuple(account_dict["entities"]["binary_sensor"]):
         await binary_sensor.async_remove()
     return True
 
@@ -253,13 +267,17 @@ class EchoConnectivitySensor(BinarySensorEntity):
         self._account = account
         self._serial = serial
         self._connectivity = connectivity_state(account)
-        self._attr_unique_id = f"{slugify(f'{serial}_{email}')}_connectivity"
+        self._attr_unique_id = _connectivity_unique_id(serial, email)
         device_id = (
             slugify(f"{serial}_{email}")
             if account.get("second_account_index")
             else serial
         )
-        self._attr_device_info = {"identifiers": {(DATA_ALEXAMEDIA, device_id)}}
+        device = account["devices"]["media_player"][serial]
+        self._attr_device_info = {
+            "identifiers": {(DATA_ALEXAMEDIA, device_id)},
+            "name": device.get("accountName") or serial,
+        }
 
     @property
     def is_on(self):
@@ -280,4 +298,7 @@ class EchoConnectivitySensor(BinarySensorEntity):
     async def async_added_to_hass(self):
         """Listen passively to account observations without coordinator polling."""
         await super().async_added_to_hass()
+        entities = self._account["entities"]["binary_sensor"]
+        entities.append(self)
+        self.async_on_remove(lambda: entities.remove(self))
         self.async_on_remove(self._connectivity.add_listener(self.async_write_ha_state))

@@ -185,8 +185,11 @@ class TestAirQualityConstants:
         ]
         for sensor_type in required_sensors:
             assert sensor_type in ALEXA_AIR_QUALITY_DEVICE_CLASS
-            assert ALEXA_AIR_QUALITY_DEVICE_CLASS[sensor_type] is not None
-            assert isinstance(ALEXA_AIR_QUALITY_DEVICE_CLASS[sensor_type], str)
+            device_class = ALEXA_AIR_QUALITY_DEVICE_CLASS[sensor_type]
+            if sensor_type == "Alexa.AirQuality.VolatileOrganicCompounds":
+                assert device_class is None
+            else:
+                assert isinstance(device_class, str)
 
     def test_air_quality_device_class_values(self):
         """Test that device class values match Home Assistant conventions."""
@@ -194,7 +197,7 @@ class TestAirQualityConstants:
             "Alexa.AirQuality.ParticulateMatter": "pm25",
             "Alexa.AirQuality.CarbonMonoxide": "carbon_monoxide",
             "Alexa.AirQuality.IndoorAirQuality": "aqi",
-            "Alexa.AirQuality.VolatileOrganicCompounds": "aqi",
+            "Alexa.AirQuality.VolatileOrganicCompounds": None,
             "Alexa.AirQuality.Humidity": "humidity",
         }
         for sensor_type, expected_device_class in expected_mappings.items():

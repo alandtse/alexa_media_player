@@ -846,16 +846,25 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._dnd = device["dnd"] if "dnd" in device else None
             self._set_authentication_details(device["auth_info"])
             if self.hass:
-                registry = dr.async_get(self.hass)
-                info = self.device_info
-                if entry := registry.async_get_device(identifiers=info["identifiers"]):
-                    metadata = {
-                        key: info[key]
-                        for key in ("model", "model_id", "hw_version")
-                        if getattr(entry, key) != info[key]
-                    }
-                    if metadata:
-                        registry.async_update_device(entry.id, **metadata)
+                try:
+                    registry = dr.async_get(self.hass)
+                    info = self.device_info
+                    if entry := registry.async_get_device(
+                        identifiers=info["identifiers"]
+                    ):
+                        metadata = {
+                            key: info[key]
+                            for key in ("model", "model_id", "hw_version")
+                            if getattr(entry, key) != info[key]
+                        }
+                        if metadata:
+                            registry.async_update_device(entry.id, **metadata)
+                except Exception as ex:  # pylint: disable=broad-except
+                    _LOGGER.debug(
+                        "%s: Unable to update device registry metadata: %s",
+                        self.account,
+                        ex,
+                    )
         session = None
         api_call = False
         if self.available:

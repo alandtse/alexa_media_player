@@ -1499,6 +1499,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
     def repeat_state(self, state):
         """Set the Repeat state."""
         self._repeat = state
+        self._attr_repeat = RepeatMode.ALL if self._repeat else RepeatMode.OFF
         self.schedule_update_ha_state()
 
     @_catch_login_errors

@@ -11,7 +11,10 @@ from homeassistant.exceptions import (
     UnknownUser,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import MockEntityPlatform
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    MockEntityPlatform,
+)
 
 from custom_components.alexa_media.const import (
     CONF_QUEUE_DELAY,
@@ -57,14 +60,20 @@ class TestRepeatLastMessage:
         """Add a media player for each name and register the services."""
         login = MagicMock(email=EMAIL, url="amazon.com")
         login.session.closed = False
+        config_entry = MockConfigEntry(domain=DOMAIN, data={"email": EMAIL})
+        config_entry.add_to_hass(hass)
         account = {
             "login_obj": login,
+            "config_entry": config_entry,
             "options": {CONF_QUEUE_DELAY: 1.5},
             "entities": {"media_player": {}},
             "devices": {"media_player": {}},
         }
         hass.data[DATA_ALEXAMEDIA] = {"accounts": {EMAIL: account}}
         platform = MockEntityPlatform(hass, domain="media_player", platform_name=DOMAIN)
+        # Device names now supply the entity name. A config entry is required
+        # for the platform to register those devices and generate named IDs.
+        platform.config_entry = config_entry
         clients = []
         for index, name in enumerate(names):
             serial = f"SERIAL{index}"

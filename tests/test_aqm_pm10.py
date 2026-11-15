@@ -90,7 +90,7 @@ async def test_pm10_discovery_and_state(appliance, instance):
     assert pm10.native_unit_of_measurement == "\u00b5g/m\u00b3"
     assert pm10.state_class == SensorStateClass.MEASUREMENT
     assert pm10.name == "PM10"
-    assert pm10.unique_id == "aqm-entity_particulate_matter_p_m10"
+    assert pm10.unique_id == "aqm-entity_pm10"
     for sensor in sensors:
         assert sensor.device_info["identifiers"] == {("alexa_media", "aqm-serial")}
     for metric, suffix in LEGACY.items():

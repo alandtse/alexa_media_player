@@ -3,6 +3,7 @@
 from copy import deepcopy
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from aiohttp import ClientConnectionError, ClientPayloadError
 from homeassistant.exceptions import HomeAssistantError
 import pytest
 
@@ -198,7 +199,7 @@ async def test_failed_control_does_not_change_state(switch):
 
 def response(body):
     """Mock the actual HTTP JSON response boundary."""
-    return MagicMock(json=AsyncMock(return_value=body))
+    return MagicMock(status=200, json=AsyncMock(return_value=body))
 
 
 @pytest.mark.asyncio
@@ -359,3 +360,114 @@ def test_malformed_led_capability_does_not_hide_later_toggle(appliance):
     appliance["capabilities"][1]["properties"]["supported"] = None
     appliance["capabilities"].append(valid)
     assert get_led_indicator_instance(appliance) == "11"
+
+
+@pytest.mark.parametrize("status", [401, 403, 500, 503])
+@pytest.mark.asyncio
+async def test_http_errors_skip_json(status):
+    """Reject HTTP failures before decoding a possibly HTML response."""
+    reply = response(None)
+    reply.status = status
+    with patch(
+        "custom_components.alexa_media.aqm_led.AlexaAPI._static_request",
+        AsyncMock(return_value=reply),
+    ):
+        with pytest.raises(HomeAssistantError, match=f"HTTP {status}"):
+            await resolve_endpoint_id(MagicMock(), "entity")
+    reply.json.assert_not_awaited()
+
+
+@pytest.mark.parametrize("error", [ValueError, ClientPayloadError, TimeoutError])
+@pytest.mark.asyncio
+async def test_json_read_errors_are_home_assistant_errors(error):
+    """Invalid JSON and interrupted response reads have a consistent HA error."""
+    reply = response(None)
+    failure = error("unreadable response")
+    reply.json.side_effect = failure
+    with patch(
+        "custom_components.alexa_media.aqm_led.AlexaAPI._static_request",
+        AsyncMock(return_value=reply),
+    ):
+        with pytest.raises(HomeAssistantError, match="invalid JSON") as caught:
+            await resolve_endpoint_id(MagicMock(), "entity")
+    assert caught.value.__cause__ is failure
+
+
+@pytest.mark.parametrize("error", [ClientConnectionError, TimeoutError])
+@pytest.mark.asyncio
+async def test_request_errors_are_home_assistant_errors(error):
+    """Transport failures retain their cause behind a Home Assistant error."""
+    failure = error("request failed")
+    with patch(
+        "custom_components.alexa_media.aqm_led.AlexaAPI._static_request",
+        AsyncMock(side_effect=failure),
+    ):
+        with pytest.raises(HomeAssistantError, match="request failed") as caught:
+            await resolve_endpoint_id(MagicMock(), "entity")
+    assert caught.value.__cause__ is failure
+
+
+@pytest.mark.asyncio
+async def test_missing_http_response():
+    """An absent HTTP response is also reported through Home Assistant."""
+    with patch(
+        "custom_components.alexa_media.aqm_led.AlexaAPI._static_request",
+        AsyncMock(return_value=None),
+    ):
+        with pytest.raises(HomeAssistantError, match="No response"):
+            await resolve_endpoint_id(MagicMock(), "entity")
+
+
+@pytest.mark.parametrize("cached", [True, False])
+@pytest.mark.parametrize("error", [HomeAssistantError, RuntimeError])
+@pytest.mark.asyncio
+async def test_failed_command_resolves_endpoint_on_retry(switch, cached, error):
+    """Clear old and newly resolved IDs on failure without replaying commands."""
+    switch._endpoint_id = "old-endpoint" if cached else None
+    failure = error("rejected")
+    endpoints = ["new-endpoint"] if cached else ["old-endpoint", "new-endpoint"]
+    with (
+        patch(
+            "custom_components.alexa_media.switch.resolve_endpoint_id",
+            AsyncMock(side_effect=endpoints),
+        ) as resolve,
+        patch(
+            "custom_components.alexa_media.switch.set_led_state",
+            AsyncMock(side_effect=[failure, None]),
+        ) as control,
+    ):
+        with pytest.raises(error, match="rejected") as caught:
+            await switch.async_turn_on()
+        assert caught.value is failure
+        assert switch._endpoint_id is None
+        assert switch.is_on is None
+        switch.coordinator.async_request_refresh.assert_not_awaited()
+        assert control.await_count == 1
+
+        await switch.async_turn_off()
+        assert resolve.await_count == len(endpoints)
+        assert [call.args for call in control.await_args_list] == [
+            (switch._login, "old-endpoint", "11", True),
+            (switch._login, "new-endpoint", "11", False),
+        ]
+        assert switch._endpoint_id == "new-endpoint"
+        switch.coordinator.async_request_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_failed_endpoint_resolution_does_not_send_command(switch):
+    """A lookup failure propagates without control or a polling refresh."""
+    with (
+        patch(
+            "custom_components.alexa_media.switch.resolve_endpoint_id",
+            AsyncMock(side_effect=HomeAssistantError("lookup failed")),
+        ),
+        patch(
+            "custom_components.alexa_media.switch.set_led_state", AsyncMock()
+        ) as control,
+    ):
+        with pytest.raises(HomeAssistantError, match="lookup failed"):
+            await switch.async_turn_on()
+    assert switch._endpoint_id is None
+    control.assert_not_awaited()
+    switch.coordinator.async_request_refresh.assert_not_awaited()

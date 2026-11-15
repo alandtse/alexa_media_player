@@ -197,6 +197,19 @@ class AlexaNotificationService(BaseNotificationService):
             devices = devices + list(account_dict["entities"]["media_player"].values())
         return devices
 
+    @staticmethod
+    def _remember_announcement(media_players, targets, message, title, method):
+        """Store an announcement on its targets and on members of targeted groups."""
+        heard = set(targets)
+        for serial in targets:
+            if serial in media_players:
+                heard.update(media_players[serial].cluster_members)
+        for media_player in media_players.values():
+            if media_player.device_serial_number in heard and media_player.available:
+                media_player.async_set_last_message(
+                    message, "announce", title=title, method=method
+                )
+
     async def async_send_message(self, message="", **kwargs):
         # pylint: disable=too-many-branches
         """Send a message to an Alexa device."""
@@ -300,6 +313,7 @@ class AlexaNotificationService(BaseNotificationService):
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
                         )
+                        alexa.async_set_last_message(message, data_type)
                 elif data_type == "announce":
                     targets = self.convert(
                         entities, type_="serialnumbers", filter_matches=True
@@ -317,16 +331,24 @@ class AlexaNotificationService(BaseNotificationService):
                             list(map(hide_serial, targets)),
                             message,
                         )
+                        method = data["method"] if "method" in data else "all"
                         tasks.append(
                             alexa.async_send_announcement(
                                 message,
                                 targets=targets,
                                 title=title,
-                                method=(data["method"] if "method" in data else "all"),
+                                method=method,
                                 queue_delay=self.hass.data[DATA_ALEXAMEDIA]["accounts"][
                                     account
                                 ]["options"].get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
                             )
+                        )
+                        self._remember_announcement(
+                            account_dict["entities"]["media_player"],
+                            targets,
+                            message,
+                            title,
+                            method,
                         )
                         break
                 elif data_type == "push":

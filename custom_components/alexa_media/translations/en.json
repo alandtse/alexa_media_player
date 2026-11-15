@@ -313,6 +313,20 @@
       },
       "name": "Restore Previous Volume"
     },
+    "skip_next_alarm": {
+      "description": "Requests skipping the next occurrence of an active recurring Echo alarm. Check the next alarm sensor after it refreshes before calling again.",
+      "fields": {
+        "alarm_id": {
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor",
+          "name": "Alarm ID"
+        },
+        "entity_id": {
+          "description": "Echo device the alarm is on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Skip next alarm"
+    },
     "update_last_called": {
       "description": "Forces update of last_called echo device for each Alexa account.",
       "fields": {

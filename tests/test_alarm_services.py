@@ -627,6 +627,43 @@ async def test_list_alarms_returns_music_without_ids():
 
 
 @pytest.mark.asyncio
+async def test_list_alarms_unknown_entity_raises():
+    services, _, _ = make_services()
+    services._resolve_device = MagicMock(return_value=(None, None, None))
+    with pytest.raises(ServiceValidationError, match="not an Alexa Media device"):
+        await services.list_alarms(call())
+
+
+@pytest.mark.asyncio
+async def test_list_alarms_empty_cache():
+    services, _, _ = make_services()
+    services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["notifications"][SERIAL][
+        "Alarm"
+    ] = {}
+    result = await services.list_alarms(call())
+    assert result == {"entity_id": ENTITY_ID, "alarms": [], "count": 0}
+
+
+@pytest.mark.asyncio
+async def test_list_alarms_sorted_by_date_then_time():
+    services, _, _ = make_services()
+    services.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["notifications"][SERIAL][
+        "Alarm"
+    ] = {
+        "a": {**ALARM, "originalDate": "2026-10-22", "originalTime": "06:00:00"},
+        "b": {**ALARM, "originalDate": "2026-10-21", "originalTime": "09:00:00"},
+        "c": {**ALARM, "originalDate": "2026-10-21", "originalTime": "07:00:00"},
+    }
+    result = await services.list_alarms(call())
+    assert [(a["date"], a["time"]) for a in result["alarms"]] == [
+        ("2026-10-21", "07:00:00"),
+        ("2026-10-21", "09:00:00"),
+        ("2026-10-22", "06:00:00"),
+    ]
+    assert result["count"] == 3
+
+
+@pytest.mark.asyncio
 async def test_no_music_arguments_on_normal_alarm():
     services, _, _ = make_services()
     with (

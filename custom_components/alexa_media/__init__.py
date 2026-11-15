@@ -1622,7 +1622,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["first_run"] = False
 
-        connectivity.account_available = True
+        if connectivity_generation >= connectivity._invalidated_generation:
+            connectivity.account_available = True
         connectivity.notify()
         return entity_state
 

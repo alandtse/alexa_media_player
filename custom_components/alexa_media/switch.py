@@ -652,7 +652,9 @@ class LEDIndicatorSwitch(CoordinatorEntity, SwitchDevice):
                 self._endpoint_id = await resolve_endpoint_id(
                     self._login, self.alexa_entity_id
                 )
-            await set_led_state(self._login, self._endpoint_id, self._instance, power_on)
+            await set_led_state(
+                self._login, self._endpoint_id, self._instance, power_on
+            )
         except Exception:  # pylint: disable=broad-except
             # Re-resolve on the next attempt; preserve the original error.
             self._endpoint_id = None

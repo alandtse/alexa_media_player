@@ -15,9 +15,11 @@ only PR references in unreleased parsed commits, caches each PR, and uses
 `pull.user` (the actual PR author, rather than the Git commit author or merger).
 Validated profile links support normal accounts and GitHub App bot accounts.
 Direct commits, missing users and unavailable PRs (404) keep their original text.
-Other API errors retry up to three times and fail the preparation step before
-PSR can commit, tag or publish. A failed lookup therefore cannot cause the two
-artifacts to use different author data.
+Transient API errors retry up to three times. Authentication, other non-404 HTTP,
+network and malformed-response failures emit a warning and discard the entire
+author map, including successful earlier lookups. Release preparation continues
+with an empty snapshot, so both artifacts consistently use ordinary unattributed
+output. Attribution lookup failures cannot abort a release.
 
 The preparation copies the installed **10.2.0** conventional Markdown templates
 into the ignored `.github/.release-templates` directory. Only the shared
@@ -68,6 +70,15 @@ Preparation installs the complete dependency set from
 for Python 3.13/Linux from `release-notes.in` with `uv pip compile --generate-hashes`.
 The attribution test workflow also installs this locked dependency set.
 
+## Local runs without generated templates
+
+PSR 10.2.0 falls back to its built-in changelog template when `template_dir` is
+missing or has no changelog templates. Its release-note renderer independently
+falls back when `.release_notes.md.j2` is absent. Local `semantic-release` runs
+therefore work without `.github/.release-templates`, with ordinary unattributed
+output. Regression tests exercise the real release command with the directory
+absent and verify both artifacts.
+
 ## Validation
 
 Install `python-semantic-release==10.2.0` and `pytest`, then run:
@@ -82,6 +93,10 @@ changelog, version declarations and tag, and capture release publication while
 mocking only remote pushes/publication and PR API responses. They also compare
 empty-snapshot output byte-for-byte with upstream, remove attribution to check
 preservation of surrounding content, and cover caching, repeated runs, deleted
-users, invalid profiles, bots, breaking changes, notices and preparation failures.
+users, invalid profiles, bots, breaking changes, notices and lookup fallbacks.
+The workflow also runs `semantic-release --noop version --skip-build` against the
+full PR checkout on a temporary local `master` branch, first without generated
+templates and then after preparation using the read-only GitHub token. It verifies
+that neither run changes commits, tags or tracked files. No release is published.
 A live production release and Home Assistant dialog still require verification
 when the next release is published.

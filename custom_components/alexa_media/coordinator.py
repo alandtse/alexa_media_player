@@ -99,10 +99,17 @@ class AlexaMediaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 enabled,
             )
 
+    def _async_refresh_finished(self) -> None:
+        """Invalidate observations after a failed coordinator refresh."""
+        super()._async_refresh_finished()
+        if self.echo_connectivity is not None and not self.last_update_success:
+            self.echo_connectivity.invalidate()
+
     def async_update_listeners(self) -> None:
         """Publish account health to passive connectivity listeners."""
         if self.echo_connectivity is not None:
             if not self.last_update_success:
+                # Also handles manually reported coordinator errors.
                 self.echo_connectivity.invalidate()
             else:
                 self.echo_connectivity.notify()

@@ -177,8 +177,18 @@
           "description": "Time the alarm rings"
         },
         "days": {
-          "name": "Repeat on",
-          "description": "Days to repeat on. Leave empty for a one-off alarm."
+          "name": "Alarm days",
+          "description": "Select today or tomorrow for a one-off alarm; weekdays, weekends or everyday for a repeating alarm; or select specific weekdays. Use presets alone. Leave empty for the next occurrence of the time."
+        },
+        "alarm_type": {
+          "name": "Alarm type (experimental)",
+          "description": "Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted."
+        },
+        "music_provider": {
+          "name": "Music provider (match a cached Alexa music alarm)"
+        },
+        "music_entity": {
+          "name": "Music station or content (match a cached Alexa music alarm)"
         }
       }
     },
@@ -235,6 +245,15 @@
         "alarm_id": {
           "name": "Alarm ID",
           "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor"
+        }
+      }
+    },
+    "list_alarms": {
+      "name": "List alarms (experimental)",
+      "description": "Returns cached alarm metadata for one Echo, including music station/provider.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity"
         }
       }
     },

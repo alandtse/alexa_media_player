@@ -112,38 +112,49 @@ def test_bots():
     )
 
 
-def test_api_failure_aborts_preparation():
-    """Verify api failure aborts preparation."""
-    client = client_for({10: requests.HTTPError("unavailable")})
-    with pytest.raises(requests.HTTPError):
-        prepare.collect_authors(history_for("#10"), client, "owner", "repo")
+@pytest.mark.parametrize(
+    "error",
+    [
+        requests.HTTPError(response=Mock(status_code=status))
+        for status in [401, 403, 422, 429, 500, 502, 503, 504]
+    ]
+    + [
+        requests.ConnectionError("offline"),
+        requests.Timeout("timed out"),
+        requests.exceptions.RetryError("retries exhausted"),
+    ],
+)
+def test_api_failure_discards_partial_authors(error, capsys):
+    """Warn and discard the whole snapshot when any lookup fails."""
+    client = client_for({10: user("alice"), 11: error, 12: user("bob")})
+    assert prepare.collect_authors(
+        history_for("#10", "#11", "#12"), client, "owner", "repo"
+    ) == {}
+    assert client.get.call_count == 2
+    assert "::warning::PR #11: author lookup failed" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("payload", [None, [], "unexpected", 123])
-def test_non_object_response_identifies_pr(payload):
-    """Reject non-object API responses with the affected PR number."""
-    client = client_for({10: None})
+def test_non_object_response_falls_back(payload, capsys):
+    """Treat malformed API payloads as cosmetic lookup failures."""
+    client = Mock()
     response = Mock(status_code=200)
     response.json.return_value = payload
-    client.get.side_effect = None
     client.get.return_value = response
-    with pytest.raises(ValueError, match=r"PR #10: expected a JSON object"):
-        prepare.collect_authors(history_for("#10"), client, "owner", "repo")
+    assert prepare.collect_authors(history_for("#10"), client, "owner", "repo") == {}
+    assert "::warning::PR #10: author lookup failed" in capsys.readouterr().out
 
 
-def test_invalid_json_identifies_pr_and_preserves_cause():
-    """Contextualize decoding failures without swallowing unrelated errors."""
-    client = client_for({10: None})
+def test_invalid_json_falls_back(capsys):
+    """Continue without attribution when GitHub returns invalid JSON."""
+    client = Mock()
     response = Mock(status_code=200)
-    error = requests.exceptions.JSONDecodeError("Invalid JSON", "bad", 0)
-    response.json.side_effect = error
-    client.get.side_effect = None
+    response.json.side_effect = requests.exceptions.JSONDecodeError(
+        "Invalid JSON", "bad", 0
+    )
     client.get.return_value = response
-    with pytest.raises(
-        ValueError, match=r"PR #10: response is not valid JSON"
-    ) as caught:
-        prepare.collect_authors(history_for("#10"), client, "owner", "repo")
-    assert caught.value.__cause__ is error
+    assert prepare.collect_authors(history_for("#10"), client, "owner", "repo") == {}
+    assert "::warning::PR #10: author lookup failed" in capsys.readouterr().out
 
 
 @pytest.fixture
@@ -369,18 +380,22 @@ def test_breaking_change_and_bot_profile(project, monkeypatch):
         assert "[@dependabot\\[bot\\]](https://github.com/apps/dependabot)" in text
 
 
-def test_preparation_failure_writes_no_templates(project, monkeypatch):
-    """Verify preparation failure writes no templates."""
+def test_preparation_failure_still_releases_without_authors(project, monkeypatch):
+    """Complete both rendering paths with an empty map after a network failure."""
     session = requests.Session()
     monkeypatch.setattr(
         session, "get", Mock(side_effect=requests.ConnectionError("offline"))
     )
     monkeypatch.setattr(prepare.requests, "Session", lambda: session)
     monkeypatch.setenv("GH_TOKEN", "test-token")
-    with pytest.raises(requests.ConnectionError):
-        prepare.main()
-    assert not prepare.TEMPLATE_DIR.exists()
-    assert "v1.1.0" not in project[0].tags
+    prepare.main()
+    snapshot = (prepare.TEMPLATE_DIR / ".components/.authors.j2").read_text()
+    assert snapshot == "{% set pr_authors = {} %}"
+    published, _ = run_release(monkeypatch)
+    assert published[0]["tag"] == "v1.1.0"
+    for text in [Path("CHANGELOG.md").read_text(), published[0]["release_notes"]]:
+        assert " by [@" not in text
+        assert "/pull/10" in text
 
 
 def test_version_pin_checked_before_template_generation(tmp_path, monkeypatch):
@@ -424,3 +439,46 @@ def test_first_release_stays_masked(project, monkeypatch):
     for text in [Path("CHANGELOG.md").read_text(), published[0]["release_notes"]]:
         assert "Initial Release" in text
         assert "@alice" not in text
+
+
+def test_missing_template_directory_releases_with_defaults(project, monkeypatch):
+    """Verify local releases work without the generated template directory."""
+    assert not prepare.TEMPLATE_DIR.exists()
+    published, _ = run_release(monkeypatch)
+    assert published[0]["tag"] == "v1.1.0"
+    for text in [Path("CHANGELOG.md").read_text(), published[0]["release_notes"]]:
+        assert "Repair playback" in normalize(text)
+        assert "/pull/10" in text
+        assert " by [@" not in text
+    assert not prepare.TEMPLATE_DIR.exists()
+
+
+@pytest.mark.parametrize("prepared", [False, True])
+def test_noop_release_has_no_side_effects(project, monkeypatch, prepared):
+    """Exercise PSR no-op mode with both generated and absent templates."""
+    repo, old, _ = project
+    if prepared:
+        _, history = runtime_and_history(repo)
+        authors = prepare.collect_authors(
+            history,
+            client_for({10: user("alice"), 11: user("bob"), 12: None}),
+            "alandtse",
+            "alexa_media_player",
+        )
+        prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
+    head = repo.head.commit.hexsha
+    tags = [tag.name for tag in repo.tags]
+    for method in ["git_push_branch", "git_push_tag"]:
+        monkeypatch.setattr(GitProject, method, Mock(side_effect=AssertionError(method)))
+    monkeypatch.setattr(
+        Github, "create_release", Mock(side_effect=AssertionError("publication"))
+    )
+    result = CliRunner().invoke(
+        semantic_release, ["--noop", "version", "--skip-build"]
+    )
+    assert result.exit_code == 0, result.output + repr(result.exception)
+    assert "1.1.0" in result.output
+    assert repo.head.commit.hexsha == head
+    assert [tag.name for tag in repo.tags] == tags
+    assert Path("CHANGELOG.md").read_text() == old
+    assert 'version = "1.0.0"' in Path("pyproject.toml").read_text()

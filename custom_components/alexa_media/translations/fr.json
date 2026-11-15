@@ -183,6 +183,10 @@
     "create_alarm": {
       "description": "Crée une alarme sur un Echo.",
       "fields": {
+        "alarm_type": {
+          "description": "Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.",
+          "name": "Alarm type (experimental)"
+        },
         "days": {
           "description": "Nombre de jours de répétition. Laisser vide pour une alarme ponctuelle.",
           "name": "Répéter sur"
@@ -190,6 +194,12 @@
         "entity_id": {
           "description": "Appareil Echo pour régler l'alarme",
           "name": "Sélectionner le lecteur multimédia :"
+        },
+        "music_entity": {
+          "name": "Music station or content (match a cached Alexa music alarm)"
+        },
+        "music_provider": {
+          "name": "Music provider (match a cached Alexa music alarm)"
         },
         "time": {
           "description": "Programmez la sonnerie du réveil",
@@ -274,6 +284,25 @@
       },
       "name": "Obtenir les enregistrements d'historique"
     },
+    "list_alarms": {
+      "description": "Returns cached alarm metadata for one Echo, including music station/provider.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity"
+        }
+      },
+      "name": "List alarms (experimental)"
+    },
+    "repeat_last_message": {
+      "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo devices to repeat the last message on",
+          "name": "Select media players:"
+        }
+      },
+      "name": "Repeat Last Message"
+    },
     "restore_volume": {
       "description": "Restaure le niveau de volume précédent sur l'appareil Alexa Media Player.",
       "fields": {
@@ -283,6 +312,20 @@
         }
       },
       "name": "Restaurer le volume précédent"
+    },
+    "skip_next_alarm": {
+      "description": "Les requêtes ignorent la prochaine occurrence d'une alarme Echo récurrente active. Veuillez vérifier le prochain capteur d'alarme après son actualisation avant de rappeler.",
+      "fields": {
+        "alarm_id": {
+          "description": "L'identifiant de l'alarme, provenant de l'attribut sorted_all du capteur d'alarme suivant de l'appareil.",
+          "name": "ID d'alarme"
+        },
+        "entity_id": {
+          "description": "L'alarme de l'appareil Echo est activée.",
+          "name": "Sélectionner le lecteur multimédia :"
+        }
+      },
+      "name": "Passer à la prochaine alarme"
     },
     "update_last_called": {
       "description": "Force la mise à jour du dernier appareil Echo appelé pour chaque compte Alexa.",

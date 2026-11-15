@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from click.testing import CliRunner
-from git import Actor, Repo
+from git import Actor, Git, Repo
 import pytest
 import requests
 from semantic_release.changelog.release_history import ReleaseHistory
@@ -471,12 +471,16 @@ def test_noop_release_has_no_side_effects(project, monkeypatch, prepared):
         prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
     head = repo.head.commit.hexsha
     tags = [tag.name for tag in repo.tags]
-    for method in ["git_push_branch", "git_push_tag"]:
-        monkeypatch.setattr(
-            GitProject, method, Mock(side_effect=AssertionError(method))
-        )
+    execute = Git.execute
+
+    def reject_push(self, command, *args, **kwargs):
+        """Allow PSR no-op reporting but reject an actual Git push."""
+        assert "push" not in command
+        return execute(self, command, *args, **kwargs)
+
+    monkeypatch.setattr(Git, "execute", reject_push)
     monkeypatch.setattr(
-        Github, "create_release", Mock(side_effect=AssertionError("publication"))
+        requests.Session, "send", Mock(side_effect=AssertionError("network request"))
     )
     result = CliRunner().invoke(semantic_release, ["--noop", "version", "--skip-build"])
     assert result.exit_code == 0, result.output + repr(result.exception)

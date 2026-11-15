@@ -38,9 +38,7 @@ async def _graphql(login, query, variables=None):
     if response is None:
         raise HomeAssistantError("No response from Alexa LED control")
     if not 200 <= response.status < 300:
-        raise HomeAssistantError(
-            f"Alexa LED control returned HTTP {response.status}"
-        )
+        raise HomeAssistantError(f"Alexa LED control returned HTTP {response.status}")
     try:
         body = await response.json(content_type=None)
     except (ValueError, ClientError, TimeoutError) as err:

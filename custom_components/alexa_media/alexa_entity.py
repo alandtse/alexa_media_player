@@ -156,7 +156,11 @@ def get_led_indicator_instance(appliance: dict[str, Any]) -> str | None:
         props = cap.get("properties") or {}
         if props.get("retrievable") is not True or props.get("readOnly") is not False:
             continue
-        if not any(p.get("name") == "toggleState" for p in props.get("supported", [])):
+        supported = props.get("supported")
+        if not isinstance(supported, list) or not any(
+            isinstance(prop, dict) and prop.get("name") == "toggleState"
+            for prop in supported
+        ):
             continue
         instance = cap.get("instance")
         if not isinstance(instance, (str, int)) or isinstance(instance, bool):

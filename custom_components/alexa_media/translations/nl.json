@@ -183,6 +183,10 @@
     "create_alarm": {
       "description": "Hiermee wordt een alarm op een Echo ingesteld.",
       "fields": {
+        "alarm_type": {
+          "description": "Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.",
+          "name": "Alarm type (experimental)"
+        },
         "days": {
           "description": "Dagen waarop dit herhaald moet worden. Laat dit veld leeg voor een eenmalig alarm.",
           "name": "Herhaal op"
@@ -190,6 +194,12 @@
         "entity_id": {
           "description": "Echo-apparaat om het alarm in te stellen",
           "name": "Selecteer een mediaspeler:"
+        },
+        "music_entity": {
+          "name": "Music station or content (match a cached Alexa music alarm)"
+        },
+        "music_provider": {
+          "name": "Music provider (match a cached Alexa music alarm)"
         },
         "time": {
           "description": "Tijdstip waarop het alarm afgaat",
@@ -274,6 +284,25 @@
       },
       "name": "Geschiedenisrecords ophalen"
     },
+    "list_alarms": {
+      "description": "Returns cached alarm metadata for one Echo, including music station/provider.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity"
+        }
+      },
+      "name": "List alarms (experimental)"
+    },
+    "repeat_last_message": {
+      "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo devices to repeat the last message on",
+          "name": "Select media players:"
+        }
+      },
+      "name": "Repeat Last Message"
+    },
     "restore_volume": {
       "description": "Herstel het vorige volumeniveau op het Alexa-mediaspelerapparaat",
       "fields": {
@@ -283,6 +312,20 @@
         }
       },
       "name": "Vorig volume herstellen"
+    },
+    "skip_next_alarm": {
+      "description": "Verzoeken om de volgende actieve, terugkerende Echo-alarmmelding over te slaan. Controleer de volgende alarmsensor nadat deze is vernieuwd voordat u opnieuw een melding geeft.",
+      "fields": {
+        "alarm_id": {
+          "description": "De alarm-ID, afkomstig uit het `sorted_all` attribuut van de volgende alarmsensor van het apparaat.",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Het alarm van het Echo-apparaat staat aan.",
+          "name": "Selecteer een mediaspeler:"
+        }
+      },
+      "name": "Sla het volgende alarm over."
     },
     "update_last_called": {
       "description": "Forceert update van last_called echo apparaat voor elk Alexa-account.",

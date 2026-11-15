@@ -262,7 +262,6 @@ async def create_air_quality_sensors(
         last_index = len(subsensors) - 1
         seen_sensor_types: set[str] = set()
 
-        # Each AIAQM has 5 different sensors.
         for idx, subsensor in enumerate(subsensors):
             prefix = "└─" if idx == last_index else "├─"
             sensor_type = subsensor.get("sensorType")
@@ -489,6 +488,9 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_translation_key = AIR_QUALITY_TRANSLATION_KEYS.get(
             sensor_name, "air_quality"
         )
+        if sensor_name == "Alexa.AirQuality.ParticulateMatterPM10":
+            self._attr_translation_key = None
+            self._attr_name = "PM10"
         # tidy up name for unique_id and logging
         self._sensor_name = sensor_name.replace("Alexa.AirQuality.", "")
         self._sensor_name = "".join(
@@ -504,9 +506,12 @@ class AirQualitySensor(SensorEntity, CoordinatorEntity):
         self._attr_native_unit_of_measurement: Optional[str] = (
             ALEXA_UNIT_CONVERSION.get(unit)
         )
-        self._attr_unique_id = (
-            entity_id + "_" + self._sensor_name.replace(" ", "_").lower()
-        )
+        if sensor_name == "Alexa.AirQuality.ParticulateMatterPM10":
+            # CamelCase splitting would yield "particulate_matter_p_m10"
+            unique_suffix = "pm10"
+        else:
+            unique_suffix = self._sensor_name.replace(" ", "_").lower()
+        self._attr_unique_id = f"{entity_id}_{unique_suffix}"
         self._attr_icon = ALEXA_ICON_CONVERSION.get(sensor_name, ALEXA_ICON_DEFAULT)
 
         # Attach to the synthetic AIAQM device so all AQM sensors group under one device.

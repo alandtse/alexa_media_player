@@ -183,6 +183,10 @@
     "create_alarm": {
       "description": "Tworzy alarm w urządzeniu Echo.",
       "fields": {
+        "alarm_type": {
+          "description": "Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.",
+          "name": "Alarm type (experimental)"
+        },
         "days": {
           "description": "Dni do powtórzenia. Pozostaw puste, aby włączyć jednorazowy alarm.",
           "name": "Powtórz na"
@@ -190,6 +194,12 @@
         "entity_id": {
           "description": "Urządzenie echo do ustawienia alarmu",
           "name": "Wybierz odtwarzacz multimedialny:"
+        },
+        "music_entity": {
+          "name": "Music station or content (match a cached Alexa music alarm)"
+        },
+        "music_provider": {
+          "name": "Music provider (match a cached Alexa music alarm)"
         },
         "time": {
           "description": "Czas, aby zadzwonił budzik",
@@ -274,6 +284,25 @@
       },
       "name": "Pobierz zapisy historyczne"
     },
+    "list_alarms": {
+      "description": "Returns cached alarm metadata for one Echo, including music station/provider.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity"
+        }
+      },
+      "name": "List alarms (experimental)"
+    },
+    "repeat_last_message": {
+      "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo devices to repeat the last message on",
+          "name": "Select media players:"
+        }
+      },
+      "name": "Repeat Last Message"
+    },
     "restore_volume": {
       "description": "Przywróć poprzedni poziom głośności na urządzeniu z odtwarzaczem multimedialnym Alexa",
       "fields": {
@@ -283,6 +312,20 @@
         }
       },
       "name": "Przywróć poprzednią głośność"
+    },
+    "skip_next_alarm": {
+      "description": "Żądanie pominięcia kolejnego wystąpienia aktywnego, cyklicznego alarmu Echo. Sprawdź kolejny czujnik alarmu po jego odświeżeniu przed ponownym wywołaniem.",
+      "fields": {
+        "alarm_id": {
+          "description": "Identyfikator alarmu z atrybutu sorted_all następnego czujnika alarmu urządzenia",
+          "name": "Identyfikator alarmu"
+        },
+        "entity_id": {
+          "description": "Urządzenie echo alarm jest włączony",
+          "name": "Wybierz odtwarzacz multimedialny:"
+        }
+      },
+      "name": "Pomiń następny alarm"
     },
     "update_last_called": {
       "description": "Wymusza aktualizację ostatnio używanego urządzenia echo dla każdego konta Alexa.",

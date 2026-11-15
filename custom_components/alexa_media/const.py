@@ -96,6 +96,7 @@ SERVICE_FORCE_LOGOUT = "force_logout"
 SERVICE_ENABLE_NETWORK_DISCOVERY = "enable_network_discovery"
 SERVICE_AMAZON_KIDS_ENABLE = "amazon_kids_enable"
 SERVICE_AMAZON_KIDS_DISABLE = "amazon_kids_disable"
+SERVICE_REPEAT_LAST_MESSAGE = "repeat_last_message"
 SERVICE_CREATE_ALARM = "create_alarm"
 SERVICE_ENABLE_ALARM = "enable_alarm"
 SERVICE_DISABLE_ALARM = "disable_alarm"
@@ -252,8 +253,9 @@ ALEXA_UNIT_CONVERSION = {
 ALEXA_ICON_CONVERSION = {
     "Alexa.AirQuality.CarbonMonoxide": "mdi:molecule-co",
     "Alexa.AirQuality.Humidity": "mdi:water-percent",
-    "Alexa.AirQuality.IndoorAirQuality": "mdi:numeric",
+    "Alexa.AirQuality.IndoorAirQuality": "mdi:gauge",
     "Alexa.AirQuality.ParticulateMatter": "mdi:blur",
+    "Alexa.AirQuality.ParticulateMatterPM10": "mdi:blur",
     "Alexa.AirQuality.VolatileOrganicCompounds": "mdi:air-filter",
 }
 ALEXA_ICON_DEFAULT = "mdi:molecule"
@@ -262,9 +264,11 @@ ALEXA_ICON_DEFAULT = "mdi:molecule"
 # Maps Alexa sensor types to Home Assistant SensorDeviceClass
 ALEXA_AIR_QUALITY_DEVICE_CLASS = {
     "Alexa.AirQuality.ParticulateMatter": "pm25",
+    "Alexa.AirQuality.ParticulateMatterPM10": "pm10",
     "Alexa.AirQuality.CarbonMonoxide": "carbon_monoxide",
     "Alexa.AirQuality.IndoorAirQuality": "aqi",
-    "Alexa.AirQuality.VolatileOrganicCompounds": "aqi",
+    # Amazon reports a unitless VOC index, so no concentration device class applies.
+    "Alexa.AirQuality.VolatileOrganicCompounds": None,
     "Alexa.AirQuality.Humidity": "humidity",
 }
 

@@ -517,6 +517,7 @@ class AlexaMediaServices:
             if entity.hass
         }
         errors = []
+        validation_only = True
         for entity_id in entity_ids:
             if entity_id not in media_players:
                 errors.append(f"Entity {entity_id} not found or not part of {DOMAIN}")
@@ -525,8 +526,19 @@ class AlexaMediaServices:
                 await media_players[entity_id].async_repeat_last_message()
             except ServiceValidationError as err:
                 errors.append(str(err))
+            except (
+                HomeAssistantError,
+                AlexapyConnectionError,
+                AlexapyLoginError,
+                AlexapyTooManyRequestsError,
+            ) as err:
+                validation_only = False
+                errors.append(f"{entity_id}: {err}")
         if errors:
-            raise ServiceValidationError("; ".join(errors))
+            message = "; ".join(errors)
+            if validation_only:
+                raise ServiceValidationError(message)
+            raise HomeAssistantError(message)
 
     def _resolve_alarm_device(self, entity_id):
         """Resolve a media_player entity_id to (login_obj, serial, device_type, time_zone)."""

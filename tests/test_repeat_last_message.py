@@ -2,9 +2,15 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from alexapy.errors import AlexapyConnectionError
 from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.core import Context
-from homeassistant.exceptions import ServiceValidationError, Unauthorized, UnknownUser
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    ServiceValidationError,
+    Unauthorized,
+    UnknownUser,
+)
 import pytest
 from pytest_homeassistant_custom_component.common import MockEntityPlatform
 
@@ -245,6 +251,21 @@ class TestRepeatLastMessage:
             )
 
         assert kitchen.alexa_api.send_tts.await_args.args == ("Dinner is ready",)
+        assert office.alexa_api.send_tts.await_args.args == ("Meeting in 5",)
+
+    async def test_service_continues_after_unexpected_entity_error(self, hass):
+        """A failing Echo does not stop the rest, and the error is aggregated."""
+        kitchen, office = await self._setup(hass, "Kitchen", "Office")
+        await self._notify(hass, "Dinner is ready", ["media_player.kitchen"])
+        await self._notify(hass, "Meeting in 5", ["media_player.office"])
+        kitchen.alexa_api.send_tts = AsyncMock(
+            side_effect=AlexapyConnectionError("boom")
+        )
+        office.alexa_api.send_tts.reset_mock()
+
+        with pytest.raises(HomeAssistantError, match=r"media_player\.kitchen: boom"):
+            await self._repeat(hass, ["media_player.kitchen", "media_player.office"])
+
         assert office.alexa_api.send_tts.await_args.args == ("Meeting in 5",)
 
 

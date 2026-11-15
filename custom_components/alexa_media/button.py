@@ -21,6 +21,7 @@ from . import DATA_ALEXAMEDIA, DOMAIN
 from .helpers import (
     add_devices,
     async_restart_device,
+    config_entry_config,
     hide_email,
     report_relogin_required,
     safe_get,
@@ -73,7 +74,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa button platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 

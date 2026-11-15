@@ -62,7 +62,13 @@ from .const import (
     UPLOAD_PATH,
 )
 from .exceptions import TimeoutException
-from .helpers import _catch_login_errors, add_devices, is_http2_enabled, safe_get
+from .helpers import (
+    _catch_login_errors,
+    add_devices,
+    config_entry_config,
+    is_http2_enabled,
+    safe_get,
+)
 
 SUPPORT_ALEXA = (
     MediaPlayerEntityFeature.PAUSE
@@ -180,7 +186,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa media player platform by config_entry."""
     if await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     ):
         account = config_entry.data[CONF_EMAIL]
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
@@ -191,7 +197,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                 entry_setup = 1
             if entry_setup or component == "notify":
                 _LOGGER.debug("%s: Loading %s", hide_email(account), component)
-                cleaned_config = config_entry.data.copy()
+                cleaned_config = config_entry_config(config_entry)
                 cleaned_config.pop(CONF_PASSWORD, None)
                 # CONF_PASSWORD contains sensitive info which is no longer needed
                 hass.async_create_task(
@@ -233,13 +239,13 @@ async def async_unload_entry(hass, entry) -> bool:
 class AlexaClient(MediaPlayerDevice, AlexaMedia):
     """Representation of a Alexa device."""
 
+    _attr_has_entity_name = True
+    _attr_name = None
+
     # Keep message text out of the recorder
     _unrecorded_attributes = frozenset(
         {"last_message", "last_message_type", "last_message_timestamp"}
     )
-
-    _attr_has_entity_name = True
-    _attr_name = None
 
     def __init__(self, device, login, second_account_index=0):
         """Initialize the Alexa device."""
@@ -1689,26 +1695,6 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
                 self.hass.async_create_task(self.alexa_api.pause())
             else:
                 await self.alexa_api.pause()
-        if not is_http2_enabled(self.hass, self._login.email):
-            await self.async_update()
-
-    @_catch_login_errors
-    async def async_media_seek(self, position: float) -> None:
-        """Seek to a position in seconds."""
-        if not self.available or self.state not in [
-            MediaPlayerState.PLAYING,
-            MediaPlayerState.PAUSED,
-        ]:
-            return
-        if self._playing_parent:
-            await self._playing_parent.async_media_seek(position)
-            return
-        await self.alexa_api.set_media(
-            {
-                "type": "SeekCommand",
-                "mediaPosition": int(position * 1000),
-            }
-        )
         if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 

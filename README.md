@@ -82,7 +82,7 @@ Detailed configuration options are documented in the
 3. Restart Home Assistant.
 
 Removing the config entry normally deletes the login cookie file
-`.storage/alexa_media.<email>.pickle` and the runtime entities. If automatic
+`.storage/alexa_media.<email>.cookies` and the runtime entities. If automatic
 cleanup fails, delete that file manually to discard the Amazon session.
 
 ## Authentication cookie storage

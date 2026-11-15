@@ -335,10 +335,10 @@ class AlexaMediaServices:
     def __init__(
         self,
         hass: HomeAssistant,
-        update_last_called: Callable[..., Any] | None = None,
+        functions: dict[str, Callable[..., Any]] | None = None,
     ):
         self.hass = hass
-        self._update_last_called = update_last_called
+        self._functions = functions if functions is not None else {}
 
     async def register(self) -> None:
         """Register Alexa Media custom services."""
@@ -361,19 +361,22 @@ class AlexaMediaServices:
         for service_def in SERVICE_DEFS:
             self.hass.services.async_remove(DOMAIN, service_def.name)
 
-    def _get_accounts(self) -> dict[str, Any]:
-        """Return loaded accounts or raise a user-facing service error."""
+    def _get_accounts(self, *, require_loaded: bool = True) -> dict[str, Any]:
+        """Return usable accounts, allowing recovery during setup when requested."""
         accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts") or {}
         loaded = {
             email: account
             for email, account in accounts.items()
             if account.get("login_obj") is not None
-            and getattr(account.get("config_entry"), "state", None)
-            == ConfigEntryState.LOADED
+            and (
+                not require_loaded
+                or getattr(account.get("config_entry"), "state", None)
+                == ConfigEntryState.LOADED
+            )
         }
         if not loaded:
             raise ServiceValidationError(
-                "No Alexa Media accounts are loaded. Add or reload an account first."
+                "No eligible Alexa Media accounts found. Add or reload an account first."
             )
         return loaded
 
@@ -381,13 +384,13 @@ class AlexaMediaServices:
     def _validate_requested_emails(
         requested_emails: list[str] | None, accounts: dict[str, Any]
     ) -> None:
-        """Reject requests that name accounts that are not loaded."""
+        """Reject requests that name accounts unavailable to this service."""
         if not requested_emails:
             return
         missing = [email for email in requested_emails if email not in accounts]
         if missing:
             raise ServiceValidationError(
-                "No loaded Alexa Media account found for: " + ", ".join(missing)
+                "No eligible Alexa Media account found for: " + ", ".join(missing)
             )
 
     async def force_logout(self, call: ServiceCall) -> bool:
@@ -403,7 +406,7 @@ class AlexaMediaServices:
         requested_emails = call.data.get(ATTR_EMAIL)
         _LOGGER.debug("Service force_logout called for: %s", requested_emails)
 
-        accounts = self._get_accounts()
+        accounts = self._get_accounts(require_loaded=False)
         self._validate_requested_emails(requested_emails, accounts)
         success = False
 
@@ -439,7 +442,7 @@ class AlexaMediaServices:
                                                 If None, all accounts are updated.
         """
         requested_emails = call.data.get(ATTR_EMAIL)
-        update_last_called = self._update_last_called
+        update_last_called = self._functions.get("update_last_called")
 
         if not callable(update_last_called):
             _LOGGER.error(
@@ -480,8 +483,13 @@ class AlexaMediaServices:
                     accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get(
                         "accounts", {}
                     )
-                    if email in accounts:
-                        accounts[email].pop("service_update_last_called_task", None)
+                    account = accounts.get(email)
+                    if (
+                        account is not None
+                        and account.get("service_update_last_called_task")
+                        is asyncio.current_task()
+                    ):
+                        account.pop("service_update_last_called_task", None)
 
             # Cancel any existing task for this account before creating a new one
             existing_task = account_dict.get("service_update_last_called_task")

@@ -18,7 +18,7 @@ from homeassistant.helpers.entity import EntityCategory
 from . import CONF_EMAIL, DATA_ALEXAMEDIA, DOMAIN as ALEXA_DOMAIN, hide_email
 from .alexa_media import AlexaMedia
 from .display import AlexaDisplayBrightness, async_get_display_state, supports_display
-from .helpers import _catch_login_errors, add_devices, safe_get
+from .helpers import _catch_login_errors, add_devices, config_entry_config, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa number platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 

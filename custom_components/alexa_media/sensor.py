@@ -52,7 +52,13 @@ from .const import (
     RECURRING_PATTERN,
     RECURRING_PATTERN_ISO_SET,
 )
-from .helpers import add_devices, alarm_just_dismissed, is_http2_enabled, safe_get
+from .helpers import (
+    add_devices,
+    alarm_just_dismissed,
+    config_entry_config,
+    is_http2_enabled,
+    safe_get,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -168,7 +174,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa sensor platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 

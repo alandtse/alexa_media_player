@@ -69,6 +69,7 @@ from .const import (
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
     CONF_USE_REPORTED_DOMAIN,
+    CONFIG_ENTRY_OPTION_KEYS,
     DATA_ALEXAMEDIA,
     DEFAULT_DEBUG,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
@@ -692,6 +693,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.reauth_entry = self.hass.config_entries.async_get_entry(
             self.context["entry_id"]
         )
+        if self.reauth_entry is not None:
+            # Reauth starts with entry.data, which may contain stale settings
+            # from before the options split. Show the effective values instead.
+            for key in CONFIG_ENTRY_OPTION_KEYS:
+                if key in self.reauth_entry.options:
+                    self.config[key] = self.reauth_entry.options[key]
         reauth_schema = self._update_schema_defaults()
         _LOGGER.debug(
             "Creating reauth form with %s",
@@ -808,9 +815,21 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     if email in accounts:
                         accounts[email]["login_obj"] = self.login
 
+                # Reconcile legacy settings and values edited during reauth in
+                # one update. Keep unrelated data/options and remove stale copies.
+                data = {**existing_entry.data, **self.config}
+                options = dict(existing_entry.options)
+                for key in CONFIG_ENTRY_OPTION_KEYS:
+                    if key in self.config:
+                        options[key] = self.config[key]
+                    elif key in data:
+                        options.setdefault(key, data[key])
+                    data.pop(key, None)
+
                 self.hass.config_entries.async_update_entry(
                     existing_entry,
-                    data=self.config,
+                    data=data,
+                    options=options,
                     title=f"{login.email} - {login.url}",
                     unique_id=f"{login.email} - {login.url}",
                 )

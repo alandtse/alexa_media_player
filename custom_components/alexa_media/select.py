@@ -16,7 +16,7 @@ from homeassistant.helpers.entity import EntityCategory
 
 from . import CONF_EMAIL, DATA_ALEXAMEDIA, hide_email
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, OPTION_NONE, async_get_state
-from .helpers import _catch_login_errors, add_devices, safe_get
+from .helpers import _catch_login_errors, add_devices, config_entry_config, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa select platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 

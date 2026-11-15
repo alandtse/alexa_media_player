@@ -972,6 +972,8 @@ async def test_options_flow_factory_and_empty_form():
 
     flow = OptionsFlowHandler(entry)
     flow.hass = MagicMock()
+    flow.handler = entry.entry_id
+    flow.hass.config_entries.async_get_known_entry.return_value = entry
     flow._config_entry = entry
     flow.async_show_form = MagicMock(
         side_effect=lambda **kwargs: {"type": "form", **kwargs}

@@ -27,7 +27,7 @@ from .const import (
     DEFAULT_QUEUE_DELAY,
     DOMAIN as ALEXA_DOMAIN,
 )
-from .helpers import _catch_login_errors, add_devices, safe_get
+from .helpers import _catch_login_errors, add_devices, config_entry_config, safe_get
 
 try:
     from homeassistant.components.alarm_control_panel import AlarmControlPanelState
@@ -115,7 +115,7 @@ async def async_setup_platform(
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa alarm control panel platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 

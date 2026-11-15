@@ -27,7 +27,7 @@ from . import (
 from .alexa_entity import parse_detection_state_from_coordinator
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
-from .helpers import add_devices, safe_get
+from .helpers import add_devices, config_entry_config, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa sensor platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 

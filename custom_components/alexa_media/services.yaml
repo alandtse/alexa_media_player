@@ -1,7 +1,7 @@
 #  SPDX-License-Identifier: Apache-2.0
 force_logout:
   # Description of the service
-  description: Force logout of Alexa Login account and deletion of .pickle. Intended for debugging use.
+  description: Mark Alexa Login accounts for reauthentication. Intended for debugging use.
   # Different fields that your service accepts
   fields:
     # Key of the field

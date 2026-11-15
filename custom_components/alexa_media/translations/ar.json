@@ -93,7 +93,7 @@
         "name": "Particulate matter"
       },
       "air_quality_volatile_organic_compounds": {
-        "name": "Volatile organic compounds"
+        "name": "Volatile organic compounds index"
       },
       "next_alarm": {
         "name": "Next alarm"
@@ -183,13 +183,23 @@
     "create_alarm": {
       "description": "Creates an alarm on an Echo.",
       "fields": {
+        "alarm_type": {
+          "description": "Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.",
+          "name": "Alarm type (experimental)"
+        },
         "days": {
-          "description": "Days to repeat on. Leave empty for a one-off alarm.",
-          "name": "Repeat on"
+          "description": "Select today or tomorrow for a one-off alarm; weekdays, weekends or everyday for a repeating alarm; or select specific weekdays. Use presets alone. Leave empty for the next occurrence of the time.",
+          "name": "Alarm days"
         },
         "entity_id": {
           "description": "Echo device to set the alarm on",
           "name": "Select media player:"
+        },
+        "music_entity": {
+          "name": "Music station or content (match a cached Alexa music alarm)"
+        },
+        "music_provider": {
+          "name": "Music provider (match a cached Alexa music alarm)"
         },
         "time": {
           "description": "Time the alarm rings",
@@ -274,6 +284,25 @@
       },
       "name": "الحصول على سجلات التاريخ"
     },
+    "list_alarms": {
+      "description": "Returns cached alarm metadata for one Echo, including music station/provider.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity"
+        }
+      },
+      "name": "List alarms (experimental)"
+    },
+    "repeat_last_message": {
+      "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo devices to repeat the last message on",
+          "name": "Select media players:"
+        }
+      },
+      "name": "Repeat Last Message"
+    },
     "restore_volume": {
       "description": "استعادة مستوى الصوت السابق على جهاز Alexa media player",
       "fields": {
@@ -283,6 +312,20 @@
         }
       },
       "name": "استعادة مستوى الصوت السابق"
+    },
+    "skip_next_alarm": {
+      "description": "Requests skipping the next occurrence of an active recurring Echo alarm. Check the next alarm sensor after it refreshes before calling again.",
+      "fields": {
+        "alarm_id": {
+          "description": "The alarm's id, from the sorted_all attribute of the device's next alarm sensor",
+          "name": "Alarm ID"
+        },
+        "entity_id": {
+          "description": "Echo device the alarm is on",
+          "name": "Select media player:"
+        }
+      },
+      "name": "Skip next alarm"
     },
     "update_last_called": {
       "description": "فرض التحديث لـ \"آخر إتصال\" من جهاز echo لجميع حسابات Alexa.",

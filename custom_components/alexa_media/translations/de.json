@@ -183,6 +183,10 @@
     "create_alarm": {
       "description": "Erzeugt einen Alarm auf einem Echo-Gerät.",
       "fields": {
+        "alarm_type": {
+          "description": "Use a music selection currently present in cached Alexa alarms, matched by provider and name. IDs are not persisted.",
+          "name": "Alarm type (experimental)"
+        },
         "days": {
           "description": "Tage, an denen der Alarm wiederholt werden soll. Für einen einmaligen Alarm leer lassen.",
           "name": "Wiederholen Sie dies am"
@@ -190,6 +194,12 @@
         "entity_id": {
           "description": "Echo-Gerät zum Einstellen des Alarms",
           "name": "Medienplayer auswählen:"
+        },
+        "music_entity": {
+          "name": "Music station or content (match a cached Alexa music alarm)"
+        },
+        "music_provider": {
+          "name": "Music provider (match a cached Alexa music alarm)"
         },
         "time": {
           "description": "Zeit bis zum Klingeln des Weckers",
@@ -274,6 +284,25 @@
       },
       "name": "Verlaufsdatensätze abrufen"
     },
+    "list_alarms": {
+      "description": "Returns cached alarm metadata for one Echo, including music station/provider.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity"
+        }
+      },
+      "name": "List alarms (experimental)"
+    },
+    "repeat_last_message": {
+      "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
+      "fields": {
+        "entity_id": {
+          "description": "Echo devices to repeat the last message on",
+          "name": "Select media players:"
+        }
+      },
+      "name": "Repeat Last Message"
+    },
     "restore_volume": {
       "description": "Vorherige Lautstärke auf dem Alexa-Mediaplayer-Gerät wiederherstellen",
       "fields": {
@@ -283,6 +312,20 @@
         }
       },
       "name": "Vorherige Lautstärke wiederherstellen"
+    },
+    "skip_next_alarm": {
+      "description": "Anfragen, die das nächste Auftreten eines aktiven, wiederkehrenden Echo-Alarms überspringen. Überprüfen Sie den nächsten Alarmsensor nach der Aktualisierung, bevor Sie ihn erneut aufrufen.",
+      "fields": {
+        "alarm_id": {
+          "description": "Die Alarm-ID, aus dem Attribut „sorted_all“ des nächsten Alarmsensors des Geräts.",
+          "name": "Alarm-ID"
+        },
+        "entity_id": {
+          "description": "Echo-Gerät, der Alarm ist eingeschaltet",
+          "name": "Medienplayer auswählen:"
+        }
+      },
+      "name": "Nächsten Alarm überspringen"
     },
     "update_last_called": {
       "description": "Erzwingt eine Aktualisierung des zuletzt aufgerufenen Echo-Geräts für jedes Alexa-Konto.",

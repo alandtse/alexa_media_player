@@ -70,6 +70,7 @@ from .const import (
     CONF_QUEUE_DELAY,
     CONF_SCAN_INTERVAL,
     DATA_ALEXAMEDIA,
+    DEFAULT_DEBUG,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
@@ -280,6 +281,23 @@ def _network_allowed(login_obj) -> bool:
     if not login_obj.status.get("login_successful"):
         return False
     return True
+
+
+def _drop_listeners(unsubs) -> None:
+    """Unsubscribe every listener callback in ``unsubs``."""
+    for unsub in unsubs:
+        unsub()
+
+
+def _pop_relogin_listeners(hass, email: str) -> None:
+    """Unsubscribe the relogin listeners kept for an account, if any."""
+    data = getattr(hass, "data", None)
+    if not isinstance(data, dict):
+        return
+    accounts = (data.get(DATA_ALEXAMEDIA) or {}).get("accounts") or {}
+    account = accounts.get(email)
+    if isinstance(account, dict):
+        _drop_listeners(account.pop("relogin_unsubs", ()))
 
 
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
@@ -873,6 +891,10 @@ async def async_setup_entry(hass, config_entry):
             "notifications_retry_count": 0,  # simple backoff counter
         },
     )
+    account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    # A previous attempt may have left its relogin listeners behind while the
+    # entry was retrying; this attempt registers its own pair below.
+    _drop_listeners(account_data.pop("relogin_unsubs", ()))
     # Refreshed on every attempt: the account dict survives setup retries and
     # a failed setup, so options saved in the meantime would otherwise be lost.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"] = {
@@ -994,20 +1016,27 @@ async def async_setup_entry(hass, config_entry):
                 ) from err
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
+        # Register before the login check: login_obj is already stored, so
+        # force_logout can reach a handler if it is called while this attempt
+        # is still running.
+        relogin_unsub = hass.bus.async_listen("alexa_media_relogin_required", relogin)
+        login_success_unsub = hass.bus.async_listen(
+            "alexa_media_relogin_success", login_success
+        )
+        # Kept on the account instead of the entry: Home Assistant drops entry
+        # on_unload callbacks on every setup retry, but force_logout must keep
+        # reaching a handler while the account is retrying or reauthorizing.
+        account_data["relogin_unsubs"] = (relogin_unsub, login_success_unsub)
         if await test_login_status(hass, config_entry, login):
-            # Registered only on success: HA processes async_on_unload
-            # callbacks on unload and on the ConfigEntryNotReady retry
-            # path, but not for a plain `False` return, so registering
-            # any earlier would leak a pair on every failed login check.
-            config_entry.async_on_unload(
-                hass.bus.async_listen("alexa_media_relogin_required", relogin)
-            )
-            config_entry.async_on_unload(
-                hass.bus.async_listen("alexa_media_relogin_success", login_success)
-            )
             _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)
+            # Drop the pair when the entry unloads, including a setup that
+            # succeeded through the relogin event path. Registered only after a
+            # successful setup so a retry keeps the listeners it needs.
+            config_entry.async_on_unload(
+                lambda: _drop_listeners(account_data.pop("relogin_unsubs", ()))
+            )
             # Registered once the entry has loaded, so that Home Assistant
             # removes it on unload. Any earlier and each setup retry, or failed
             # login check, would leave another copy on the entry.
@@ -1018,6 +1047,12 @@ async def async_setup_entry(hass, config_entry):
                 "[BOOT] setup_entry total: %.2fs", time.monotonic() - _boot_start
             )
             return True
+        # The entry is not loaded, so no listener can act on a relogin event
+        # and the retained login_obj would let force_logout report a recovery
+        # that never starts. Drop both before reporting the setup failure.
+        _drop_listeners(account_data.pop("relogin_unsubs", ()))
+        account_data.pop("login_obj", None)
+        config_entry.runtime_data = None
         return False
     except AlexapyConnectionError as err:
         raise ConfigEntryNotReady(str(err) or "Connection Error during login") from err
@@ -3312,6 +3347,7 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry"""
     email = entry.data["email"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
+    _pop_relogin_listeners(hass, email)
     for task_key in (
         "notifications_refresh_task",
         "notifications_init_task",
@@ -3426,6 +3462,7 @@ async def async_remove_entry(hass, entry) -> bool:
     """Handle removal of an entry."""
     email = entry.data["email"]
     obfuscated_email = hide_email(email)
+    _pop_relogin_listeners(hass, email)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
     login_obj = AlexaLogin(
         url="",
@@ -3557,6 +3594,12 @@ async def test_login_status(hass, config_entry, login) -> bool:
             f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
         ] = None
     _LOGGER.debug("Creating new config flow to login")
+    # Reauth moves these settings from data to options, so read the effective
+    # values. Indexing stale data here would raise KeyError before the flow
+    # could start.
+    scan_interval = config_entry_option(
+        config_entry, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+    )
     config_entry.async_start_reauth(
         hass,
         context={"source": SOURCE_REAUTH},
@@ -3564,13 +3607,17 @@ async def test_login_status(hass, config_entry, login) -> bool:
             CONF_EMAIL: account[CONF_EMAIL],
             CONF_PASSWORD: account[CONF_PASSWORD],
             CONF_URL: account[CONF_URL],
-            CONF_DEBUG: account[CONF_DEBUG],
-            CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
-            CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
+            CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
+            CONF_INCLUDE_DEVICES: config_entry_option(
+                config_entry, CONF_INCLUDE_DEVICES, ""
+            ),
+            CONF_EXCLUDE_DEVICES: config_entry_option(
+                config_entry, CONF_EXCLUDE_DEVICES, ""
+            ),
             CONF_SCAN_INTERVAL: (
-                account[CONF_SCAN_INTERVAL].total_seconds()
-                if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
-                else account[CONF_SCAN_INTERVAL]
+                scan_interval.total_seconds()
+                if isinstance(scan_interval, timedelta)
+                else scan_interval
             ),
             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
         },

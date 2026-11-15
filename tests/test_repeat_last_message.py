@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.auth.permissions.const import POLICY_CONTROL
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import Context
 from homeassistant.exceptions import (
     HomeAssistantError,
@@ -60,7 +61,9 @@ class TestRepeatLastMessage:
         """Add a media player for each name and register the services."""
         login = MagicMock(email=EMAIL, url="amazon.com")
         login.session.closed = False
-        config_entry = MockConfigEntry(domain=DOMAIN, data={"email": EMAIL})
+        config_entry = MockConfigEntry(
+            domain=DOMAIN, data={"email": EMAIL}, state=ConfigEntryState.LOADED
+        )
         config_entry.add_to_hass(hass)
         account = {
             "login_obj": login,
@@ -285,7 +288,13 @@ async def test_repeat_checks_all_permissions_before_replay(hass, allowed):
     for player in players.values():
         player.async_repeat_last_message = AsyncMock()
     hass.data[DATA_ALEXAMEDIA] = {
-        "accounts": {EMAIL: {"entities": {"media_player": players}}}
+        "accounts": {
+            EMAIL: {
+                "login_obj": MagicMock(),
+                "config_entry": MagicMock(state=ConfigEntryState.LOADED),
+                "entities": {"media_player": players},
+            }
+        }
     }
     user = MagicMock()
     user.permissions.check_entity.side_effect = [True, allowed]

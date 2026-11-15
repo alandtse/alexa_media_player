@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import Context
 from homeassistant.exceptions import ServiceValidationError
 import pytest
 
@@ -341,3 +342,7 @@ async def test_services_survive_unloading_last_account():
     hass.services.async_remove.assert_not_called()
     with pytest.raises(ServiceValidationError):
         await services.last_call_handler(MagicMock(data={}))
+    with pytest.raises(ServiceValidationError):
+        await services.repeat_last_message(
+            MagicMock(data={"entity_id": ["media_player.kitchen"]}, context=Context())
+        )

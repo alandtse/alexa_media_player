@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 from datetime import timedelta
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from aiohttp import ClientConnectionError, InvalidURL, web
@@ -768,25 +769,28 @@ def _request(hass, path="/auth/alexamedia/proxy/flow?config_flow_id=flow", **kwa
 
 
 @pytest.mark.asyncio
-async def test_proxy_view_debug_logging_and_errors():
+async def test_proxy_view_debug_logging_and_errors(caplog):
     """The proxy wrapper logs redacted data and maps handler errors."""
+    caplog.set_level(logging.DEBUG, logger="custom_components.alexa_media.config_flow")
     hass = MagicMock()
     hass.config_entries.flow.async_progress.return_value = [
         {"flow_id": "flow", "handler": DOMAIN}
     ]
     view = AlexaMediaAuthorizationProxyView()
+    auth_secret = "auth-header-sentinel"
+    cookie_secret = "set-cookie-sentinel"
     handler = AsyncMock(
-        return_value=web.Response(text="ok", headers={"Set-Cookie": "secret"})
+        return_value=web.Response(text="ok", headers={"Set-Cookie": cookie_secret})
     )
     view.handlers["flow"] = handler
-    request = _request(hass, headers={"Authorization": "secret"})
+    request = _request(hass, headers={"Authorization": auth_secret})
 
-    with patch(
-        "custom_components.alexa_media.config_flow._LOGGER.isEnabledFor",
-        return_value=True,
-    ):
-        response = await view.check_auth()(request, config_flow_id="flow")
+    response = await view.check_auth()(request, config_flow_id="flow")
     assert response.text == "ok"
+    assert auth_secret not in caplog.text
+    assert cookie_secret not in caplog.text
+    assert "'Authorization': '***'" in caplog.text
+    assert "'Set-Cookie': '***'" in caplog.text
 
     handler.side_effect = httpx.ConnectError("down")
     response = await view.check_auth()(request, config_flow_id="flow")

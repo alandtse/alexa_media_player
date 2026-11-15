@@ -174,11 +174,18 @@ async def test_failed_login_check_then_reload_registers_one_update_listener(
         assert not await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.SETUP_ERROR
+    # No relogin handler survives a failed setup, so force_logout must not be
+    # able to find a login object that would claim a recovery never started.
+    email = entry.data[CONF_EMAIL]
+    assert "login_obj" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    assert "relogin_unsubs" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    assert entry.runtime_data is None
 
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.LOADED
     assert len(entry.update_listeners) == 1
+    assert hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] is not None
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()

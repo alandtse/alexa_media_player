@@ -53,11 +53,20 @@ Allows for control of Amazon Echo products as home assistant media devices with 
 | `alexa_media.enable_network_discovery` | Re-run Alexa network discovery.                       |
 | `alexa_media.amazon_kids_enable`       | Assign an Echo to an Amazon Kids child profile.       |
 | `alexa_media.amazon_kids_disable`      | Release an Echo from Amazon Kids.                     |
+| `alexa_media.repeat_last_message`      | Repeat the last message sent to a media player.       |
+| `alexa_media.create_alarm`             | Create an alarm on an Echo.                           |
+| `alexa_media.list_alarms`              | Return cached alarm metadata for one Echo.            |
+| `alexa_media.enable_alarm`             | Turn on an Echo alarm.                                |
+| `alexa_media.disable_alarm`            | Turn off an Echo alarm without deleting it.           |
+| `alexa_media.delete_alarm`             | Delete an Echo alarm.                                 |
+| `alexa_media.skip_next_alarm`          | Skip the next scheduled alarm.                        |
 
 # Events
 
-- `alexa_media_voice_command`: fired for each new voice-history record with the
-  command, response and timestamp.
+- `alexa_media_voice_command`: fired for new voice-history records that pass the
+  integration's filters (for example, records from unknown devices are skipped),
+  with the command text in `summary` plus `response`, `timestamp`, `serial` and
+  `entity_id`.
 - `alexa_media_alarm_dismissal_event`: fired when an alarm is dismissed.
 - `alexa_media_notification_event`: fired when an alarm, timer or reminder is
   due.

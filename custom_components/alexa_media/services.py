@@ -661,7 +661,7 @@ class AlexaMediaServices:
         _LOGGER.debug("Service repeat_last_message called for: %s", entity_ids)
         media_players = {
             entity.entity_id: entity
-            for account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].values()
+            for account_dict in self._get_accounts().values()
             for entity in account_dict["entities"]["media_player"].values()
             # Disabled entities get an entity_id but are never added to hass
             if entity.hass

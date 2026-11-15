@@ -9,11 +9,13 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.exceptions import ServiceValidationError
 import pytest
 
+from custom_components.alexa_media import test_login_status as check_login_status
 from custom_components.alexa_media.config_flow import (
     AlexaMediaFlowHandler,
     OptionsFlowHandler,
 )
 from custom_components.alexa_media.const import (
+    CONF_OTPSECRET,
     CONFIG_ENTRY_OPTION_KEYS,
     DATA_ALEXAMEDIA,
     DOMAIN,
@@ -213,6 +215,61 @@ async def test_credentials_only_reauth_migrates_legacy_without_overwriting_optio
     updated = flow.hass.config_entries.async_update_entry.call_args.kwargs
     assert updated["options"] == {**SETTINGS, "future": 7}
     assert not set(CONFIG_ENTRY_OPTION_KEYS).intersection(updated["data"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cleared", [False, True])
+async def test_reauth_otp_secret_removal_is_respected(cleared):
+    """A cleared OTP secret is not restored; an untouched one is kept."""
+    flow, entry = _reauth_flow(
+        {"email": EMAIL, CONF_OTPSECRET: "OLD-SECRET", "debug": True},
+        {"debug": False},
+    )
+    flow.reauth_entry = entry
+    flow.config = {"email": EMAIL, CONF_OTPSECRET: "OLD-SECRET"}
+    if cleared:
+        flow._save_user_input_to_config({CONF_OTPSECRET: "   "})
+    with patch(
+        "custom_components.alexa_media.config_flow.async_dismiss_persistent_notification"
+    ):
+        await flow._test_login()
+
+    updated = flow.hass.config_entries.async_update_entry.call_args.kwargs
+    if cleared:
+        assert CONF_OTPSECRET not in updated["data"]
+        assert CONF_OTPSECRET not in updated["options"]
+    else:
+        assert updated["data"][CONF_OTPSECRET] == "OLD-SECRET"
+
+
+@pytest.mark.asyncio
+async def test_reauth_payload_uses_effective_settings():
+    """Starting reauth reads options after the settings leave entry data."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"config_flows": {}}}
+    login = MagicMock(email=EMAIL, url="https://alexa.amazon.com")
+    login.status = {"login_successful": False}
+    login.stats = {"login_timestamp": datetime(1, 1, 1), "api_calls": 0}
+    entry = MagicMock(
+        data={"email": EMAIL, "password": "secret", "url": "amazon.com"},
+        options={
+            "debug": True,
+            "include_devices": "Kitchen",
+            "exclude_devices": "Garage",
+            "scan_interval": 90,
+        },
+    )
+    entry.async_get_active_flows.return_value = iter([MagicMock()])
+
+    with patch("custom_components.alexa_media.async_create_persistent_notification"):
+        assert await check_login_status(hass, entry, login) is False
+
+    payload = entry.async_start_reauth.call_args.kwargs["data"]
+    assert payload["email"] == EMAIL
+    assert payload["debug"] is True
+    assert payload["include_devices"] == "Kitchen"
+    assert payload["exclude_devices"] == "Garage"
+    assert payload["scan_interval"] == 90
 
 
 @pytest.mark.asyncio

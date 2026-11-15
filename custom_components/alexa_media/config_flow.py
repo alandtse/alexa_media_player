@@ -137,6 +137,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.securitycode: Optional[str] = None
         self.automatic_steps: int = 0
         self.config = OrderedDict()
+        # Keys the user explicitly cleared, so the reauth merge does not
+        # restore the previous stored value from the entry data.
+        self.explicitly_removed: set[str] = set()
         self.proxy_schema = None
         self.data_schema = OrderedDict(
             [
@@ -819,6 +822,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                 # one update. Keep unrelated data/options and remove stale copies.
                 data = {**existing_entry.data, **self.config}
                 options = dict(existing_entry.options)
+                for key in self.explicitly_removed:
+                    data.pop(key, None)
+                    options.pop(key, None)
                 for key in CONFIG_ENTRY_OPTION_KEYS:
                     if key in self.config:
                         options[key] = self.config[key]
@@ -952,9 +958,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             " ", ""
         ):
             self.config[CONF_OTPSECRET] = user_input[CONF_OTPSECRET].replace(" ", "")
+            self.explicitly_removed.discard(CONF_OTPSECRET)
         elif user_input.get(CONF_OTPSECRET):
             # a blank line
             self.config.pop(CONF_OTPSECRET)
+            self.explicitly_removed.add(CONF_OTPSECRET)
         if CONF_EMAIL in user_input:
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:

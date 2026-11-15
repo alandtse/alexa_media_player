@@ -49,35 +49,42 @@ def collect_authors(history, client, owner, repo):
     """Fetch each unreleased PR once, crediting pull.user rather than commit author."""
     authors = {}
     cache = {}
-    for commits in history.unreleased.values():
-        for commit in commits:
-            reference = getattr(commit, "linked_merge_request", "")
-            if not re.fullmatch(r"#[1-9]\d*", reference):
-                continue
-            number = int(reference[1:])
-            if number not in cache:
-                response = client.get(
-                    f"https://api.github.com/repos/{owner}/{repo}/pulls/{number}",
-                    timeout=REQUEST_TIMEOUT_SECONDS,
-                )
-                if response.status_code == 404:
-                    print(
-                        f"::warning::PR #{number} is unavailable; leaving it uncredited"
+    try:
+        for commits in history.unreleased.values():
+            for commit in commits:
+                reference = getattr(commit, "linked_merge_request", "")
+                if not re.fullmatch(r"#[1-9]\d*", reference):
+                    continue
+                number = int(reference[1:])
+                if number not in cache:
+                    response = client.get(
+                        f"https://api.github.com/repos/{owner}/{repo}/pulls/{number}",
+                        timeout=REQUEST_TIMEOUT_SECONDS,
                     )
-                    cache[number] = ""
-                else:
-                    response.raise_for_status()
-                    try:
-                        payload = response.json()
-                    except requests.exceptions.JSONDecodeError as error:
-                        raise ValueError(
-                            f"PR #{number}: response is not valid JSON"
-                        ) from error
-                    if not isinstance(payload, dict):
-                        raise ValueError(f"PR #{number}: expected a JSON object")
-                    cache[number] = author_link(payload.get("user"))
-            if cache[number]:
-                authors[commit.hexsha] = cache[number]
+                    if response.status_code == 404:
+                        print(
+                            f"::warning::PR #{number} is unavailable; leaving it uncredited"
+                        )
+                        cache[number] = ""
+                    else:
+                        response.raise_for_status()
+                        try:
+                            payload = response.json()
+                        except requests.exceptions.JSONDecodeError as error:
+                            raise ValueError(
+                                f"PR #{number}: response is not valid JSON"
+                            ) from error
+                        if not isinstance(payload, dict):
+                            raise ValueError(f"PR #{number}: expected a JSON object")
+                        cache[number] = author_link(payload.get("user"))
+                if cache[number]:
+                    authors[commit.hexsha] = cache[number]
+    except (requests.RequestException, ValueError):
+        print(
+            f"::warning::PR #{number}: author lookup failed; "
+            "continuing without author attribution"
+        )
+        return {}
     return authors
 
 

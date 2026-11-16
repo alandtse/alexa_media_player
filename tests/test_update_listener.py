@@ -216,6 +216,8 @@ async def test_failed_login_check_keeps_login_when_close_fails(
     assert "login_obj" in account
     assert "relogin_unsubs" in account
     assert "Could not close login" in caplog.text
+    # Let the hass teardown close the retained login without raising again.
+    fake_login.last_instance.close.side_effect = None
 
 
 async def test_unload_removes_update_listener(hass, fake_login, listener_spy):

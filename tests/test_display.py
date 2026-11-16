@@ -815,13 +815,17 @@ async def test_display_state_is_shared_per_device():
         first = await async_get_display_state(
             MagicMock(), account_dict, login, device, client
         )
+        new_login = MagicMock()
+        new_client = MagicMock(unique_id=SERIAL)
         second = await async_get_display_state(
-            MagicMock(), account_dict, login, device, client
+            MagicMock(), account_dict, new_login, device, new_client
         )
 
     assert first is second
     probe.assert_awaited_once()
     assert account_dict["display_states"][SERIAL] is first
+    assert first.login is new_login
+    assert first.client is new_client
 
 
 @pytest.mark.asyncio

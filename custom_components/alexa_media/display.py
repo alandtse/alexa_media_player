@@ -333,6 +333,10 @@ async def async_get_display_state(
     async with lock:
         state = states.get(serial)
         if state is not None:
+            # A setup retry can supply a new login/client while reusing the
+            # probed state from the previous attempt.
+            state.login = login
+            state.client = client
             return state
         if serial in unsupported:
             return None

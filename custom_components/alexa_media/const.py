@@ -436,6 +436,7 @@ MODEL_IDS = {
     "AA1IN44SS3X6O": "Ecobee Thermostat Premium",
     "AB72C64C86AW2": "Echo (Gen1)",
     "ABJ2EHL7HQT4L": "Unknown Amplifier",
+    "ADMKNMEVNL158": "Echo Hub",
     "ADVBD696BHNV5": "Fire TV Stick (Gen1)",
     "AE7X7Z227NFNS": "HiMirror Mini",
     "AF473ZSOIRKFJ": "Onkyo VC-PX30",
@@ -456,6 +457,7 @@ MODEL_IDS = {
     "AP1F6KUH00XPV": "Stereo/Subwoofer Pair",
     "AP4RS91ZQ0OOI": "Fire TV (Toshiba)",
     "APHEAY6LX7T13": "Samsung Smart Refrigerator",
+    "AQ24620N8QD5Q": "Echo Show 15 (Gen2)",
     "AQCGW9PSYWRF": "TV",
     "AR6X0XNIME80V": "Unknown TV",
     "ASQZWP4GPYUT7": "Echo Pop",
@@ -466,4 +468,5 @@ MODEL_IDS = {
     "AVN2TMX8MU2YM": "Bose Home Speaker 500",
     "AVU7CPPF2ZRAS": "Fire Tablet HD 8",
     "AWZZ5CVHX2CD": "Echo Show (Gen2)",
+    "AZANTNEUTYY6L": "Echo Show 21",
 }

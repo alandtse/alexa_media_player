@@ -35,6 +35,8 @@ from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .aqm_led import resolve_endpoint_id, set_led_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .display import (
+    SETTING_ADAPTIVE_BRIGHTNESS,
+    SETTING_DISPLAY_POWER,
     AlexaAdaptiveBrightnessSwitch,
     AlexaDisplayPowerSwitch,
     async_get_display_state,
@@ -151,12 +153,22 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         display_state = await async_get_display_state(
             hass, account_dict, login_obj, device, client
         )
+        if display_state is None:
+            continue
         switch_dict = account_dict["entities"]["switch"].setdefault(key, {})
-        for switch_key, class_ in (
-            ("display_power", AlexaDisplayPowerSwitch),
-            ("adaptive_brightness", AlexaAdaptiveBrightnessSwitch),
+        for switch_key, setting, class_ in (
+            (
+                "display_power",
+                SETTING_DISPLAY_POWER,
+                AlexaDisplayPowerSwitch,
+            ),
+            (
+                "adaptive_brightness",
+                SETTING_ADAPTIVE_BRIGHTNESS,
+                AlexaAdaptiveBrightnessSwitch,
+            ),
         ):
-            if switch_key in switch_dict:
+            if not display_state.supports(setting) or switch_key in switch_dict:
                 continue
             display_switch = class_(display_state)
             switch_dict[switch_key] = display_switch

@@ -17,7 +17,12 @@ from homeassistant.helpers.entity import EntityCategory
 
 from . import CONF_EMAIL, DATA_ALEXAMEDIA, DOMAIN as ALEXA_DOMAIN, hide_email
 from .alexa_media import AlexaMedia
-from .display import AlexaDisplayBrightness, async_get_display_state, supports_display
+from .display import (
+    SETTING_BRIGHTNESS,
+    AlexaDisplayBrightness,
+    async_get_display_state,
+    supports_display,
+)
 from .helpers import _catch_login_errors, add_devices, safe_get
 
 _LOGGER = logging.getLogger(__name__)
@@ -70,6 +75,8 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         display_state = await async_get_display_state(
             hass, account_dict, login_obj, device, client
         )
+        if display_state is None or not display_state.supports(SETTING_BRIGHTNESS):
+            continue
         number = AlexaDisplayBrightness(display_state)
         account_dict["entities"]["number"][entity_key] = number
         devices.append(number)

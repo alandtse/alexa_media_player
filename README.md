@@ -24,6 +24,8 @@ Allows for control of Amazon Echo products as home assistant media devices with 
   - Artists Name
   - Album Name
   - Album Image
+- Display power, brightness and adaptive brightness controls on Echo devices
+  that expose those settings (for example, Echo Dot with clock).
 
 # Installation and Configuration
 

@@ -85,6 +85,10 @@ async def _decode_setting_response(response) -> tuple[int, Any]:
     return status, _decode_setting(data["value"])
 
 
+# TODO(alexapy): replace this direct read with AlexaAPI.get_device_setting()
+# once https://gitlab.com/keatontaylor/alexapy/-/merge_requests/512 is released.
+# alexapy 1.36 collapses HTTP 400 and 5xx to None, and this endpoint must
+# distinguish an unsupported setting from a temporary failure.
 async def async_get_device_setting(
     login: AlexaLogin, device_account_id: str, setting: str
 ) -> tuple[int, Any]:

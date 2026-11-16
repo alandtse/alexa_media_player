@@ -43,16 +43,34 @@ DISPLAY_SETTINGS = (
     SETTING_ADAPTIVE_BRIGHTNESS,
 )
 
-DISPLAY_MODEL_MARKERS = ("Echo Show", "Echo Spot", "Echo Dot Clock")
+DISPLAY_MODEL_MARKERS = (
+    "Echo Show",
+    "Echo Spot",
+    "Echo Dot Clock",
+    "Echo Hub",
+    "Echo Time",
+    "Echo Frame",
+    "Photo Frame",
+)
 
 
 def supports_display(device: dict[str, Any]) -> bool:
-    """Return whether the device is a known model with an Echo display.
+    """Return whether the device is worth probing for display settings.
 
-    This is only a cheap pre-filter. The settings API is capability-gated per
-    device, so each setting is probed before an entity is created.
+    Known display models are probed, and so are unknown models: Amazon keeps
+    adding displays (Echo Time, Echo Show 16, Alexa Photo Frame, ...), so a
+    name whitelist would silently miss them. Only models we already know are
+    not displays are skipped, which keeps the setup from probing every Echo
+    speaker.
     """
-    model = MODEL_IDS.get(device.get("deviceType"), "")
+    model = MODEL_IDS.get(device.get("deviceType"))
+    if not device.get("serialNumber"):
+        return False
+    if model is None:
+        return True
+    if model == "Echo Frames":
+        # Echo Frames are smart glasses, not the Alexa Photo Frame.
+        return False
     return any(marker in model for marker in DISPLAY_MODEL_MARKERS)
 
 
@@ -324,7 +342,9 @@ async def async_get_display_state(
     """Return (creating and probing if needed) the shared display state."""
     states = account_dict.setdefault("display_states", {})
     unsupported = account_dict.setdefault("display_unsupported", set())
-    serial = device["serialNumber"]
+    serial = device.get("serialNumber")
+    if not serial:
+        return None
     if serial in unsupported:
         return None
 

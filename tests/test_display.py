@@ -33,6 +33,8 @@ SHOW_15_GEN1 = "A1EIANJ7PNB0Q7"  # Echo Show 15 (Gen1)
 SHOW_15_GEN2 = "AQ24620N8QD5Q"  # Echo Show 15 (Gen2)
 DOT_CLOCK_TYPE = "A2H4LV5GIZ1JFT"  # Echo Dot Clock (Gen4)
 DOT_TYPE = "A3S5BH2HU6VAYF"  # Echo Dot (Gen2)
+ECHO_FRAMES_TYPE = "A3IYPH06PH1HRA"  # Echo Frames (glasses)
+UNKNOWN_TYPE = "A0UNKNOWNMODEL"  # Any model not in MODEL_IDS
 
 
 def _device(device_type: str = SHOW_TYPE) -> dict:
@@ -50,13 +52,20 @@ def _state() -> DisplayState:
 
 
 def test_supports_display_models():
-    """Known display models are pre-filtered, plain speakers are not."""
+    """Display candidates include known displays and unknown models."""
     assert supports_display(_device())
     assert supports_display(_device(SHOW_8_GEN2))
     assert supports_display(_device(SHOW_15_GEN1))
     assert supports_display(_device(SHOW_15_GEN2))
     assert supports_display(_device(DOT_CLOCK_TYPE))
+    assert supports_display(_device(UNKNOWN_TYPE))
     assert not supports_display(_device(DOT_TYPE))
+    assert not supports_display(_device(ECHO_FRAMES_TYPE))
+
+
+def test_supports_display_requires_serial():
+    """A device without a serial cannot own display entities."""
+    assert not supports_display({"deviceType": UNKNOWN_TYPE})
 
 
 def test_decode_setting():
@@ -850,6 +859,27 @@ async def test_display_state_caches_unsupported_device():
     probe.assert_awaited_once()
     assert account_dict["display_unsupported"] == {SERIAL}
     assert SERIAL not in account_dict["display_states"]
+
+
+@pytest.mark.asyncio
+async def test_get_display_state_without_serial():
+    """A malformed device entry is skipped instead of raising."""
+    account_dict = {"display_states": {}}
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+    ) as probe:
+        state = await async_get_display_state(
+            MagicMock(),
+            account_dict,
+            MagicMock(),
+            {"deviceType": UNKNOWN_TYPE},
+            MagicMock(),
+        )
+
+    assert state is None
+    probe.assert_not_awaited()
 
 
 @pytest.mark.asyncio

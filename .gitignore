@@ -116,3 +116,6 @@ custom_components/test
 /.HA_VERSION
 /.storage/
 /.cloud/
+
+# Generated shared PSR attribution templates (never release assets)
+/.github/.release-templates/

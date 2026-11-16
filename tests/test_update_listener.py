@@ -200,9 +200,14 @@ async def test_failed_login_check_keeps_login_when_close_fails(
     """A failed close keeps the login for unload cleanup and logs context."""
     entry = _config_entry()
     entry.add_to_hass(hass)
+    checked_login = None
 
-    async def fail_check(*_args):
-        fake_login.last_instance.close.side_effect = RuntimeError("close failed")
+    async def fail_check(hass_arg, entry_arg, login_arg):
+        nonlocal checked_login
+        assert hass_arg is hass
+        assert entry_arg is entry
+        checked_login = login_arg
+        login_arg.close.side_effect = RuntimeError("close failed")
         return False
 
     with patch(
@@ -213,11 +218,12 @@ async def test_failed_login_check_keeps_login_when_close_fails(
         await hass.async_block_till_done()
 
     account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
-    assert "login_obj" in account
+    assert checked_login is not None
+    assert account["login_obj"] is checked_login
     assert "relogin_unsubs" in account
     assert "Could not close login" in caplog.text
     # Let the hass teardown close the retained login without raising again.
-    fake_login.last_instance.close.side_effect = None
+    checked_login.close.side_effect = None
 
 
 async def test_unload_removes_update_listener(hass, fake_login, listener_spy):

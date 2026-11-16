@@ -1050,10 +1050,20 @@ async def async_setup_entry(hass, config_entry):
         # The entry is not loaded, so no listener can act on a relogin event
         # and the retained login_obj would let force_logout report a recovery
         # that never starts. Release the session, then drop both.
-        _drop_listeners(account_data.pop("relogin_unsubs", ()))
-        with contextlib.suppress(Exception):
+        try:
             await login.close()
-        account_data.pop("login_obj", None)
+        except Exception as err:  # pylint: disable=broad-except
+            # Keep the login and its listeners so close_connections() can retry
+            # the cleanup and force_logout still reaches a handler.
+            _LOGGER.warning(
+                "%s: Could not close login after a failed setup; "
+                "keeping it for unload cleanup: %s",
+                hide_email(email),
+                err,
+            )
+        else:
+            _drop_listeners(account_data.pop("relogin_unsubs", ()))
+            account_data.pop("login_obj", None)
         config_entry.runtime_data = None
         return False
     except AlexapyConnectionError as err:

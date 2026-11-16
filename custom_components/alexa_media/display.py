@@ -31,6 +31,8 @@ _LOGGER = logging.getLogger(__name__)
 DISPLAY_SCAN_INTERVAL = timedelta(minutes=15)
 DISPLAY_REFRESH_TIMEOUT = 30
 DISPLAY_PROBE_TIMEOUT = 10
+DISPLAY_PROBE_ATTEMPTS = 2
+DISPLAY_PROBE_RETRY_DELAY = 1
 DISPLAY_FAILURE_LIMIT = 3
 
 SETTING_DISPLAY_POWER = "displayPower"
@@ -121,13 +123,18 @@ async def async_probe_display_settings(
         return {}, False
 
     async def _probe(setting: str) -> Any:
-        try:
-            return await asyncio.wait_for(
-                async_get_device_setting(login, device_account_id, setting),
-                timeout=DISPLAY_PROBE_TIMEOUT,
-            )
-        except Exception as err:  # noqa: BLE001
-            return err
+        last_error: Exception | None = None
+        for attempt in range(DISPLAY_PROBE_ATTEMPTS):
+            try:
+                return await asyncio.wait_for(
+                    async_get_device_setting(login, device_account_id, setting),
+                    timeout=DISPLAY_PROBE_TIMEOUT,
+                )
+            except Exception as err:  # noqa: BLE001
+                last_error = err
+                if attempt + 1 < DISPLAY_PROBE_ATTEMPTS:
+                    await asyncio.sleep(DISPLAY_PROBE_RETRY_DELAY)
+        return last_error
 
     results = await asyncio.gather(*(_probe(setting) for setting in DISPLAY_SETTINGS))
 
@@ -282,9 +289,9 @@ class DisplayState:
 
     async def async_set(self, setting: str, value: Any) -> bool:
         """Set one supported display setting and update the cached value."""
-        if setting not in self._supported:
-            return False
         async with self._refresh_lock:
+            if setting not in self._supported:
+                return False
             try:
                 success = await async_set_device_setting(
                     self.login, self.device_account_id, setting, value
@@ -346,20 +353,22 @@ async def async_get_display_state(
             return None
 
         values, failed = await async_probe_display_settings(login, device)
+        if failed:
+            # Do not commit a partial capability result: the missing setting
+            # would never get an entity, and polling only reads supported
+            # settings. A later setup retries the whole probe.
+            _LOGGER.debug(
+                "%s: Display settings probe incomplete; retrying on the next " "setup",
+                hide_serial(serial),
+            )
+            return None
         if not values:
-            if failed:
-                _LOGGER.debug(
-                    "%s: Display settings probe failed; will retry on the "
-                    "next setup",
-                    hide_serial(serial),
-                )
-            else:
-                unsupported.add(serial)
-                _LOGGER.debug(
-                    "%s: Device does not expose any display settings; "
-                    "skipping display controls",
-                    hide_serial(serial),
-                )
+            unsupported.add(serial)
+            _LOGGER.debug(
+                "%s: Device does not expose any display settings; "
+                "skipping display controls",
+                hide_serial(serial),
+            )
             return None
 
         state = DisplayState(hass, login, device, supported=values, probed=True)

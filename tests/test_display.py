@@ -10,6 +10,7 @@ import pytest
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.display import (
     DISPLAY_FAILURE_LIMIT,
+    DISPLAY_SETTINGS,
     SETTING_ADAPTIVE_BRIGHTNESS,
     SETTING_BRIGHTNESS,
     SETTING_DISPLAY_POWER,
@@ -211,6 +212,39 @@ async def test_probe_display_settings_skips_unsupported_and_errors():
 
     assert supported == {SETTING_DISPLAY_POWER: "ON"}
     assert failed
+
+
+@pytest.mark.asyncio
+async def test_probe_display_settings_retries_transport_errors():
+    """A failed probe attempt is retried before reporting a failure."""
+    attempts = dict.fromkeys(DISPLAY_SETTINGS, 0)
+
+    async def _get(_login, _account_id, setting):
+        attempts[setting] += 1
+        if setting == SETTING_DISPLAY_POWER and attempts[setting] == 1:
+            raise RuntimeError("network down")
+        return {
+            SETTING_DISPLAY_POWER: "ON",
+            SETTING_BRIGHTNESS: 42,
+            SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+        }[setting]
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_RETRY_DELAY", 0),
+    ):
+        supported, failed = await async_probe_display_settings(MagicMock(), _device())
+
+    assert not failed
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_BRIGHTNESS: 42,
+        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+    }
+    assert attempts[SETTING_DISPLAY_POWER] == 2
 
 
 @pytest.mark.asyncio
@@ -862,13 +896,13 @@ async def test_display_state_caches_unsupported_device():
 
 @pytest.mark.asyncio
 async def test_transient_probe_failure_is_not_cached_as_unsupported():
-    """A network failure is retried on the next setup instead of cached."""
+    """A partial probe is retried on the next setup instead of cached."""
     account_dict = {"display_states": {}}
 
     with patch(
         "custom_components.alexa_media.display.async_probe_display_settings",
         new_callable=AsyncMock,
-        return_value=({}, True),
+        return_value=({SETTING_BRIGHTNESS: 50}, True),
     ):
         state = await async_get_display_state(
             MagicMock(), account_dict, MagicMock(), _device(), MagicMock()

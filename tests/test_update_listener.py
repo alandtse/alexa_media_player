@@ -34,8 +34,10 @@ class FakeAlexaLogin:
     """Network-free stand-in for alexapy.AlexaLogin."""
 
     hang_login = False
+    last_instance: "FakeAlexaLogin | None" = None
 
     def __init__(self, url, email, **kwargs):
+        FakeAlexaLogin.last_instance = self
         self.url = url
         self.email = email
         self.status = {}
@@ -180,6 +182,7 @@ async def test_failed_login_check_then_reload_registers_one_update_listener(
     assert "login_obj" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]
     assert "relogin_unsubs" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]
     assert entry.runtime_data is None
+    fake_login.last_instance.close.assert_awaited_once()
 
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()

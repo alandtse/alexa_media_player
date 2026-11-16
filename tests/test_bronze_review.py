@@ -251,7 +251,11 @@ async def test_reauth_payload_uses_effective_settings():
     login.status = {"login_successful": False}
     login.stats = {"login_timestamp": datetime(1, 1, 1), "api_calls": 0}
     entry = MagicMock(
-        data={"email": EMAIL, "password": "secret", "url": "amazon.com"},
+        data={
+            "email": EMAIL,
+            "password": "secret",  # noqa: S105  # nosec B105
+            "url": "amazon.com",
+        },
         options={
             "debug": True,
             "include_devices": "Kitchen",

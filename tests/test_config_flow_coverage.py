@@ -777,8 +777,8 @@ async def test_proxy_view_debug_logging_and_errors(caplog):
         {"flow_id": "flow", "handler": DOMAIN}
     ]
     view = AlexaMediaAuthorizationProxyView()
-    auth_secret = "auth-header-sentinel"
-    cookie_secret = "set-cookie-sentinel"
+    auth_secret = "auth-header-sentinel"  # nosec B105
+    cookie_secret = "set-cookie-sentinel"  # nosec B105
     handler = AsyncMock(
         return_value=web.Response(text="ok", headers={"Set-Cookie": cookie_secret})
     )

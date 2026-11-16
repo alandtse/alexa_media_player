@@ -1049,8 +1049,10 @@ async def async_setup_entry(hass, config_entry):
             return True
         # The entry is not loaded, so no listener can act on a relogin event
         # and the retained login_obj would let force_logout report a recovery
-        # that never starts. Drop both before reporting the setup failure.
+        # that never starts. Release the session, then drop both.
         _drop_listeners(account_data.pop("relogin_unsubs", ()))
+        with contextlib.suppress(Exception):
+            await login.close()
         account_data.pop("login_obj", None)
         config_entry.runtime_data = None
         return False

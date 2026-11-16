@@ -23,7 +23,7 @@ from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
 from .const import DOMAIN
 
@@ -34,6 +34,7 @@ DISPLAY_REFRESH_TIMEOUT = 30
 DISPLAY_PROBE_TIMEOUT = 10
 DISPLAY_PROBE_ATTEMPTS = 2
 DISPLAY_PROBE_RETRY_DELAY = 1
+DISPLAY_PROBE_RELOAD_DELAY = 15 * 60
 DISPLAY_FAILURE_LIMIT = 3
 
 SETTING_DISPLAY_POWER = "displayPower"
@@ -82,7 +83,10 @@ async def _decode_setting_response(response) -> tuple[int, Any]:
         return status, None
     if not isinstance(data, dict) or "value" not in data:
         return status, None
-    return status, _decode_setting(data["value"])
+    value = _decode_setting(data["value"])
+    if isinstance(value, (dict, list)):
+        return status, None
+    return status, value
 
 
 # TODO(alexapy): replace this direct read with AlexaAPI.get_device_setting()
@@ -299,6 +303,7 @@ class DisplayState:
             )
             for setting, value in zip(settings, values, strict=True):
                 if isinstance(value, Exception):
+                    self._failures[setting] = 0
                     _LOGGER.debug(
                         "%s: Unable to read display setting %s: %s",
                         hide_serial(self.serial),
@@ -323,6 +328,7 @@ class DisplayState:
                     self._failures[setting] = 0
                     self._values[setting] = setting_value
                     continue
+                self._failures[setting] = 0
                 _LOGGER.debug(
                     "%s: Temporary HTTP %s reading display setting %s; " "keeping %s",
                     hide_serial(self.serial),
@@ -376,6 +382,27 @@ class DisplayState:
         return False
 
 
+@callback
+def _schedule_display_reload(hass: HomeAssistant, account_dict: dict[str, Any]) -> None:
+    """Reload the entry later so a failed display probe is retried."""
+    if account_dict.get("display_reload_unsub") is not None:
+        return
+    entry = account_dict.get("config_entry")
+    if entry is None:
+        return
+
+    @callback
+    def _reload(_now) -> None:
+        account_dict["display_reload_unsub"] = None
+        if hass.config_entries.async_get_entry(entry.entry_id) is None:
+            return
+        hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
+
+    account_dict["display_reload_unsub"] = async_call_later(
+        hass, DISPLAY_PROBE_RELOAD_DELAY, _reload
+    )
+
+
 async def async_get_display_state(
     hass: HomeAssistant,
     account_dict: dict[str, Any],
@@ -409,7 +436,8 @@ async def async_get_display_state(
         if failed:
             # Do not commit a partial capability result: the missing setting
             # would never get an entity, and polling only reads supported
-            # settings. A later setup retries the whole probe.
+            # settings. Reload the entry later to retry the whole probe.
+            _schedule_display_reload(hass, account_dict)
             _LOGGER.debug(
                 "%s: Display settings probe incomplete; retrying on the next " "setup",
                 hide_serial(serial),

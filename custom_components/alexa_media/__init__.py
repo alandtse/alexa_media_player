@@ -3336,6 +3336,11 @@ async def async_unload_entry(hass, entry) -> bool:
     ):
         display_state.async_stop()
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
+    display_reload_unsub = hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop(
+        "display_reload_unsub", None
+    )
+    if display_reload_unsub:
+        display_reload_unsub()
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

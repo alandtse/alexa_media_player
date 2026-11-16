@@ -99,15 +99,26 @@ def test_second_account_keeps_registry_identifier():
 
 
 @pytest.mark.parametrize("name", [None, "", "Living room"])
-async def test_refresh_updates_friendly_name(name, hass):
+@pytest.mark.parametrize("second_account_index", [0, 1])
+async def test_refresh_updates_friendly_name(name, second_account_index, hass):
     """Read fresh inventory metadata, including removal, independently of name."""
     client = make_client()
+    client._second_account_index = second_account_index
     config_entry = MockConfigEntry(domain="alexa_media")
     config_entry.add_to_hass(hass)
     registry = dr.async_get(hass)
     registered = registry.async_get_or_create(
         config_entry_id=config_entry.entry_id, **client.device_info
     )
+    other_client = make_client()
+    other_client._login.email = "other@example.com"
+    other_client._second_account_index = 1 - second_account_index
+    other_config_entry = MockConfigEntry(domain="alexa_media")
+    other_config_entry.add_to_hass(hass)
+    other_registered = registry.async_get_or_create(
+        config_entry_id=other_config_entry.entry_id, **other_client.device_info
+    )
+    assert registered.id != other_registered.id
     client.hass = hass
     device = {
         "accountName": name,
@@ -130,8 +141,18 @@ async def test_refresh_updates_friendly_name(name, hass):
             "customerName": "Test",
         },
     }
-    with patch.object(client, "schedule_update_ha_state"):
+    with (
+        patch.object(client, "schedule_update_ha_state"),
+        patch.object(
+            registry, "async_get_device", side_effect=AssertionError
+        ) as lookup,
+    ):
         await client.refresh(device, skip_api=True)
+        # Before entity registration, HA has not assigned the owning device.
+        assert registry.async_get(registered.id).model == "Echo"
+        client.device_entry = registered
+        await client.refresh(device, skip_api=True)
+        lookup.assert_not_called()
     assert client.device_info["name"] == name
     assert client.device_info["model"] == "Echo Show 8"
     assert client.device_info["hw_version"] == "3rd Gen"
@@ -139,12 +160,26 @@ async def test_refresh_updates_friendly_name(name, hass):
     assert registered.model == "Echo Show 8"
     assert registered.model_id == "UNKNOWN"
     assert registered.hw_version == "3rd Gen"
+    assert client.device_entry is registered
     device.pop("deviceTypeFriendlyName")
-    with patch.object(client, "schedule_update_ha_state"):
+    with (
+        patch.object(client, "schedule_update_ha_state"),
+        patch.object(
+            registry, "async_get_device", side_effect=AssertionError
+        ) as lookup,
+    ):
         await client.refresh(device, skip_api=True)
+        lookup.assert_not_called()
     assert client.device_info["model"] == "ECHO UNKNOWN"
     assert client.device_info["hw_version"] is None
     registered = registry.async_get(registered.id)
     assert registered.model == "ECHO UNKNOWN"
     assert registered.model_id == "UNKNOWN"
     assert registered.hw_version is None
+    assert client.device_entry is registered
+    assert registered.identifiers == client.device_info["identifiers"]
+    if hasattr(registered, "config_entry_id"):
+        assert registered.config_entry_id == config_entry.entry_id
+    else:
+        assert registered.config_entries == {config_entry.entry_id}
+    assert registry.async_get(other_registered.id) is other_registered

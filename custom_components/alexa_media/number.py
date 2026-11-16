@@ -21,7 +21,7 @@ from .display import (
     SETTING_BRIGHTNESS,
     AlexaDisplayBrightness,
     async_get_display_state,
-    supports_display,
+    can_probe_display,
 )
 from .helpers import _catch_login_errors, add_devices, safe_get
 
@@ -47,7 +47,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     display_keys = [
         key
         for key, device in account_dict["devices"]["media_player"].items()
-        if supports_display(device)
+        if can_probe_display(device)
     ]
     if display_keys and (
         login_obj is None
@@ -66,7 +66,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         devices.append(number)
 
     for key, device in account_dict["devices"]["media_player"].items():
-        if not supports_display(device):
+        if not can_probe_display(device):
             continue
         client = account_dict["entities"]["media_player"][key]
         entity_key = f"{key}_display_brightness"

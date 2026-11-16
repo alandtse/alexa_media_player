@@ -22,7 +22,7 @@ from custom_components.alexa_media.display import (
     async_get_display_state,
     async_probe_display_settings,
     async_set_device_setting,
-    supports_display,
+    can_probe_display,
 )
 
 EMAIL = "test@example.com"  # noqa: S105
@@ -33,7 +33,6 @@ SHOW_15_GEN1 = "A1EIANJ7PNB0Q7"  # Echo Show 15 (Gen1)
 SHOW_15_GEN2 = "AQ24620N8QD5Q"  # Echo Show 15 (Gen2)
 DOT_CLOCK_TYPE = "A2H4LV5GIZ1JFT"  # Echo Dot Clock (Gen4)
 DOT_TYPE = "A3S5BH2HU6VAYF"  # Echo Dot (Gen2)
-ECHO_FRAMES_TYPE = "A3IYPH06PH1HRA"  # Echo Frames (glasses)
 UNKNOWN_TYPE = "A0UNKNOWNMODEL"  # Any model not in MODEL_IDS
 
 
@@ -51,21 +50,14 @@ def _state() -> DisplayState:
     return state
 
 
-def test_supports_display_models():
-    """Display candidates include known displays and unknown models."""
-    assert supports_display(_device())
-    assert supports_display(_device(SHOW_8_GEN2))
-    assert supports_display(_device(SHOW_15_GEN1))
-    assert supports_display(_device(SHOW_15_GEN2))
-    assert supports_display(_device(DOT_CLOCK_TYPE))
-    assert supports_display(_device(UNKNOWN_TYPE))
-    assert not supports_display(_device(DOT_TYPE))
-    assert not supports_display(_device(ECHO_FRAMES_TYPE))
-
-
-def test_supports_display_requires_serial():
-    """A device without a serial cannot own display entities."""
-    assert not supports_display({"deviceType": UNKNOWN_TYPE})
+def test_can_probe_display_requires_identity():
+    """Every media player with an id and serial is a probe candidate."""
+    assert can_probe_display(_device())
+    assert can_probe_display(_device(DOT_TYPE))
+    assert can_probe_display(_device(UNKNOWN_TYPE))
+    assert not can_probe_display({"deviceType": UNKNOWN_TYPE})
+    assert not can_probe_display({"serialNumber": SERIAL})
+    assert not can_probe_display({})
 
 
 def test_decode_setting():
@@ -190,18 +182,19 @@ async def test_probe_display_settings_keeps_supported_values():
         "custom_components.alexa_media.display.async_get_device_setting",
         side_effect=_get,
     ):
-        supported = await async_probe_display_settings(MagicMock(), _device())
+        supported, failed = await async_probe_display_settings(MagicMock(), _device())
 
     assert supported == {
         SETTING_DISPLAY_POWER: "ON",
         SETTING_BRIGHTNESS: 42,
         SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
     }
+    assert not failed
 
 
 @pytest.mark.asyncio
 async def test_probe_display_settings_skips_unsupported_and_errors():
-    """Unsupported settings and transport errors are omitted."""
+    """Unsupported settings are omitted and transport errors are flagged."""
 
     async def _get(_login, _account_id, setting):
         if setting == SETTING_DISPLAY_POWER:
@@ -214,9 +207,10 @@ async def test_probe_display_settings_skips_unsupported_and_errors():
         "custom_components.alexa_media.display.async_get_device_setting",
         side_effect=_get,
     ):
-        supported = await async_probe_display_settings(MagicMock(), _device())
+        supported, failed = await async_probe_display_settings(MagicMock(), _device())
 
     assert supported == {SETTING_DISPLAY_POWER: "ON"}
+    assert failed
 
 
 @pytest.mark.asyncio
@@ -226,11 +220,12 @@ async def test_probe_display_settings_without_account_id():
         "custom_components.alexa_media.display.async_get_device_setting",
         new_callable=AsyncMock,
     ) as getter:
-        supported = await async_probe_display_settings(
+        supported, failed = await async_probe_display_settings(
             MagicMock(), {"serialNumber": SERIAL}
         )
 
     assert supported == {}
+    assert not failed
     getter.assert_not_awaited()
 
 
@@ -599,10 +594,13 @@ async def test_switch_setup_creates_display_entities():
         patch(
             "custom_components.alexa_media.display.async_probe_display_settings",
             new_callable=AsyncMock,
-            return_value={
-                SETTING_DISPLAY_POWER: "ON",
-                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
-            },
+            return_value=(
+                {
+                    SETTING_DISPLAY_POWER: "ON",
+                    SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+                },
+                False,
+            ),
         ) as probe,
         patch(
             "custom_components.alexa_media.switch.add_devices",
@@ -624,8 +622,9 @@ async def test_switch_setup_creates_display_entities():
 
 
 @pytest.mark.asyncio
-async def test_switch_setup_skips_unsupported_display():
-    """A model that rejects every setting gets no display switches."""
+@pytest.mark.parametrize("device_type", [SHOW_8_GEN2, DOT_TYPE])
+async def test_switch_setup_skips_unsupported_display(device_type):
+    """Any media player that rejects every setting gets no display switches."""
     from custom_components.alexa_media.switch import async_setup_platform
 
     client = MagicMock()
@@ -636,8 +635,8 @@ async def test_switch_setup_skips_unsupported_display():
             "media_player": {
                 SERIAL: {
                     "serialNumber": SERIAL,
-                    "deviceType": SHOW_8_GEN2,
-                    "deviceFamily": "ECHO_SHOW",
+                    "deviceType": device_type,
+                    "deviceFamily": "ECHO",
                     "deviceAccountId": "account-id",
                     "capabilities": [],
                 }
@@ -663,7 +662,7 @@ async def test_switch_setup_skips_unsupported_display():
         patch(
             "custom_components.alexa_media.display.async_probe_display_settings",
             new_callable=AsyncMock,
-            return_value={},
+            return_value=({}, False),
         ) as probe,
         patch(
             "custom_components.alexa_media.switch.add_devices",
@@ -715,7 +714,7 @@ async def test_number_setup_creates_display_brightness():
         patch(
             "custom_components.alexa_media.display.async_probe_display_settings",
             new_callable=AsyncMock,
-            return_value={SETTING_BRIGHTNESS: 50},
+            return_value=({SETTING_BRIGHTNESS: 50}, False),
         ) as probe,
         patch(
             "custom_components.alexa_media.number.add_devices",
@@ -763,7 +762,7 @@ async def test_number_setup_skips_unsupported_display():
         patch(
             "custom_components.alexa_media.display.async_probe_display_settings",
             new_callable=AsyncMock,
-            return_value={},
+            return_value=({}, False),
         ) as probe,
         patch(
             "custom_components.alexa_media.number.add_devices",
@@ -819,7 +818,7 @@ async def test_display_state_is_shared_per_device():
     with patch(
         "custom_components.alexa_media.display.async_probe_display_settings",
         new_callable=AsyncMock,
-        return_value={SETTING_BRIGHTNESS: 50},
+        return_value=({SETTING_BRIGHTNESS: 50}, False),
     ) as probe:
         first = await async_get_display_state(
             MagicMock(), account_dict, login, device, client
@@ -845,7 +844,7 @@ async def test_display_state_caches_unsupported_device():
     with patch(
         "custom_components.alexa_media.display.async_probe_display_settings",
         new_callable=AsyncMock,
-        return_value={},
+        return_value=({}, False),
     ) as probe:
         first = await async_get_display_state(
             MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
@@ -859,6 +858,25 @@ async def test_display_state_caches_unsupported_device():
     probe.assert_awaited_once()
     assert account_dict["display_unsupported"] == {SERIAL}
     assert SERIAL not in account_dict["display_states"]
+
+
+@pytest.mark.asyncio
+async def test_transient_probe_failure_is_not_cached_as_unsupported():
+    """A network failure is retried on the next setup instead of cached."""
+    account_dict = {"display_states": {}}
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+        return_value=({}, True),
+    ):
+        state = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+        )
+
+    assert state is None
+    assert account_dict["display_unsupported"] == set()
+    assert account_dict["display_states"] == {}
 
 
 @pytest.mark.asyncio

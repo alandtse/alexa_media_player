@@ -40,7 +40,7 @@ from .display import (
     AlexaAdaptiveBrightnessSwitch,
     AlexaDisplayPowerSwitch,
     async_get_display_state,
-    supports_display,
+    can_probe_display,
 )
 from .helpers import (
     _catch_login_errors,
@@ -139,7 +139,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     display_devices: list[SwitchDevice] = []
     login_obj = account_dict.get("login_obj")
     for key, device in account_dict["devices"]["media_player"].items():
-        if not supports_display(device):
+        if not can_probe_display(device):
             continue
         client = account_dict["entities"]["media_player"].get(key)
         if login_obj is None or client is None:

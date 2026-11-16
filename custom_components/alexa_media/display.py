@@ -24,13 +24,13 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import DOMAIN, MODEL_IDS
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 DISPLAY_SCAN_INTERVAL = timedelta(minutes=15)
 DISPLAY_REFRESH_TIMEOUT = 30
-DISPLAY_PROBE_TIMEOUT = 30
+DISPLAY_PROBE_TIMEOUT = 10
 DISPLAY_FAILURE_LIMIT = 3
 
 SETTING_DISPLAY_POWER = "displayPower"
@@ -43,35 +43,17 @@ DISPLAY_SETTINGS = (
     SETTING_ADAPTIVE_BRIGHTNESS,
 )
 
-DISPLAY_MODEL_MARKERS = (
-    "Echo Show",
-    "Echo Spot",
-    "Echo Dot Clock",
-    "Echo Hub",
-    "Echo Time",
-    "Echo Frame",
-    "Photo Frame",
-)
 
+def can_probe_display(device: dict[str, Any]) -> bool:
+    """Return whether the device has the identity needed to probe settings.
 
-def supports_display(device: dict[str, Any]) -> bool:
-    """Return whether the device is worth probing for display settings.
-
-    Known display models are probed, and so are unknown models: Amazon keeps
-    adding displays (Echo Time, Echo Show 16, Alexa Photo Frame, ...), so a
-    name whitelist would silently miss them. Only models we already know are
-    not displays are skipped, which keeps the setup from probing every Echo
-    speaker.
+    There is no reliable model list for this: Amazon keeps adding displays
+    (Echo Time, Echo Show 16, Alexa Photo Frame, ...) and the settings are
+    capability-gated per device. Every media player with an account id and a
+    serial is probed once, and only the settings that return a value become
+    entities.
     """
-    model = MODEL_IDS.get(device.get("deviceType"))
-    if not device.get("serialNumber"):
-        return False
-    if model is None:
-        return True
-    if model == "Echo Frames":
-        # Echo Frames are smart glasses, not the Alexa Photo Frame.
-        return False
-    return any(marker in model for marker in DISPLAY_MODEL_MARKERS)
+    return bool(device.get("serialNumber") and device.get("deviceAccountId"))
 
 
 def _decode_setting(value: Any) -> Any:
@@ -126,17 +108,17 @@ async def async_set_device_setting(
 
 async def async_probe_display_settings(
     login: AlexaLogin, device: dict[str, Any]
-) -> dict[str, Any]:
-    """Return the display settings the device reports a value for.
+) -> tuple[dict[str, Any], bool]:
+    """Return the settings the device reports and whether a probe failed.
 
     Amazon rejects unsupported settings with HTTP 400, which alexapy surfaces
-    as ``None``. A transport failure is logged and skipped so it cannot hide
-    the settings that did respond.
+    as ``None``. A transport failure is reported separately so a temporary
+    network problem is not cached as "device does not support this".
     """
     serial = device.get("serialNumber", "")
     device_account_id = device.get("deviceAccountId", "")
     if not device_account_id:
-        return {}
+        return {}, False
 
     async def _probe(setting: str) -> Any:
         try:
@@ -150,8 +132,10 @@ async def async_probe_display_settings(
     results = await asyncio.gather(*(_probe(setting) for setting in DISPLAY_SETTINGS))
 
     supported: dict[str, Any] = {}
+    failed = False
     for setting, value in zip(DISPLAY_SETTINGS, results, strict=True):
         if isinstance(value, Exception):
+            failed = True
             _LOGGER.debug(
                 "%s: Unable to probe display setting %s: %s",
                 hide_serial(serial),
@@ -161,7 +145,7 @@ async def async_probe_display_settings(
             continue
         if value is not None:
             supported[setting] = value
-    return supported
+    return supported, failed
 
 
 class DisplayState:
@@ -361,14 +345,21 @@ async def async_get_display_state(
         if serial in unsupported:
             return None
 
-        values = await async_probe_display_settings(login, device)
+        values, failed = await async_probe_display_settings(login, device)
         if not values:
-            unsupported.add(serial)
-            _LOGGER.debug(
-                "%s: Device does not expose any display settings; "
-                "skipping display controls",
-                hide_serial(serial),
-            )
+            if failed:
+                _LOGGER.debug(
+                    "%s: Display settings probe failed; will retry on the "
+                    "next setup",
+                    hide_serial(serial),
+                )
+            else:
+                unsupported.add(serial)
+                _LOGGER.debug(
+                    "%s: Device does not expose any display settings; "
+                    "skipping display controls",
+                    hide_serial(serial),
+                )
             return None
 
         state = DisplayState(hass, login, device, supported=values, probed=True)

@@ -16,6 +16,7 @@ import logging
 from typing import Any
 
 from alexapy import AlexaAPI, AlexaLogin, hide_serial
+from alexapy.errors import AlexapyLoginError, AlexapyTooManyRequestsError
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import PERCENTAGE
@@ -68,28 +69,53 @@ def _decode_setting(value: Any) -> Any:
     return value
 
 
-async def async_get_device_setting(
-    login: AlexaLogin, device_account_id: str, setting: str
-) -> Any | None:
-    """Read one device setting."""
-    if not device_account_id:
-        return None
-
-    response = await AlexaAPI._static_request(
-        "get",
-        login,
-        f"/api/v1/devices/{device_account_id}/settings/{setting}",
-    )
-    if response is None:
-        return None
-
+async def _decode_setting_response(response) -> tuple[int, Any]:
+    """Return the HTTP status and the decoded setting value."""
+    status = response.status
+    if status == 429:
+        raise AlexapyTooManyRequestsError(response.reason)
+    if not 200 <= status < 300:
+        return status, None
     try:
         data = await response.json(content_type=None)
     except (TypeError, ValueError):
-        return None
+        return status, None
     if not isinstance(data, dict) or "value" not in data:
-        return None
-    return _decode_setting(data["value"])
+        return status, None
+    return status, _decode_setting(data["value"])
+
+
+async def async_get_device_setting(
+    login: AlexaLogin, device_account_id: str, setting: str
+) -> tuple[int, Any]:
+    """Read one setting and return (HTTP status, decoded value).
+
+    ``AlexaAPI._static_request`` returns ``None`` for every HTTP error >= 400
+    (except 401/429), which makes a temporary 503 indistinguishable from a 400
+    for an unsupported setting. This endpoint needs that distinction, so use
+    the authenticated session directly while keeping the same 401 retry.
+    """
+    if not device_account_id:
+        return 0, None
+    if login.close_requested:
+        raise AlexapyLoginError("Login close requested")
+    if login.status and not login.status.get("login_successful"):
+        raise AlexapyLoginError("Login error detected; not contacting API")
+    session = login.session
+    if session is None or session.closed:
+        raise AlexapyLoginError("Session is closed")
+
+    url = (
+        f"https://alexa.{login.url}/api/v1/devices/{device_account_id}"
+        f"/settings/{setting}"
+    )
+    response = await session.get(url, headers=login._headers, ssl=login._ssl)
+    if response.status == 401 and await login.test_loggedin():
+        response = await session.get(url, headers=login._headers, ssl=login._ssl)
+    try:
+        return await _decode_setting_response(response)
+    finally:
+        response.release()
 
 
 async def async_set_device_setting(
@@ -150,8 +176,21 @@ async def async_probe_display_settings(
                 value,
             )
             continue
-        if value is not None:
-            supported[setting] = value
+        status, setting_value = value
+        if status == 400:
+            # Amazon explicitly says this setting is not supported.
+            continue
+        if status == 200 and setting_value is not None:
+            supported[setting] = setting_value
+            continue
+        # Anything else (5xx, 401, malformed 200, ...) is temporary.
+        failed = True
+        _LOGGER.debug(
+            "%s: Temporary HTTP %s probing display setting %s",
+            hide_serial(serial),
+            status,
+            setting,
+        )
     return supported, failed
 
 
@@ -263,7 +302,8 @@ class DisplayState:
                         value,
                     )
                     continue
-                if value is None:
+                status, setting_value = value
+                if status == 400:
                     self._failures[setting] += 1
                     if self._failures[setting] >= DISPLAY_FAILURE_LIMIT:
                         _LOGGER.debug(
@@ -275,13 +315,22 @@ class DisplayState:
                         self._supported.discard(setting)
                         self._values[setting] = None
                     continue
-                self._failures[setting] = 0
-                self._values[setting] = value
+                if status == 200 and setting_value is not None:
+                    self._failures[setting] = 0
+                    self._values[setting] = setting_value
+                    continue
+                _LOGGER.debug(
+                    "%s: Temporary HTTP %s reading display setting %s; " "keeping %s",
+                    hide_serial(self.serial),
+                    status,
+                    setting,
+                    self._values.get(setting),
+                )
             if not self._supported:
                 self.async_stop()
             self._async_notify()
 
-    async def _read_setting(self, setting: str) -> Any:
+    async def _read_setting(self, setting: str) -> tuple[int, Any]:
         """Read one setting without letting one failure cancel the others."""
         return await async_get_device_setting(
             self.login, self.device_account_id, setting

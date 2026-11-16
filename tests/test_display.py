@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 from alexapy import hide_serial
+from alexapy.errors import AlexapyLoginError, AlexapyTooManyRequestsError
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 import pytest
 
@@ -70,52 +71,110 @@ def test_decode_setting():
     assert _decode_setting(123) == 123
 
 
+class _FakeResponse:
+    """Minimal aiohttp response for the direct settings request."""
+
+    def __init__(
+        self,
+        status: int,
+        value=None,
+        *,
+        missing_value: bool = False,
+        json_error: Exception | None = None,
+    ) -> None:
+        self.status = status
+        self.reason = "test"
+        self._value = value
+        self._missing_value = missing_value
+        self._json_error = json_error
+        self.released = False
+
+    async def json(self, content_type=None):
+        if self._json_error is not None:
+            raise self._json_error
+        if self._missing_value:
+            return {"no-value": True}
+        return {"value": self._value}
+
+    def release(self) -> None:
+        self.released = True
+
+
+def _login(*responses):
+    login = MagicMock()
+    login.url = "amazon.com"
+    login.close_requested = False
+    login.status = {"login_successful": True}
+    login._headers = {}
+    login._ssl = None
+    login.session = MagicMock()
+    login.session.closed = False
+    login.session.get = AsyncMock(side_effect=list(responses))
+    login.test_loggedin = AsyncMock(return_value=True)
+    return login
+
+
 @pytest.mark.asyncio
 async def test_get_device_setting_error_paths():
-    """Missing ids, empty and malformed responses return None."""
-    assert (
-        await async_get_device_setting(MagicMock(), "", SETTING_DISPLAY_POWER) is None
+    """Only a 400 is unsupported; other statuses stay distinguishable."""
+    assert await async_get_device_setting(MagicMock(), "", SETTING_DISPLAY_POWER) == (
+        0,
+        None,
     )
 
-    with patch(
-        "custom_components.alexa_media.display.AlexaAPI._static_request",
-        new_callable=AsyncMock,
-        return_value=None,
-    ):
-        assert (
-            await async_get_device_setting(
-                MagicMock(), "account-id", SETTING_DISPLAY_POWER
-            )
-            is None
-        )
+    login = _login(_FakeResponse(400))
+    assert await async_get_device_setting(
+        login, "account-id", SETTING_DISPLAY_POWER
+    ) == (400, None)
 
-    response = MagicMock()
-    response.json = AsyncMock(side_effect=ValueError("bad json"))
-    with patch(
-        "custom_components.alexa_media.display.AlexaAPI._static_request",
-        new_callable=AsyncMock,
-        return_value=response,
-    ):
-        assert (
-            await async_get_device_setting(
-                MagicMock(), "account-id", SETTING_DISPLAY_POWER
-            )
-            is None
-        )
+    login = _login(_FakeResponse(503))
+    assert await async_get_device_setting(
+        login, "account-id", SETTING_DISPLAY_POWER
+    ) == (503, None)
 
-    response = MagicMock()
-    response.json = AsyncMock(return_value={"no-value": True})
-    with patch(
-        "custom_components.alexa_media.display.AlexaAPI._static_request",
-        new_callable=AsyncMock,
-        return_value=response,
-    ):
-        assert (
-            await async_get_device_setting(
-                MagicMock(), "account-id", SETTING_DISPLAY_POWER
-            )
-            is None
-        )
+    login = _login(_FakeResponse(200, json_error=ValueError("bad json")))
+    assert await async_get_device_setting(
+        login, "account-id", SETTING_DISPLAY_POWER
+    ) == (200, None)
+
+    login = _login(_FakeResponse(200, missing_value=True))
+    assert await async_get_device_setting(
+        login, "account-id", SETTING_DISPLAY_POWER
+    ) == (200, None)
+
+
+@pytest.mark.asyncio
+async def test_get_device_setting_retries_unauthorized_once():
+    """A 401 is retried once, matching alexapy's request behaviour."""
+    login = _login(_FakeResponse(401), _FakeResponse(200, '"ON"'))
+
+    assert await async_get_device_setting(
+        login, "account-id", SETTING_DISPLAY_POWER
+    ) == (200, "ON")
+    assert login.session.get.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_get_device_setting_raises_for_login_or_throttle():
+    """Closed sessions and 429 stay retryable for the caller."""
+    login = _login()
+    login.session.closed = True
+    with pytest.raises(AlexapyLoginError):
+        await async_get_device_setting(login, "account-id", SETTING_DISPLAY_POWER)
+
+    login = _login()
+    login.close_requested = True
+    with pytest.raises(AlexapyLoginError):
+        await async_get_device_setting(login, "account-id", SETTING_DISPLAY_POWER)
+
+    login = _login()
+    login.status = {"login_successful": False}
+    with pytest.raises(AlexapyLoginError):
+        await async_get_device_setting(login, "account-id", SETTING_DISPLAY_POWER)
+
+    login = _login(_FakeResponse(429))
+    with pytest.raises(AlexapyTooManyRequestsError):
+        await async_get_device_setting(login, "account-id", SETTING_DISPLAY_POWER)
 
 
 @pytest.mark.asyncio
@@ -133,24 +192,20 @@ async def test_set_device_setting_without_account_id():
 
 @pytest.mark.asyncio
 async def test_get_device_setting():
-    """Reading a setting decodes the API response."""
-    response = MagicMock()
-    response.json = AsyncMock(return_value={"value": '"ON"'})
+    """Reading a setting returns the HTTP status and decoded value."""
+    response = _FakeResponse(200, '"ON"')
+    login = _login(response)
 
-    with patch(
-        "custom_components.alexa_media.display.AlexaAPI._static_request",
-        new_callable=AsyncMock,
-        return_value=response,
-    ) as mock_request:
-        value = await async_get_device_setting(
-            MagicMock(), "account-id", SETTING_DISPLAY_POWER
-        )
-
-    assert value == "ON"
-    mock_request.assert_awaited_once()
-    assert mock_request.call_args.args[2] == (
-        "/api/v1/devices/account-id/settings/displayPower"
+    status, value = await async_get_device_setting(
+        login, "account-id", SETTING_DISPLAY_POWER
     )
+
+    assert (status, value) == (200, "ON")
+    login.session.get.assert_awaited_once()
+    assert login.session.get.await_args.args[0] == (
+        "https://alexa.amazon.com/api/v1/devices/account-id/settings/displayPower"
+    )
+    assert response.released
 
 
 @pytest.mark.asyncio
@@ -173,11 +228,14 @@ async def test_probe_display_settings_keeps_supported_values():
     """Probing keeps every setting that returns a value."""
 
     async def _get(_login, _account_id, setting):
-        return {
-            SETTING_DISPLAY_POWER: "ON",
-            SETTING_BRIGHTNESS: 42,
-            SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
-        }[setting]
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
 
     with patch(
         "custom_components.alexa_media.display.async_get_device_setting",
@@ -199,10 +257,10 @@ async def test_probe_display_settings_skips_unsupported_and_errors():
 
     async def _get(_login, _account_id, setting):
         if setting == SETTING_DISPLAY_POWER:
-            return "ON"
+            return 200, "ON"
         if setting == SETTING_BRIGHTNESS:
             raise RuntimeError("network down")
-        return None
+        return 400, None
 
     with patch(
         "custom_components.alexa_media.display.async_get_device_setting",
@@ -215,6 +273,28 @@ async def test_probe_display_settings_skips_unsupported_and_errors():
 
 
 @pytest.mark.asyncio
+async def test_probe_display_settings_flags_temporary_http_failure():
+    """A 5xx is not treated as an unsupported setting."""
+
+    async def _get(_login, _account_id, setting):
+        if setting == SETTING_BRIGHTNESS:
+            return 503, None
+        return 200, "ON"
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_get,
+    ):
+        supported, failed = await async_probe_display_settings(MagicMock(), _device())
+
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_ADAPTIVE_BRIGHTNESS: "ON",
+    }
+    assert failed
+
+
+@pytest.mark.asyncio
 async def test_probe_display_settings_retries_transport_errors():
     """A failed probe attempt is retried before reporting a failure."""
     attempts = dict.fromkeys(DISPLAY_SETTINGS, 0)
@@ -223,11 +303,14 @@ async def test_probe_display_settings_retries_transport_errors():
         attempts[setting] += 1
         if setting == SETTING_DISPLAY_POWER and attempts[setting] == 1:
             raise RuntimeError("network down")
-        return {
-            SETTING_DISPLAY_POWER: "ON",
-            SETTING_BRIGHTNESS: 42,
-            SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
-        }[setting]
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
 
     with (
         patch(
@@ -271,11 +354,14 @@ async def test_display_state_refresh_and_notify():
     state.async_add_listener(listener)
 
     async def _get(_login, _account_id, setting):
-        return {
-            SETTING_DISPLAY_POWER: "ON",
-            SETTING_BRIGHTNESS: 42,
-            SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
-        }[setting]
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
 
     with patch(
         "custom_components.alexa_media.display.async_get_device_setting",
@@ -304,7 +390,7 @@ async def test_display_state_refresh_only_polls_supported_settings():
 
     async def _get(_login, _account_id, setting):
         calls.append(setting)
-        return 50
+        return 200, 50
 
     with patch(
         "custom_components.alexa_media.display.async_get_device_setting",
@@ -325,7 +411,7 @@ async def test_display_state_drops_setting_after_failures():
     with patch(
         "custom_components.alexa_media.display.async_get_device_setting",
         new_callable=AsyncMock,
-        return_value=None,
+        return_value=(400, None),
     ):
         for _ in range(DISPLAY_FAILURE_LIMIT):
             await state.async_refresh()
@@ -370,7 +456,7 @@ async def test_display_state_refresh_logs_read_exception():
     async def _get(_login, _account_id, setting):
         if setting == SETTING_DISPLAY_POWER:
             raise RuntimeError("network down")
-        return 55
+        return 200, 55
 
     with (
         patch(
@@ -965,7 +1051,7 @@ async def test_reported_show_models_reject_every_setting(device_type):
     with patch(
         "custom_components.alexa_media.display.async_get_device_setting",
         new_callable=AsyncMock,
-        return_value=None,
+        return_value=(400, None),
     ) as getter:
         state = await async_get_display_state(
             MagicMock(), account_dict, MagicMock(), device, MagicMock()
@@ -984,11 +1070,14 @@ async def test_dot_with_clock_probe_creates_supported_state():
     device = _device(DOT_CLOCK_TYPE)
 
     async def _get(_login, _account_id, setting):
-        return {
-            SETTING_DISPLAY_POWER: "ON",
-            SETTING_BRIGHTNESS: 30,
-            SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
-        }[setting]
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 30,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
 
     with patch(
         "custom_components.alexa_media.display.async_get_device_setting",
@@ -1033,7 +1122,7 @@ async def test_display_entities_receive_shared_state_updates(
     values = {setting: initial}
 
     async def _get(_login, _account_id, key):
-        return values.get(key)
+        return 200, values.get(key)
 
     with (
         patch(

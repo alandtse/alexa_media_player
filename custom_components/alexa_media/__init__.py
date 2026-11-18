@@ -319,6 +319,32 @@ def _register_account_device(hass, config_entry, email: str) -> None:
     )
 
 
+async def _ensure_account_diagnostic_platforms(hass, config_entry, account: dict) -> None:
+    """Load account-only platforms once, cleaning up partial setup failures."""
+    loaded = account.setdefault("account_diagnostic_platforms_loaded", set())
+    missing = [
+        platform for platform in ("sensor", "binary_sensor") if platform not in loaded
+    ]
+    if not missing:
+        return
+    try:
+        await hass.config_entries.async_forward_entry_setups(config_entry, missing)
+    except (asyncio.TimeoutError, TimeoutException) as ex:
+        raise ConfigEntryNotReady(
+            f"Account diagnostic setup timed out: {ex}"
+        ) from ex
+    # A forwarded platform may fail without the combined forward raising.
+    failed = [platform for platform in missing if platform not in loaded]
+    if failed:
+        for platform in failed:
+            await hass.config_entries.async_forward_entry_unload(
+                config_entry, platform
+            )
+        raise ConfigEntryNotReady(
+            f"Account diagnostic platforms not ready: {', '.join(failed)}"
+        )
+
+
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
     """Collect device identifier strings for devices that are backed by entities.
 
@@ -1658,36 +1684,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         _LOGGER.debug("[BOOT] device processing in %.2fs", time.monotonic() - _t_proc)
 
-        # Account diagnostics must load even with an empty Echo inventory,
-        # without reserving media_player before the first eligible Echo appears.
-        loaded = account.setdefault("account_diagnostic_platforms_loaded", set())
-        missing = [
-            platform
-            for platform in ("sensor", "binary_sensor")
-            if platform not in loaded
-        ]
-        if missing:
-            try:
-                await hass.config_entries.async_forward_entry_setups(
-                    config_entry, missing
-                )
-            except (asyncio.TimeoutError, TimeoutException) as ex:
-                raise ConfigEntryNotReady(
-                    f"Account diagnostic setup timed out: {ex}"
-                ) from ex
-            # Forwarding can return without raising when a platform fails.
-            # Never label a partial setup complete.
-            failed = [platform for platform in missing if platform not in loaded]
-            if failed:
-                # A failed forward can still reserve an HA platform. Unload
-                # only the failed platforms before the config entry retries.
-                for platform in failed:
-                    await hass.config_entries.async_forward_entry_unload(
-                        config_entry, platform
-                    )
-                raise ConfigEntryNotReady(
-                    f"Account diagnostic platforms not ready: {', '.join(failed)}"
-                )
+        # Diagnostic platforms do not reserve the Echo media player platform.
+        await _ensure_account_diagnostic_platforms(hass, config_entry, account)
 
         if new_alexa_clients:
             if not account.get("media_player_platform_loaded"):

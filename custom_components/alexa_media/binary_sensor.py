@@ -150,6 +150,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         # Account diagnostic is independent of per-Echo include/exclude filters.
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
         async_add_devices([AlexaAccountPushSensor(account, config_entry)])
+        account.setdefault("account_diagnostic_platforms_loaded", set()).add("binary_sensor")
     return result
 
 

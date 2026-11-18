@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.alexa_media.account_auth import (
-    publish_authentication,
-    subscribe_authentication,
-)
 from custom_components.alexa_media import (
     _register_account_device,
     account_device_identifier,
+)
+from custom_components.alexa_media.account_auth import (
+    publish_authentication,
+    subscribe_authentication,
 )
 from custom_components.alexa_media.const import DOMAIN
 from custom_components.alexa_media.sensor import (

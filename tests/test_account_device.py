@@ -164,8 +164,8 @@ def test_multiple_account_sensors_are_isolated() -> None:
     first_sensor = AlexaAccountAuthenticationSensor(first_account, first)
     second_sensor = AlexaAccountAuthenticationSensor(second_account, second)
 
-    assert first_sensor.coordinator is first_account["coordinator"]
-    assert second_sensor.coordinator is second_account["coordinator"]
+    assert not hasattr(first_sensor, "coordinator")
+    assert not hasattr(second_sensor, "coordinator")
     assert first_sensor.device_info != second_sensor.device_info
     assert first_sensor.native_value == "authenticated"
     assert second_sensor.native_value == "not authenticated"

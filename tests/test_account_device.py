@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.exceptions import ConfigEntryNotReady
 import pytest
 
 from custom_components.alexa_media import (
@@ -14,8 +15,6 @@ from custom_components.alexa_media.account_auth import (
     publish_authentication,
     subscribe_authentication,
 )
-from homeassistant.exceptions import ConfigEntryNotReady
-
 from custom_components.alexa_media.const import DOMAIN
 from custom_components.alexa_media.sensor import (
     AlexaAccountAuthenticationSensor,
@@ -242,9 +241,7 @@ async def test_diagnostic_forward_skips_loaded_platforms() -> None:
 
     platforms.async_forward_entry_setups.assert_awaited_once()
     platforms.async_forward_entry_unload.assert_not_awaited()
-    assert account["account_diagnostic_platforms_loaded"] == {
-        "sensor", "binary_sensor"
-    }
+    assert account["account_diagnostic_platforms_loaded"] == {"sensor", "binary_sensor"}
 
 
 @pytest.mark.asyncio
@@ -280,6 +277,4 @@ async def test_partial_diagnostic_forward_unloads_only_failed_platform() -> None
         ["sensor", "binary_sensor"],
         ["binary_sensor"],
     ]
-    assert account["account_diagnostic_platforms_loaded"] == {
-        "sensor", "binary_sensor"
-    }
+    assert account["account_diagnostic_platforms_loaded"] == {"sensor", "binary_sensor"}

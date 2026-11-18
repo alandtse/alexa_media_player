@@ -2762,7 +2762,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This will only attempt one login before failing.
         """
         http2: Optional[HTTP2EchoClient] = None
+        attempt = None
         email = login_obj.email
+
+        def discard_attempt() -> None:
+            """Invalidate only this failed transport and release its tasks."""
+            if attempt is not None and current_push_attempt(attempt):
+                push_owner["push_attempt"] = None
+                set_push_connected(push_owner, False)
+            if http2 is not None:
+                http2.on_close()
+
         try:
             if login_obj.session.closed:
                 _LOGGER.debug(
@@ -2776,6 +2786,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             async def on_open():
                 if current_push_attempt(attempt):
                     await http2_open_handler()
+
+            async def on_message(message):
+                if current_push_attempt(attempt):
+                    await http2_handler(message, attempt)
 
             async def on_close():
                 if current_push_attempt(attempt):
@@ -2792,7 +2806,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
             http2 = HTTP2EchoClient(
                 login_obj,
-                msg_callback=http2_handler,
+                msg_callback=on_message,
                 open_callback=on_open,
                 close_callback=on_close,
                 error_callback=on_error,
@@ -2801,7 +2815,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             observe_verified_stream(http2, on_verified)
             _LOGGER.debug("%s: Starting HTTP2: %s", hide_email(email), http2)
             await http2.async_run()
+            if not current_push_attempt(attempt):
+                discard_attempt()
+                return None
+            http2._amp_attempt = attempt
+        except asyncio.CancelledError:
+            discard_attempt()
+            raise
         except AlexapyLoginError as exception_:
+            discard_attempt()
             _LOGGER.debug(
                 "%s: Login Error detected from http2: %s",
                 hide_email(email),
@@ -2813,6 +2835,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
             return
         except BaseException as exception_:  # pylint: disable=broad-except
+            discard_attempt()
             _LOGGER.debug(
                 "%s: HTTP2 creation failed: %s", hide_email(email), exception_
             )
@@ -2821,15 +2844,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         return http2
 
     @callback
-    async def http2_handler(message_obj):
+    async def http2_handler(message_obj, attempt=None):
         # pylint: disable=too-many-branches,too-many-statements
         """Handle http2 push messages.
 
         This allows push notifications from Alexa to update last_called and media state.
         """
 
-        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
-        account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+        if attempt is not None and not current_push_attempt(attempt):
+            return
+        account = push_owner
+        coordinator = account.get("coordinator")
 
         def _now_ms() -> int:
             return int(time.time() * 1000)
@@ -3132,6 +3157,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         bluetooth_state = await update_bluetooth_state(
                             login_obj, serial
                         )
+                        if attempt is not None and not current_push_attempt(attempt):
+                            return
                         _LOGGER.debug(
                             "bluetooth_state %s", hide_serial(bluetooth_state)
                         )
@@ -3254,6 +3281,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             events,
                         )
                         await update_dnd_state(login_obj)
+                        if attempt is not None and not current_push_attempt(attempt):
+                            return
 
                 if (
                     serial

@@ -140,7 +140,8 @@ def test_push_callbacks_ignore_previous_account_or_connection() -> None:
 
     hass.data[DOMAIN]["accounts"]["a@example.com"] = new
     assert not owns_push_attempt(hass, "a@example.com", old, old["push_attempt"])
-    assert owns_push_attempt(hass, "a@example.com", new, new["push_attempt"])
+    active_attempt = new["push_attempt"]
+    assert owns_push_attempt(hass, "a@example.com", new, active_attempt)
 
     new["push_attempt"] = None  # unload before the transport closes
-    assert not owns_push_attempt(hass, "a@example.com", new, old_attempt)
+    assert not owns_push_attempt(hass, "a@example.com", new, active_attempt)

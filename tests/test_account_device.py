@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.alexa_media import (
+    _ensure_account_diagnostic_platforms,
     _register_account_device,
     account_device_identifier,
 )
@@ -13,6 +14,8 @@ from custom_components.alexa_media.account_auth import (
     publish_authentication,
     subscribe_authentication,
 )
+from homeassistant.exceptions import ConfigEntryNotReady
+
 from custom_components.alexa_media.const import DOMAIN
 from custom_components.alexa_media.sensor import (
     AlexaAccountAuthenticationSensor,
@@ -217,3 +220,66 @@ async def test_authentication_entity_subscribes_and_cleans_up() -> None:
             account["login_obj"].status["login_successful"] = False
             publish_authentication(account)
             update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_diagnostic_forward_skips_loaded_platforms() -> None:
+    """Account-only startup forwards both platforms once, not media_player."""
+    account = {}
+    entry = _entry("entry-1")
+    platforms = SimpleNamespace()
+    hass = SimpleNamespace(config_entries=platforms)
+
+    async def forward(_entry, names):
+        assert names == ["sensor", "binary_sensor"]
+        account.setdefault("account_diagnostic_platforms_loaded", set()).update(names)
+
+    platforms.async_forward_entry_setups = AsyncMock(side_effect=forward)
+    platforms.async_forward_entry_unload = AsyncMock()
+
+    await _ensure_account_diagnostic_platforms(hass, entry, account)
+    await _ensure_account_diagnostic_platforms(hass, entry, account)
+
+    platforms.async_forward_entry_setups.assert_awaited_once()
+    platforms.async_forward_entry_unload.assert_not_awaited()
+    assert account["account_diagnostic_platforms_loaded"] == {
+        "sensor", "binary_sensor"
+    }
+
+
+@pytest.mark.asyncio
+async def test_partial_diagnostic_forward_unloads_only_failed_platform() -> None:
+    """A failed binary sensor forward is cleaned up and retried independently."""
+    entry = _entry("entry-1")
+    account = {}
+    platforms = SimpleNamespace()
+    hass = SimpleNamespace(config_entries=platforms)
+    attempts = []
+
+    async def forward(_entry, names):
+        attempts.append(names)
+        loaded = account.setdefault("account_diagnostic_platforms_loaded", set())
+        if len(attempts) == 1:
+            loaded.add("sensor")
+        else:
+            loaded.update(names)
+
+    platforms.async_forward_entry_setups = AsyncMock(side_effect=forward)
+    platforms.async_forward_entry_unload = AsyncMock(return_value=True)
+
+    with pytest.raises(ConfigEntryNotReady, match="binary_sensor"):
+        await _ensure_account_diagnostic_platforms(hass, entry, account)
+
+    platforms.async_forward_entry_unload.assert_awaited_once_with(
+        entry, "binary_sensor"
+    )
+    assert account["account_diagnostic_platforms_loaded"] == {"sensor"}
+
+    await _ensure_account_diagnostic_platforms(hass, entry, account)
+    assert attempts == [
+        ["sensor", "binary_sensor"],
+        ["binary_sensor"],
+    ]
+    assert account["account_diagnostic_platforms_loaded"] == {
+        "sensor", "binary_sensor"
+    }

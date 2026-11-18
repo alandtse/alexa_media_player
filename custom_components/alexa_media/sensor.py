@@ -178,9 +178,10 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     result = await async_setup_platform(
         hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
-    # Account diagnostics are independent of per-Echo include/exclude filters.
-    account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
-    async_add_devices([AlexaAccountAuthenticationSensor(account, config_entry)])
+    if result:
+        # Account diagnostics are independent of per-Echo include/exclude filters.
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
+        async_add_devices([AlexaAccountAuthenticationSensor(account, config_entry)])
     return result
 
 

@@ -180,17 +180,25 @@ async def async_setup_platform(
         from .binary_sensor import async_discover_kids
 
         await async_discover_kids(hass, account_dict, binary_adder)
+    if result and devices and discover_only:
+        from .switch import async_discover_music_switches
+
+        switch_adder = account_dict.get("switch_add_devices")
+        if switch_adder and not await async_discover_music_switches(
+            account_dict, switch_adder
+        ):
+            return False
     if result and entry_setup and devices:
-        _LOGGER.debug("Detected config entry already setup, using load platform")
+        _LOGGER.debug("Discovered additional Echo; refreshing dependent platforms")
         for component in DEPENDENT_ALEXA_COMPONENTS:
-            hass.async_create_task(
-                async_load_platform(
-                    hass,
-                    component,
-                    ALEXA_DOMAIN,
-                    {CONF_NAME: ALEXA_DOMAIN, "config": config},
-                    config,
-                )
+            if component == "switch" and discover_only:
+                continue  # Already reconciled with its existing platform callback.
+            await async_load_platform(
+                hass,
+                component,
+                ALEXA_DOMAIN,
+                {CONF_NAME: ALEXA_DOMAIN, "config": config},
+                config,
             )
     return result
 
@@ -216,14 +224,12 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                 cleaned_config = config_entry_config(config_entry)
                 cleaned_config.pop(CONF_PASSWORD, None)
                 # CONF_PASSWORD contains sensitive info which is no longer needed
-                hass.async_create_task(
-                    async_load_platform(
-                        hass,
-                        component,
-                        ALEXA_DOMAIN,
-                        {CONF_NAME: ALEXA_DOMAIN, "config": cleaned_config},
-                        cleaned_config,
-                    )
+                await async_load_platform(
+                    hass,
+                    component,
+                    ALEXA_DOMAIN,
+                    {CONF_NAME: ALEXA_DOMAIN, "config": cleaned_config},
+                    cleaned_config,
                 )
             else:
                 _LOGGER.debug(

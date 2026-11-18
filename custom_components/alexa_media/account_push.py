@@ -26,3 +26,11 @@ def subscribe_push_connected(account: dict, listener: Callable[[], None]):
         listeners.discard(listener)
 
     return unsubscribe
+
+
+def owns_push_attempt(hass, email: str, account: dict, attempt: object) -> bool:
+    """Reject callbacks for an old connection, load or removed account."""
+    return (
+        hass.data.get("alexa_media", {}).get("accounts", {}).get(email) is account
+        and account.get("push_attempt") is attempt
+    )

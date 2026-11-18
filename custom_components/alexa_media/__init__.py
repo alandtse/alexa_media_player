@@ -319,7 +319,9 @@ def _register_account_device(hass, config_entry, email: str) -> None:
     )
 
 
-async def _ensure_account_diagnostic_platforms(hass, config_entry, account: dict) -> None:
+async def _ensure_account_diagnostic_platforms(
+    hass, config_entry, account: dict
+) -> None:
     """Load account-only platforms once, cleaning up partial setup failures."""
     loaded = account.setdefault("account_diagnostic_platforms_loaded", set())
     missing = [
@@ -330,16 +332,12 @@ async def _ensure_account_diagnostic_platforms(hass, config_entry, account: dict
     try:
         await hass.config_entries.async_forward_entry_setups(config_entry, missing)
     except (asyncio.TimeoutError, TimeoutException) as ex:
-        raise ConfigEntryNotReady(
-            f"Account diagnostic setup timed out: {ex}"
-        ) from ex
+        raise ConfigEntryNotReady(f"Account diagnostic setup timed out: {ex}") from ex
     # A forwarded platform may fail without the combined forward raising.
     failed = [platform for platform in missing if platform not in loaded]
     if failed:
         for platform in failed:
-            await hass.config_entries.async_forward_entry_unload(
-                config_entry, platform
-            )
+            await hass.config_entries.async_forward_entry_unload(config_entry, platform)
         raise ConfigEntryNotReady(
             f"Account diagnostic platforms not ready: {', '.join(failed)}"
         )

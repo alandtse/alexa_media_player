@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from custom_components.alexa_media.binary_sensor import async_discover_kids
 from custom_components.alexa_media.const import DOMAIN
 from custom_components.alexa_media.media_player import async_setup_platform
-from custom_components.alexa_media.binary_sensor import async_discover_kids
 
 
 @pytest.mark.asyncio
@@ -77,9 +77,7 @@ async def test_kids_binary_sensor_appears_when_echo_added_later() -> None:
     account = {
         "login_obj": SimpleNamespace(email=email),
         "devices": {
-            "media_player": {
-                "SERIAL1": {"deviceFamily": "ECHO", "deviceType": "TYPE1"}
-            }
+            "media_player": {"SERIAL1": {"deviceFamily": "ECHO", "deviceType": "TYPE1"}}
         },
         "entities": {"media_player": {}, "binary_sensor": []},
     }

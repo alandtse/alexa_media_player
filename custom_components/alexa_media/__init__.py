@@ -55,6 +55,7 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt, slugify
 import voluptuous as vol
 
+from .account_push import set_push_connected
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state
@@ -961,6 +962,7 @@ async def async_setup_entry(hass, config_entry):
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
+    set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], False)
 
     # Create runtime_data for optimized architecture
     # This provides type-safe access to account data
@@ -3198,6 +3200,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         email: str = login_obj.email
         _LOGGER.debug("%s: HTTP2push successfully connected", hide_email(email))
+        set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], True)
         hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "http2error"
         ] = 0  # set errors to 0
@@ -3211,6 +3214,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         """
         email: str = login_obj.email
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = None
+        set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], False)
         if login_obj.close_requested:
             _LOGGER.debug(
                 "%s: Close requested; will not reconnect http2", hide_email(email)
@@ -3286,6 +3290,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             type(message),
         )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = None
+        set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], False)
         if not login_obj.close_requested and (
             login_obj.session.closed or isinstance(message, AlexapyLoginError)
         ):
@@ -3408,6 +3413,9 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry"""
     email = entry.data["email"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
+    account_data = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+    if account_data is not None:
+        set_push_connected(account_data, False)
     _pop_relogin_listeners(hass, email)
     for task_key in (
         "notifications_refresh_task",
@@ -3584,6 +3592,7 @@ async def close_connections(hass, email: str) -> None:
     ):
         return
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    set_push_connected(account_dict, False)
     login_obj = account_dict["login_obj"]
     await login_obj.save_cookiefile()
     await login_obj.close()

@@ -380,17 +380,17 @@ def lookup_device_info(account_dict, device_serial):
     return None
 
 
-class AlexaAccountAuthenticationSensor(CoordinatorEntity, SensorEntity):
+class AlexaAccountAuthenticationSensor(SensorEntity):
     """Expose per-account authentication without assigning it to an Echo."""
 
     _attr_has_entity_name = True
     _attr_name = "Authentication"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:account-check"
+    _attr_should_poll = False
 
     def __init__(self, account: dict, config_entry) -> None:
-        """Attach the diagnostic entity to the account's existing coordinator."""
-        super().__init__(account["coordinator"])
+        """Use account login transitions, not coordinator refreshes."""
         self._account = account
         self._attr_unique_id = f"{config_entry.entry_id}_account_authentication"
         self._attr_device_info = dr.DeviceInfo(

@@ -181,7 +181,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     if result:
         # Account diagnostics are independent of per-Echo include/exclude filters.
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
-        async_add_devices([AlexaAccountAuthenticationSensor(account, config_entry)])
+        if account.get("coordinator") is not None:
+            async_add_devices([AlexaAccountAuthenticationSensor(account, config_entry)])
     return result
 
 

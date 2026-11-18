@@ -61,9 +61,9 @@ from .account_push import (
     abandon_push_attempt,
     begin_push_attempt,
     close_account_push,
+    open_owned_push,
     owns_push_account,
     owns_push_attempt,
-    open_owned_push,
     reconnect_account_push,
     set_push_connected,
 )
@@ -2813,9 +2813,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
             observe_verified_stream(http2, on_verified)
             _LOGGER.debug("%s: Starting HTTP2: %s", hide_email(email), http2)
-            http2 = await open_owned_push(
-                hass, email, push_owner, attempt, http2
-            )
+            http2 = await open_owned_push(hass, email, push_owner, attempt, http2)
             if http2 is None:
                 return None
         except asyncio.CancelledError:

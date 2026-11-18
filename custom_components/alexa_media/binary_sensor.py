@@ -25,8 +25,10 @@ from . import (
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
     _network_allowed,
+    account_device_identifier,
     hide_email,
 )
+from .account_push import subscribe_push_connected
 from .alexa_entity import parse_detection_state_from_coordinator
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .connectivity import connectivity_state
@@ -141,9 +143,14 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa sensor platform by config_entry."""
-    return await async_setup_platform(
+    result = await async_setup_platform(
         hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
+    if result:
+        # Account diagnostic is independent of per-Echo include/exclude filters.
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
+        async_add_devices([AlexaAccountPushSensor(account, config_entry)])
+    return result
 
 
 async def async_unload_entry(hass, entry) -> bool:
@@ -155,6 +162,36 @@ async def async_unload_entry(hass, entry) -> bool:
     for binary_sensor in tuple(account_dict["entities"]["binary_sensor"]):
         await binary_sensor.async_remove()
     return True
+
+
+class AlexaAccountPushSensor(BinarySensorEntity):
+    """Observed HTTP/2 push connection for one Amazon account."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Push connected"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_should_poll = False
+
+    def __init__(self, account: dict, config_entry) -> None:
+        """Attach to the existing account device, not a particular Echo."""
+        self._account = account
+        self._attr_unique_id = f"{config_entry.entry_id}_account_push_connected"
+        self._attr_device_info = {
+            "identifiers": {account_device_identifier(config_entry)},
+        }
+
+    @property
+    def is_on(self) -> bool:
+        """Return observed connection state; never assume a healthy transport."""
+        return self._account.get("push_connected", False)
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to changes without polling the Amazon API."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            subscribe_push_connected(self._account, self.async_write_ha_state)
+        )
 
 
 class AlexaContact(CoordinatorEntity, BinarySensorEntity):

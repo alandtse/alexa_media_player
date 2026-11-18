@@ -56,7 +56,7 @@ from homeassistant.util import dt, slugify
 import voluptuous as vol
 
 from .account_auth import publish_authentication
-from .account_push import set_push_connected
+from .account_push import owns_push_attempt, set_push_connected
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state
@@ -1112,11 +1112,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     push_owner = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
 
     def current_push_attempt(token: object) -> bool:
-        return (
-            hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
-            is push_owner
-            and push_owner.get("push_attempt") is token
-        )
+        return owns_push_attempt(hass, email, push_owner, token)
 
     if metrics:
         metrics.record_boot_stage(f"setup_alexa_start_{hide_email(email)}")

@@ -172,7 +172,7 @@ async def async_setup_platform(
                 alexa_client,
             )
     result = await add_devices(hide_email(account), devices, add_devices_callback)
-    if result and entry_setup:
+    if result and entry_setup and devices:
         _LOGGER.debug("Detected config entry already setup, using load platform")
         for component in DEPENDENT_ALEXA_COMPONENTS:
             hass.async_create_task(

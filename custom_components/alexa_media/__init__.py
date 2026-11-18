@@ -2796,9 +2796,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     await http2_close_handler()
 
             async def on_verified():
-                if current_push_attempt(attempt) and push_owner.get(
-                    "push_rejected_attempt"
-                ) is not attempt:
+                if (
+                    current_push_attempt(attempt)
+                    and push_owner.get("push_rejected_attempt") is not attempt
+                ):
                     set_push_connected(push_owner, True)
                     push_owner["http2error"] = 0
 
@@ -3324,9 +3325,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         def owner_loaded() -> bool:
             return (
-                hass.data.get(DATA_ALEXAMEDIA, {})
-                .get("accounts", {})
-                .get(email) is push_owner
+                hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+                is push_owner
                 and not login_obj.close_requested
             )
 

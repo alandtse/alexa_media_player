@@ -246,7 +246,10 @@ async def test_active_reconnect_retains_new_client() -> None:
         client._amp_attempt = begin_push_attempt(account)
         return client
 
-    assert await reconnect_account_push(
-        hass, email, account, login, connect, clock=lambda: 100
-    ) is True
+    assert (
+        await reconnect_account_push(
+            hass, email, account, login, connect, clock=lambda: 100
+        )
+        is True
+    )
     assert account["http2"] is client

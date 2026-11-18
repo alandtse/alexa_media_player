@@ -6,6 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.alexa_media.account_push import (
+    abandon_push_attempt,
+    begin_push_attempt,
+    close_account_push,
     owns_push_attempt,
     set_push_connected,
     subscribe_push_connected,
@@ -145,3 +148,38 @@ def test_push_callbacks_ignore_previous_account_or_connection() -> None:
 
     new["push_attempt"] = None  # unload before the transport closes
     assert not owns_push_attempt(hass, "a@example.com", new, active_attempt)
+
+
+def test_failed_attempt_closes_transport_without_invalidating_replacement() -> None:
+    """Failure of the old attempt must not turn the newer attempt off."""
+    account = {}
+    old = begin_push_attempt(account)
+    old_client = MagicMock()
+    new = begin_push_attempt(account)
+    set_push_connected(account, True)
+
+    abandon_push_attempt(account, old, old_client)
+    assert account["push_attempt"] is new
+    assert account["push_connected"] is True
+    old_client.on_close.assert_called_once()
+
+    new_client = MagicMock()
+    abandon_push_attempt(account, new, new_client)
+    assert account["push_attempt"] is None
+    assert account["push_connected"] is False
+    new_client.on_close.assert_called_once()
+
+
+def test_account_teardown_closes_own_transport_and_invalidates_callbacks() -> None:
+    """Account shutdown must release the transport before removing the entry."""
+    client = MagicMock()
+    account = {"http2": client}
+    token = begin_push_attempt(account)
+    set_push_connected(account, True)
+
+    close_account_push(account)
+    assert account["http2"] is None
+    assert account["push_attempt"] is None
+    assert account["push_connected"] is False
+    client.on_close.assert_called_once()
+    assert token is not account["push_attempt"]

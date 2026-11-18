@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from custom_components.alexa_media.account_platforms import sync_echo_platforms
 from custom_components.alexa_media.binary_sensor import async_discover_kids
 from custom_components.alexa_media.const import DOMAIN
 from custom_components.alexa_media.media_player import async_setup_platform
-from custom_components.alexa_media.account_platforms import sync_echo_platforms
 
 
 @pytest.mark.asyncio

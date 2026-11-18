@@ -14,6 +14,7 @@ async def test_late_echo_uses_existing_entity_adder_without_platform_forward() -
     """Add the first Echo after account diagnostics have loaded, without forwarding."""
     email = "account@example.com"
     existing_callback = MagicMock()
+    discovery_callback = MagicMock()
     account = {
         "entities": {"media_player": {}},
         "devices": {
@@ -49,11 +50,12 @@ async def test_late_echo_uses_existing_entity_adder_without_platform_forward() -
         ) as client_factory,
     ):
         assert await async_setup_platform(
-            hass, {"email": email}, existing_callback, discover_only=True
+            hass, {"email": email}, discovery_callback, discover_only=True
         )
         client_factory.assert_called_once()
         client.init.assert_awaited_once()
-        existing_callback.assert_called_once()
+        discovery_callback.assert_called_once_with([client])
+        existing_callback.assert_not_called()
         assert account["entities"]["media_player"]["SERIAL1"] is client
         assert account["media_player_add_entities"] is existing_callback
 
@@ -61,5 +63,6 @@ async def test_late_echo_uses_existing_entity_adder_without_platform_forward() -
         assert await async_setup_platform(
             hass, {"email": email}, existing_callback, discover_only=True
         )
-        existing_callback.assert_called_once()
+        discovery_callback.assert_called_once()
+        existing_callback.assert_not_called()
         hass.async_create_task.assert_not_called()

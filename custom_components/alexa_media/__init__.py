@@ -1709,42 +1709,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         _LOGGER.debug("[BOOT] device processing in %.2fs", time.monotonic() - _t_proc)
 
-        if new_alexa_clients:
-            if not account.get("media_player_platform_loaded"):
-                try:
-                    _t = time.monotonic()
-                    await hass.config_entries.async_forward_entry_setups(
-                        config_entry, ALEXA_COMPONENTS
-                    )
-                    if not account.get("media_player_platform_loaded"):
-                        await hass.config_entries.async_forward_entry_unload(
-                            config_entry, "media_player"
-                        )
-                        raise ConfigEntryNotReady("Media player platform not ready")
-                    _LOGGER.debug(
-                        "[BOOT] media player platform loading in %.2fs",
-                        time.monotonic() - _t,
-                    )
-                    if metrics:
-                        metrics.record_boot_stage(
-                            f"platforms_loaded_{hide_email(email)}"
-                        )
-                except (asyncio.TimeoutError, TimeoutException) as ex:
-                    raise ConfigEntryNotReady(
-                        f"Media player platform setup timed out: {ex}"
-                    ) from ex
-            else:
-                # Once forwarded, use its registered entity-adder rather than
-                # forwarding the same config entry/platform a second time.
-                from .media_player import async_setup_platform as setup_media_player
-
-                add_entities = account.get("media_player_add_entities")
-                if add_entities is None:
-                    raise ConfigEntryNotReady("Media player entity adder not ready")
-                if not await setup_media_player(
-                    hass, config, add_entities, discover_only=True
-                ):
-                    raise ConfigEntryNotReady("New media players could not be added")
+        if new_alexa_clients and account.get("echo_sync_ready"):
+            _schedule_echo_sync()
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         # Create or recover the virtual device before stale-device pruning.
@@ -3457,6 +3423,70 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = errors + 1
 
+    async def _sync_echo_platforms() -> None:
+        """Reconcile discovered Echoes outside the coordinator's data refresh."""
+        if (
+            hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+            is not push_owner
+        ):
+            return
+        pending = [
+            serial
+            for serial in push_owner["devices"]["media_player"]
+            if serial not in push_owner["entities"]["media_player"]
+        ]
+        if not pending:
+            return
+        if not push_owner.get("media_player_platform_loaded"):
+            try:
+                await hass.config_entries.async_forward_entry_setups(
+                    config_entry, ALEXA_COMPONENTS
+                )
+            except (asyncio.TimeoutError, TimeoutException) as ex:
+                raise ConfigEntryNotReady(
+                    f"Media player platform setup timed out: {ex}"
+                ) from ex
+            if not push_owner.get("media_player_platform_loaded"):
+                await hass.config_entries.async_forward_entry_unload(
+                    config_entry, "media_player"
+                )
+                raise ConfigEntryNotReady("Media player platform not ready")
+        else:
+            from .media_player import async_setup_platform as setup_media_player
+
+            adder = push_owner.get("media_player_add_entities")
+            if adder is None:
+                raise ConfigEntryNotReady("Media player entity adder not ready")
+            if not await setup_media_player(
+                hass, config_entry.data, adder, discover_only=True
+            ):
+                raise ConfigEntryNotReady("New media players could not be added")
+
+    async def _retry_echo_sync() -> None:
+        """Retry a transient platform failure without shutting down coordinator."""
+        delay = 5
+        while (
+            hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+            is push_owner
+        ):
+            try:
+                await _sync_echo_platforms()
+            except ConfigEntryNotReady as err:
+                _LOGGER.warning(
+                    "%s: Echo discovery retry pending: %s", hide_email(email), err
+                )
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 300)
+            else:
+                return
+
+    def _schedule_echo_sync() -> None:
+        task = push_owner.get("echo_sync_task")
+        if task is None or task.done():
+            push_owner["echo_sync_task"] = hass.async_create_background_task(
+                _retry_echo_sync(), f"{DOMAIN}_echo_discovery"
+            )
+
     _LOGGER.debug("Setting up Alexa devices for %s", hide_email(login_obj.email))
     config = config_entry.data
     email = config.get(CONF_EMAIL)
@@ -3525,6 +3555,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     _t = time.monotonic()
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.debug("[BOOT] first_refresh in %.2fs", time.monotonic() - _t)
+
+    # The account has a deliberate polling listener even when only passive
+    # diagnostics exist, so new Echo inventory can be discovered without push.
+    if not push_owner.get("account_discovery_unsub"):
+        push_owner["account_discovery_unsub"] = coordinator.async_add_listener(
+            lambda: None
+        )
+
+    push_owner["echo_sync_ready"] = True
+    _schedule_echo_sync()
 
     # Account diagnostics are independent of inventory discovery and load
     # after the initial coordinator refresh has completed.
@@ -3596,6 +3636,7 @@ async def async_unload_entry(hass, entry) -> bool:
     for task_key in (
         "notifications_refresh_task",
         "diagnostics_retry_task",
+        "echo_sync_task",
         "notifications_init_task",
         "last_called_init_task",
         "service_update_last_called_task",
@@ -3651,6 +3692,7 @@ async def async_unload_entry(hass, entry) -> bool:
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
 
     account.pop("connectivity_discovery_unsub", lambda: None)()
+    account.pop("account_discovery_unsub", lambda: None)()
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:

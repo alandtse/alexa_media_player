@@ -1107,6 +1107,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # Record metrics
     metrics = get_metrics(hass)
     email = login_obj.email
+    # Capture the account instance; callbacks from an older setup must never
+    # mutate an account recreated under the same email.
+    push_owner = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+
+    def current_push_attempt(token: object) -> bool:
+        return (
+            hass.data.get(DATA_ALEXAMEDIA, {})
+            .get("accounts", {})
+            .get(email) is push_owner
+            and push_owner.get("push_attempt") is token
+        )
+
     if metrics:
         metrics.record_boot_stage(f"setup_alexa_start_{hide_email(email)}")
 
@@ -2723,12 +2735,27 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     hide_email(email),
                 )
                 return
+            attempt = object()
+            push_owner["push_attempt"] = attempt
+
+            async def on_open():
+                if current_push_attempt(attempt):
+                    await http2_open_handler()
+
+            async def on_close():
+                if current_push_attempt(attempt):
+                    await http2_close_handler()
+
+            async def on_error(message):
+                if current_push_attempt(attempt):
+                    await http2_error_handler(message)
+
             http2 = HTTP2EchoClient(
                 login_obj,
                 msg_callback=http2_handler,
-                open_callback=http2_open_handler,
-                close_callback=http2_close_handler,
-                error_callback=http2_error_handler,
+                open_callback=on_open,
+                close_callback=on_close,
+                error_callback=on_error,
                 loop=hass.loop,
             )
             _LOGGER.debug("%s: Starting HTTP2: %s", hide_email(email), http2)
@@ -3422,6 +3449,7 @@ async def async_unload_entry(hass, entry) -> bool:
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
     account_data = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
     if account_data is not None:
+        account_data["push_attempt"] = None
         set_push_connected(account_data, False)
     _pop_relogin_listeners(hass, email)
     for task_key in (
@@ -3599,6 +3627,7 @@ async def close_connections(hass, email: str) -> None:
     ):
         return
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    account_dict["push_attempt"] = None
     set_push_connected(account_dict, False)
     login_obj = account_dict["login_obj"]
     await login_obj.save_cookiefile()

@@ -119,7 +119,9 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     )
     if result:
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data["email"]]
-        account.setdefault("dependent_platforms_ready", set()).add("alarm_control_panel")
+        account.setdefault("dependent_platforms_ready", set()).add(
+            "alarm_control_panel"
+        )
     return result
 
 

@@ -350,10 +350,7 @@ async def _retry_account_diagnostic_platforms(
     """Recover partial account diagnostics without shutting down the coordinator."""
     email = config_entry.data[CONF_EMAIL]
     delay = 5
-    while (
-        hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
-        is account
-    ):
+    while hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email) is account:
         await asyncio.sleep(delay)
         if (
             hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
@@ -3542,9 +3539,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         retry = push_owner.get("diagnostics_retry_task")
         if retry is None or retry.done():
             push_owner["diagnostics_retry_task"] = hass.async_create_background_task(
-                _retry_account_diagnostic_platforms(
-                    hass, config_entry, push_owner
-                ),
+                _retry_account_diagnostic_platforms(hass, config_entry, push_owner),
                 f"{DOMAIN}_account_diagnostics_retry",
             )
 

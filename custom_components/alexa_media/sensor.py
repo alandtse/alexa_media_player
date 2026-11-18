@@ -29,6 +29,7 @@ from packaging import version
 
 from . import (
     CONF_EMAIL,
+    account_device_identifier,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
@@ -387,7 +388,7 @@ class AlexaAccountAuthenticationSensor(CoordinatorEntity, SensorEntity):
         self._account = account
         self._attr_unique_id = f"{config_entry.entry_id}_account_authentication"
         self._attr_device_info = dr.DeviceInfo(
-            identifiers={(ALEXA_DOMAIN, f"account_{config_entry.entry_id}")},
+            identifiers={account_device_identifier(config_entry)},
         )
 
     @property

@@ -344,6 +344,35 @@ async def _ensure_account_diagnostic_platforms(
         )
 
 
+async def _retry_account_diagnostic_platforms(
+    hass, config_entry, account: dict
+) -> None:
+    """Recover partial account diagnostics without shutting down the coordinator."""
+    email = config_entry.data[CONF_EMAIL]
+    delay = 5
+    while (
+        hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+        is account
+    ):
+        await asyncio.sleep(delay)
+        if (
+            hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+            is not account
+        ):
+            return
+        try:
+            await _ensure_account_diagnostic_platforms(hass, config_entry, account)
+        except ConfigEntryNotReady as err:
+            _LOGGER.warning(
+                "%s: Account diagnostics retry failed: %s",
+                hide_email(email),
+                err,
+            )
+            delay = min(delay * 2, 300)
+        else:
+            return
+
+
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
     """Collect device identifier strings for devices that are backed by entities.
 
@@ -1682,9 +1711,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         )
 
         _LOGGER.debug("[BOOT] device processing in %.2fs", time.monotonic() - _t_proc)
-
-        # Diagnostic platforms do not reserve the Echo media player platform.
-        await _ensure_account_diagnostic_platforms(hass, config_entry, account)
 
         if new_alexa_clients:
             if not account.get("media_player_platform_loaded"):
@@ -3503,6 +3529,25 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.debug("[BOOT] first_refresh in %.2fs", time.monotonic() - _t)
 
+    # Account diagnostics are independent of inventory discovery and load
+    # after the initial coordinator refresh has completed.
+    try:
+        await _ensure_account_diagnostic_platforms(hass, config_entry, push_owner)
+    except ConfigEntryNotReady as err:
+        _LOGGER.warning(
+            "%s: Account diagnostics deferred after platform failure: %s",
+            hide_email(email),
+            err,
+        )
+        retry = push_owner.get("diagnostics_retry_task")
+        if retry is None or retry.done():
+            push_owner["diagnostics_retry_task"] = hass.async_create_background_task(
+                _retry_account_diagnostic_platforms(
+                    hass, config_entry, push_owner
+                ),
+                f"{DOMAIN}_account_diagnostics_retry",
+            )
+
     # Services are registered once in async_setup; attach the setup-local callback.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email][
         "schedule_notifications_refresh"
@@ -3555,6 +3600,7 @@ async def async_unload_entry(hass, entry) -> bool:
     _pop_relogin_listeners(hass, email)
     for task_key in (
         "notifications_refresh_task",
+        "diagnostics_retry_task",
         "notifications_init_task",
         "last_called_init_task",
         "service_update_last_called_task",

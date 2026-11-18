@@ -1627,7 +1627,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         _LOGGER.debug("[BOOT] device processing in %.2fs", time.monotonic() - _t_proc)
 
-        if new_alexa_clients:
+        # Account-only integrations also need the sensor platform on first setup.
+        # Keep the existing new-device discovery behaviour on later refreshes.
+        if new_alexa_clients or (first_run and not account.get("account_platforms_loaded")):
             cleaned_config = config.copy()
             cleaned_config.pop(CONF_PASSWORD, None)
             # CONF_PASSWORD contains sensitive info which is no longer needed
@@ -1639,6 +1641,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     config_entry, ALEXA_COMPONENTS
                 )
                 _LOGGER.debug("[BOOT] platform loading in %.2fs", time.monotonic() - _t)
+                account["account_platforms_loaded"] = True
                 if metrics:
                     metrics.record_boot_stage(f"platforms_loaded_{hide_email(email)}")
             except (asyncio.TimeoutError, TimeoutException) as ex:
@@ -1648,8 +1651,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ) from ex
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
-        # prune stale devices
+        # Create one stable virtual device for account-scoped entities.
         device_registry = dr.async_get(hass)
+        device_registry.async_get_or_create(
+            config_entry_id=config_entry.entry_id,
+            identifiers={(DOMAIN, f"account_{config_entry.entry_id}")},
+            manufacturer="Amazon",
+            model="Alexa Account",
+            name=f"Alexa Account ({email})",
+        )
+
+        # prune stale devices
         entity_backed_ids = _entity_backed_device_identifiers(
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]
         )
@@ -1669,6 +1681,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             "media_player"
                         ].keys(),
                     )
+                    or (DOMAIN, f"account_{config_entry.entry_id}")
+                    in device_entry.identifiers
                     or identifier in entity_backed_ids
                 ):
                     break

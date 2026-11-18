@@ -64,6 +64,4 @@ def close_account_push(account: dict) -> None:
 
 def owns_push_account(hass, email: str, account: dict) -> bool:
     """Check account identity independently of its changing attempt token."""
-    return (
-        hass.data.get("alexa_media", {}).get("accounts", {}).get(email) is account
-    )
+    return hass.data.get("alexa_media", {}).get("accounts", {}).get(email) is account

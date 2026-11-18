@@ -121,7 +121,9 @@ async def create_www_directory(hass: HomeAssistant):
 
 
 # @retry_async(limit=5, delay=2, catch_exceptions=True)
-async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
+async def async_setup_platform(
+    hass, config, add_devices_callback, discovery_info=None, *, discover_only=False
+):
     """Set up the Alexa media player platform."""
     await create_www_directory(hass)
 
@@ -134,6 +136,8 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    if not discover_only:
+        account_dict["media_player_add_entities"] = add_devices_callback
     entry_setup = len(account_dict["entities"]["media_player"])
     media_players = account_dict["devices"]["media_player"]
     alexa_client = None
@@ -168,7 +172,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 alexa_client,
             )
     result = await add_devices(hide_email(account), devices, add_devices_callback)
-    if result and entry_setup:
+    if result and entry_setup and not discover_only:
         _LOGGER.debug("Detected config entry already setup, using load platform")
         for component in DEPENDENT_ALEXA_COMPONENTS:
             hass.async_create_task(
@@ -190,7 +194,10 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     ):
         account = config_entry.data[CONF_EMAIL]
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+        account_dict["media_player_platform_loaded"] = True
         for component in DEPENDENT_ALEXA_COMPONENTS:
+            if component in account_dict.get("account_diagnostic_platforms_loaded", set()):
+                continue
             try:
                 entry_setup = len(account_dict["entities"][component])
             except (TypeError, KeyError):

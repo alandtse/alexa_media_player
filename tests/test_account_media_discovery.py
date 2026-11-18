@@ -3,8 +3,8 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from homeassistant.exceptions import ConfigEntryNotReady
+import pytest
 
 from custom_components.alexa_media.account_platforms import sync_echo_platforms
 from custom_components.alexa_media.binary_sensor import async_discover_kids
@@ -258,8 +258,10 @@ async def test_silent_dependent_forward_failure_is_retryable() -> None:
     entry = SimpleNamespace(data={"email": email})
     with (
         patch.object(
-            media_module, "async_setup_platform",
-            new_callable=AsyncMock, return_value=True,
+            media_module,
+            "async_setup_platform",
+            new_callable=AsyncMock,
+            return_value=True,
         ),
         patch.object(
             media_module, "config_entry_config", return_value={"email": email}

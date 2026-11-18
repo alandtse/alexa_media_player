@@ -198,7 +198,8 @@ async def test_late_echo_creates_real_shuffle_and_repeat_switches() -> None:
         assert isinstance(switches["shuffle"], ShuffleSwitch)
         assert isinstance(switches["repeat"], RepeatSwitch)
         assert {type(x) for x in add.await_args.args[1]} == {
-            ShuffleSwitch, RepeatSwitch
+            ShuffleSwitch,
+            RepeatSwitch,
         }
 
         assert await async_discover_music_switches(account, MagicMock())
@@ -215,13 +216,22 @@ async def test_dependent_setup_failure_does_not_mark_media_platform_loaded() -> 
     hass = MagicMock(data={DOMAIN: {"accounts": {email: account}}})
     entry = SimpleNamespace(data={"email": email})
     with (
-        patch.object(media_module, "async_setup_platform", new_callable=AsyncMock,
-                     return_value=True),
-        patch.object(media_module, "config_entry_config",
-                     return_value={"email": email}),
+        patch.object(
+            media_module,
+            "async_setup_platform",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+        patch.object(
+            media_module, "config_entry_config", return_value={"email": email}
+        ),
         patch.object(media_module, "DEPENDENT_ALEXA_COMPONENTS", ["switch"]),
-        patch.object(media_module, "async_load_platform", new_callable=AsyncMock,
-                     side_effect=RuntimeError("dependent failed")) as loader,
+        patch.object(
+            media_module,
+            "async_load_platform",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("dependent failed"),
+        ) as loader,
     ):
         with pytest.raises(RuntimeError, match="dependent failed"):
             await media_module.async_setup_entry(hass, entry, MagicMock())

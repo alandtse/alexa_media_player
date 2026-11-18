@@ -63,6 +63,7 @@ from .account_push import (
     close_account_push,
     owns_push_account,
     owns_push_attempt,
+    reconnect_account_push,
     set_push_connected,
 )
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
@@ -3307,92 +3308,24 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     @callback
     async def http2_close_handler():
-        """Handle http2 close.
-
-        This should attempt to reconnect up to 5 times
-        """
-        email: str = login_obj.email
-        close_account_push(push_owner)
-
-        def owner_loaded() -> bool:
-            return (
-                owns_push_account(hass, email, push_owner)
-                and not login_obj.close_requested
-            )
-
-        if login_obj.close_requested:
-            _LOGGER.debug(
-                "%s: Close requested; will not reconnect http2", hide_email(email)
-            )
+        """Handle a closed stream and reconnect only while this account is active."""
+        email = login_obj.email
+        connected = await reconnect_account_push(
+            hass, email, push_owner, login_obj, http2_connect
+        )
+        if connected is None or not owns_push_account(hass, email, push_owner):
             return
-        if not login_obj.status.get("login_successful"):
+        if not connected:
             _LOGGER.debug(
-                "%s: Login error; will not reconnect http2", hide_email(email)
-            )
-            return
-        errors: int = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"]
-        delay: int = 5 * 2**errors
-        last_attempt = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "http2_lastattempt"
-        ]
-        now = time.time()
-        if (now - last_attempt) < delay:
-            return
-        http2_client = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"]
-        http2_enabled = bool(http2_client)
-        while errors < 5 and not (http2_enabled):
-            if not owner_loaded():
-                return
-            _LOGGER.debug(
-                "%s: HTTP2 push closed; reconnect #%i in %is",
-                hide_email(email),
-                errors,
-                delay,
-            )
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                "http2_lastattempt"
-            ] = time.time()
-            http2_client = await http2_connect()
-            if not owner_loaded() or (
-                http2_client is not None
-                and getattr(http2_client, "_amp_attempt", None)
-                is not push_owner.get("push_attempt")
-            ):
-                if http2_client is not None:
-                    http2_client.on_close()
-                return
-            push_owner["http2"] = http2_client
-            http2_enabled = bool(http2_client)
-            if http2_enabled:
-                break
-            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] + 1
-            )
-            delay = 5 * 2**errors
-            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"]
-            await asyncio.sleep(delay)
-            if not owner_loaded():
-                return
-        if not owner_loaded():
-            return
-        if not http2_enabled:
-            _LOGGER.debug(
-                "%s: HTTP2Push connection closed; retries exceeded; polling",
+                "%s: HTTP2Push disconnected; using normal polling",
                 hide_email(email),
             )
-        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
+        coordinator = push_owner.get("coordinator")
         if coordinator:
             coordinator.update_interval = timedelta(
-                seconds=scan_interval * 10 if http2_enabled else scan_interval
-            )
-            _LOGGER.debug(
-                "HTTP2push: %s, Polling interval: %s",
-                http2_enabled,
-                coordinator.update_interval,
+                seconds=scan_interval * 10 if connected else scan_interval
             )
             await coordinator.async_request_refresh()
-            if not owner_loaded():
-                return
 
     @callback
     async def http2_error_handler(message):

@@ -121,7 +121,7 @@ from .metrics import AlexaMetrics, get_metrics
 from .notify import async_unload_entry as notify_async_unload_entry
 from .runtime_data import AlexaRuntimeData
 from .services import AlexaMediaServices
-from .verified_http2 import VerifiedHTTP2EchoClient
+from .verified_http2 import observe_verified_stream
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2790,15 +2790,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if current_push_attempt(attempt):
                     await http2_error_handler(message)
 
-            http2 = VerifiedHTTP2EchoClient(
+            http2 = HTTP2EchoClient(
                 login_obj,
-                verified_callback=on_verified,
                 msg_callback=http2_handler,
                 open_callback=on_open,
                 close_callback=on_close,
                 error_callback=on_error,
                 loop=hass.loop,
             )
+            observe_verified_stream(http2, on_verified)
             _LOGGER.debug("%s: Starting HTTP2: %s", hide_email(email), http2)
             await http2.async_run()
         except AlexapyLoginError as exception_:

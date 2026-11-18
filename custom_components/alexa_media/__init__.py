@@ -2796,12 +2796,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     await http2_close_handler()
 
             async def on_verified():
-                if current_push_attempt(attempt):
+                if current_push_attempt(attempt) and push_owner.get(
+                    "push_rejected_attempt"
+                ) is not attempt:
                     set_push_connected(push_owner, True)
                     push_owner["http2error"] = 0
 
             async def on_error(message):
                 if current_push_attempt(attempt):
+                    push_owner["push_rejected_attempt"] = attempt
                     await http2_error_handler(message)
 
             http2 = HTTP2EchoClient(
@@ -3315,8 +3318,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This should attempt to reconnect up to 5 times
         """
         email: str = login_obj.email
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = None
-        set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], False)
+        push_owner["push_attempt"] = None
+        push_owner["http2"] = None
+        set_push_connected(push_owner, False)
+
+        def owner_loaded() -> bool:
+            return (
+                hass.data.get(DATA_ALEXAMEDIA, {})
+                .get("accounts", {})
+                .get(email) is push_owner
+                and not login_obj.close_requested
+            )
+
         if login_obj.close_requested:
             _LOGGER.debug(
                 "%s: Close requested; will not reconnect http2", hide_email(email)
@@ -3338,6 +3351,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         http2_client = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"]
         http2_enabled = bool(http2_client)
         while errors < 5 and not (http2_enabled):
+            if not owner_loaded():
+                return
             _LOGGER.debug(
                 "%s: HTTP2 push closed; reconnect #%i in %is",
                 hide_email(email),
@@ -3348,7 +3363,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 "http2_lastattempt"
             ] = time.time()
             http2_client = await http2_connect()
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = http2_client
+            if not owner_loaded() or (
+                http2_client is not None
+                and getattr(http2_client, "_amp_attempt", None)
+                is not push_owner.get("push_attempt")
+            ):
+                if http2_client is not None:
+                    http2_client.on_close()
+                return
+            push_owner["http2"] = http2_client
             http2_enabled = bool(http2_client)
             if http2_enabled:
                 break
@@ -3358,6 +3381,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             delay = 5 * 2**errors
             errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"]
             await asyncio.sleep(delay)
+            if not owner_loaded():
+                return
+        if not owner_loaded():
+            return
         if not http2_enabled:
             _LOGGER.debug(
                 "%s: HTTP2Push connection closed; retries exceeded; polling",
@@ -3374,6 +3401,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 coordinator.update_interval,
             )
             await coordinator.async_request_refresh()
+            if not owner_loaded():
+                return
 
     @callback
     async def http2_error_handler(message):
@@ -3520,6 +3549,9 @@ async def async_unload_entry(hass, entry) -> bool:
     if account_data is not None:
         account_data["push_attempt"] = None
         set_push_connected(account_data, False)
+        if http2 := account_data.get("http2"):
+            http2.on_close()
+        account_data["http2"] = None
     _pop_relogin_listeners(hass, email)
     for task_key in (
         "notifications_refresh_task",
@@ -3698,6 +3730,9 @@ async def close_connections(hass, email: str) -> None:
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
     account_dict["push_attempt"] = None
     set_push_connected(account_dict, False)
+    if http2 := account_dict.get("http2"):
+        http2.on_close()
+    account_dict["http2"] = None
     login_obj = account_dict["login_obj"]
     await login_obj.save_cookiefile()
     await login_obj.close()

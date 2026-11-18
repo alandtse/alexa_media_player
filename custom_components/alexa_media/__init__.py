@@ -57,7 +57,14 @@ import voluptuous as vol
 
 from .account_auth import publish_authentication
 from .account_platforms import sync_echo_platforms
-from .account_push import owns_push_attempt, set_push_connected
+from .account_push import (
+    abandon_push_attempt,
+    begin_push_attempt,
+    close_account_push,
+    owns_push_account,
+    owns_push_attempt,
+    set_push_connected,
+)
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state
@@ -2757,11 +2764,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         def discard_attempt() -> None:
             """Invalidate only this failed transport and release its tasks."""
-            if attempt is not None and current_push_attempt(attempt):
-                push_owner["push_attempt"] = None
-                set_push_connected(push_owner, False)
-            if http2 is not None:
-                http2.on_close()
+            if attempt is not None:
+                abandon_push_attempt(push_owner, attempt, http2)
 
         try:
             if login_obj.session.closed:
@@ -2770,8 +2774,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     hide_email(email),
                 )
                 return
-            attempt = object()
-            push_owner["push_attempt"] = attempt
+            attempt = begin_push_attempt(push_owner)
 
             async def on_open():
                 if current_push_attempt(attempt):
@@ -3309,16 +3312,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This should attempt to reconnect up to 5 times
         """
         email: str = login_obj.email
-        push_owner["push_attempt"] = None
-        push_owner["http2"] = None
-        set_push_connected(push_owner, False)
+        close_account_push(push_owner)
 
         def owner_loaded() -> bool:
-            return (
-                hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
-                is push_owner
-                and not login_obj.close_requested
-            )
+            return owns_push_account(hass, email, push_owner) and not login_obj.close_requested
 
         if login_obj.close_requested:
             _LOGGER.debug(
@@ -3589,11 +3586,7 @@ async def async_unload_entry(hass, entry) -> bool:
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
     account_data = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
     if account_data is not None:
-        account_data["push_attempt"] = None
-        set_push_connected(account_data, False)
-        if http2 := account_data.get("http2"):
-            http2.on_close()
-        account_data["http2"] = None
+        close_account_push(account_data)
     _pop_relogin_listeners(hass, email)
     for task_key in (
         "notifications_refresh_task",
@@ -3773,11 +3766,7 @@ async def close_connections(hass, email: str) -> None:
     ):
         return
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-    account_dict["push_attempt"] = None
-    set_push_connected(account_dict, False)
-    if http2 := account_dict.get("http2"):
-        http2.on_close()
-    account_dict["http2"] = None
+    close_account_push(account_dict)
     login_obj = account_dict["login_obj"]
     await login_obj.save_cookiefile()
     await login_obj.close()

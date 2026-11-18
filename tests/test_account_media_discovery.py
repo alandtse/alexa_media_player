@@ -8,6 +8,7 @@ import pytest
 from custom_components.alexa_media.binary_sensor import async_discover_kids
 from custom_components.alexa_media.const import DOMAIN
 from custom_components.alexa_media.media_player import async_setup_platform
+from custom_components.alexa_media.account_platforms import sync_echo_platforms
 
 
 @pytest.mark.asyncio
@@ -108,3 +109,60 @@ async def test_kids_binary_sensor_appears_when_echo_added_later() -> None:
         kids.async_start.assert_awaited_once()
         assert await async_discover_kids(None, account, adder)
         add.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_account_only_then_first_and_second_echo_are_reconciled() -> None:
+    """Forward media_player once, then use the already-loaded adder."""
+    entry = SimpleNamespace(data={"email": "account@example.com"})
+    account = {
+        "devices": {"media_player": {}},
+        "entities": {"media_player": {}},
+        "account_diagnostic_platforms_loaded": {"sensor", "binary_sensor"},
+    }
+    calls = []
+    dependent = set()
+    adder = MagicMock()
+
+    async def initial_forward(_entry, platforms):
+        calls.append(("forward", tuple(platforms)))
+        account["media_player_platform_loaded"] = True
+        account["media_player_add_entities"] = adder
+        for key in account["devices"]["media_player"]:
+            account["entities"]["media_player"][key] = object()
+            dependent.add((key, "switch"))
+
+    async def late_add(_hass, _config, callback, *, discover_only):
+        calls.append(("discover_only", discover_only))
+        assert callback is adder
+        for key in account["devices"]["media_player"]:
+            if key not in account["entities"]["media_player"]:
+                account["entities"]["media_player"][key] = object()
+                dependent.add((key, "switch"))
+        return True
+
+    platforms = SimpleNamespace(
+        async_forward_entry_setups=AsyncMock(side_effect=initial_forward),
+        async_forward_entry_unload=AsyncMock(),
+    )
+    hass = SimpleNamespace(config_entries=platforms)
+    with patch(
+        "custom_components.alexa_media.media_player.async_setup_platform",
+        new_callable=AsyncMock,
+        side_effect=late_add,
+    ):
+        await sync_echo_platforms(hass, entry, account)
+        platforms.async_forward_entry_setups.assert_not_awaited()
+
+        account["devices"]["media_player"]["SERIAL1"] = {}
+        await sync_echo_platforms(hass, entry, account)
+        assert account["media_player_platform_loaded"]
+        platforms.async_forward_entry_setups.assert_awaited_once()
+
+        account["devices"]["media_player"]["SERIAL2"] = {}
+        await sync_echo_platforms(hass, entry, account)
+        platforms.async_forward_entry_setups.assert_awaited_once()
+
+    assert set(account["entities"]["media_player"]) == {"SERIAL1", "SERIAL2"}
+    assert dependent == {("SERIAL1", "switch"), ("SERIAL2", "switch")}
+    assert calls == [("forward", ("media_player",)), ("discover_only", True)]

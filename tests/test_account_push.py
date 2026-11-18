@@ -10,6 +10,7 @@ from custom_components.alexa_media.account_push import (
     begin_push_attempt,
     close_account_push,
     owns_push_attempt,
+    reconnect_account_push,
     set_push_connected,
     subscribe_push_connected,
 )
@@ -183,3 +184,69 @@ def test_account_teardown_closes_own_transport_and_invalidates_callbacks() -> No
     assert account["push_connected"] is False
     client.on_close.assert_called_once()
     assert token is not account["push_attempt"]
+
+
+@pytest.mark.asyncio
+async def test_reconnect_aborts_during_backoff_when_entry_unloads() -> None:
+    """A callback already sleeping must not reconnect a removed account."""
+    email = "a@example.com"
+    account = {"http2error": 0, "http2_lastattempt": 0, "http2": None}
+    login = SimpleNamespace(close_requested=False, status={"login_successful": True})
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {email: account}}})
+    connect = AsyncMock(return_value=None)
+
+    async def during_backoff(_delay):
+        account["push_attempt"] = None
+        hass.data[DOMAIN]["accounts"].pop(email)
+
+    result = await reconnect_account_push(
+        hass, email, account, login, connect, sleep=during_backoff, clock=lambda: 100
+    )
+    assert result is None
+    connect.assert_awaited_once()
+    assert account["http2"] is None
+
+
+@pytest.mark.asyncio
+async def test_reconnect_discards_client_after_entry_replacement() -> None:
+    """A reconnect completing after reload cannot replace its successor."""
+    email = "a@example.com"
+    account = {"http2error": 0, "http2_lastattempt": 0, "http2": None}
+    replacement = {"http2": object()}
+    login = SimpleNamespace(close_requested=False, status={"login_successful": True})
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {email: account}}})
+    client = MagicMock()
+    token = object()
+    client._amp_attempt = token
+
+    async def delayed_connect():
+        account["push_attempt"] = token
+        hass.data[DOMAIN]["accounts"][email] = replacement
+        return client
+
+    result = await reconnect_account_push(
+        hass, email, account, login, delayed_connect, clock=lambda: 100
+    )
+    assert result is None
+    client.on_close.assert_called_once()
+    assert replacement["http2"] is not client
+    assert account["http2"] is None
+
+
+@pytest.mark.asyncio
+async def test_active_reconnect_retains_new_client() -> None:
+    """Reconnecting an unchanged account installs the new transport."""
+    email = "a@example.com"
+    account = {"http2error": 0, "http2_lastattempt": 0, "http2": None}
+    login = SimpleNamespace(close_requested=False, status={"login_successful": True})
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {email: account}}})
+    client = MagicMock()
+
+    async def connect():
+        client._amp_attempt = begin_push_attempt(account)
+        return client
+
+    assert await reconnect_account_push(
+        hass, email, account, login, connect, clock=lambda: 100
+    ) is True
+    assert account["http2"] is client

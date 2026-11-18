@@ -1,0 +1,28 @@
+"""Account-scoped observations for AMP's HTTP/2 push transport.
+
+These are observed open/close events, not the heuristic used to choose
+last_called polling. No network requests are made by subscribers.
+"""
+
+from collections.abc import Callable
+
+
+def set_push_connected(account: dict, connected: bool) -> None:
+    """Publish a change in the account's observed HTTP/2 connection state."""
+    connected = bool(connected)
+    if account.get("push_connected", False) == connected:
+        return
+    account["push_connected"] = connected
+    for listener in tuple(account.get("push_connection_listeners", ())):
+        listener()
+
+
+def subscribe_push_connected(account: dict, listener: Callable[[], None]):
+    """Subscribe to account connection changes; return an unsubscribe callback."""
+    listeners = account.setdefault("push_connection_listeners", set())
+    listeners.add(listener)
+
+    def unsubscribe() -> None:
+        listeners.discard(listener)
+
+    return unsubscribe

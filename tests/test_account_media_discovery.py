@@ -54,7 +54,7 @@ async def test_late_echo_uses_existing_entity_adder_without_platform_forward() -
         )
         client_factory.assert_called_once()
         client.init.assert_awaited_once()
-        discovery_callback.assert_called_once_with([client])
+        discovery_callback.assert_called_once_with([client], False)
         existing_callback.assert_not_called()
         assert account["entities"]["media_player"]["SERIAL1"] is client
         assert account["media_player_add_entities"] is existing_callback

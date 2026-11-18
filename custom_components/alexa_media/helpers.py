@@ -23,10 +23,29 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 import wrapt
 
-from .const import DATA_ALEXAMEDIA, EXCEPTION_TEMPLATE
+from .const import CONFIG_ENTRY_OPTION_KEYS, DATA_ALEXAMEDIA, EXCEPTION_TEMPLATE
 
 _LOGGER = logging.getLogger(__name__)
 ArgType = TypeVar("ArgType")
+
+
+def config_entry_option(config_entry, key: str, default: Any | None = None) -> Any:
+    """Return an option, preferring ConfigEntry.options over legacy data."""
+    if key in config_entry.options:
+        return config_entry.options[key]
+    return config_entry.data.get(key, default)
+
+
+def config_entry_config(config_entry) -> dict[str, Any]:
+    """Combine credentials and effective settings for legacy platform setup."""
+    return {
+        **config_entry.data,
+        **{
+            key: config_entry.options[key]
+            for key in CONFIG_ENTRY_OPTION_KEYS
+            if key in config_entry.options
+        },
+    }
 
 
 def _norm_filter_token(value: Any) -> str | None:

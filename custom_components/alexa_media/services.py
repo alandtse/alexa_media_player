@@ -16,6 +16,7 @@ from typing import Any, Callable
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
 from homeassistant.auth.permissions.const import POLICY_CONTROL
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import (
     HomeAssistantError,
@@ -331,9 +332,13 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
 
 
 class AlexaMediaServices:
-    def __init__(self, hass: HomeAssistant, functions: dict[str, Callable[..., Any]]):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        functions: dict[str, Callable[..., Any]] | None = None,
+    ):
         self.hass = hass
-        self._functions = functions
+        self._functions = functions if functions is not None else {}
 
     async def register(self) -> None:
         """Register Alexa Media custom services."""
@@ -356,6 +361,38 @@ class AlexaMediaServices:
         for service_def in SERVICE_DEFS:
             self.hass.services.async_remove(DOMAIN, service_def.name)
 
+    def _get_accounts(self, *, require_loaded: bool = True) -> dict[str, Any]:
+        """Return usable accounts, allowing recovery during setup when requested."""
+        accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts") or {}
+        loaded = {
+            email: account
+            for email, account in accounts.items()
+            if account.get("login_obj") is not None
+            and (
+                not require_loaded
+                or getattr(account.get("config_entry"), "state", None)
+                == ConfigEntryState.LOADED
+            )
+        }
+        if not loaded:
+            raise ServiceValidationError(
+                "No eligible Alexa Media accounts found. Add or reload an account first."
+            )
+        return loaded
+
+    @staticmethod
+    def _validate_requested_emails(
+        requested_emails: list[str] | None, accounts: dict[str, Any]
+    ) -> None:
+        """Reject requests that name accounts unavailable to this service."""
+        if not requested_emails:
+            return
+        missing = [email for email in requested_emails if email not in accounts]
+        if missing:
+            raise ServiceValidationError(
+                "No eligible Alexa Media account found for: " + ", ".join(missing)
+            )
+
     async def force_logout(self, call: ServiceCall) -> bool:
         """Handle force logout service request.
 
@@ -369,7 +406,8 @@ class AlexaMediaServices:
         requested_emails = call.data.get(ATTR_EMAIL)
         _LOGGER.debug("Service force_logout called for: %s", requested_emails)
 
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+        accounts = self._get_accounts(require_loaded=False)
+        self._validate_requested_emails(requested_emails, accounts)
         success = False
 
         for email, account_dict in accounts.items():
@@ -413,8 +451,10 @@ class AlexaMediaServices:
             return
 
         _LOGGER.debug("Service update_last_called called for: %s", requested_emails)
+        accounts = self._get_accounts()
+        self._validate_requested_emails(requested_emails, accounts)
 
-        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+        for email, account_dict in accounts.items():
             if requested_emails and email not in requested_emails:
                 continue
 
@@ -440,10 +480,16 @@ class AlexaMediaServices:
                     )
                 finally:
                     # Clean up task reference when done
-                    if email in self.hass.data[DATA_ALEXAMEDIA]["accounts"]:
-                        self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop(
-                            "service_update_last_called_task", None
-                        )
+                    accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get(
+                        "accounts", {}
+                    )
+                    account = accounts.get(email)
+                    if (
+                        account is not None
+                        and account.get("service_update_last_called_task")
+                        is asyncio.current_task()
+                    ):
+                        account.pop("service_update_last_called_task", None)
 
             # Cancel any existing task for this account before creating a new one
             existing_task = account_dict.get("service_update_last_called_task")
@@ -521,8 +567,7 @@ class AlexaMediaServices:
             _LOGGER.error("Entity %s not found or not part of %s", entity_id, DOMAIN)
             return None, None, None
         unique_id = entity_entry.unique_id
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
-        for email, account_dict in accounts.items():
+        for email, account_dict in self._get_accounts().items():
             for device in AlexaAPI.devices.get(email, []):
                 serial = device.get("serialNumber")
                 if not serial:
@@ -616,7 +661,7 @@ class AlexaMediaServices:
         _LOGGER.debug("Service repeat_last_message called for: %s", entity_ids)
         media_players = {
             entity.entity_id: entity
-            for account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].values()
+            for account_dict in self._get_accounts().values()
             for entity in account_dict["entities"]["media_player"].values()
             # Disabled entities get an entity_id but are never added to hass
             if entity.hass
@@ -1003,7 +1048,7 @@ class AlexaMediaServices:
                 history_data_total.append(entry)
 
         # Iterate accounts and collect history
-        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+        for email, account_dict in self._get_accounts().items():
             login_obj = account_dict["login_obj"]
             try:
                 await _collect_history_for_account(login_obj)
@@ -1049,7 +1094,8 @@ class AlexaMediaServices:
         data = call.data or {}
         target_emails: list[str] = data.get(ATTR_EMAIL, [])
 
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+        accounts = self._get_accounts()
+        self._validate_requested_emails(target_emails, accounts)
         any_matched = False
 
         for email, account_dict in accounts.items():

@@ -34,6 +34,7 @@ from . import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
+    DOMAIN as ALEXA_DOMAIN,
     hide_email,
 )
 from .alexa_entity import (
@@ -43,7 +44,7 @@ from .alexa_entity import (
     parse_power_from_coordinator,
 )
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
-from .helpers import add_devices, safe_get
+from .helpers import add_devices, config_entry_config, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa sensor platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 
@@ -127,6 +128,9 @@ def color_modes(details) -> list:
 class AlexaLight(CoordinatorEntity, LightEntity):
     """A light controlled by an Echo."""
 
+    _attr_has_entity_name = True
+    _attr_name = None
+
     def __init__(self, coordinator, login, details):
         """Initialize alexa light entity."""
         super().__init__(coordinator)
@@ -149,9 +153,17 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         self._requested_hs = None
 
     @property
-    def name(self):
+    def device_name(self):
         """Return name."""
         return self._name
+
+    @property
+    def device_info(self):
+        """Return device information for the light."""
+        return {
+            "identifiers": {(ALEXA_DOMAIN, self.alexa_entity_id)},
+            "name": self._name,
+        }
 
     @property
     def unique_id(self):

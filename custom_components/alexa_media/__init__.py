@@ -3315,7 +3315,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         close_account_push(push_owner)
 
         def owner_loaded() -> bool:
-            return owns_push_account(hass, email, push_owner) and not login_obj.close_requested
+            return (
+                owns_push_account(hass, email, push_owner)
+                and not login_obj.close_requested
+            )
 
         if login_obj.close_requested:
             _LOGGER.debug(

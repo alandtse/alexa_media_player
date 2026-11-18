@@ -10,6 +10,7 @@ from custom_components.alexa_media.account_push import (
     begin_push_attempt,
     close_account_push,
     owns_push_attempt,
+    open_owned_push,
     reconnect_account_push,
     set_push_connected,
     subscribe_push_connected,
@@ -253,3 +254,46 @@ async def test_active_reconnect_retains_new_client() -> None:
         is True
     )
     assert account["http2"] is client
+
+
+@pytest.mark.asyncio
+async def test_failed_open_retires_attempt_and_late_callbacks() -> None:
+    """A delayed callback cannot restore Connected after an open failure."""
+    email = "a@example.com"
+    account = {}
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {email: account}}})
+    attempt = begin_push_attempt(account)
+    client = MagicMock()
+    client.async_run = AsyncMock(side_effect=RuntimeError("open timeout"))
+
+    with pytest.raises(RuntimeError, match="open timeout"):
+        await open_owned_push(hass, email, account, attempt, client)
+    assert not owns_push_attempt(hass, email, account, attempt)
+    client.on_close.assert_called_once()
+
+    # Callback arriving after the failed stream has been retired.
+    if owns_push_attempt(hass, email, account, attempt):
+        set_push_connected(account, True)
+    assert not account.get("push_connected", False)
+
+
+@pytest.mark.asyncio
+async def test_open_timeout_does_not_clear_newer_connection_attempt() -> None:
+    """An old asynchronous failure cannot invalidate a replacement's token."""
+    email = "a@example.com"
+    account = {}
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {email: account}}})
+    old = begin_push_attempt(account)
+    new_client = MagicMock()
+    old_client = MagicMock()
+
+    async def fail_after_replacement():
+        begin_push_attempt(account)
+        raise RuntimeError("timeout")
+
+    old_client.async_run = AsyncMock(side_effect=fail_after_replacement)
+    with pytest.raises(RuntimeError, match="timeout"):
+        await open_owned_push(hass, email, account, old, old_client)
+    assert account["push_attempt"] is not old
+    old_client.on_close.assert_called_once()
+    new_client.on_close.assert_not_called()

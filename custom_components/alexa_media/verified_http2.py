@@ -1,8 +1,6 @@
-"""Confirm live directives traffic without replacing the alexapy HTTP/2 client.
+"""Observe the HTTP/2 directives stream.
 
-In alexapy 1.36.0 the open callback can fire for a non-success HTTP status
-such as 503. Observe multipart content before publishing Push connected,
-without extra requests and while retaining the original HTTP2EchoClient class.
+The alexapy 1.36.0 open callback can fire for a rejected HTTP response.
 """
 
 from collections.abc import Awaitable, Callable

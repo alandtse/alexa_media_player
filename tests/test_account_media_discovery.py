@@ -277,3 +277,52 @@ async def test_silent_dependent_forward_failure_is_retryable() -> None:
         forward.side_effect = successful_forward
         assert await media_module.async_setup_entry(hass, entry, MagicMock())
         assert account["media_player_platform_loaded"] is True
+
+
+@pytest.mark.asyncio
+async def test_media_player_late_echo_reconciles_real_music_switches() -> None:
+    """The discover_only path adds repeat/shuffle without forwarding switch."""
+    from custom_components.alexa_media import media_player as media_module
+
+    email = "a@example.com"
+    new_player = MagicMock()
+    new_player.device_serial_number = "SERIAL2"
+    new_player._login.email = email
+    new_player.init = AsyncMock()
+    stored_media_adder = MagicMock()
+    stored_switch_adder = MagicMock()
+    account = {
+        "login_obj": SimpleNamespace(email=email),
+        "second_account_index": 0,
+        "devices": {
+            "media_player": {
+                "SERIAL1": {"capabilities": []},
+                "SERIAL2": {"capabilities": ["MUSIC_SKILL"]},
+            },
+        },
+        "entities": {
+            "media_player": {"SERIAL1": MagicMock()},
+            "switch": {"SERIAL1": {}},
+        },
+        "media_player_add_entities": stored_media_adder,
+        "switch_add_devices": stored_switch_adder,
+    }
+    hass = MagicMock(data={DOMAIN: {"accounts": {email: account}}})
+    with (
+        patch.object(media_module, "create_www_directory", new_callable=AsyncMock),
+        patch.object(media_module, "AlexaClient", return_value=new_player),
+        patch.object(media_module, "DEPENDENT_ALEXA_COMPONENTS", ["switch"]),
+        patch.object(media_module, "async_load_platform", new_callable=AsyncMock) as load,
+        patch("custom_components.alexa_media.switch.add_devices",
+              new_callable=AsyncMock, return_value=True) as add_switches,
+    ):
+        assert await media_module.async_setup_platform(
+            hass, {"email": email}, stored_media_adder, discover_only=True
+        )
+        actual_switches = account["entities"]["switch"]["SERIAL2"]
+        assert set(actual_switches) == {"shuffle", "repeat"}
+        assert isinstance(actual_switches["shuffle"], ShuffleSwitch)
+        assert isinstance(actual_switches["repeat"], RepeatSwitch)
+        add_switches.assert_awaited_once()
+        load.assert_not_awaited()
+        assert account["media_player_add_entities"] is stored_media_adder

@@ -1677,8 +1677,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ) from ex
             # Forwarding can return without raising when a platform fails.
             # Never label a partial setup complete.
-            if any(platform not in loaded for platform in missing):
-                raise ConfigEntryNotReady("Account diagnostic platform not ready")
+            failed = [platform for platform in missing if platform not in loaded]
+            if failed:
+                # A failed forward can still reserve an HA platform. Unload
+                # only the failed platforms before the config entry retries.
+                for platform in failed:
+                    await hass.config_entries.async_forward_entry_unload(
+                        config_entry, platform
+                    )
+                raise ConfigEntryNotReady(
+                    f"Account diagnostic platforms not ready: {', '.join(failed)}"
+                )
 
         if new_alexa_clients:
             if not account.get("media_player_platform_loaded"):
@@ -1688,6 +1697,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         config_entry, ALEXA_COMPONENTS
                     )
                     if not account.get("media_player_platform_loaded"):
+                        await hass.config_entries.async_forward_entry_unload(
+                            config_entry, "media_player"
+                        )
                         raise ConfigEntryNotReady("Media player platform not ready")
                     _LOGGER.debug(
                         "[BOOT] media player platform loading in %.2fs",

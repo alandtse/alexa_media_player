@@ -37,6 +37,7 @@ from . import (
     hide_email,
     hide_serial,
 )
+from .account_auth import subscribe_authentication
 from .alexa_entity import (
     parse_air_quality_from_coordinator,
     parse_temperature_from_coordinator,
@@ -391,6 +392,13 @@ class AlexaAccountAuthenticationSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{config_entry.entry_id}_account_authentication"
         self._attr_device_info = dr.DeviceInfo(
             identifiers={account_device_identifier(config_entry)},
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Observe login transitions without adding authentication polling."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            subscribe_authentication(self._account, self.async_write_ha_state)
         )
 
     @property

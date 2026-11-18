@@ -121,3 +121,17 @@ async def reconnect_account_push(
         if not active():
             return None
     return False
+
+
+async def open_owned_push(hass, email: str, account: dict, attempt: object, client):
+    """Retire failed or displaced HTTP/2 open attempts before callbacks can act."""
+    try:
+        await client.async_run()
+    except BaseException:
+        abandon_push_attempt(account, attempt, client)
+        raise
+    if not owns_push_attempt(hass, email, account, attempt):
+        abandon_push_attempt(account, attempt, client)
+        return None
+    client._amp_attempt = attempt
+    return client

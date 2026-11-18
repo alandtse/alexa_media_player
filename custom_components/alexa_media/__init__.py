@@ -3563,9 +3563,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             lambda: None
         )
 
-    push_owner["echo_sync_ready"] = True
-    _schedule_echo_sync()
-
     # Account diagnostics are independent of inventory discovery and load
     # after the initial coordinator refresh has completed.
     try:
@@ -3582,6 +3579,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 _retry_account_diagnostic_platforms(hass, config_entry, push_owner),
                 f"{DOMAIN}_account_diagnostics_retry",
             )
+
+    push_owner["echo_sync_ready"] = True
+    _schedule_echo_sync()
 
     # Services are registered once in async_setup; attach the setup-local callback.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email][

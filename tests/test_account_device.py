@@ -110,6 +110,29 @@ async def test_account_sensor_loads_without_echo_entities() -> None:
     }
 
 
+@pytest.mark.asyncio
+async def test_account_sensor_not_added_if_platform_setup_fails() -> None:
+    """A failed sensor setup must not register a diagnostic entity."""
+    entry = _entry("entry-1")
+    add_entities = MagicMock()
+
+    with (
+        patch(
+            "custom_components.alexa_media.sensor.async_setup_platform",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+        patch(
+            "custom_components.alexa_media.sensor.config_entry_config",
+            return_value={},
+        ),
+    ):
+        result = await async_setup_entry(SimpleNamespace(), entry, add_entities)
+
+    assert result is False
+    add_entities.assert_not_called()
+
+
 def test_multiple_account_sensors_are_isolated() -> None:
     """Each account diagnostic follows only its own login and coordinator."""
     first = _entry("entry-1", "first@example.com")

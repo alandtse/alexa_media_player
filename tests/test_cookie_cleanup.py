@@ -27,6 +27,9 @@ def removal_context(tmp_path):
         "_LOGGER": logging.getLogger("cookie_removal_test"),
         "os": os,
         "alexapy_delete_cookie": delete_cookie,
+        # Account listeners are unrelated to cookie cleanup; the hook only
+        # calls this helper when an entry is removed.
+        "_pop_relogin_listeners": lambda *_: None,
     }
     namespace["AlexaLogin"].delete_cookiefile = AsyncMock()
     exec(  # nosec B102: execute only the repository hook to isolate HA imports

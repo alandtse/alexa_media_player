@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.alexa_media.account_push import (
+    owns_push_attempt,
     set_push_connected,
     subscribe_push_connected,
 )
@@ -123,3 +124,23 @@ async def test_push_entity_not_added_after_failed_platform_setup() -> None:
     ):
         assert await async_setup_entry(SimpleNamespace(), entry, add_entities) is False
     add_entities.assert_not_called()
+
+
+def test_push_callbacks_ignore_previous_account_or_connection() -> None:
+    """A callback from an old load cannot modify a replacement's state."""
+    old = {"push_attempt": object(), "push_connected": True}
+    new = {"push_attempt": object(), "push_connected": True}
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {"a@example.com": old}}})
+    old_attempt = old["push_attempt"]
+
+    assert owns_push_attempt(hass, "a@example.com", old, old_attempt)
+
+    old["push_attempt"] = object()
+    assert not owns_push_attempt(hass, "a@example.com", old, old_attempt)
+
+    hass.data[DOMAIN]["accounts"]["a@example.com"] = new
+    assert not owns_push_attempt(hass, "a@example.com", old, old["push_attempt"])
+    assert owns_push_attempt(hass, "a@example.com", new, new["push_attempt"])
+
+    new["push_attempt"] = None  # unload before the transport closes
+    assert not owns_push_attempt(hass, "a@example.com", new, old_attempt)

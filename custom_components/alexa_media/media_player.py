@@ -196,7 +196,9 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
         account_dict["media_player_platform_loaded"] = True
         for component in DEPENDENT_ALEXA_COMPONENTS:
-            if component in account_dict.get("account_diagnostic_platforms_loaded", set()):
+            if component in account_dict.get(
+                "account_diagnostic_platforms_loaded", set()
+            ):
                 continue
             try:
                 entry_setup = len(account_dict["entities"][component])

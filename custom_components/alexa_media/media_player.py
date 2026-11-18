@@ -172,8 +172,10 @@ async def async_setup_platform(
                 alexa_client,
             )
     result = await add_devices(hide_email(account), devices, add_devices_callback)
-    if result and devices and (
-        binary_adder := account_dict.get("binary_sensor_add_devices")
+    if (
+        result
+        and devices
+        and (binary_adder := account_dict.get("binary_sensor_add_devices"))
     ):
         from .binary_sensor import async_discover_kids
 

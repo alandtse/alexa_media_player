@@ -41,9 +41,7 @@ def test_account_device_registration_is_idempotent() -> None:
     hass = MagicMock()
     registry = MagicMock()
     entry = _entry("entry-1")
-    with patch(
-        "custom_components.alexa_media.dr.async_get", return_value=registry
-    ):
+    with patch("custom_components.alexa_media.dr.async_get", return_value=registry):
         _register_account_device(hass, entry, entry.data["email"])
         _register_account_device(hass, entry, entry.data["email"])
 
@@ -81,9 +79,7 @@ async def test_account_sensor_loads_without_echo_entities() -> None:
     """Load account diagnostics without any discovered Echoes or filters."""
     entry = _entry("entry-1")
     account = _account()
-    hass = SimpleNamespace(
-        data={DOMAIN: {"accounts": {entry.data["email"]: account}}}
-    )
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {entry.data["email"]: account}}})
     add_entities = MagicMock()
 
     with (
@@ -105,9 +101,7 @@ async def test_account_sensor_loads_without_echo_entities() -> None:
     sensors = add_entities.call_args.args[0]
     assert len(sensors) == 1
     assert isinstance(sensors[0], AlexaAccountAuthenticationSensor)
-    assert sensors[0].device_info["identifiers"] == {
-        account_device_identifier(entry)
-    }
+    assert sensors[0].device_info["identifiers"] == {account_device_identifier(entry)}
 
 
 @pytest.mark.asyncio

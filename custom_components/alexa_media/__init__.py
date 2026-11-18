@@ -1645,7 +1645,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         # Account-only integrations also need the sensor platform on first setup.
         # Keep the existing new-device discovery behaviour on later refreshes.
-        if new_alexa_clients or (first_run and not account.get("account_platforms_loaded")):
+        if new_alexa_clients or (
+            first_run and not account.get("account_platforms_loaded")
+        ):
             cleaned_config = config.copy()
             cleaned_config.pop(CONF_PASSWORD, None)
             # CONF_PASSWORD contains sensitive info which is no longer needed

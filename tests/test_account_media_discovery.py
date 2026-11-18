@@ -9,6 +9,11 @@ from custom_components.alexa_media.account_platforms import sync_echo_platforms
 from custom_components.alexa_media.binary_sensor import async_discover_kids
 from custom_components.alexa_media.const import DOMAIN
 from custom_components.alexa_media.media_player import async_setup_platform
+from custom_components.alexa_media.switch import (
+    RepeatSwitch,
+    ShuffleSwitch,
+    async_discover_music_switches,
+)
 
 
 @pytest.mark.asyncio
@@ -166,3 +171,63 @@ async def test_account_only_then_first_and_second_echo_are_reconciled() -> None:
     assert set(account["entities"]["media_player"]) == {"SERIAL1", "SERIAL2"}
     assert dependent == {("SERIAL1", "switch"), ("SERIAL2", "switch")}
     assert calls == [("forward", ("media_player",)), ("discover_only", True)]
+
+
+@pytest.mark.asyncio
+async def test_late_echo_creates_real_shuffle_and_repeat_switches() -> None:
+    """A second Echo gains actual switch entities without media-player forwarding."""
+    player = MagicMock()
+    player.device_serial_number = "SERIAL2"
+    account = {
+        "login_obj": SimpleNamespace(email="a@example.com"),
+        "devices": {
+            "media_player": {
+                "SERIAL1": {"capabilities": []},
+                "SERIAL2": {"capabilities": ["MUSIC_SKILL"]},
+            }
+        },
+        "entities": {
+            "media_player": {"SERIAL1": MagicMock(), "SERIAL2": player},
+            "switch": {"SERIAL1": {}},
+        },
+    }
+    add = AsyncMock(return_value=True)
+    with patch("custom_components.alexa_media.switch.add_devices", new=add):
+        assert await async_discover_music_switches(account, MagicMock())
+        switches = account["entities"]["switch"]["SERIAL2"]
+        assert isinstance(switches["shuffle"], ShuffleSwitch)
+        assert isinstance(switches["repeat"], RepeatSwitch)
+        assert {type(x) for x in add.await_args.args[1]} == {
+            ShuffleSwitch, RepeatSwitch
+        }
+
+        assert await async_discover_music_switches(account, MagicMock())
+        add.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_dependent_setup_failure_does_not_mark_media_platform_loaded() -> None:
+    """An asynchronous dependent loader failure leaves setup retryable."""
+    from custom_components.alexa_media import media_player as media_module
+
+    email = "a@example.com"
+    account = {"entities": {"switch": {}, "media_player": {}}}
+    hass = MagicMock(data={DOMAIN: {"accounts": {email: account}}})
+    entry = SimpleNamespace(data={"email": email})
+    with (
+        patch.object(media_module, "async_setup_platform", new_callable=AsyncMock,
+                     return_value=True),
+        patch.object(media_module, "config_entry_config",
+                     return_value={"email": email}),
+        patch.object(media_module, "DEPENDENT_ALEXA_COMPONENTS", ["switch"]),
+        patch.object(media_module, "async_load_platform", new_callable=AsyncMock,
+                     side_effect=RuntimeError("dependent failed")) as loader,
+    ):
+        with pytest.raises(RuntimeError, match="dependent failed"):
+            await media_module.async_setup_entry(hass, entry, MagicMock())
+        assert not account.get("media_player_platform_loaded")
+        loader.assert_awaited_once()
+
+        loader.side_effect = None
+        assert await media_module.async_setup_entry(hass, entry, MagicMock())
+        assert account["media_player_platform_loaded"] is True

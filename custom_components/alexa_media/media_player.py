@@ -202,7 +202,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     ):
         account = config_entry.data[CONF_EMAIL]
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
-        account_dict["media_player_platform_loaded"] = True
         for component in DEPENDENT_ALEXA_COMPONENTS:
             if component in account_dict.get(
                 "account_diagnostic_platforms_loaded", set()
@@ -238,6 +237,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                     raise ConfigEntryNotReady(
                         f"Timeout while loading config entry for {component}"
                     ) from ex
+        account_dict["media_player_platform_loaded"] = True
         return True
     raise ConfigEntryNotReady
 

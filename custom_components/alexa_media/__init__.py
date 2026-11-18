@@ -55,6 +55,7 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt, slugify
 import voluptuous as vol
 
+from .account_auth import publish_authentication
 from .account_push import set_push_connected
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
@@ -835,8 +836,10 @@ async def async_setup_entry(hass, config_entry):
             else:
                 login_obj.oauth_login = True
             await login_obj.reset()
+            publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             # await login_obj.login()
             if await test_login_status(hass, config_entry, login_obj):
+                publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
                 await setup_alexa(hass, config_entry, login_obj)
 
     async def login_success(event=None) -> None:
@@ -846,6 +849,7 @@ async def async_setup_entry(hass, config_entry):
             login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
                 "login_obj"
             )
+            publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             await setup_alexa(hass, config_entry, login_obj)
 
     hass.data.setdefault(DATA_ALEXAMEDIA, {})
@@ -961,6 +965,7 @@ async def async_setup_entry(hass, config_entry):
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
+    publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
     set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], False)
 
@@ -1050,6 +1055,7 @@ async def async_setup_entry(hass, config_entry):
         # reaching a handler while the account is retrying or reauthorizing.
         account_data["relogin_unsubs"] = (relogin_unsub, login_success_unsub)
         if await test_login_status(hass, config_entry, login):
+            publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)
@@ -3319,6 +3325,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         scan_value.total_seconds() if isinstance(scan_value, timedelta) else scan_value
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
+    publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
 
     # Initialize the per-account probe worker exactly once here (not per push message).
     _init_last_called_probe_worker(hass.data[DATA_ALEXAMEDIA]["accounts"][email])

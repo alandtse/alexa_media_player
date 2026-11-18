@@ -207,7 +207,7 @@ async def test_authentication_entity_subscribes_and_cleans_up() -> None:
     unsubs = []
     sensor.async_on_remove = unsubs.append
     with patch(
-        "homeassistant.helpers.update_coordinator.CoordinatorEntity.async_added_to_hass",
+        "homeassistant.components.sensor.SensorEntity.async_added_to_hass",
         new_callable=AsyncMock,
     ):
         with patch.object(sensor, "async_write_ha_state") as update:

@@ -20,6 +20,7 @@ from homeassistant.const import PERCENTAGE, UnitOfTemperature, __version__ as HA
 from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -173,9 +174,13 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa sensor platform by config_entry."""
-    return await async_setup_platform(
+    result = await async_setup_platform(
         hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
+    # Account diagnostics are independent of per-Echo include/exclude filters.
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
+    async_add_devices([AlexaAccountAuthenticationSensor(account, config_entry)])
+    return result
 
 
 async def async_unload_entry(hass, entry) -> bool:
@@ -366,6 +371,39 @@ def lookup_device_info(account_dict, device_serial):
             for ident in mediaplayer.device_info["identifiers"]:
                 return ident
     return None
+
+
+class AlexaAccountAuthenticationSensor(CoordinatorEntity, SensorEntity):
+    """Expose per-account authentication without assigning it to an Echo."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Authentication"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:account-check"
+
+    def __init__(self, account: dict, config_entry) -> None:
+        """Attach the diagnostic entity to the account's existing coordinator."""
+        super().__init__(account["coordinator"])
+        self._account = account
+        self._attr_unique_id = f"{config_entry.entry_id}_account_authentication"
+        self._attr_device_info = dr.DeviceInfo(
+            identifiers={(ALEXA_DOMAIN, f"account_{config_entry.entry_id}")},
+        )
+
+    @property
+    def available(self) -> bool:
+        """Remain visible when the API connection is unavailable."""
+        return True
+
+    @property
+    def native_value(self) -> str:
+        """Report the current authentication state of the account."""
+        login = self._account.get("login_obj")
+        return (
+            "authenticated"
+            if login is not None and login.status.get("login_successful")
+            else "not authenticated"
+        )
 
 
 class TemperatureSensor(SensorEntity, CoordinatorEntity):

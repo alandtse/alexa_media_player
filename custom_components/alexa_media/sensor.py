@@ -184,7 +184,9 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
         if account.get("coordinator") is not None:
             async_add_devices([AlexaAccountAuthenticationSensor(account, config_entry)])
-            account.setdefault("account_diagnostic_platforms_loaded", set()).add("sensor")
+            account.setdefault("account_diagnostic_platforms_loaded", set()).add(
+                "sensor"
+            )
     return result
 
 

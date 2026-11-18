@@ -51,7 +51,7 @@ def test_account_device_registration_is_idempotent() -> None:
         "identifiers": {account_device_identifier(entry)},
         "manufacturer": "Amazon",
         "model": "Alexa Account",
-        "name": "Alexa Account (first@example.com)",
+        "name": "Alexa Account (entry-1)",
     }
     for call in registry.async_get_or_create.call_args_list:
         assert call.kwargs == expected

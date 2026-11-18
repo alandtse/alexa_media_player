@@ -121,6 +121,7 @@ from .metrics import AlexaMetrics, get_metrics
 from .notify import async_unload_entry as notify_async_unload_entry
 from .runtime_data import AlexaRuntimeData
 from .services import AlexaMediaServices
+from .verified_http2 import VerifiedHTTP2EchoClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2780,12 +2781,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 if current_push_attempt(attempt):
                     await http2_close_handler()
 
+            async def on_verified():
+                if current_push_attempt(attempt):
+                    set_push_connected(push_owner, True)
+                    push_owner["http2error"] = 0
+
             async def on_error(message):
                 if current_push_attempt(attempt):
                     await http2_error_handler(message)
 
-            http2 = HTTP2EchoClient(
+            http2 = VerifiedHTTP2EchoClient(
                 login_obj,
+                verified_callback=on_verified,
                 msg_callback=http2_handler,
                 open_callback=on_open,
                 close_callback=on_close,
@@ -3266,11 +3273,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         """Handle http2 open."""
 
         email: str = login_obj.email
-        _LOGGER.debug("%s: HTTP2push successfully connected", hide_email(email))
-        set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], True)
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "http2error"
-        ] = 0  # set errors to 0
+        _LOGGER.debug(
+            "%s: HTTP2 stream opened; awaiting multipart confirmation",
+            hide_email(email),
+        )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_lastattempt"] = time.time()
 
     @callback

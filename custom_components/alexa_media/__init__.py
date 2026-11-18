@@ -1662,30 +1662,61 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         _LOGGER.debug("[BOOT] device processing in %.2fs", time.monotonic() - _t_proc)
 
-        # Account-only integrations also need the sensor platform on first setup.
-        # Keep the existing new-device discovery behaviour on later refreshes.
-        if new_alexa_clients or (
-            first_run and not account.get("account_platforms_loaded")
-        ):
-            cleaned_config = config.copy()
-            cleaned_config.pop(CONF_PASSWORD, None)
-            # CONF_PASSWORD contains sensitive info which is no longer needed
-            # Load multiple platforms in parallel using async_forward_entry_setups
-            _LOGGER.debug("Loading platforms: %s", ", ".join(ALEXA_COMPONENTS))
+        # Account diagnostics must load even with an empty Echo inventory,
+        # without reserving media_player before the first eligible Echo appears.
+        loaded = account.setdefault("account_diagnostic_platforms_loaded", set())
+        missing = [
+            platform
+            for platform in ("sensor", "binary_sensor")
+            if platform not in loaded
+        ]
+        if missing:
             try:
-                _t = time.monotonic()
                 await hass.config_entries.async_forward_entry_setups(
-                    config_entry, ALEXA_COMPONENTS
+                    config_entry, missing
                 )
-                _LOGGER.debug("[BOOT] platform loading in %.2fs", time.monotonic() - _t)
-                account["account_platforms_loaded"] = True
-                if metrics:
-                    metrics.record_boot_stage(f"platforms_loaded_{hide_email(email)}")
             except (asyncio.TimeoutError, TimeoutException) as ex:
-                _LOGGER.error(f"Error while loading platforms: {ex}")
                 raise ConfigEntryNotReady(
-                    f"Timeout while loading platforms: {ex}"
+                    f"Account diagnostic setup timed out: {ex}"
                 ) from ex
+            # Forwarding can return without raising when a platform fails.
+            # Never label a partial setup complete.
+            if any(platform not in loaded for platform in missing):
+                raise ConfigEntryNotReady("Account diagnostic platform not ready")
+
+        if new_alexa_clients:
+            if not account.get("media_player_platform_loaded"):
+                try:
+                    _t = time.monotonic()
+                    await hass.config_entries.async_forward_entry_setups(
+                        config_entry, ALEXA_COMPONENTS
+                    )
+                    if not account.get("media_player_platform_loaded"):
+                        raise ConfigEntryNotReady("Media player platform not ready")
+                    _LOGGER.debug(
+                        "[BOOT] media player platform loading in %.2fs",
+                        time.monotonic() - _t,
+                    )
+                    if metrics:
+                        metrics.record_boot_stage(
+                            f"platforms_loaded_{hide_email(email)}"
+                        )
+                except (asyncio.TimeoutError, TimeoutException) as ex:
+                    raise ConfigEntryNotReady(
+                        f"Media player platform setup timed out: {ex}"
+                    ) from ex
+            else:
+                # Once forwarded, use its registered entity-adder rather than
+                # forwarding the same config entry/platform a second time.
+                from .media_player import async_setup_platform as setup_media_player
+
+                add_entities = account.get("media_player_add_entities")
+                if add_entities is None:
+                    raise ConfigEntryNotReady("Media player entity adder not ready")
+                if not await setup_media_player(
+                    hass, config, add_entities, discover_only=True
+                ):
+                    raise ConfigEntryNotReady("New media players could not be added")
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
         # Create or recover the virtual device before stale-device pruning.

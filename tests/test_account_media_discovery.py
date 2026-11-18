@@ -178,6 +178,7 @@ async def test_late_echo_creates_real_shuffle_and_repeat_switches() -> None:
     """A second Echo gains actual switch entities without media-player forwarding."""
     player = MagicMock()
     player.device_serial_number = "SERIAL2"
+    player._login.email = "a@example.com"
     account = {
         "login_obj": SimpleNamespace(email="a@example.com"),
         "devices": {
@@ -212,7 +213,7 @@ async def test_dependent_setup_failure_does_not_mark_media_platform_loaded() -> 
     from custom_components.alexa_media import media_player as media_module
 
     email = "a@example.com"
-    account = {"entities": {"switch": {}, "media_player": {}}}
+    account = {"entities": {"switch": {"OLD": {}}, "media_player": {}}}
     hass = MagicMock(data={DOMAIN: {"accounts": {email: account}}})
     entry = SimpleNamespace(data={"email": email})
     with (

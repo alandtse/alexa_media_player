@@ -7,6 +7,7 @@ import pytest
 
 from custom_components.alexa_media.const import DOMAIN
 from custom_components.alexa_media.media_player import async_setup_platform
+from custom_components.alexa_media.binary_sensor import async_discover_kids
 
 
 @pytest.mark.asyncio
@@ -66,3 +67,46 @@ async def test_late_echo_uses_existing_entity_adder_without_platform_forward() -
         discovery_callback.assert_called_once()
         existing_callback.assert_not_called()
         hass.async_create_task.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_kids_binary_sensor_appears_when_echo_added_later() -> None:
+    """An account-only binary platform can discover Kids after player creation."""
+    email = "account@example.com"
+    client = SimpleNamespace(device_serial_number="SERIAL1", unique_id="SERIAL1")
+    account = {
+        "login_obj": SimpleNamespace(email=email),
+        "devices": {
+            "media_player": {
+                "SERIAL1": {"deviceFamily": "ECHO", "deviceType": "TYPE1"}
+            }
+        },
+        "entities": {"media_player": {}, "binary_sensor": []},
+    }
+    kids = MagicMock()
+    kids.async_start = AsyncMock()
+    adder = MagicMock()
+    with (
+        patch(
+            "custom_components.alexa_media.binary_sensor.async_get_state",
+            return_value=kids,
+        ),
+        patch(
+            "custom_components.alexa_media.binary_sensor.add_devices",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as add,
+        patch(
+            "custom_components.alexa_media.binary_sensor.KIDS_CAPABLE_FAMILIES",
+            {"ECHO"},
+        ),
+    ):
+        assert await async_discover_kids(None, account, adder)
+        add.assert_not_awaited()
+        account["entities"]["media_player"]["SERIAL1"] = client
+        assert await async_discover_kids(None, account, adder)
+        add.assert_awaited_once()
+        assert len(account["entities"]["binary_sensor"]) == 1
+        kids.async_start.assert_awaited_once()
+        assert await async_discover_kids(None, account, adder)
+        add.assert_awaited_once()

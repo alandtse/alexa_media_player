@@ -56,8 +56,8 @@ from homeassistant.util import dt, slugify
 import voluptuous as vol
 
 from .account_auth import publish_authentication
-from .account_push import owns_push_attempt, set_push_connected
 from .account_platforms import sync_echo_platforms
+from .account_push import owns_push_attempt, set_push_connected
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state

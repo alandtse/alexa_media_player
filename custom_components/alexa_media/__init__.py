@@ -57,6 +57,7 @@ import voluptuous as vol
 
 from .account_auth import publish_authentication
 from .account_push import owns_push_attempt, set_push_connected
+from .account_platforms import sync_echo_platforms
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state
@@ -3423,45 +3424,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             return
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = errors + 1
 
-    async def _sync_echo_platforms() -> None:
-        """Reconcile discovered Echoes outside the coordinator's data refresh."""
-        if (
-            hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
-            is not push_owner
-        ):
-            return
-        pending = [
-            serial
-            for serial in push_owner["devices"]["media_player"]
-            if serial not in push_owner["entities"]["media_player"]
-        ]
-        if not pending:
-            return
-        if not push_owner.get("media_player_platform_loaded"):
-            try:
-                await hass.config_entries.async_forward_entry_setups(
-                    config_entry, ALEXA_COMPONENTS
-                )
-            except (asyncio.TimeoutError, TimeoutException) as ex:
-                raise ConfigEntryNotReady(
-                    f"Media player platform setup timed out: {ex}"
-                ) from ex
-            if not push_owner.get("media_player_platform_loaded"):
-                await hass.config_entries.async_forward_entry_unload(
-                    config_entry, "media_player"
-                )
-                raise ConfigEntryNotReady("Media player platform not ready")
-        else:
-            from .media_player import async_setup_platform as setup_media_player
-
-            adder = push_owner.get("media_player_add_entities")
-            if adder is None:
-                raise ConfigEntryNotReady("Media player entity adder not ready")
-            if not await setup_media_player(
-                hass, config_entry.data, adder, discover_only=True
-            ):
-                raise ConfigEntryNotReady("New media players could not be added")
-
     async def _retry_echo_sync() -> None:
         """Retry a transient platform failure without shutting down coordinator."""
         delay = 5
@@ -3470,7 +3432,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             is push_owner
         ):
             try:
-                await _sync_echo_platforms()
+                await sync_echo_platforms(hass, config_entry, push_owner)
             except ConfigEntryNotReady as err:
                 _LOGGER.warning(
                     "%s: Echo discovery retry pending: %s", hide_email(email), err

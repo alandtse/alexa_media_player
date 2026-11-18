@@ -239,6 +239,14 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                     await hass.config_entries.async_forward_entry_setups(
                         config_entry, [component]
                     )
+                    # Home Assistant may return normally when a forwarded platform
+                    # logs a setup failure. Require a success acknowledgement.
+                    if component not in account_dict.get(
+                        "dependent_platforms_ready", set()
+                    ):
+                        raise ConfigEntryNotReady(
+                            f"Dependent platform {component} did not finish setup"
+                        )
                 except (asyncio.TimeoutError, TimeoutException) as ex:
                     raise ConfigEntryNotReady(
                         f"Timeout while loading config entry for {component}"

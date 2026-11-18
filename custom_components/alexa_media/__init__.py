@@ -314,7 +314,7 @@ def _register_account_device(hass, config_entry, email: str) -> None:
         identifiers={account_device_identifier(config_entry)},
         manufacturer="Amazon",
         model="Alexa Account",
-        name=f"Alexa Account ({email})",
+        name=f"Alexa Account ({config_entry.entry_id[:8]})",
     )
 
 

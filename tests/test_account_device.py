@@ -5,6 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from custom_components.alexa_media.account_auth import (
+    publish_authentication,
+    subscribe_authentication,
+)
 from custom_components.alexa_media import (
     _register_account_device,
     account_device_identifier,
@@ -163,3 +167,53 @@ def test_multiple_account_sensors_are_isolated() -> None:
     assert first_sensor.device_info != second_sensor.device_info
     assert first_sensor.native_value == "authenticated"
     assert second_sensor.native_value == "not authenticated"
+
+
+def test_authentication_notifications_follow_changes_and_unsubscribe() -> None:
+    """The diagnostic is updated when login changes without coordinator polling."""
+    account = _account()
+    callback = MagicMock()
+    unsubscribe = subscribe_authentication(account, callback)
+
+    publish_authentication(account)
+    callback.assert_called_once()  # initialize the first observed state
+    callback.reset_mock()
+    publish_authentication(account)
+    callback.assert_not_called()
+
+    account["login_obj"].status["login_successful"] = False
+    publish_authentication(account)
+    callback.assert_called_once()
+    callback.reset_mock()
+
+    account["login_obj"].status["login_successful"] = True
+    publish_authentication(account)
+    callback.assert_called_once()
+
+    unsubscribe()
+    callback.reset_mock()
+    account["login_obj"].status["login_successful"] = False
+    publish_authentication(account)
+    callback.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_authentication_entity_subscribes_and_cleans_up() -> None:
+    """The entity unsubscribes when Home Assistant removes it."""
+    account = _account()
+    sensor = AlexaAccountAuthenticationSensor(account, _entry("entry-1"))
+    unsubs = []
+    sensor.async_on_remove = unsubs.append
+    with patch(
+        "homeassistant.helpers.update_coordinator.CoordinatorEntity.async_added_to_hass",
+        new_callable=AsyncMock,
+    ):
+        with patch.object(sensor, "async_write_ha_state") as update:
+            await sensor.async_added_to_hass()
+            assert len(unsubs) == 1
+            publish_authentication(account)
+            update.assert_called_once()
+            unsubs.pop()()
+            account["login_obj"].status["login_successful"] = False
+            publish_authentication(account)
+            update.assert_called_once()

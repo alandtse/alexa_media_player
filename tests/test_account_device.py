@@ -132,9 +132,7 @@ async def test_account_sensor_waits_for_coordinator() -> None:
     """An account not yet initialized must not create a broken diagnostic."""
     entry = _entry("entry-1")
     account = {"entities": {}}
-    hass = SimpleNamespace(
-        data={DOMAIN: {"accounts": {entry.data["email"]: account}}}
-    )
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {entry.data["email"]: account}}})
     add_entities = MagicMock()
     with (
         patch(

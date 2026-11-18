@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.exceptions import ConfigEntryNotReady
 
 from custom_components.alexa_media.account_platforms import sync_echo_platforms
 from custom_components.alexa_media.binary_sensor import async_discover_kids
@@ -240,5 +241,39 @@ async def test_dependent_setup_failure_does_not_mark_media_platform_loaded() -> 
         loader.assert_awaited_once()
 
         loader.side_effect = None
+        assert await media_module.async_setup_entry(hass, entry, MagicMock())
+        assert account["media_player_platform_loaded"] is True
+
+
+@pytest.mark.asyncio
+async def test_silent_dependent_forward_failure_is_retryable() -> None:
+    """A forwarded platform can return without raising but not be ready."""
+    from custom_components.alexa_media import media_player as media_module
+
+    email = "a@example.com"
+    account = {"entities": {"switch": {}, "media_player": {}}}
+    hass = MagicMock(data={DOMAIN: {"accounts": {email: account}}})
+    forward = AsyncMock(return_value=None)
+    hass.config_entries.async_forward_entry_setups = forward
+    entry = SimpleNamespace(data={"email": email})
+    with (
+        patch.object(
+            media_module, "async_setup_platform",
+            new_callable=AsyncMock, return_value=True,
+        ),
+        patch.object(
+            media_module, "config_entry_config", return_value={"email": email}
+        ),
+        patch.object(media_module, "DEPENDENT_ALEXA_COMPONENTS", ["switch"]),
+    ):
+        with pytest.raises(ConfigEntryNotReady, match="switch"):
+            await media_module.async_setup_entry(hass, entry, MagicMock())
+        assert not account.get("media_player_platform_loaded")
+        forward.assert_awaited_once_with(entry, ["switch"])
+
+        async def successful_forward(_entry, _platforms):
+            account.setdefault("dependent_platforms_ready", set()).add("switch")
+
+        forward.side_effect = successful_forward
         assert await media_module.async_setup_entry(hass, entry, MagicMock())
         assert account["media_player_platform_loaded"] is True

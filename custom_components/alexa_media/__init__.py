@@ -1113,9 +1113,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     def current_push_attempt(token: object) -> bool:
         return (
-            hass.data.get(DATA_ALEXAMEDIA, {})
-            .get("accounts", {})
-            .get(email) is push_owner
+            hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+            is push_owner
             and push_owner.get("push_attempt") is token
         )
 

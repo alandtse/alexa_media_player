@@ -373,9 +373,9 @@ async def test_kids_waiters_retry_and_deduplicate(mock_hass, switch_setup):
 
     await switch_platform.async_setup_entry(mock_hass, entry, schedule)
     await switch_platform.async_setup_entry(mock_hass, entry, schedule)
-    first, second = [
+    first, second = (
         call.args[0] for call in kids.async_add_when_dashboard.await_args_list
-    ]
+    )
     assert not await first()
     assert account["entities"]["amazon_kids_switch"] == []
     assert await first()

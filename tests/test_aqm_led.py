@@ -307,19 +307,17 @@ async def test_setup_filters_and_duplicates(appliance, include, exclude, count):
         "include_devices": include,
         "exclude_devices": exclude,
     }
-    with patch(
-        "custom_components.alexa_media.switch.add_devices", AsyncMock(return_value=True)
-    ) as add:
-        await async_setup_platform(hass, config, MagicMock())
-        await async_setup_platform(hass, config, MagicMock())
-        added_leds = [
-            entity
-            for call in add.call_args_list
-            for entity in call.args[1]
-            if isinstance(entity, LEDIndicatorSwitch)
-        ]
-        assert len(added_leds) == count
-        assert len(account["entities"]["smart_switch"]) == count
+    add = MagicMock()
+    await async_setup_platform(hass, config, add)
+    await async_setup_platform(hass, config, add)
+    added_leds = [
+        entity
+        for call in add.call_args_list
+        for entity in call.args[0]
+        if isinstance(entity, LEDIndicatorSwitch)
+    ]
+    assert len(added_leds) == count
+    assert len(account["entities"]["smart_switch"]) == count
 
 
 @pytest.mark.parametrize("supported", [None, [None], "toggleState", {}, 42, []])

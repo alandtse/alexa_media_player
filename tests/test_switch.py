@@ -5,10 +5,13 @@ was used but never defined, causing a NameError when users had Smart Plug
 devices with CONF_EXTENDED_ENTITY_DISCOVERY enabled.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
+from homeassistant.exceptions import PlatformNotReady
 import pytest
 
+from custom_components.alexa_media import switch as switch_platform
 from custom_components.alexa_media.const import (
     CONF_EXTENDED_ENTITY_DISCOVERY,
     DATA_ALEXAMEDIA,
@@ -48,6 +51,7 @@ def mock_account_dict():
             "switch": {},
             "media_player": {},
             "smart_switch": [],
+            "amazon_kids_switch": [],
         },
         "options": {CONF_EXTENDED_ENTITY_DISCOVERY: True},
         "coordinator": coordinator,
@@ -71,22 +75,13 @@ class TestHueEmulatedEnabledVariable:
         email = "test@example.com"  # noqa: S105
         mock_hass.data = {DATA_ALEXAMEDIA: {"accounts": {email: mock_account_dict}}}
 
-        with patch(
-            "custom_components.alexa_media.switch.add_devices",
-            new_callable=AsyncMock,
-        ) as mock_add_devices:
-            mock_add_devices.return_value = True
+        # This should not raise NameError: name 'hue_emulated_enabled' is not defined
+        config = {"email": email}
+        result = await switch_platform.async_setup_platform(
+            mock_hass, config, MagicMock(), discovery_info=None
+        )
 
-            from custom_components.alexa_media.switch import async_setup_platform
-
-            # This should not raise NameError: name 'hue_emulated_enabled' is not defined
-            config = {"email": email}
-            result = await async_setup_platform(
-                mock_hass, config, MagicMock(), discovery_info=None
-            )
-
-            assert result is True
-            mock_add_devices.assert_called_once()
+        assert result is True
 
 
 class TestSmartSwitchCreation:
@@ -110,21 +105,13 @@ class TestSmartSwitchCreation:
             DATA_ALEXAMEDIA: {"accounts": {email: mock_account_dict}}
         }
 
-        with patch(
-            "custom_components.alexa_media.switch.add_devices",
-            new_callable=AsyncMock,
-        ) as mock_add_devices:
-            mock_add_devices.return_value = True
+        config = {"email": email}
+        await switch_platform.async_setup_platform(
+            mock_hass_with_emulated_hue, config, MagicMock(), discovery_info=None
+        )
 
-            from custom_components.alexa_media.switch import async_setup_platform
-
-            config = {"email": email}
-            await async_setup_platform(
-                mock_hass_with_emulated_hue, config, MagicMock(), discovery_info=None
-            )
-
-            # Verify the SmartSwitch was added to account_dict entities
-            assert len(mock_account_dict["entities"]["smart_switch"]) == 1
+        # Verify the SmartSwitch was added to account_dict entities
+        assert len(mock_account_dict["entities"]["smart_switch"]) == 1
 
     @pytest.mark.asyncio
     async def test_hue_v1_switch_skipped_when_emulated_hue_enabled(
@@ -145,21 +132,13 @@ class TestSmartSwitchCreation:
             DATA_ALEXAMEDIA: {"accounts": {email: mock_account_dict}}
         }
 
-        with patch(
-            "custom_components.alexa_media.switch.add_devices",
-            new_callable=AsyncMock,
-        ) as mock_add_devices:
-            mock_add_devices.return_value = True
+        config = {"email": email}
+        await switch_platform.async_setup_platform(
+            mock_hass_with_emulated_hue, config, MagicMock(), discovery_info=None
+        )
 
-            from custom_components.alexa_media.switch import async_setup_platform
-
-            config = {"email": email}
-            await async_setup_platform(
-                mock_hass_with_emulated_hue, config, MagicMock(), discovery_info=None
-            )
-
-            # Verify the hue-v1 switch was NOT added to smart_switch entities
-            assert len(mock_account_dict["entities"]["smart_switch"]) == 0
+        # Verify the hue-v1 switch was NOT added to smart_switch entities
+        assert len(mock_account_dict["entities"]["smart_switch"]) == 0
 
     @pytest.mark.asyncio
     async def test_hue_v1_switch_created_when_emulated_hue_not_enabled(
@@ -177,21 +156,13 @@ class TestSmartSwitchCreation:
         ]
         mock_hass.data = {DATA_ALEXAMEDIA: {"accounts": {email: mock_account_dict}}}
 
-        with patch(
-            "custom_components.alexa_media.switch.add_devices",
-            new_callable=AsyncMock,
-        ) as mock_add_devices:
-            mock_add_devices.return_value = True
+        config = {"email": email}
+        await switch_platform.async_setup_platform(
+            mock_hass, config, MagicMock(), discovery_info=None
+        )
 
-            from custom_components.alexa_media.switch import async_setup_platform
-
-            config = {"email": email}
-            await async_setup_platform(
-                mock_hass, config, MagicMock(), discovery_info=None
-            )
-
-            # Verify the hue-v1 switch WAS added when emulated_hue is not enabled
-            assert len(mock_account_dict["entities"]["smart_switch"]) == 1
+        # Verify the hue-v1 switch WAS added when emulated_hue is not enabled
+        assert len(mock_account_dict["entities"]["smart_switch"]) == 1
 
     @pytest.mark.asyncio
     async def test_no_smart_switches_when_extended_discovery_disabled(
@@ -206,21 +177,13 @@ class TestSmartSwitchCreation:
         mock_account_dict["options"][CONF_EXTENDED_ENTITY_DISCOVERY] = False
         mock_hass.data = {DATA_ALEXAMEDIA: {"accounts": {email: mock_account_dict}}}
 
-        with patch(
-            "custom_components.alexa_media.switch.add_devices",
-            new_callable=AsyncMock,
-        ) as mock_add_devices:
-            mock_add_devices.return_value = True
+        config = {"email": email}
+        await switch_platform.async_setup_platform(
+            mock_hass, config, MagicMock(), discovery_info=None
+        )
 
-            from custom_components.alexa_media.switch import async_setup_platform
-
-            config = {"email": email}
-            await async_setup_platform(
-                mock_hass, config, MagicMock(), discovery_info=None
-            )
-
-            # No smart switches should be added
-            assert len(mock_account_dict["entities"]["smart_switch"]) == 0
+        # No smart switches should be added
+        assert len(mock_account_dict["entities"]["smart_switch"]) == 0
 
 
 @pytest.mark.asyncio
@@ -283,3 +246,180 @@ class TestHueEmulatedDetection:
         # Missing components key
         hue_enabled = "emulated_hue" in config_missing.get("components", set())
         assert hue_enabled is False
+
+
+@pytest.fixture
+def switch_setup(monkeypatch, mock_hass, mock_account_dict):
+    """Supply one Echo, one plug and one air quality monitor."""
+    account = mock_account_dict
+    devices = account["devices"]
+    devices["media_player"] = {
+        "echo": {
+            "capabilities": ["MUSIC_SKILL"],
+            "deviceFamily": "ECHO",
+            "deviceType": "echo-type",
+        }
+    }
+    devices["switch"] = {"echo": {"dnd": True}}
+    devices["smart_switch"] = [
+        {"id": "plug", "name": "Plug", "is_hue_v1": False},
+        {"id": "plug", "name": "Plug", "is_hue_v1": False},
+    ]
+    devices["aiaqm"] = [
+        {"id": "aqm", "name": "Monitor", "led_indicator_instance": "led"}
+    ]
+    client = SimpleNamespace(device_serial_number="echo")
+    account["entities"]["media_player"] = {"echo": client}
+    mock_hass.data = {DATA_ALEXAMEDIA: {"accounts": {"test@example.com": account}}}
+    entry = SimpleNamespace(data={"email": "test@example.com"}, options={})
+    kids = SimpleNamespace(
+        track=MagicMock(), async_add_when_dashboard=AsyncMock(), async_start=AsyncMock()
+    )
+    monkeypatch.setattr(switch_platform, "KIDS_CAPABLE_FAMILIES", {"ECHO"})
+    monkeypatch.setattr(switch_platform, "async_get_state", lambda *_: kids)
+    monkeypatch.setattr(
+        switch_platform,
+        "supports_display",
+        lambda d: d is devices["media_player"]["echo"],
+    )
+    monkeypatch.setattr(switch_platform, "async_get_display_state", AsyncMock())
+
+    def mock_switch(unique_id):
+        return lambda *_: SimpleNamespace(
+            unique_id=unique_id, name=unique_id, is_on=False
+        )
+
+    for name, unique_id in (
+        ("DNDSwitch", "dnd"),
+        ("ShuffleSwitch", "shuffle"),
+        ("RepeatSwitch", "repeat"),
+        ("SmartSwitch", "plug"),
+        ("LEDIndicatorSwitch", "aqm_led_indicator"),
+        ("AlexaDisplayPowerSwitch", "display"),
+        ("AlexaAdaptiveBrightnessSwitch", "brightness"),
+        ("AmazonKidsSwitch", "kids"),
+    ):
+        monkeypatch.setattr(switch_platform, name, mock_switch(unique_id))
+    return entry, account, kids
+
+
+@pytest.mark.parametrize("failure", ["dnd", "aqm_led_indicator", "display"])
+async def test_retry_submits_only_missing_switches(mock_hass, switch_setup, failure):
+    """A synchronous rejection must not poison caches or repeat accepted batches."""
+    entry, account, _ = switch_setup
+    queued = []
+
+    def reject_one_batch(entities, update_before_add):
+        assert not update_before_add
+        ids = [entity.unique_id for entity in entities]
+        if failure in ids:
+            raise RuntimeError("Callback failed before queuing")
+        queued.extend(ids)
+
+    with pytest.raises(PlatformNotReady):
+        await switch_platform.async_setup_entry(mock_hass, entry, reject_one_batch)
+
+    tracked = account["entities"]
+    assert {entity.unique_id for entity in tracked["smart_switch"]} == {
+        entity_id for entity_id in queued if entity_id in {"plug", "aqm_led_indicator"}
+    }
+
+    def schedule(entities, _):
+        queued.extend(entity.unique_id for entity in entities)
+
+    await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    # These are still pending in Home Assistant. No entity_id or state exists.
+    await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    assert queued == [
+        "dnd",
+        "shuffle",
+        "repeat",
+        "plug",
+        "aqm_led_indicator",
+        "display",
+        "brightness",
+    ]
+    assert [e.unique_id for e in tracked["smart_switch"]] == [
+        "plug",
+        "aqm_led_indicator",
+    ]
+
+
+async def test_setup_waits_for_later_media_player(mock_hass, switch_setup):
+    """A missing Echo client must leave earlier switch candidates available."""
+    entry, account, _ = switch_setup
+    account["devices"]["media_player"]["late"] = {}
+    callback = MagicMock()
+    with pytest.raises(PlatformNotReady):
+        await switch_platform.async_setup_entry(mock_hass, entry, callback)
+    callback.assert_not_called()
+    assert account["entities"]["switch"] == {}
+
+    account["entities"]["media_player"]["late"] = object()
+    await switch_platform.async_setup_entry(mock_hass, entry, callback)
+    assert callback.call_args_list[0].args[0][0].unique_id == "dnd"
+
+
+async def test_kids_waiters_retry_and_deduplicate(mock_hass, switch_setup):
+    """Two deferred waiters share accepted Amazon Kids entities by unique ID."""
+    entry, account, kids = switch_setup
+    kids_attempts = []
+
+    def schedule(entities, _):
+        if entities[0].unique_id == "kids":
+            kids_attempts.append(entities[0])
+            if len(kids_attempts) == 1:
+                raise RuntimeError("Dashboard add callback could not schedule")
+
+    await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    first, second = [
+        call.args[0] for call in kids.async_add_when_dashboard.await_args_list
+    ]
+    assert not await first()
+    assert account["entities"]["amazon_kids_switch"] == []
+    assert await first()
+    assert await second()
+    assert len(kids_attempts) == 2
+    assert account["entities"]["amazon_kids_switch"] == [kids_attempts[1]]
+
+
+async def test_filtered_plug_is_not_tracked(mock_hass, switch_setup):
+    """The polling collection contains only candidates given to Home Assistant."""
+    entry, account, _ = switch_setup
+    entry.data["include_devices"] = ["dnd", "Monitor"]
+    await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
+    assert [e.unique_id for e in account["entities"]["smart_switch"]] == [
+        "aqm_led_indicator"
+    ]
+
+
+async def test_reload_resubmits_after_scheduled_add_fails(mock_hass, switch_setup):
+    """A fresh account can submit the same IDs after HA discards the old platform."""
+    entry, account, _ = switch_setup
+    queued = []
+
+    def schedule(entities, _):
+        queued.extend(entities)
+
+    await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    old_entities = queued.copy()
+    # Model the config-entry reload boundary: HA discards the queued add
+    # work and AMP replaces the runtime account and its entity collections.
+    reloaded = {
+        **account,
+        "entities": {
+            "media_player": account["entities"]["media_player"],
+            "switch": {},
+            "smart_switch": [],
+            "amazon_kids_switch": [],
+        },
+    }
+    mock_hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data["email"]] = reloaded
+    queued.clear()
+    await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+
+    assert [entity.unique_id for entity in queued] == [
+        entity.unique_id for entity in old_entities
+    ]
+    assert all(new is not old for new, old in zip(queued, old_entities, strict=True))

@@ -8,6 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass
 import datetime
 import logging
@@ -15,7 +16,7 @@ from typing import Any, Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
-from homeassistant.auth.permissions.const import POLICY_CONTROL
+from homeassistant.auth.permissions.const import POLICY_CONTROL, POLICY_READ
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import (
@@ -503,6 +504,23 @@ class AlexaMediaServices:
             )
             account_dict["service_update_last_called_task"] = task
 
+    async def _check_entity_permissions(
+        self, call: ServiceCall, entity_ids: Sequence[str], permission: str
+    ) -> None:
+        """Authorize all targets before resolving or acting on any of them."""
+        if not (user_id := call.context.user_id):
+            return
+        user = await self.hass.auth.async_get_user(user_id)
+        if user is None:
+            raise UnknownUser(context=call.context)
+        for entity_id in entity_ids:
+            if not user.permissions.check_entity(entity_id, permission):
+                raise Unauthorized(
+                    context=call.context,
+                    entity_id=entity_id,
+                    permission=permission,
+                )
+
     async def restore_volume(self, call: ServiceCall) -> bool:
         """Handle restore volume service request.
 
@@ -511,6 +529,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         _LOGGER.debug("Service restore_volume called for: %s", entity_id)
 
         # Retrieve the entity registry and entity entry
@@ -553,6 +572,7 @@ class AlexaMediaServices:
                 "volume_level": previous_volume,
             },
             target={"entity_id": entity_id},
+            context=call.context,
             blocking=True,
         )
 
@@ -610,6 +630,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         child = call.data.get(ATTR_CHILD)
         login_obj, serial, device_type = self._resolve_device(entity_id)
         if not login_obj:
@@ -631,6 +652,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, device_type = self._resolve_device(entity_id)
         if not login_obj:
             return False
@@ -647,17 +669,7 @@ class AlexaMediaServices:
 
         """
         entity_ids = call.data[ATTR_ENTITY_ID]
-        if call.context.user_id:
-            user = await self.hass.auth.async_get_user(call.context.user_id)
-            if user is None:
-                raise UnknownUser(context=call.context)
-            for entity_id in entity_ids:
-                if not user.permissions.check_entity(entity_id, POLICY_CONTROL):
-                    raise Unauthorized(
-                        context=call.context,
-                        entity_id=entity_id,
-                        permission=POLICY_CONTROL,
-                    )
+        await self._check_entity_permissions(call, entity_ids, POLICY_CONTROL)
         _LOGGER.debug("Service repeat_last_message called for: %s", entity_ids)
         media_players = {
             entity.entity_id: entity
@@ -793,6 +805,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         days = call.data.get(ATTR_DAYS)
         alarm_type = call.data.get("alarm_type", "default")
         music_provider = call.data.get("music_provider")
@@ -846,6 +859,7 @@ class AlexaMediaServices:
     async def list_alarms(self, call: ServiceCall) -> dict[str, Any]:
         """Return cached Alexa alarm metadata without exposing serials or IDs."""
         entity_id = call.data[ATTR_ENTITY_ID]
+        await self._check_entity_permissions(call, (entity_id,), POLICY_READ)
         login_obj, serial, _, _ = self._resolve_alarm_device(entity_id)
         alarms = (
             safe_get(
@@ -882,6 +896,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, alarm, time_zone = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
@@ -917,6 +932,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
@@ -931,6 +947,7 @@ class AlexaMediaServices:
     async def skip_next_alarm(self, call: ServiceCall) -> bool:
         """Request skipping the next occurrence of an active recurring alarm."""
         entity_id = call.data[ATTR_ENTITY_ID]
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data[ATTR_ALARM_ID]
         )
@@ -960,6 +977,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
@@ -981,6 +999,8 @@ class AlexaMediaServices:
     async def get_history_records(self, call: ServiceCall) -> bool:
         """Handle request to get history records and store them on the entity."""
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        # Fetching history publishes it to the entity's state attributes.
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
 
         # Validate number_of_entries

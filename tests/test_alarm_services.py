@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from alexapy import AlexaAPI, AlexapyLoginError
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.core import Context
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.util import dt as dt_util
 import pytest
@@ -64,7 +65,7 @@ def make_services(alarm=ALARM):
 
 
 def call(**data):
-    return MagicMock(data={"entity_id": ENTITY_ID, **data})
+    return MagicMock(context=Context(), data={"entity_id": ENTITY_ID, **data})
 
 
 RECURRING_ALARM = {
@@ -109,7 +110,9 @@ async def test_skip_next_alarm_registered(alarm_id):
         registry.return_value.async_get.return_value = MagicMock(
             platform="alexa_media", unique_id=SERIAL
         )
-        assert await handler(MagicMock(data=schema(call(alarm_id=alarm_id).data)))
+        assert await handler(
+            MagicMock(context=Context(), data=schema(call(alarm_id=alarm_id).data))
+        )
 
     registry.return_value.async_get.assert_called_once_with(ENTITY_ID)
     skip.assert_awaited_once_with(login, "idx-1")

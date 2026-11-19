@@ -221,7 +221,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa switch platform by config_entry."""
     if not await async_setup_platform(
-        hass, config_entry_config(config_entry), async_add_devices
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     ):
         raise PlatformNotReady("Unable to schedule Alexa switches")
     return True

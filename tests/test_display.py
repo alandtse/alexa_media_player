@@ -415,6 +415,78 @@ async def test_display_state_refresh_only_polls_supported_settings():
 
 
 @pytest.mark.asyncio
+async def test_display_refresh_preserves_values_on_transient_failures():
+    """Transient failures keep cached values and entity availability (#3707)."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={
+            SETTING_DISPLAY_POWER: "ON",
+            SETTING_BRIGHTNESS: 40,
+            SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+        },
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+    power = AlexaDisplayPowerSwitch(state)
+    adaptive = AlexaAdaptiveBrightnessSwitch(state)
+    brightness = AlexaDisplayBrightness(state)
+
+    assert power.available
+    assert adaptive.available
+    assert brightness.available
+    assert brightness.native_value == 40
+
+    async def _transient(_login, _account_id, setting):
+        if setting == SETTING_DISPLAY_POWER:
+            return 503, None
+        if setting == SETTING_BRIGHTNESS:
+            raise RuntimeError("network down")
+        return 200, None
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_transient,
+    ):
+        await state.async_refresh()
+
+    assert state.value(SETTING_DISPLAY_POWER) == "ON"
+    assert state.value(SETTING_BRIGHTNESS) == 40
+    assert state.value(SETTING_ADAPTIVE_BRIGHTNESS) == "OFF"
+    assert power.available
+    assert adaptive.available
+    assert brightness.available
+    assert brightness.native_value == 40
+
+    async def _recovered(_login, _account_id, setting):
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "OFF",
+                SETTING_BRIGHTNESS: 75,
+                SETTING_ADAPTIVE_BRIGHTNESS: "ON",
+            }[setting],
+        )
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_recovered,
+    ):
+        await state.async_refresh()
+
+    assert state.value(SETTING_DISPLAY_POWER) == "OFF"
+    assert state.value(SETTING_BRIGHTNESS) == 75
+    assert state.value(SETTING_ADAPTIVE_BRIGHTNESS) == "ON"
+    assert not power.is_on
+    assert adaptive.is_on
+    assert brightness.native_value == 75
+    assert power.available
+    assert adaptive.available
+    assert brightness.available
+
+
+@pytest.mark.asyncio
 async def test_display_state_drops_setting_after_failures():
     """A setting that keeps failing is marked unsupported and stops polling."""
     state = _state()

@@ -209,9 +209,7 @@ async def async_complete_dependent_platforms(hass, config_entry, account_dict):
     for component in DEPENDENT_ALEXA_COMPONENTS:
         if component in account_dict.get("dependent_platforms_ready", set()):
             continue
-        if component in account_dict.get(
-            "account_diagnostic_platforms_loaded", set()
-        ):
+        if component in account_dict.get("account_diagnostic_platforms_loaded", set()):
             continue
         try:
             entry_setup = len(account_dict["entities"][component])
@@ -249,7 +247,6 @@ async def async_complete_dependent_platforms(hass, config_entry, account_dict):
                 raise ConfigEntryNotReady(
                     f"Timeout while loading config entry for {component}"
                 ) from ex
-
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):

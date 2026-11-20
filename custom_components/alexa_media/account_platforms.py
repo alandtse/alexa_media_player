@@ -36,9 +36,12 @@ async def sync_echo_platforms(hass, config_entry, account: dict) -> None:
                 f"Media player platform setup timed out: {err}"
             ) from err
         if not account.get("media_player_platform_loaded"):
-            await hass.config_entries.async_forward_entry_unload(
-                config_entry, "media_player"
-            )
+            # Keep an established media-player platform when only dependent
+            # setup failed; its saved entity-adder is needed for recovery.
+            if account.get("media_player_add_entities") is None:
+                await hass.config_entries.async_forward_entry_unload(
+                    config_entry, "media_player"
+                )
             raise ConfigEntryNotReady("Media player platform not ready")
         return
 

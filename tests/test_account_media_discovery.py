@@ -333,3 +333,35 @@ async def test_media_player_late_echo_reconciles_real_music_switches() -> None:
         add_switches.assert_awaited_once()
         load.assert_not_awaited()
         assert account["media_player_add_entities"] is stored_media_adder
+
+
+@pytest.mark.asyncio
+async def test_incomplete_platform_retries_with_existing_echo_entities() -> None:
+    """A failed dependent setup must retry despite no undiscovered serials."""
+    email = "account@example.com"
+    entry = SimpleNamespace(data={"email": email})
+    adder = MagicMock()
+    account = {
+        "entities": {"media_player": {"SERIAL1": object()}},
+        "devices": {"media_player": {"SERIAL1": {}}},
+        "media_player_add_entities": adder,
+        "media_player_platform_loaded": False,
+    }
+    platform_api = SimpleNamespace(
+        async_forward_entry_setups=AsyncMock(),
+        async_forward_entry_unload=AsyncMock(),
+    )
+    hass = SimpleNamespace(config_entries=platform_api)
+    with patch(
+        "custom_components.alexa_media.media_player.async_complete_dependent_platforms",
+        new_callable=AsyncMock,
+        side_effect=[ConfigEntryNotReady("switch failed"), None],
+    ) as finish:
+        with pytest.raises(ConfigEntryNotReady):
+            await sync_echo_platforms(hass, entry, account)
+        assert account["media_player_platform_loaded"] is False
+        await sync_echo_platforms(hass, entry, account)
+        assert account["media_player_platform_loaded"] is True
+        assert finish.await_count == 2
+        platform_api.async_forward_entry_setups.assert_not_awaited()
+        platform_api.async_forward_entry_unload.assert_not_awaited()

@@ -57,6 +57,34 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 
+async def async_discover_music_switches(account_dict, add_devices_callback) -> bool:
+    """Add repeat/shuffle switches for newly discovered Echo media players."""
+    email = account_dict["login_obj"].email
+    pending = []
+    staged = {}
+    existing = account_dict["entities"].setdefault("switch", {})
+    players = account_dict["entities"]["media_player"]
+    for serial, device in account_dict["devices"]["media_player"].items():
+        if "MUSIC_SKILL" not in device.get("capabilities", {}):
+            continue
+        player = players.get(serial)
+        if player is None:
+            continue
+        switches = existing.setdefault(serial, {})
+        for name, cls in (("shuffle", ShuffleSwitch), ("repeat", RepeatSwitch)):
+            if name not in switches:
+                instance = cls(player)
+                staged[(serial, name)] = instance
+                pending.append(instance)
+    if not pending:
+        return True
+    if not await add_devices(hide_email(email), pending, add_devices_callback):
+        return False
+    for (serial, name), instance in staged.items():
+        existing[serial][name] = instance
+    return True
+
+
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa switch platform."""
     devices: list[DNDSwitch] = []
@@ -75,6 +103,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    account_dict["switch_add_devices"] = add_devices_callback
     _LOGGER.debug("%s: Loading switches", hide_email(account))
     if "switch" not in account_dict["entities"]:
         hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"] = {}
@@ -267,9 +296,13 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa switch platform by config_entry."""
-    return await async_setup_platform(
+    result = await async_setup_platform(
         hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
+    if result:
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data["email"]]
+        account.setdefault("dependent_platforms_ready", set()).add("switch")
+    return result
 
 
 async def async_unload_entry(hass, entry) -> bool:

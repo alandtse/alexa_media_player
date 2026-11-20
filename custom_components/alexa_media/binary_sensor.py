@@ -25,8 +25,10 @@ from . import (
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
     _network_allowed,
+    account_device_identifier,
     hide_email,
 )
+from .account_push import subscribe_push_connected
 from .alexa_entity import parse_detection_state_from_coordinator
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .connectivity import connectivity_state
@@ -51,6 +53,36 @@ def _connectivity_unique_id(serial, email):
     return f"{slugify(f'{serial}_{email}')}_connectivity"
 
 
+async def async_discover_kids(hass, account_dict, add_devices_callback) -> bool:
+    """Discover Kids entities when their Echo media players become available."""
+    login_obj = account_dict["login_obj"]
+    kids_state = async_get_state(hass, account_dict, login_obj)
+    media_players = account_dict["entities"]["media_player"]
+    tracked = account_dict.setdefault("kids_binary_discovered", set())
+    discovered = []
+    serials = []
+    for key, device in account_dict["devices"]["media_player"].items():
+        if key in tracked or device.get("deviceFamily") not in KIDS_CAPABLE_FAMILIES:
+            continue
+        device_type = device.get("deviceType")
+        client = media_players.get(key)
+        if not device_type or client is None:
+            continue
+        kids_state.track(client.device_serial_number, device_type)
+        discovered.append(AmazonKidsSensor(kids_state, client))
+        serials.append(key)
+    if not discovered:
+        return True
+    if not await add_devices(
+        hide_email(login_obj.email), discovered, add_devices_callback
+    ):
+        return False
+    account_dict["entities"]["binary_sensor"].extend(discovered)
+    tracked.update(serials)
+    await kids_state.async_start()
+    return True
+
+
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa sensor platform."""
     devices: list[BinarySensorEntity] = []
@@ -65,6 +97,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     coordinator = account_dict["coordinator"]
+    account_dict["binary_sensor_add_devices"] = add_devices_callback
 
     # Inventory has already passed AMP's device name/capability filters.
     # Discover independently of media_player entity creation or enablement.
@@ -102,26 +135,6 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             account_dict["entities"]["binary_sensor"].append(contact_sensor)
             devices.append(contact_sensor)
 
-    # Amazon Kids (child mode) sensor per Echo device.
-    # Only create a sensor for Echos that already have a media_player entity, so
-    # the configured include/exclude device filters are inherited and the unique
-    # id can be scoped to the account exactly like the media player.
-    login_obj = account_dict["login_obj"]
-    kids_state = async_get_state(hass, account_dict, login_obj)
-    media_players = account_dict["entities"]["media_player"]
-    kids_devices: list[BinarySensorEntity] = []
-    for key, device in account_dict["devices"]["media_player"].items():
-        if device.get("deviceFamily") not in KIDS_CAPABLE_FAMILIES:
-            continue
-        device_type = device.get("deviceType")
-        client = media_players.get(key)
-        if not device_type or client is None:
-            continue
-        kids_state.track(client.device_serial_number, device_type)
-        kids_sensor = AmazonKidsSensor(kids_state, client)
-        account_dict["entities"]["binary_sensor"].append(kids_sensor)
-        kids_devices.append(kids_sensor)
-
     result = await add_devices(
         hide_email(account),
         devices,
@@ -129,21 +142,24 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         include_filter,
         exclude_filter,
     )
-    if kids_devices:
-        await kids_state.async_start()
-        # Already scoped via the media_player entities, so no extra name filter.
-        result = (
-            await add_devices(hide_email(account), kids_devices, add_devices_callback)
-            and result
-        )
+    if result:
+        result = await async_discover_kids(hass, account_dict, add_devices_callback)
     return result
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa sensor platform by config_entry."""
-    return await async_setup_platform(
+    result = await async_setup_platform(
         hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
+    if result:
+        # Account diagnostic is independent of per-Echo include/exclude filters.
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
+        async_add_devices([AlexaAccountPushSensor(account, config_entry)])
+        account.setdefault("account_diagnostic_platforms_loaded", set()).add(
+            "binary_sensor"
+        )
+    return result
 
 
 async def async_unload_entry(hass, entry) -> bool:
@@ -155,6 +171,36 @@ async def async_unload_entry(hass, entry) -> bool:
     for binary_sensor in tuple(account_dict["entities"]["binary_sensor"]):
         await binary_sensor.async_remove()
     return True
+
+
+class AlexaAccountPushSensor(BinarySensorEntity):
+    """Observed HTTP/2 push connection for one Amazon account."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Push connected"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_should_poll = False
+
+    def __init__(self, account: dict, config_entry) -> None:
+        """Attach to the existing account device, not a particular Echo."""
+        self._account = account
+        self._attr_unique_id = f"{config_entry.entry_id}_account_push_connected"
+        self._attr_device_info = {
+            "identifiers": {account_device_identifier(config_entry)},
+        }
+
+    @property
+    def is_on(self) -> bool:
+        """Return observed connection state; never assume a healthy transport."""
+        return self._account.get("push_connected", False)
+
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to changes without polling the Amazon API."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            subscribe_push_connected(self._account, self.async_write_ha_state)
+        )
 
 
 class AlexaContact(CoordinatorEntity, BinarySensorEntity):

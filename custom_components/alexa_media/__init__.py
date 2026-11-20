@@ -55,6 +55,19 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt, slugify
 import voluptuous as vol
 
+from .account_auth import publish_authentication
+from .account_platforms import sync_echo_platforms
+from .account_push import (
+    abandon_push_attempt,
+    begin_push_attempt,
+    cancel_account_reconnect,
+    close_account_push,
+    open_owned_push,
+    owns_push_account,
+    owns_push_attempt,
+    reconnect_account_push,
+    set_push_connected,
+)
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state
@@ -119,6 +132,7 @@ from .metrics import AlexaMetrics, get_metrics
 from .notify import async_unload_entry as notify_async_unload_entry
 from .runtime_data import AlexaRuntimeData
 from .services import AlexaMediaServices
+from .verified_http2 import observe_verified_stream
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -299,6 +313,72 @@ def _pop_relogin_listeners(hass, email: str) -> None:
     account = accounts.get(email)
     if isinstance(account, dict):
         _drop_listeners(account.pop("relogin_unsubs", ()))
+
+
+def account_device_identifier(config_entry) -> tuple[str, str]:
+    """Return the stable identifier of one account's virtual HA device."""
+    return (DOMAIN, f"account_{config_entry.entry_id}")
+
+
+def _register_account_device(hass, config_entry, email: str) -> None:
+    """Create or reuse the account's virtual device registry entry."""
+    dr.async_get(hass).async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={account_device_identifier(config_entry)},
+        manufacturer="Amazon",
+        model="Alexa Account",
+        name=f"Alexa Account ({config_entry.entry_id[:8]})",
+    )
+
+
+async def _ensure_account_diagnostic_platforms(
+    hass, config_entry, account: dict
+) -> None:
+    """Load account-only platforms once, cleaning up partial setup failures."""
+    loaded = account.setdefault("account_diagnostic_platforms_loaded", set())
+    missing = [
+        platform for platform in ("sensor", "binary_sensor") if platform not in loaded
+    ]
+    if not missing:
+        return
+    try:
+        await hass.config_entries.async_forward_entry_setups(config_entry, missing)
+    except (asyncio.TimeoutError, TimeoutException) as ex:
+        raise ConfigEntryNotReady(f"Account diagnostic setup timed out: {ex}") from ex
+    # A forwarded platform may fail without the combined forward raising.
+    failed = [platform for platform in missing if platform not in loaded]
+    if failed:
+        for platform in failed:
+            await hass.config_entries.async_forward_entry_unload(config_entry, platform)
+        raise ConfigEntryNotReady(
+            f"Account diagnostic platforms not ready: {', '.join(failed)}"
+        )
+
+
+async def _retry_account_diagnostic_platforms(
+    hass, config_entry, account: dict
+) -> None:
+    """Recover partial account diagnostics without shutting down the coordinator."""
+    email = config_entry.data[CONF_EMAIL]
+    delay = 5
+    while hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email) is account:
+        await asyncio.sleep(delay)
+        if (
+            hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+            is not account
+        ):
+            return
+        try:
+            await _ensure_account_diagnostic_platforms(hass, config_entry, account)
+        except ConfigEntryNotReady as err:
+            _LOGGER.warning(
+                "%s: Account diagnostics retry failed: %s",
+                hide_email(email),
+                err,
+            )
+            delay = min(delay * 2, 300)
+        else:
+            return
 
 
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
@@ -818,8 +898,10 @@ async def async_setup_entry(hass, config_entry):
             else:
                 login_obj.oauth_login = True
             await login_obj.reset()
+            publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             # await login_obj.login()
             if await test_login_status(hass, config_entry, login_obj):
+                publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
                 await setup_alexa(hass, config_entry, login_obj)
 
     async def login_success(event=None) -> None:
@@ -829,6 +911,7 @@ async def async_setup_entry(hass, config_entry):
             login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
                 "login_obj"
             )
+            publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             await setup_alexa(hass, config_entry, login_obj)
 
     hass.data.setdefault(DATA_ALEXAMEDIA, {})
@@ -944,7 +1027,9 @@ async def async_setup_entry(hass, config_entry):
         ),
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
+    publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
+    set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], False)
 
     # Create runtime_data for optimized architecture
     # This provides type-safe access to account data
@@ -1032,6 +1117,7 @@ async def async_setup_entry(hass, config_entry):
         # reaching a handler while the account is retrying or reauthorizing.
         account_data["relogin_unsubs"] = (relogin_unsub, login_success_unsub)
         if await test_login_status(hass, config_entry, login):
+            publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)
@@ -1083,6 +1169,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # Record metrics
     metrics = get_metrics(hass)
     email = login_obj.email
+    # Capture the account instance; callbacks from an older setup must never
+    # mutate an account recreated under the same email.
+    push_owner = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+
+    def current_push_attempt(token: object) -> bool:
+        return owns_push_attempt(hass, email, push_owner, token)
+
     if metrics:
         metrics.record_boot_stage(f"setup_alexa_start_{hide_email(email)}")
 
@@ -1627,27 +1720,13 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
         _LOGGER.debug("[BOOT] device processing in %.2fs", time.monotonic() - _t_proc)
 
-        if new_alexa_clients:
-            cleaned_config = config.copy()
-            cleaned_config.pop(CONF_PASSWORD, None)
-            # CONF_PASSWORD contains sensitive info which is no longer needed
-            # Load multiple platforms in parallel using async_forward_entry_setups
-            _LOGGER.debug("Loading platforms: %s", ", ".join(ALEXA_COMPONENTS))
-            try:
-                _t = time.monotonic()
-                await hass.config_entries.async_forward_entry_setups(
-                    config_entry, ALEXA_COMPONENTS
-                )
-                _LOGGER.debug("[BOOT] platform loading in %.2fs", time.monotonic() - _t)
-                if metrics:
-                    metrics.record_boot_stage(f"platforms_loaded_{hide_email(email)}")
-            except (asyncio.TimeoutError, TimeoutException) as ex:
-                _LOGGER.error(f"Error while loading platforms: {ex}")
-                raise ConfigEntryNotReady(
-                    f"Timeout while loading platforms: {ex}"
-                ) from ex
+        if new_alexa_clients and account.get("echo_sync_ready"):
+            _schedule_echo_sync()
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
+        # Create or recover the virtual device before stale-device pruning.
+        _register_account_device(hass, config_entry, email)
+
         # prune stale devices
         device_registry = dr.async_get(hass)
         entity_backed_ids = _entity_backed_device_identifiers(
@@ -1669,6 +1748,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             "media_player"
                         ].keys(),
                     )
+                    or account_device_identifier(config_entry)
+                    in device_entry.identifiers
                     or identifier in entity_backed_ids
                 ):
                     break
@@ -2681,7 +2762,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         This will only attempt one login before failing.
         """
         http2: Optional[HTTP2EchoClient] = None
+        attempt = None
         email = login_obj.email
+
+        def discard_attempt() -> None:
+            """Invalidate only this failed transport and release its tasks."""
+            if attempt is not None:
+                abandon_push_attempt(push_owner, attempt, http2)
+
         try:
             if login_obj.session.closed:
                 _LOGGER.debug(
@@ -2689,17 +2777,51 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     hide_email(email),
                 )
                 return
+            attempt = begin_push_attempt(push_owner)
+
+            async def on_open():
+                if current_push_attempt(attempt):
+                    await http2_open_handler()
+
+            async def on_message(message):
+                if current_push_attempt(attempt):
+                    await http2_handler(message, attempt)
+
+            async def on_close():
+                if current_push_attempt(attempt):
+                    await http2_close_handler()
+
+            async def on_verified():
+                if (
+                    current_push_attempt(attempt)
+                    and push_owner.get("push_rejected_attempt") is not attempt
+                ):
+                    set_push_connected(push_owner, True)
+                    push_owner["http2error"] = 0
+
+            async def on_error(message):
+                if current_push_attempt(attempt):
+                    push_owner["push_rejected_attempt"] = attempt
+                    await http2_error_handler(message)
+
             http2 = HTTP2EchoClient(
                 login_obj,
-                msg_callback=http2_handler,
-                open_callback=http2_open_handler,
-                close_callback=http2_close_handler,
-                error_callback=http2_error_handler,
+                msg_callback=on_message,
+                open_callback=on_open,
+                close_callback=on_close,
+                error_callback=on_error,
                 loop=hass.loop,
             )
+            observe_verified_stream(http2, on_verified)
             _LOGGER.debug("%s: Starting HTTP2: %s", hide_email(email), http2)
-            await http2.async_run()
+            http2 = await open_owned_push(hass, email, push_owner, attempt, http2)
+            if http2 is None:
+                return None
+        except asyncio.CancelledError:
+            discard_attempt()
+            raise
         except AlexapyLoginError as exception_:
+            discard_attempt()
             _LOGGER.debug(
                 "%s: Login Error detected from http2: %s",
                 hide_email(email),
@@ -2711,6 +2833,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
             return
         except BaseException as exception_:  # pylint: disable=broad-except
+            discard_attempt()
             _LOGGER.debug(
                 "%s: HTTP2 creation failed: %s", hide_email(email), exception_
             )
@@ -2719,15 +2842,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         return http2
 
     @callback
-    async def http2_handler(message_obj):
+    async def http2_handler(message_obj, attempt=None):
         # pylint: disable=too-many-branches,too-many-statements
         """Handle http2 push messages.
 
         This allows push notifications from Alexa to update last_called and media state.
         """
 
-        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
-        account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+        if attempt is not None and not current_push_attempt(attempt):
+            return
+        account = push_owner
+        coordinator = account.get("coordinator")
 
         def _now_ms() -> int:
             return int(time.time() * 1000)
@@ -3030,6 +3155,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         bluetooth_state = await update_bluetooth_state(
                             login_obj, serial
                         )
+                        if attempt is not None and not current_push_attempt(attempt):
+                            return
                         _LOGGER.debug(
                             "bluetooth_state %s", hide_serial(bluetooth_state)
                         )
@@ -3152,6 +3279,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             events,
                         )
                         await update_dnd_state(login_obj)
+                        if attempt is not None and not current_push_attempt(attempt):
+                            return
 
                 if (
                     serial
@@ -3171,75 +3300,30 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         """Handle http2 open."""
 
         email: str = login_obj.email
-        _LOGGER.debug("%s: HTTP2push successfully connected", hide_email(email))
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "http2error"
-        ] = 0  # set errors to 0
+        _LOGGER.debug(
+            "%s: HTTP2 stream opened; awaiting multipart confirmation",
+            hide_email(email),
+        )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2_lastattempt"] = time.time()
 
     @callback
     async def http2_close_handler():
-        """Handle http2 close.
-
-        This should attempt to reconnect up to 5 times
-        """
-        email: str = login_obj.email
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = None
-        if login_obj.close_requested:
-            _LOGGER.debug(
-                "%s: Close requested; will not reconnect http2", hide_email(email)
-            )
+        """Handle a closed stream and reconnect only while this account is active."""
+        email = login_obj.email
+        connected = await reconnect_account_push(
+            hass, email, push_owner, login_obj, http2_connect
+        )
+        if connected is None or not owns_push_account(hass, email, push_owner):
             return
-        if not login_obj.status.get("login_successful"):
+        if not connected:
             _LOGGER.debug(
-                "%s: Login error; will not reconnect http2", hide_email(email)
-            )
-            return
-        errors: int = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"]
-        delay: int = 5 * 2**errors
-        last_attempt = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "http2_lastattempt"
-        ]
-        now = time.time()
-        if (now - last_attempt) < delay:
-            return
-        http2_client = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"]
-        http2_enabled = bool(http2_client)
-        while errors < 5 and not (http2_enabled):
-            _LOGGER.debug(
-                "%s: HTTP2 push closed; reconnect #%i in %is",
-                hide_email(email),
-                errors,
-                delay,
-            )
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                "http2_lastattempt"
-            ] = time.time()
-            http2_client = await http2_connect()
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = http2_client
-            http2_enabled = bool(http2_client)
-            if http2_enabled:
-                break
-            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = (
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] + 1
-            )
-            delay = 5 * 2**errors
-            errors = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"]
-            await asyncio.sleep(delay)
-        if not http2_enabled:
-            _LOGGER.debug(
-                "%s: HTTP2Push connection closed; retries exceeded; polling",
+                "%s: HTTP2Push disconnected; using normal polling",
                 hide_email(email),
             )
-        coordinator = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("coordinator")
+        coordinator = push_owner.get("coordinator")
         if coordinator:
             coordinator.update_interval = timedelta(
-                seconds=scan_interval * 10 if http2_enabled else scan_interval
-            )
-            _LOGGER.debug(
-                "HTTP2push: %s, Polling interval: %s",
-                http2_enabled,
-                coordinator.update_interval,
+                seconds=scan_interval * 10 if connected else scan_interval
             )
             await coordinator.async_request_refresh()
 
@@ -3260,6 +3344,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             type(message),
         )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2"] = None
+        set_push_connected(hass.data[DATA_ALEXAMEDIA]["accounts"][email], False)
         if not login_obj.close_requested and (
             login_obj.session.closed or isinstance(message, AlexapyLoginError)
         ):
@@ -3271,6 +3356,31 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             )
             return
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["http2error"] = errors + 1
+
+    async def _retry_echo_sync() -> None:
+        """Retry a transient platform failure without shutting down coordinator."""
+        delay = 5
+        while (
+            hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+            is push_owner
+        ):
+            try:
+                await sync_echo_platforms(hass, config_entry, push_owner)
+            except ConfigEntryNotReady as err:
+                _LOGGER.warning(
+                    "%s: Echo discovery retry pending: %s", hide_email(email), err
+                )
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 300)
+            else:
+                return
+
+    def _schedule_echo_sync() -> None:
+        task = push_owner.get("echo_sync_task")
+        if task is None or task.done():
+            push_owner["echo_sync_task"] = hass.async_create_background_task(
+                _retry_echo_sync(), f"{DOMAIN}_echo_discovery"
+            )
 
     _LOGGER.debug("Setting up Alexa devices for %s", hide_email(login_obj.email))
     config = config_entry.data
@@ -3288,6 +3398,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         scan_value.total_seconds() if isinstance(scan_value, timedelta) else scan_value
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
+    publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
 
     # Initialize the per-account probe worker exactly once here (not per push message).
     _init_last_called_probe_worker(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
@@ -3340,6 +3451,33 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.debug("[BOOT] first_refresh in %.2fs", time.monotonic() - _t)
 
+    # The account has a deliberate polling listener even when only passive
+    # diagnostics exist, so new Echo inventory can be discovered without push.
+    if not push_owner.get("account_discovery_unsub"):
+        push_owner["account_discovery_unsub"] = coordinator.async_add_listener(
+            lambda: None
+        )
+
+    # Account diagnostics are independent of inventory discovery and load
+    # after the initial coordinator refresh has completed.
+    try:
+        await _ensure_account_diagnostic_platforms(hass, config_entry, push_owner)
+    except ConfigEntryNotReady as err:
+        _LOGGER.warning(
+            "%s: Account diagnostics deferred after platform failure: %s",
+            hide_email(email),
+            err,
+        )
+        retry = push_owner.get("diagnostics_retry_task")
+        if retry is None or retry.done():
+            push_owner["diagnostics_retry_task"] = hass.async_create_background_task(
+                _retry_account_diagnostic_platforms(hass, config_entry, push_owner),
+                f"{DOMAIN}_account_diagnostics_retry",
+            )
+
+    push_owner["echo_sync_ready"] = True
+    _schedule_echo_sync()
+
     # Services are registered once in async_setup; attach the setup-local callback.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email][
         "schedule_notifications_refresh"
@@ -3382,9 +3520,15 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry"""
     email = entry.data["email"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
+    account_data = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+    if account_data is not None:
+        cancel_account_reconnect(account_data)
+        close_account_push(account_data)
     _pop_relogin_listeners(hass, email)
     for task_key in (
         "notifications_refresh_task",
+        "diagnostics_retry_task",
+        "echo_sync_task",
         "notifications_init_task",
         "last_called_init_task",
         "service_update_last_called_task",
@@ -3440,6 +3584,7 @@ async def async_unload_entry(hass, entry) -> bool:
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
 
     account.pop("connectivity_discovery_unsub", lambda: None)()
+    account.pop("account_discovery_unsub", lambda: None)()
 
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:
@@ -3558,6 +3703,8 @@ async def close_connections(hass, email: str) -> None:
     ):
         return
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    cancel_account_reconnect(account_dict)
+    close_account_push(account_dict)
     login_obj = account_dict["login_obj"]
     await login_obj.save_cookiefile()
     await login_obj.close()

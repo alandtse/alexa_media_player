@@ -114,9 +114,15 @@ async def async_setup_platform(
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa alarm control panel platform by config_entry."""
-    return await async_setup_platform(
+    result = await async_setup_platform(
         hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
+    if result:
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data["email"]]
+        account.setdefault("dependent_platforms_ready", set()).add(
+            "alarm_control_panel"
+        )
+    return result
 
 
 async def async_unload_entry(hass, entry) -> bool:

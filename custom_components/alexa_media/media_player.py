@@ -203,6 +203,51 @@ async def async_setup_platform(
     return result
 
 
+async def async_complete_dependent_platforms(hass, config_entry, account_dict):
+    """Finish missing dependent platforms without forwarding media_player again."""
+    for component in DEPENDENT_ALEXA_COMPONENTS:
+        if component in account_dict.get(
+            "account_diagnostic_platforms_loaded", set()
+        ):
+            continue
+        try:
+            entry_setup = len(account_dict["entities"][component])
+        except (TypeError, KeyError):
+            entry_setup = 1
+        if entry_setup or component == "notify":
+            _LOGGER.debug("%s: Loading %s", hide_email(account), component)
+            cleaned_config = config_entry_config(config_entry)
+            cleaned_config.pop(CONF_PASSWORD, None)
+            # CONF_PASSWORD contains sensitive info which is no longer needed
+            await async_load_platform(
+                hass,
+                component,
+                ALEXA_DOMAIN,
+                {CONF_NAME: ALEXA_DOMAIN, "config": cleaned_config},
+                cleaned_config,
+            )
+        else:
+            _LOGGER.debug(
+                "%s: Loading config entry for %s", hide_email(account), component
+            )
+            try:
+                await hass.config_entries.async_forward_entry_setups(
+                    config_entry, [component]
+                )
+                # Home Assistant may return normally when a forwarded platform
+                # logs a setup failure. Require a success acknowledgement.
+                if component not in account_dict.get(
+                    "dependent_platforms_ready", set()
+                ):
+                    raise ConfigEntryNotReady(
+                        f"Dependent platform {component} did not finish setup"
+                    )
+            except (asyncio.TimeoutError, TimeoutException) as ex:
+                raise ConfigEntryNotReady(
+                    f"Timeout while loading config entry for {component}"
+                ) from ex
+
+    
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa media player platform by config_entry."""
     if await async_setup_platform(
@@ -210,47 +255,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     ):
         account = config_entry.data[CONF_EMAIL]
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
-        for component in DEPENDENT_ALEXA_COMPONENTS:
-            if component in account_dict.get(
-                "account_diagnostic_platforms_loaded", set()
-            ):
-                continue
-            try:
-                entry_setup = len(account_dict["entities"][component])
-            except (TypeError, KeyError):
-                entry_setup = 1
-            if entry_setup or component == "notify":
-                _LOGGER.debug("%s: Loading %s", hide_email(account), component)
-                cleaned_config = config_entry_config(config_entry)
-                cleaned_config.pop(CONF_PASSWORD, None)
-                # CONF_PASSWORD contains sensitive info which is no longer needed
-                await async_load_platform(
-                    hass,
-                    component,
-                    ALEXA_DOMAIN,
-                    {CONF_NAME: ALEXA_DOMAIN, "config": cleaned_config},
-                    cleaned_config,
-                )
-            else:
-                _LOGGER.debug(
-                    "%s: Loading config entry for %s", hide_email(account), component
-                )
-                try:
-                    await hass.config_entries.async_forward_entry_setups(
-                        config_entry, [component]
-                    )
-                    # Home Assistant may return normally when a forwarded platform
-                    # logs a setup failure. Require a success acknowledgement.
-                    if component not in account_dict.get(
-                        "dependent_platforms_ready", set()
-                    ):
-                        raise ConfigEntryNotReady(
-                            f"Dependent platform {component} did not finish setup"
-                        )
-                except (asyncio.TimeoutError, TimeoutException) as ex:
-                    raise ConfigEntryNotReady(
-                        f"Timeout while loading config entry for {component}"
-                    ) from ex
+        await async_complete_dependent_platforms(hass, config_entry, account_dict)
         account_dict["media_player_platform_loaded"] = True
         return True
     raise ConfigEntryNotReady

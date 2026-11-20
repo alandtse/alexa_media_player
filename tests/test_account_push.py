@@ -353,8 +353,13 @@ async def test_unload_cancels_reconnect_during_backoff() -> None:
 
     worker = asyncio.create_task(
         reconnect_account_push(
-            hass, email, account, login, AsyncMock(return_value=None),
-            sleep=backoff, clock=lambda: 100,
+            hass,
+            email,
+            account,
+            login,
+            AsyncMock(return_value=None),
+            sleep=backoff,
+            clock=lambda: 100,
         )
     )
     await sleeping.wait()

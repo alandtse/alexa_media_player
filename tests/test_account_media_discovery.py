@@ -314,9 +314,14 @@ async def test_media_player_late_echo_reconciles_real_music_switches() -> None:
         patch.object(media_module, "create_www_directory", new_callable=AsyncMock),
         patch.object(media_module, "AlexaClient", return_value=new_player),
         patch.object(media_module, "DEPENDENT_ALEXA_COMPONENTS", ["switch"]),
-        patch.object(media_module, "async_load_platform", new_callable=AsyncMock) as load,
-        patch("custom_components.alexa_media.switch.add_devices",
-              new_callable=AsyncMock, return_value=True) as add_switches,
+        patch.object(
+            media_module, "async_load_platform", new_callable=AsyncMock
+        ) as load,
+        patch(
+            "custom_components.alexa_media.switch.add_devices",
+            new_callable=AsyncMock,
+            return_value=True,
+        ) as add_switches,
     ):
         assert await media_module.async_setup_platform(
             hass, {"email": email}, stored_media_adder, discover_only=True

@@ -205,7 +205,10 @@ async def async_setup_platform(
 
 async def async_complete_dependent_platforms(hass, config_entry, account_dict):
     """Finish missing dependent platforms without forwarding media_player again."""
+    account = config_entry.data[CONF_EMAIL]
     for component in DEPENDENT_ALEXA_COMPONENTS:
+        if component in account_dict.get("dependent_platforms_ready", set()):
+            continue
         if component in account_dict.get(
             "account_diagnostic_platforms_loaded", set()
         ):
@@ -247,7 +250,8 @@ async def async_complete_dependent_platforms(hass, config_entry, account_dict):
                     f"Timeout while loading config entry for {component}"
                 ) from ex
 
-    
+
+
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa media player platform by config_entry."""
     if await async_setup_platform(

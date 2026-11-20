@@ -8,6 +8,7 @@ import pytest
 from custom_components.alexa_media.account_push import (
     abandon_push_attempt,
     begin_push_attempt,
+    cancel_account_reconnect,
     close_account_push,
     open_owned_push,
     owns_push_attempt,
@@ -297,3 +298,68 @@ async def test_open_timeout_does_not_clear_newer_connection_attempt() -> None:
     assert account["push_attempt"] is not old
     old_client.on_close.assert_called_once()
     new_client.on_close.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_competing_close_callbacks_do_not_start_second_reconnect() -> None:
+    """Only the current reconnect task can close or replace the transport."""
+    import asyncio
+
+    email = "a@example.com"
+    account = {"http2error": 0, "http2_lastattempt": 0, "http2": None}
+    login = SimpleNamespace(close_requested=False, status={"login_successful": True})
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {email: account}}})
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    client = MagicMock()
+
+    async def connect():
+        entered.set()
+        await release.wait()
+        client._amp_attempt = begin_push_attempt(account)
+        return client
+
+    first = asyncio.create_task(
+        reconnect_account_push(hass, email, account, login, connect, clock=lambda: 100)
+    )
+    await entered.wait()
+    assert account["push_reconnect_task"] is first
+    second = await reconnect_account_push(
+        hass, email, account, login, connect, clock=lambda: 100
+    )
+    assert second is None
+    assert account["push_reconnect_task"] is first
+    release.set()
+    assert await first is True
+    assert account["http2"] is client
+    assert account["push_reconnect_task"] is None
+
+
+@pytest.mark.asyncio
+async def test_unload_cancels_reconnect_during_backoff() -> None:
+    """Teardown cancels a reconnect callback that is sleeping after failure."""
+    import asyncio
+
+    email = "a@example.com"
+    account = {"http2error": 0, "http2_lastattempt": 0, "http2": None}
+    login = SimpleNamespace(close_requested=False, status={"login_successful": True})
+    hass = SimpleNamespace(data={DOMAIN: {"accounts": {email: account}}})
+    sleeping = asyncio.Event()
+    release = asyncio.Event()
+
+    async def backoff(_seconds):
+        sleeping.set()
+        await release.wait()
+
+    worker = asyncio.create_task(
+        reconnect_account_push(
+            hass, email, account, login, AsyncMock(return_value=None),
+            sleep=backoff, clock=lambda: 100,
+        )
+    )
+    await sleeping.wait()
+    cancel_account_reconnect(account)
+    with pytest.raises(asyncio.CancelledError):
+        await worker
+    assert account["push_reconnect_task"] is None
+    assert account["http2"] is None

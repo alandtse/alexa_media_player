@@ -15,9 +15,18 @@ async def sync_echo_platforms(hass, config_entry, account: dict) -> None:
         for serial in account["devices"]["media_player"]
         if serial not in account["entities"]["media_player"]
     ]
-    if not pending:
-        return
     if not account.get("media_player_platform_loaded"):
+        # A prior media-player forward may have created entities before its
+        # dependent platforms failed. Complete that setup using the existing
+        # platform rather than forwarding media_player a second time.
+        if account.get("media_player_add_entities") is not None:
+            from .media_player import async_complete_dependent_platforms
+
+            await async_complete_dependent_platforms(hass, config_entry, account)
+            account["media_player_platform_loaded"] = True
+            return
+        if not pending:
+            return
         try:
             await hass.config_entries.async_forward_entry_setups(
                 config_entry, ALEXA_COMPONENTS
@@ -33,6 +42,8 @@ async def sync_echo_platforms(hass, config_entry, account: dict) -> None:
             raise ConfigEntryNotReady("Media player platform not ready")
         return
 
+    if not pending:
+        return
     from .media_player import async_setup_platform
 
     adder = account.get("media_player_add_entities")

@@ -67,6 +67,15 @@ def owns_push_account(hass, email: str, account: dict) -> bool:
     return hass.data.get("alexa_media", {}).get("accounts", {}).get(email) is account
 
 
+def cancel_account_reconnect(account: dict) -> None:
+    """Stop any previously scheduled reconnect when an entry unloads."""
+    import asyncio
+
+    task = account.get("push_reconnect_task")
+    if task is not None and task is not asyncio.current_task() and not task.done():
+        task.cancel()
+
+
 async def reconnect_account_push(
     hass,
     email: str,
@@ -77,50 +86,56 @@ async def reconnect_account_push(
     sleep=None,
     clock=None,
 ) -> bool | None:
-    """Reconnect a closed transport while its original account still owns it.
-
-    Return None when unloaded/replaced, otherwise whether a client reconnected.
-    The caller applies any coordinator polling update only if ownership survives.
-    """
+    """Reconnect only while this task owns an active account's transport."""
     import asyncio
     import time
 
     sleep = sleep or asyncio.sleep
     clock = clock or time.time
+    task = asyncio.current_task()
+    previous = account.get("push_reconnect_task")
+    if previous is not None and previous is not task and not previous.done():
+        return None
 
     def active() -> bool:
         return owns_push_account(hass, email, account) and not login_obj.close_requested
 
     if not active():
         return None
-    close_account_push(account)
-    if not login_obj.status.get("login_successful"):
-        return False
-    errors = account["http2error"]
-    delay = 5 * 2**errors
-    if clock() - account["http2_lastattempt"] < delay:
-        return False
-    while errors < 5:
-        if not active():
-            return None
-        account["http2_lastattempt"] = clock()
-        client = await connect()
-        if not active() or (
-            client is not None
-            and getattr(client, "_amp_attempt", None) is not account.get("push_attempt")
-        ):
-            if client is not None:
-                client.on_close()
-            return None
-        account["http2"] = client
-        if client is not None:
-            return True
-        errors = account["http2error"] = account["http2error"] + 1
+    account["push_reconnect_task"] = task
+    try:
+        close_account_push(account)
+        if not login_obj.status.get("login_successful"):
+            return False
+        errors = account["http2error"]
         delay = 5 * 2**errors
-        await sleep(delay)
-        if not active():
-            return None
-    return False
+        if clock() - account["http2_lastattempt"] < delay:
+            return False
+        while errors < 5:
+            if not active():
+                return None
+            account["http2_lastattempt"] = clock()
+            client = await connect()
+            if not active() or (
+                client is not None
+                and getattr(client, "_amp_attempt", None)
+                is not account.get("push_attempt")
+            ):
+                if client is not None:
+                    client.on_close()
+                return None
+            account["http2"] = client
+            if client is not None:
+                return True
+            errors = account["http2error"] = account["http2error"] + 1
+            delay = 5 * 2**errors
+            await sleep(delay)
+            if not active():
+                return None
+        return False
+    finally:
+        if account.get("push_reconnect_task") is task:
+            account["push_reconnect_task"] = None
 
 
 async def open_owned_push(hass, email: str, account: dict, attempt: object, client):

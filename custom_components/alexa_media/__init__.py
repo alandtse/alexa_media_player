@@ -60,6 +60,7 @@ from .account_platforms import sync_echo_platforms
 from .account_push import (
     abandon_push_attempt,
     begin_push_attempt,
+    cancel_account_reconnect,
     close_account_push,
     open_owned_push,
     owns_push_account,
@@ -3521,6 +3522,7 @@ async def async_unload_entry(hass, entry) -> bool:
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
     account_data = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
     if account_data is not None:
+        cancel_account_reconnect(account_data)
         close_account_push(account_data)
     _pop_relogin_listeners(hass, email)
     for task_key in (
@@ -3701,6 +3703,7 @@ async def close_connections(hass, email: str) -> None:
     ):
         return
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    cancel_account_reconnect(account_dict)
     close_account_push(account_dict)
     login_obj = account_dict["login_obj"]
     await login_obj.save_cookiefile()

@@ -365,3 +365,39 @@ async def test_incomplete_platform_retries_with_existing_echo_entities() -> None
         assert finish.await_count == 2
         platform_api.async_forward_entry_setups.assert_not_awaited()
         platform_api.async_forward_entry_unload.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_forwarded_media_player_partial_setup_keeps_adder_for_retry() -> None:
+    """Dependent-only failure must not unload a working media_player platform."""
+    email = "account@example.com"
+    entry = SimpleNamespace(data={"email": email})
+    account = {
+        "entities": {"media_player": {}},
+        "devices": {"media_player": {"SERIAL1": {}}},
+    }
+    events = []
+
+    async def first_forward(_entry, platforms):
+        events.append(("forward", platforms))
+        account["entities"]["media_player"]["SERIAL1"] = object()
+        account["media_player_add_entities"] = MagicMock()
+        # Dependent platform failed, so no loaded marker.
+
+    platforms = SimpleNamespace(
+        async_forward_entry_setups=AsyncMock(side_effect=first_forward),
+        async_forward_entry_unload=AsyncMock(),
+    )
+    hass = SimpleNamespace(config_entries=platforms)
+    with patch(
+        "custom_components.alexa_media.media_player.async_complete_dependent_platforms",
+        new_callable=AsyncMock,
+    ) as finish:
+        with pytest.raises(ConfigEntryNotReady, match="Media player platform"):
+            await sync_echo_platforms(hass, entry, account)
+        platforms.async_forward_entry_unload.assert_not_awaited()
+
+        await sync_echo_platforms(hass, entry, account)
+        finish.assert_awaited_once_with(hass, entry, account)
+        assert account["media_player_platform_loaded"] is True
+        assert events == [("forward", ["media_player"])]

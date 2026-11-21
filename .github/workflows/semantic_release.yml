@@ -134,19 +134,34 @@ jobs:
           git add custom_components/alexa_media/translations/*.json
           git commit -m "docs: update localization" -a
       - name: Python Semantic Release
+        id: release
         uses: python-semantic-release/python-semantic-release@v10.2.0
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           commit: true
           push: true
+      # A deploy-only rerun after a partial release starts from the pre-release
+      # SHA and PSR then no-ops, so package and sync from the released tag.
+      - name: Check out released tag
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "::warning::PSR reported no tag; packaging the current checkout."
+            exit 0
+          fi
+          git fetch --tags origin
+          git checkout --detach "refs/tags/$RELEASE_TAG"
       # Pack the alexa_media_player dir as a zip and upload to the release
       - name: Zip alexa_media dir
         run: |
           cd /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media
           zip alexa_media.zip -r ./
       - name: Set release variable
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
-          echo "release_version=`git describe --abbrev=0`" >> $GITHUB_ENV
+          echo "release_version=${RELEASE_TAG:-$(git describe --abbrev=0)}" >> "$GITHUB_ENV"
       - name: Sleep
         # add delay so upload does not kill the release notes from semantic-release
         run: |

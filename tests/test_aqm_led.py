@@ -109,6 +109,15 @@ def test_discovery_rejects_other_capabilities(appliance, change):
     assert get_led_indicator_instance(appliance) is None
 
 
+@pytest.mark.parametrize("bad_properties", [["invalid"], "invalid", 7])
+def test_discovery_ignores_malformed_led_properties(appliance, bad_properties):
+    """A malformed LED capability must not abort discovery of the appliance."""
+    appliance["capabilities"][1]["properties"] = bad_properties
+    assert get_led_indicator_instance(appliance) is None
+    parsed = parse_alexa_entities([appliance])
+    assert parsed["aiaqm"][0].get("led_indicator_instance") is None
+
+
 @pytest.fixture
 def switch(appliance):
     """A real switch with a mocked shared coordinator."""

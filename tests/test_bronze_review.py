@@ -380,3 +380,17 @@ def test_effective_config_keeps_legacy_fallback_and_does_not_mutate_entry():
     assert config == {"email": EMAIL, "include_devices": "Kitchen", "debug": False}
     config["include_devices"] = "Office"
     assert entry.data["include_devices"] == "Kitchen"
+
+
+@pytest.mark.asyncio
+async def test_force_logout_does_not_report_success_without_an_event():
+    """The service cannot claim recovery when the handler was not notified."""
+    hass = MagicMock(
+        data={DATA_ALEXAMEDIA: {"accounts": {EMAIL: {"login_obj": MagicMock()}}}}
+    )
+    services = AlexaMediaServices(hass)
+    with patch(
+        "custom_components.alexa_media.services.report_relogin_required",
+        return_value=False,
+    ):
+        assert await services.force_logout(MagicMock(data={})) is False

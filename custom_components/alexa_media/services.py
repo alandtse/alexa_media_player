@@ -419,12 +419,12 @@ class AlexaMediaServices:
 
             # This is the effective “force logout” for this account: mark it as
             # requiring reauthentication and notify the user/UI.
-            report_relogin_required(self.hass, login_obj, email)
-            success = True
-            _LOGGER.debug(
-                "Marked Alexa Media account %s for relogin via force_logout service",
-                hide_email(email),
-            )
+            if report_relogin_required(self.hass, login_obj, email):
+                success = True
+                _LOGGER.debug(
+                    "Marked Alexa Media account %s for relogin via force_logout service",
+                    hide_email(email),
+                )
 
         if requested_emails and not success:
             _LOGGER.warning(

@@ -12,6 +12,7 @@ from custom_components.alexa_media.helpers import (
     _existing_serials,
     add_devices,
     is_http2_enabled,
+    report_relogin_required,
     safe_get,
 )
 
@@ -571,3 +572,18 @@ def test_safe_get_none_default_no_type_check():
         mock_dictor.return_value = 123
         result = safe_get({}, ["key"], None)
         assert result == 123
+
+
+def test_report_relogin_required_fires_without_status_snapshot():
+    """A valid login can request recovery before its status is populated."""
+    hass = MagicMock()
+    login = MagicMock(url="amazon.com", stats={"api_calls": 0})
+    login.status = {}
+
+    assert report_relogin_required(hass, login, "test@example.com") is True
+
+    hass.bus.async_fire.assert_called_once()
+    event = hass.bus.async_fire.call_args
+    assert event.args[0] == "alexa_media_relogin_required"
+    assert event.kwargs["event_data"]["url"] == "amazon.com"
+    assert event.kwargs["event_data"]["stats"] == {"api_calls": 0}

@@ -299,6 +299,7 @@ def _pop_relogin_listeners(hass, email: str) -> None:
     account = accounts.get(email)
     if isinstance(account, dict):
         _drop_listeners(account.pop("relogin_unsubs", ()))
+        account.pop("relogin_pending", None)
 
 
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
@@ -794,13 +795,17 @@ async def async_setup_entry(hass, config_entry):
     async def relogin(event=None) -> None:
         """Relogin to Alexa."""
         if hide_email(email) == event.data.get("email"):
-            connectivity_state(
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-            ).invalidate()
+            account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+            if account_data.get("login_in_progress"):
+                account_data["relogin_pending"] = True
+                _LOGGER.debug(
+                    "%s: Deferring relogin until the active setup finishes",
+                    hide_email(email),
+                )
+                return
+            connectivity_state(account_data).invalidate()
             _LOGGER.debug("%s: Received relogin request: %s", hide_email(email), event)
-            login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-                "login_obj"
-            )
+            login_obj: AlexaLogin = account_data.get("login_obj")
             uuid = (await calculate_uuid(hass, email, url))["uuid"]
             if login_obj is None:
                 login_obj = AlexaLogin(
@@ -896,9 +901,30 @@ async def async_setup_entry(hass, config_entry):
         },
     )
     account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-    # A previous attempt may have left its relogin listeners behind while the
-    # entry was retrying; this attempt registers its own pair below.
-    _drop_listeners(account_data.pop("relogin_unsubs", ()))
+    # Keep a previous attempt's relogin listeners active until this attempt
+    # installs its own pair, so force_logout always has a handler.
+    previous_unsubs = account_data.get("relogin_unsubs", ())
+    account_data.setdefault("relogin_pending", False)
+
+    def _schedule_pending_relogin() -> None:
+        """Run a relogin deferred while this setup attempt owned the login."""
+
+        def _fire() -> None:
+            if not account_data.pop("relogin_pending", False):
+                return
+            if not account_data.get("relogin_unsubs"):
+                # The handler did not survive this attempt; keep the request
+                # for the next setup attempt.
+                account_data["relogin_pending"] = True
+                return
+            _LOGGER.debug("%s: Running deferred relogin request", hide_email(email))
+            hass.bus.async_fire(
+                "alexa_media_relogin_required", {"email": hide_email(email)}
+            )
+
+        with contextlib.suppress(RuntimeError):
+            hass.loop.call_soon(_fire)
+
     # Refreshed on every attempt: the account dict survives setup retries and
     # a failed setup, so options saved in the meantime would otherwise be lost.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"] = {
@@ -957,7 +983,14 @@ async def async_setup_entry(hass, config_entry):
     if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
+    account_data["login_in_progress"] = True
     try:
+        # Register before the login attempt so force_logout always reaches a
+        # handler. While this attempt owns the login, the handler records a
+        # pending request instead of racing the active login.
+        relogin_unsub = hass.bus.async_listen("alexa_media_relogin_required", relogin)
+        account_data["relogin_unsubs"] = (relogin_unsub,)
+        _drop_listeners(previous_unsubs)
         _t = time.monotonic()
         cookies = await login.load_cookie()
         cookie_login_ok = False
@@ -1020,10 +1053,6 @@ async def async_setup_entry(hass, config_entry):
                 ) from err
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
-        # Register before the login check: login_obj is already stored, so
-        # force_logout can reach a handler if it is called while this attempt
-        # is still running.
-        relogin_unsub = hass.bus.async_listen("alexa_media_relogin_required", relogin)
         login_success_unsub = hass.bus.async_listen(
             "alexa_media_relogin_success", login_success
         )
@@ -1051,9 +1080,8 @@ async def async_setup_entry(hass, config_entry):
                 "[BOOT] setup_entry total: %.2fs", time.monotonic() - _boot_start
             )
             return True
-        # The entry is not loaded, so no listener can act on a relogin event
-        # and the retained login_obj would let force_logout report a recovery
-        # that never starts. Release the session, then drop both.
+        # The entry is not loaded. Release the session; keep the relogin
+        # listener only when a deferred recovery request still needs it.
         try:
             await login.close()
         except Exception as err:  # pylint: disable=broad-except
@@ -1066,12 +1094,17 @@ async def async_setup_entry(hass, config_entry):
                 err,
             )
         else:
-            _drop_listeners(account_data.pop("relogin_unsubs", ()))
+            if not account_data.get("relogin_pending"):
+                _drop_listeners(account_data.pop("relogin_unsubs", ()))
             account_data.pop("login_obj", None)
         config_entry.runtime_data = None
         return False
     except AlexapyConnectionError as err:
         raise ConfigEntryNotReady(str(err) or "Connection Error during login") from err
+    finally:
+        account_data["login_in_progress"] = False
+        if account_data.get("relogin_pending"):
+            _schedule_pending_relogin()
 
 
 async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):

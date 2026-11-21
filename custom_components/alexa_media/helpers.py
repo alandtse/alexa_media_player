@@ -399,24 +399,24 @@ async def _catch_login_errors(func, instance, args, kwargs) -> Any:
 
 def report_relogin_required(hass, login, email) -> bool:
     """Send message for relogin required."""
-    if hass and login and email:
-        if login.status:
-            _LOGGER.debug(
-                "Reporting need to relogin to %s with %s stats: %s",
-                login.url,
-                hide_email(email),
-                login.stats,
-            )
-            hass.bus.async_fire(
-                "alexa_media_relogin_required",
-                event_data={
-                    "email": hide_email(email),
-                    "url": login.url,
-                    "stats": login.stats,
-                },
-            )
-            return True
-    return False
+    if not (hass and login and email):
+        return False
+    stats = getattr(login, "stats", {})
+    _LOGGER.debug(
+        "Reporting need to relogin to %s with %s stats: %s",
+        login.url,
+        hide_email(email),
+        stats,
+    )
+    hass.bus.async_fire(
+        "alexa_media_relogin_required",
+        event_data={
+            "email": hide_email(email),
+            "url": login.url,
+            "stats": stats,
+        },
+    )
+    return True
 
 
 def _existing_serials(hass, login_obj) -> list:

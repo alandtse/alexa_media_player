@@ -194,6 +194,7 @@ async def test_force_logout_rejects_requested_unknown_account():
                 EMAIL: {
                     "login_obj": MagicMock(email=EMAIL),
                     "config_entry": MagicMock(state=ConfigEntryState.LOADED),
+                    "relogin_unsubs": (MagicMock(),),
                 }
             }
         }

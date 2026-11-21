@@ -78,8 +78,9 @@ There are no integration-specific conditions.
 Install through HACS or copy the `custom_components/alexa_media` directory to
 `<config>/custom_components/alexa_media`, restart Home Assistant, then add the
 integration from **Settings > Devices & services**. You need an Amazon account
-with access to the Alexa devices. If two-step verification is enabled, have the
-authenticator key or the current OTP ready.
+with access to the Alexa devices. Two-step verification must be enabled with an
+authenticator app, and you need the authenticator app key (the setup secret),
+not a one-time password.
 
 Detailed configuration options are documented in the
 [wiki](https://github.com/alandtse/alexa_media_player/wiki/Configuration).

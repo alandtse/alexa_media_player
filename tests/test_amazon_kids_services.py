@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.core import Context
 import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
@@ -45,7 +46,8 @@ async def test_enable_refreshes_kids_state_of_account(setup):
     """Enabling shows on the switch and select without waiting for a poll."""
     services, api, login, kids_state, other_state = setup
     call = MagicMock(
-        data={"entity_id": "media_player.kids_room", "child": "amzn1.account.CHILD"}
+        context=Context(),
+        data={"entity_id": "media_player.kids_room", "child": "amzn1.account.CHILD"},
     )
 
     assert await services.amazon_kids_enable(call) is True
@@ -60,7 +62,7 @@ async def test_enable_refreshes_kids_state_of_account(setup):
 async def test_disable_refreshes_kids_state_of_account(setup):
     """Disabling shows on the switch and select without waiting for a poll."""
     services, api, login, kids_state, other_state = setup
-    call = MagicMock(data={"entity_id": "media_player.kids_room"})
+    call = MagicMock(context=Context(), data={"entity_id": "media_player.kids_room"})
 
     assert await services.amazon_kids_disable(call) is True
 
@@ -73,7 +75,10 @@ async def test_unknown_child_changes_and_refreshes_nothing(setup):
     """A child that cannot be resolved leaves the device and state alone."""
     services, api, _login, kids_state, _other_state = setup
     api.get_child_profiles = AsyncMock(return_value=[])
-    call = MagicMock(data={"entity_id": "media_player.kids_room", "child": "Nobody"})
+    call = MagicMock(
+        context=Context(),
+        data={"entity_id": "media_player.kids_room", "child": "Nobody"},
+    )
 
     assert await services.amazon_kids_enable(call) is False
 
@@ -87,7 +92,7 @@ async def test_service_works_before_kids_state_exists(setup):
     services.hass.data[DATA_ALEXAMEDIA]["accounts"]["kids@example.com"][
         "amazon_kids"
     ] = None
-    call = MagicMock(data={"entity_id": "media_player.kids_room"})
+    call = MagicMock(context=Context(), data={"entity_id": "media_player.kids_room"})
 
     assert await services.amazon_kids_disable(call) is True
 

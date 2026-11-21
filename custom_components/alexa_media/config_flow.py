@@ -69,6 +69,7 @@ from .const import (
     CONF_SECURITYCODE,
     CONF_TOTP_REGISTER,
     CONF_USE_REPORTED_DOMAIN,
+    CONFIG_ENTRY_OPTION_KEYS,
     DATA_ALEXAMEDIA,
     DEFAULT_DEBUG,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
@@ -79,7 +80,7 @@ from .const import (
     DOMAIN,
     ISSUE_URL,
 )
-from .helpers import calculate_uuid
+from .helpers import calculate_uuid, config_entry_option
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -136,6 +137,9 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.securitycode: Optional[str] = None
         self.automatic_steps: int = 0
         self.config = OrderedDict()
+        # Keys the user explicitly cleared, so the reauth merge does not
+        # restore the previous stored value from the entry data.
+        self.explicitly_removed: set[str] = set()
         self.proxy_schema = None
         self.data_schema = OrderedDict(
             [
@@ -692,6 +696,12 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
         self.reauth_entry = self.hass.config_entries.async_get_entry(
             self.context["entry_id"]
         )
+        if self.reauth_entry is not None:
+            # Reauth starts with entry.data, which may contain stale settings
+            # from before the options split. Show the effective values instead.
+            for key in CONFIG_ENTRY_OPTION_KEYS:
+                if key in self.reauth_entry.options:
+                    self.config[key] = self.reauth_entry.options[key]
         reauth_schema = self._update_schema_defaults()
         _LOGGER.debug(
             "Creating reauth form with %s",
@@ -808,9 +818,24 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
                     if email in accounts:
                         accounts[email]["login_obj"] = self.login
 
+                # Reconcile legacy settings and values edited during reauth in
+                # one update. Keep unrelated data/options and remove stale copies.
+                data = {**existing_entry.data, **self.config}
+                options = dict(existing_entry.options)
+                for key in self.explicitly_removed:
+                    data.pop(key, None)
+                    options.pop(key, None)
+                for key in CONFIG_ENTRY_OPTION_KEYS:
+                    if key in self.config:
+                        options[key] = self.config[key]
+                    elif key in data:
+                        options.setdefault(key, data[key])
+                    data.pop(key, None)
+
                 self.hass.config_entries.async_update_entry(
                     existing_entry,
-                    data=self.config,
+                    data=data,
+                    options=options,
                     title=f"{login.email} - {login.url}",
                     unique_id=f"{login.email} - {login.url}",
                 )
@@ -933,9 +958,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             " ", ""
         ):
             self.config[CONF_OTPSECRET] = user_input[CONF_OTPSECRET].replace(" ", "")
+            self.explicitly_removed.discard(CONF_OTPSECRET)
         elif user_input.get(CONF_OTPSECRET):
             # a blank line
             self.config.pop(CONF_OTPSECRET)
+            self.explicitly_removed.add(CONF_OTPSECRET)
         if CONF_EMAIL in user_input:
             self.config[CONF_EMAIL] = user_input[CONF_EMAIL]
         if CONF_PASSWORD in user_input:
@@ -944,9 +971,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             # Remove accidental whitespace introduced by mobile keyboards/paste.
             self.config[CONF_URL] = "".join(user_input[CONF_URL].split())
         if CONF_PUBLIC_URL in user_input:
-            if not user_input[CONF_PUBLIC_URL].endswith("/"):
-                user_input[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL] + "/"
-            self.config[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL]
+            public_url = user_input.get(CONF_PUBLIC_URL) or ""
+            if public_url and not public_url.endswith("/"):
+                public_url += "/"
+            user_input[CONF_PUBLIC_URL] = public_url
+            self.config[CONF_PUBLIC_URL] = public_url
         if CONF_SCAN_INTERVAL in user_input:
             self.config[CONF_SCAN_INTERVAL] = (
                 user_input[CONF_SCAN_INTERVAL]
@@ -1059,8 +1088,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 (
                     vol.Optional(
                         CONF_PUBLIC_URL,
-                        default=self.config_entry.data.get(
-                            CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
+                        default=config_entry_option(
+                            self.config_entry, CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
                         ),
                     ),
                     str,
@@ -1068,29 +1097,35 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 (
                     vol.Optional(
                         CONF_INCLUDE_DEVICES,
-                        default=self.config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
+                        default=config_entry_option(
+                            self.config_entry, CONF_INCLUDE_DEVICES, ""
+                        ),
                     ),
                     str,
                 ),
                 (
                     vol.Optional(
                         CONF_EXCLUDE_DEVICES,
-                        default=self.config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
+                        default=config_entry_option(
+                            self.config_entry, CONF_EXCLUDE_DEVICES, ""
+                        ),
                     ),
                     str,
                 ),
                 (
                     vol.Optional(
                         CONF_SCAN_INTERVAL,
-                        default=self.config_entry.data.get(CONF_SCAN_INTERVAL, 120),
+                        default=config_entry_option(
+                            self.config_entry, CONF_SCAN_INTERVAL, 120
+                        ),
                     ),
                     int,
                 ),
                 (
                     vol.Optional(
                         CONF_QUEUE_DELAY,
-                        default=self.config_entry.data.get(
-                            CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
+                        default=config_entry_option(
+                            self.config_entry, CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
                         ),
                     ),
                     float,
@@ -1098,7 +1133,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 (
                     vol.Optional(
                         CONF_EXTENDED_ENTITY_DISCOVERY,
-                        default=self.config_entry.data.get(
+                        default=config_entry_option(
+                            self.config_entry,
                             CONF_EXTENDED_ENTITY_DISCOVERY,
                             DEFAULT_EXTENDED_ENTITY_DISCOVERY,
                         ),
@@ -1108,7 +1144,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 (
                     vol.Optional(
                         CONF_DEBUG,
-                        default=self.config_entry.data.get(CONF_DEBUG, DEFAULT_DEBUG),
+                        default=config_entry_option(
+                            self.config_entry, CONF_DEBUG, DEFAULT_DEBUG
+                        ),
                     ),
                     bool,
                 ),
@@ -1116,39 +1154,24 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
 
         if user_input is not None:
-            """Preserve these parameters"""
-            if CONF_URL in self.config_entry.data:
-                user_input[CONF_URL] = self.config_entry.data[CONF_URL]
-            if CONF_EMAIL in self.config_entry.data:
-                user_input[CONF_EMAIL] = self.config_entry.data[CONF_EMAIL]
-            if CONF_PASSWORD in self.config_entry.data:
-                user_input[CONF_PASSWORD] = self.config_entry.data[CONF_PASSWORD]
-            if CONF_SECURITYCODE in self.config_entry.data:
-                user_input[CONF_SECURITYCODE] = self.config_entry.data[
-                    CONF_SECURITYCODE
-                ]
-            if CONF_OTPSECRET in self.config_entry.data:
-                user_input[CONF_OTPSECRET] = self.config_entry.data[CONF_OTPSECRET]
-            if CONF_OAUTH in self.config_entry.data:
-                user_input[CONF_OAUTH] = self.config_entry.data[CONF_OAUTH]
-            """Ensure public_url ends with trailing slash"""
-            if CONF_PUBLIC_URL in self.config_entry.data:
-                if not user_input[CONF_PUBLIC_URL].endswith("/"):
-                    user_input[CONF_PUBLIC_URL] = user_input[CONF_PUBLIC_URL] + "/"
-            """Remove leading/trailing spaces in device strings"""
-            if CONF_INCLUDE_DEVICES in self.config_entry.data:
+            # Options belong in ConfigEntry.options. Credentials and the Amazon
+            # region stay in ConfigEntry.data and are not touched here.
+            if user_input.get(CONF_PUBLIC_URL) and not user_input[
+                CONF_PUBLIC_URL
+            ].endswith("/"):
+                user_input[CONF_PUBLIC_URL] = f"{user_input[CONF_PUBLIC_URL]}/"
+            if CONF_INCLUDE_DEVICES in user_input:
                 user_input[CONF_INCLUDE_DEVICES] = user_input[
                     CONF_INCLUDE_DEVICES
                 ].strip()
-            if CONF_EXCLUDE_DEVICES in self.config_entry.data:
+            if CONF_EXCLUDE_DEVICES in user_input:
                 user_input[CONF_EXCLUDE_DEVICES] = user_input[
                     CONF_EXCLUDE_DEVICES
                 ].strip()
 
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=user_input, options=self.config_entry.options
-            )
-            return self.async_create_entry(title="", data={})
+            # The options-flow manager writes the returned data to
+            # ConfigEntry.options once the flow finishes.
+            return self.async_create_entry(title="", data=user_input)
 
         return self.async_show_form(
             step_id="init",

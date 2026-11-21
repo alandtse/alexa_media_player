@@ -57,6 +57,7 @@ import voluptuous as vol
 
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
+from .connectivity import connectivity_state
 from .const import (
     ALEXA_COMPONENTS,
     CONF_ACCOUNTS,
@@ -70,6 +71,7 @@ from .const import (
     CONF_QUEUE_DELAY,
     CONF_SCAN_INTERVAL,
     DATA_ALEXAMEDIA,
+    DEFAULT_DEBUG,
     DEFAULT_EXTENDED_ENTITY_DISCOVERY,
     DEFAULT_PUBLIC_URL,
     DEFAULT_QUEUE_DELAY,
@@ -110,6 +112,7 @@ from .helpers import (
     _existing_serials,
     alarm_just_dismissed,
     calculate_uuid,
+    config_entry_option,
     hide_email,
     report_relogin_required,
     safe_get,
@@ -274,6 +277,23 @@ def _network_allowed(login_obj) -> bool:
     if not login_obj.status.get("login_successful"):
         return False
     return True
+
+
+def _drop_listeners(unsubs) -> None:
+    """Unsubscribe every listener callback in ``unsubs``."""
+    for unsub in unsubs:
+        unsub()
+
+
+def _pop_relogin_listeners(hass, email: str) -> None:
+    """Unsubscribe the relogin listeners kept for an account, if any."""
+    data = getattr(hass, "data", None)
+    if not isinstance(data, dict):
+        return
+    accounts = (data.get(DATA_ALEXAMEDIA) or {}).get("accounts") or {}
+    account = accounts.get(email)
+    if isinstance(account, dict):
+        _drop_listeners(account.pop("relogin_unsubs", ()))
 
 
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
@@ -528,6 +548,32 @@ async def async_setup(hass, config):
     hass.data[DOMAIN]["metrics"] = AlexaMetrics(hass)
     metrics = hass.data[DOMAIN]["metrics"]
     metrics.start_boot_tracking()
+
+    if "services" not in hass.data[DATA_ALEXAMEDIA]:
+
+        async def _service_update_last_called(login_obj):
+            """Update last_called for the account behind a login object."""
+            await _async_update_last_called_global(hass, login_obj, login_obj.email)
+
+        def _service_schedule_notifications_refresh(
+            hass, email, device_serial=None, reason=""
+        ):
+            """Route refreshes to the requested account's setup-local worker."""
+            account = (
+                hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email, {})
+            )
+            schedule = account.get("schedule_notifications_refresh")
+            if callable(schedule):
+                schedule(hass, email, device_serial=device_serial, reason=reason)
+
+        hass.data[DATA_ALEXAMEDIA]["services"] = alexa_services = AlexaMediaServices(
+            hass,
+            functions={
+                "update_last_called": _service_update_last_called,
+                "schedule_notifications_refresh": _service_schedule_notifications_refresh,
+            },
+        )
+        await alexa_services.register()
 
     integration = await async_get_integration(hass, DOMAIN)
     integration_name = integration.name or "<not available>"
@@ -955,6 +1001,9 @@ async def async_setup_entry(hass, config_entry):
     async def relogin(event=None) -> None:
         """Relogin to Alexa."""
         if hide_email(email) == event.data.get("email"):
+            connectivity_state(
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+            ).invalidate()
             _LOGGER.debug("%s: Received relogin request: %s", hide_email(email), event)
             login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
                 "login_obj"
@@ -1053,20 +1102,34 @@ async def async_setup_entry(hass, config_entry):
             "notifications_retry_count": 0,  # simple backoff counter
         },
     )
+    account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    # A previous attempt may have left its relogin listeners behind while the
+    # entry was retrying; this attempt registers its own pair below.
+    _drop_listeners(account_data.pop("relogin_unsubs", ()))
     # Refreshed on every attempt: the account dict survives setup retries and
     # a failed setup, so options saved in the meantime would otherwise be lost.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"] = {
-        CONF_INCLUDE_DEVICES: config_entry.data.get(CONF_INCLUDE_DEVICES, ""),
-        CONF_EXCLUDE_DEVICES: config_entry.data.get(CONF_EXCLUDE_DEVICES, ""),
-        CONF_QUEUE_DELAY: config_entry.data.get(CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY),
-        CONF_SCAN_INTERVAL: config_entry.data.get(
-            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        CONF_INCLUDE_DEVICES: config_entry_option(
+            config_entry, CONF_INCLUDE_DEVICES, ""
         ),
-        CONF_PUBLIC_URL: config_entry.data.get(CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL),
-        CONF_EXTENDED_ENTITY_DISCOVERY: config_entry.data.get(
-            CONF_EXTENDED_ENTITY_DISCOVERY, DEFAULT_EXTENDED_ENTITY_DISCOVERY
+        CONF_EXCLUDE_DEVICES: config_entry_option(
+            config_entry, CONF_EXCLUDE_DEVICES, ""
         ),
-        CONF_DEBUG: config_entry.data.get(CONF_DEBUG, False),
+        CONF_QUEUE_DELAY: config_entry_option(
+            config_entry, CONF_QUEUE_DELAY, DEFAULT_QUEUE_DELAY
+        ),
+        CONF_SCAN_INTERVAL: config_entry_option(
+            config_entry, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        ),
+        CONF_PUBLIC_URL: config_entry_option(
+            config_entry, CONF_PUBLIC_URL, DEFAULT_PUBLIC_URL
+        ),
+        CONF_EXTENDED_ENTITY_DISCOVERY: config_entry_option(
+            config_entry,
+            CONF_EXTENDED_ENTITY_DISCOVERY,
+            DEFAULT_EXTENDED_ENTITY_DISCOVERY,
+        ),
+        CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, False),
     }
     uuid_dict = await calculate_uuid(hass, email, url)
     uuid = uuid_dict["uuid"]
@@ -1164,20 +1227,27 @@ async def async_setup_entry(hass, config_entry):
                 ) from err
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
+        # Register before the login check: login_obj is already stored, so
+        # force_logout can reach a handler if it is called while this attempt
+        # is still running.
+        relogin_unsub = hass.bus.async_listen("alexa_media_relogin_required", relogin)
+        login_success_unsub = hass.bus.async_listen(
+            "alexa_media_relogin_success", login_success
+        )
+        # Kept on the account instead of the entry: Home Assistant drops entry
+        # on_unload callbacks on every setup retry, but force_logout must keep
+        # reaching a handler while the account is retrying or reauthorizing.
+        account_data["relogin_unsubs"] = (relogin_unsub, login_success_unsub)
         if await test_login_status(hass, config_entry, login):
-            # Registered only on success: HA processes async_on_unload
-            # callbacks on unload and on the ConfigEntryNotReady retry
-            # path, but not for a plain `False` return, so registering
-            # any earlier would leak a pair on every failed login check.
-            config_entry.async_on_unload(
-                hass.bus.async_listen("alexa_media_relogin_required", relogin)
-            )
-            config_entry.async_on_unload(
-                hass.bus.async_listen("alexa_media_relogin_success", login_success)
-            )
             _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)
+            # Drop the pair when the entry unloads, including a setup that
+            # succeeded through the relogin event path. Registered only after a
+            # successful setup so a retry keeps the listeners it needs.
+            config_entry.async_on_unload(
+                lambda: _drop_listeners(account_data.pop("relogin_unsubs", ()))
+            )
             # Registered once the entry has loaded, so that Home Assistant
             # removes it on unload. Any earlier and each setup retry, or failed
             # login check, would leave another copy on the entry.
@@ -1188,6 +1258,24 @@ async def async_setup_entry(hass, config_entry):
                 "[BOOT] setup_entry total: %.2fs", time.monotonic() - _boot_start
             )
             return True
+        # The entry is not loaded, so no listener can act on a relogin event
+        # and the retained login_obj would let force_logout report a recovery
+        # that never starts. Release the session, then drop both.
+        try:
+            await login.close()
+        except Exception as err:  # pylint: disable=broad-except
+            # Keep the login and its listeners so close_connections() can retry
+            # the cleanup and force_logout still reaches a handler.
+            _LOGGER.warning(
+                "%s: Could not close login after a failed setup; "
+                "keeping it for unload cleanup: %s",
+                hide_email(email),
+                err,
+            )
+        else:
+            _drop_listeners(account_data.pop("relogin_unsubs", ()))
+            account_data.pop("login_obj", None)
+        config_entry.runtime_data = None
         return False
     except AlexapyConnectionError as err:
         raise ConfigEntryNotReady(str(err) or "Connection Error during login") from err
@@ -1197,7 +1285,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # pylint: disable=too-many-statements,too-many-locals
     """Set up a alexa api based on host parameter."""
 
-    debug = config_entry.data.get(CONF_DEBUG, False)
+    debug = config_entry_option(config_entry, CONF_DEBUG, False)
 
     # Record metrics
     metrics = get_metrics(hass)
@@ -1239,9 +1327,14 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if not account:
             return None
 
+        connectivity = connectivity_state(account)
         login_obj = account.get("login_obj")
         if not login_obj or not _network_allowed(login_obj):
+            connectivity.invalidate()
             return None
+        connectivity_generation = connectivity.generation
+        # AlexaPy returns this same list on its no-data cache fallback.
+        previous_api_devices = AlexaAPI.devices.get(email)
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
         existing_serials = set(_existing_serials(hass, login_obj))
         existing_serials |= _entity_backed_serials(account)
@@ -1355,6 +1448,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             elif airq and getattr(airq, "enabled", False):
                 # Backwards compat if some installs still have a single sensor stored
                 entities_to_monitor.add(airq.alexa_entity_id)
+
+            battery = per_serial.get("Battery")
+            if battery and battery.enabled:
+                entities_to_monitor.add(battery.alexa_entity_id)
 
         for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
             "light", []
@@ -1577,6 +1674,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
 
         except (AlexapyLoginError, JSONDecodeError):
+            connectivity.invalidate()
             _LOGGER.debug(
                 "%s: Alexa API disconnected; attempting to relogin : status %s",
                 hide_email(email),
@@ -1712,6 +1810,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     .get(serial)
                     .refresh(device, skip_api=True)
                 )
+        connectivity.inventory(
+            devices,
+            connectivity_generation,
+            cached=_used_cached_devices,
+            previous_inventory=previous_api_devices,
+        )
         async_dispatcher_send(
             hass,
             f"{DOMAIN}_{hide_email(email)}"[0:32],
@@ -1813,6 +1917,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     )
                 hass.data[DATA_ALEXAMEDIA]["accounts"][email]["first_run"] = False
 
+        if connectivity_generation >= connectivity._invalidated_generation:
+            connectivity.account_available = True
+        connectivity.notify()
         return entity_state
 
     @_catch_login_errors
@@ -3100,6 +3207,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         )
 
                 elif command == "PUSH_DOPPLER_CONNECTION_CHANGE":
+                    connectivity_state(account).push(serial, json_payload)
                     # Player availability update
                     if serial and serial in existing_serials:
                         _LOGGER.debug(
@@ -3419,22 +3527,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     _LOGGER.debug("Setting up Alexa devices for %s", hide_email(login_obj.email))
     config = config_entry.data
     email = config.get(CONF_EMAIL)
-    include = (
-        cv.ensure_list_csv(config[CONF_INCLUDE_DEVICES])
-        if config[CONF_INCLUDE_DEVICES]
-        else ""
-    )
+    include_value = config_entry_option(config_entry, CONF_INCLUDE_DEVICES, "")
+    include = cv.ensure_list_csv(include_value) if include_value else ""
     _LOGGER.debug("include: %s", include)
-    exclude = (
-        cv.ensure_list_csv(config[CONF_EXCLUDE_DEVICES])
-        if config[CONF_EXCLUDE_DEVICES]
-        else ""
-    )
+    exclude_value = config_entry_option(config_entry, CONF_EXCLUDE_DEVICES, "")
+    exclude = cv.ensure_list_csv(exclude_value) if exclude_value else ""
     _LOGGER.debug("exclude: %s", exclude)
+    scan_value = config_entry_option(
+        config_entry, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+    )
     scan_interval: float = (
-        config.get(CONF_SCAN_INTERVAL).total_seconds()
-        if isinstance(config.get(CONF_SCAN_INTERVAL), timedelta)
-        else config.get(CONF_SCAN_INTERVAL)
+        scan_value.total_seconds() if isinstance(scan_value, timedelta) else scan_value
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
 
@@ -3464,6 +3567,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             scan_interval=scan_interval,
         )
 
+        coordinator.echo_connectivity = connectivity_state(
+            hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+        )
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["coordinator"] = coordinator
         # Set correct interval now that http2 status is known
         coordinator.set_http2_status(bool(http2_enabled))
@@ -3486,15 +3592,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.debug("[BOOT] first_refresh in %.2fs", time.monotonic() - _t)
 
-    # Register services (fast - just registers callbacks)
-    hass.data[DATA_ALEXAMEDIA]["services"] = alexa_services = AlexaMediaServices(
-        hass,
-        functions={
-            "update_last_called": update_last_called,
-            "schedule_notifications_refresh": _schedule_notifications_refresh,
-        },
-    )
-    await alexa_services.register()
+    # Services are registered once in async_setup; attach the setup-local callback.
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+        "schedule_notifications_refresh"
+    ] = _schedule_notifications_refresh
 
     # Update last_called in background to avoid blocking
     _LOGGER.debug("%s: setup_alexa: Scheduling last_called update", hide_email(email))
@@ -3533,6 +3634,7 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry"""
     email = entry.data["email"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
+    _pop_relogin_listeners(hass, email)
     for task_key in (
         "notifications_refresh_task",
         "notifications_init_task",
@@ -3589,6 +3691,8 @@ async def async_unload_entry(hass, entry) -> bool:
         display_state.async_stop()
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
 
+    account.pop("connectivity_discovery_unsub", lambda: None)()
+
     for component in ALEXA_COMPONENTS + DEPENDENT_ALEXA_COMPONENTS:
         try:
             if component == "notify":
@@ -3615,12 +3719,10 @@ async def async_unload_entry(hass, entry) -> bool:
             hass.data[DATA_ALEXAMEDIA]["config_flows"].pop(flow)
     # Clean up hass.data
     if not hass.data[DATA_ALEXAMEDIA].get("accounts"):
-        _LOGGER.debug("Removing accounts data and services")
+        _LOGGER.debug("Removing accounts data")
         hass.data[DATA_ALEXAMEDIA].pop("accounts")
-        alexa_services = hass.data[DATA_ALEXAMEDIA].get("services")
-        if alexa_services:
-            await alexa_services.unregister()
-            hass.data[DATA_ALEXAMEDIA].pop("services")
+        # Services stay registered for the lifetime of Home Assistant so they
+        # remain available while the integration has no loaded config entry.
         # Per-run collectors recreated by the next setup. Leaving them behind
         # keeps DATA_ALEXAMEDIA truthy, so the data structure below is never
         # removed and stale boot metrics survive into the next setup.
@@ -3649,6 +3751,7 @@ async def async_remove_entry(hass, entry) -> bool:
     """Handle removal of an entry."""
     email = entry.data["email"]
     obfuscated_email = hide_email(email)
+    _pop_relogin_listeners(hass, email)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
     login_obj = AlexaLogin(
         url="",
@@ -3723,7 +3826,7 @@ async def update_listener(hass, config_entry):
     for key, old_value in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
         "options"
     ].items():
-        new_value = config_entry.data.get(key)
+        new_value = config_entry_option(config_entry, key)
         if new_value is not None and new_value != old_value:
             hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"][key] = new_value
             _LOGGER.debug(
@@ -3780,6 +3883,12 @@ async def test_login_status(hass, config_entry, login) -> bool:
             f"{account[CONF_EMAIL]} - {account[CONF_URL]}"
         ] = None
     _LOGGER.debug("Creating new config flow to login")
+    # Reauth moves these settings from data to options, so read the effective
+    # values. Indexing stale data here would raise KeyError before the flow
+    # could start.
+    scan_interval = config_entry_option(
+        config_entry, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+    )
     config_entry.async_start_reauth(
         hass,
         context={"source": SOURCE_REAUTH},
@@ -3787,13 +3896,17 @@ async def test_login_status(hass, config_entry, login) -> bool:
             CONF_EMAIL: account[CONF_EMAIL],
             CONF_PASSWORD: account[CONF_PASSWORD],
             CONF_URL: account[CONF_URL],
-            CONF_DEBUG: account[CONF_DEBUG],
-            CONF_INCLUDE_DEVICES: account[CONF_INCLUDE_DEVICES],
-            CONF_EXCLUDE_DEVICES: account[CONF_EXCLUDE_DEVICES],
+            CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
+            CONF_INCLUDE_DEVICES: config_entry_option(
+                config_entry, CONF_INCLUDE_DEVICES, ""
+            ),
+            CONF_EXCLUDE_DEVICES: config_entry_option(
+                config_entry, CONF_EXCLUDE_DEVICES, ""
+            ),
             CONF_SCAN_INTERVAL: (
-                account[CONF_SCAN_INTERVAL].total_seconds()
-                if isinstance(account[CONF_SCAN_INTERVAL], timedelta)
-                else account[CONF_SCAN_INTERVAL]
+                scan_interval.total_seconds()
+                if isinstance(scan_interval, timedelta)
+                else scan_interval
             ),
             CONF_OTPSECRET: account.get(CONF_OTPSECRET, ""),
         },

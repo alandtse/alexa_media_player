@@ -34,8 +34,10 @@ class FakeAlexaLogin:
     """Network-free stand-in for alexapy.AlexaLogin."""
 
     hang_login = False
+    last_instance: "FakeAlexaLogin | None" = None
 
     def __init__(self, url, email, **kwargs):
+        FakeAlexaLogin.last_instance = self
         self.url = url
         self.email = email
         self.status = {}
@@ -174,14 +176,54 @@ async def test_failed_login_check_then_reload_registers_one_update_listener(
         assert not await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.SETUP_ERROR
+    # No relogin handler survives a failed setup, so force_logout must not be
+    # able to find a login object that would claim a recovery never started.
+    email = entry.data[CONF_EMAIL]
+    assert "login_obj" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    assert "relogin_unsubs" not in hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    assert entry.runtime_data is None
+    fake_login.last_instance.close.assert_awaited_once()
 
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.LOADED
     assert len(entry.update_listeners) == 1
+    assert hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] is not None
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+async def test_failed_login_check_keeps_login_when_close_fails(
+    hass, fake_login, caplog
+):
+    """A failed close keeps the login for unload cleanup and logs context."""
+    entry = _config_entry()
+    entry.add_to_hass(hass)
+    checked_login = None
+
+    async def fail_check(hass_arg, entry_arg, login_arg):
+        nonlocal checked_login
+        assert hass_arg is hass
+        assert entry_arg is entry
+        checked_login = login_arg
+        login_arg.close.side_effect = RuntimeError("close failed")
+        return False
+
+    with patch(
+        "custom_components.alexa_media.test_login_status",
+        AsyncMock(side_effect=fail_check),
+    ):
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    assert checked_login is not None
+    assert account["login_obj"] is checked_login
+    assert "relogin_unsubs" in account
+    assert "Could not close login" in caplog.text
+    # Let the hass teardown close the retained login without raising again.
+    checked_login.close.side_effect = None
 
 
 async def test_unload_removes_update_listener(hass, fake_login, listener_spy):

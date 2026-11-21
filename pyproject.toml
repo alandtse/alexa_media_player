@@ -13,7 +13,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.13,<4.0"
-alexapy = "1.35.0"
+alexapy = "1.36.0"
 aiohttp = ">=3.8.1"
 packaging = ">=20.3"
 wrapt = ">=1.14.0"
@@ -47,6 +47,12 @@ changelog_sections = "feature,fix,breaking,documentation,performance,refactor"
 build_command = "echo"
 branch = "main"
 commit_subject = "[skip ci] {version}"
+
+[tool.semantic_release.changelog]
+template_dir = ".github/.release-templates"
+
+[tool.semantic_release.changelog.environment]
+autoescape = false
 
 [tool.black]
 line-length = 88

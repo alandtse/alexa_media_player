@@ -6,16 +6,59 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      source-sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: master
+          persist-credentials: false
+      - name: Record release source
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Prepare shared changelog and release attribution
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install --require-hashes -r .github/requirements/release-notes.txt
+          python .github/scripts/prepare-release-notes.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-note-templates
+          path: .github/.release-templates/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
   deploy:
+    needs: prepare
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: master
+          ref: ${{ needs.prepare.outputs.source-sha }}
           token: ${{ secrets.GH_TOKEN }}
+      - name: Restore release branch
+        run: git checkout -B master
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-note-templates
+          path: .github/.release-templates
       - name: Download lokalise translations
         continue-on-error: true
         run: |
@@ -48,10 +91,10 @@ jobs:
           else
             echo "Lokalise download failed or no translations found, proceeding with existing translations..."
           fi
-      - name: Set up Python 3.8
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: "3.13"
       # #----------------------------------------------
       # #  -----  install & configure poetry  -----
       # #----------------------------------------------
@@ -91,24 +134,62 @@ jobs:
           git add custom_components/alexa_media/translations/*.json
           git commit -m "docs: update localization" -a
       - name: Python Semantic Release
+        id: release
         uses: python-semantic-release/python-semantic-release@v10.2.0
         with:
           github_token: ${{ secrets.GH_TOKEN }}
           commit: true
           push: true
+      # Only package and upload for a new release, or for a rerun that resumes
+      # this run's own partially published release (the release commit is then a
+      # strict descendant of the source SHA). A push that releases nothing must
+      # not re-upload the previous release's asset.
+      - name: Decide whether to publish assets
+        id: publish
+        env:
+          RELEASED: ${{ steps.release.outputs.released }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source-sha }}
+        run: |
+          publish=false
+          if [ "$RELEASED" = "true" ]; then
+            publish=true
+          elif [ -n "$RELEASE_TAG" ]; then
+            git fetch --tags origin
+            tag_sha=$(git rev-list -n1 "refs/tags/$RELEASE_TAG")
+            if [ "$tag_sha" != "$SOURCE_SHA" ] && git merge-base --is-ancestor "$SOURCE_SHA" "$tag_sha"; then
+              publish=true
+            fi
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+      # A deploy-only rerun after a partial release starts from the pre-release
+      # SHA and PSR then no-ops, so package and sync from the released tag.
+      - name: Check out released tag
+        if: steps.publish.outputs.publish == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          git fetch --tags origin
+          git checkout --detach "refs/tags/$RELEASE_TAG"
       # Pack the alexa_media_player dir as a zip and upload to the release
       - name: Zip alexa_media dir
+        if: steps.publish.outputs.publish == 'true'
         run: |
           cd /home/runner/work/alexa_media_player/alexa_media_player/custom_components/alexa_media
           zip alexa_media.zip -r ./
       - name: Set release variable
+        if: steps.publish.outputs.publish == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
-          echo "release_version=`git describe --abbrev=0`" >> $GITHUB_ENV
+          echo "release_version=$RELEASE_TAG" >> "$GITHUB_ENV"
       - name: Sleep
+        if: steps.publish.outputs.publish == 'true'
         # add delay so upload does not kill the release notes from semantic-release
         run: |
           sleep 5
       - name: Upload zip to release
+        if: steps.publish.outputs.publish == 'true'
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GH_TOKEN }}

@@ -27,7 +27,7 @@ from .const import (
     DEFAULT_QUEUE_DELAY,
     DOMAIN as ALEXA_DOMAIN,
 )
-from .helpers import _catch_login_errors, add_devices, safe_get
+from .helpers import _catch_login_errors, add_devices, config_entry_config, safe_get
 
 try:
     from homeassistant.components.alarm_control_panel import AlarmControlPanelState
@@ -115,7 +115,7 @@ async def async_setup_platform(
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa alarm control panel platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 
@@ -132,6 +132,9 @@ async def async_unload_entry(hass, entry) -> bool:
 
 class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEntity):
     """Implementation of Alexa Media Player alarm control panel."""
+
+    _attr_has_entity_name = True
+    _attr_name = None
 
     def __init__(self, login, coordinator, guard_entity, media_players=None) -> None:
         """Initialize the Alexa device."""
@@ -216,9 +219,18 @@ class AlexaAlarmControlPanel(AlarmControlPanelEntity, AlexaMedia, CoordinatorEnt
         return self._guard_entity_id
 
     @property
-    def name(self):
+    def device_name(self):
         """Return the name of the device."""
         return self._friendly_name
+
+    @property
+    def device_info(self):
+        """Return device information for the Guard panel."""
+        return {
+            "identifiers": {(ALEXA_DOMAIN, self._guard_entity_id)},
+            "name": self._friendly_name,
+            "manufacturer": "Amazon",
+        }
 
     @property
     def state(self):

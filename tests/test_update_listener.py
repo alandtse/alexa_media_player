@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from alexapy import hide_email
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_URL
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
@@ -39,6 +39,7 @@ class FakeAlexaLogin:
     hang_login = False
     login_gate: "asyncio.Event | None" = None
     login_started: "asyncio.Event | None" = None
+    login_timeout = False
     last_instance: "FakeAlexaLogin | None" = None
     instances: dict[str, "FakeAlexaLogin"] = {}
 
@@ -66,6 +67,8 @@ class FakeAlexaLogin:
         if FakeAlexaLogin.hang_login:
             FakeAlexaLogin.login_gate = asyncio.Event()
             await FakeAlexaLogin.login_gate.wait()
+        if FakeAlexaLogin.login_timeout:
+            raise asyncio.TimeoutError
         self.status["login_successful"] = True
 
 
@@ -75,6 +78,7 @@ def fake_login():
     FakeAlexaLogin.hang_login = False
     FakeAlexaLogin.login_gate = None
     FakeAlexaLogin.login_started = asyncio.Event()
+    FakeAlexaLogin.login_timeout = False
     FakeAlexaLogin.instances = {}
     with (
         patch("custom_components.alexa_media.AlexaLogin", FakeAlexaLogin),
@@ -383,8 +387,9 @@ async def test_deferred_relogin_runs_after_a_failed_setup_attempt(hass, fake_log
     entry.add_to_hass(hass)
     fake_login.hang_login = True
     fake_login.login_gate = None
+    fake_login.login_timeout = True
     with (
-        patch("custom_components.alexa_media.LOGIN_MAX_WAIT_S", 0.01),
+        patch("custom_components.alexa_media.LOGIN_MAX_WAIT_S", 5),
         patch(
             "custom_components.alexa_media.calculate_uuid",
             AsyncMock(return_value={"uuid": "test-uuid", "index": 0}),
@@ -408,6 +413,7 @@ async def test_deferred_relogin_runs_after_a_failed_setup_attempt(hass, fake_log
         assert await AlexaMediaServices(hass).force_logout(MagicMock(data={}))
         await _wait_until(lambda: account.get("relogin_pending"))
 
+        fake_login.login_gate.set()
         assert not await setup_task
         await hass.async_block_till_done(wait_background_tasks=True)
 
@@ -417,6 +423,10 @@ async def test_deferred_relogin_runs_after_a_failed_setup_attempt(hass, fake_log
     fake_login.instances[entry.data[CONF_EMAIL]].reset.assert_awaited()
 
 
+@pytest.mark.skipif(
+    not hasattr(ConfigEntry, "async_on_state_change"),
+    reason="async_on_state_change requires Home Assistant 2025.3+",
+)
 async def test_not_loaded_state_clears_retained_relogin_state(hass, fake_login):
     """Disabling an entry in SETUP_RETRY drops its retained recovery state."""
     entry = _config_entry()
@@ -424,12 +434,14 @@ async def test_not_loaded_state_clears_retained_relogin_state(hass, fake_login):
     entry.add_to_hass(hass)
     fake_login.hang_login = True
     fake_login.login_gate = None
-    with patch("custom_components.alexa_media.LOGIN_MAX_WAIT_S", 0.01):
+    fake_login.login_timeout = True
+    with patch("custom_components.alexa_media.LOGIN_MAX_WAIT_S", 5):
         fake_login.login_started = asyncio.Event()
         setup_task = hass.async_create_task(
             hass.config_entries.async_setup(entry.entry_id)
         )
         await asyncio.wait_for(fake_login.login_started.wait(), timeout=1)
+        fake_login.login_gate.set()
         assert not await setup_task
         await hass.async_block_till_done()
 

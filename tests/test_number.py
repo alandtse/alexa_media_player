@@ -84,6 +84,41 @@ async def test_setup_creates_number_for_echo_with_volume(mock_hass, mock_account
     assert mock_add_devices.call_args_list[1].args[1] == []
 
 
+@pytest.mark.asyncio
+async def test_setup_retries_numbers_after_registration_failure(
+    mock_hass, mock_account_dict, mock_client
+):
+    """Retry both numbers after a failed add and skip them after a successful add."""
+    mock_account_dict["login_obj"] = mock_client._login
+    device = mock_account_dict["devices"]["media_player"][SERIAL]
+    config = {"email": EMAIL}
+    add_callback = MagicMock(side_effect=[RuntimeError("add failed"), None])
+    numbers = mock_account_dict["entities"]["number"]
+
+    with (
+        patch(
+            "custom_components.alexa_media.number.supports_display",
+            side_effect=lambda candidate: candidate is device,
+        ),
+        patch(
+            "custom_components.alexa_media.number.async_get_display_state",
+            new_callable=AsyncMock,
+            return_value=MagicMock(client=mock_client),
+        ),
+    ):
+        assert not await async_setup_platform(mock_hass, config, add_callback)
+        assert not numbers
+
+        assert await async_setup_platform(mock_hass, config, add_callback)
+        assert set(numbers) == {SERIAL, f"{SERIAL}_display_brightness"}
+        add_callback.assert_called_with(
+            [numbers[SERIAL], numbers[f"{SERIAL}_display_brightness"]], False
+        )
+
+        assert await async_setup_platform(mock_hass, config, add_callback)
+        assert add_callback.call_count == 2
+
+
 def test_value_is_read_from_coordinator_data(number, mock_account_dict):
     """The value follows the latest poll."""
     assert number.native_value == 40

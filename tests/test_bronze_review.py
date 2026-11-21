@@ -47,7 +47,6 @@ SETTINGS = {
         ConfigEntryState.SETUP_RETRY,
         ConfigEntryState.SETUP_ERROR,
         ConfigEntryState.SETUP_IN_PROGRESS,
-        ConfigEntryState.NOT_LOADED,
     ],
 )
 @pytest.mark.parametrize("targeted", [False, True])
@@ -103,6 +102,13 @@ async def test_registered_force_logout_allows_recovery(state, targeted):
         {EMAIL: {}},
         {EMAIL: {"login_obj": None}},
         {EMAIL: {"login_obj": MagicMock()}},
+        {
+            EMAIL: {
+                "login_obj": MagicMock(),
+                "relogin_unsubs": (MagicMock(),),
+                "config_entry": MagicMock(state=ConfigEntryState.NOT_LOADED),
+            }
+        },
     ],
 )
 async def test_force_logout_without_login_raises(accounts):
@@ -122,6 +128,7 @@ async def test_force_logout_validates_all_targets_before_reporting():
                     EMAIL: {
                         "login_obj": MagicMock(),
                         "relogin_unsubs": (MagicMock(),),
+                        "config_entry": MagicMock(state=ConfigEntryState.LOADED),
                     }
                 }
             }
@@ -414,6 +421,7 @@ async def test_force_logout_does_not_report_success_without_an_event():
                     EMAIL: {
                         "login_obj": MagicMock(),
                         "relogin_unsubs": (MagicMock(),),
+                        "config_entry": MagicMock(state=ConfigEntryState.LOADED),
                     }
                 }
             }

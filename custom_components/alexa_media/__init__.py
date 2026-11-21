@@ -290,6 +290,14 @@ def _drop_listeners(unsubs) -> None:
         unsub()
 
 
+def _async_on_state_change_if_supported(config_entry, callback):
+    """Register a state-change callback on Home Assistant versions that have it."""
+    register = getattr(config_entry, "async_on_state_change", None)
+    if register is None:
+        return None
+    return register(callback)
+
+
 def _pop_relogin_listeners(hass, email: str) -> None:
     """Unsubscribe the relogin listeners kept for an account, if any."""
     data = getattr(hass, "data", None)
@@ -947,8 +955,8 @@ async def async_setup_entry(hass, config_entry):
             account.pop("relogin_pending", None)
 
     if not account_data.get("relogin_state_unsub"):
-        account_data["relogin_state_unsub"] = config_entry.async_on_state_change(
-            _clear_relogin_state_on_not_loaded
+        account_data["relogin_state_unsub"] = _async_on_state_change_if_supported(
+            config_entry, _clear_relogin_state_on_not_loaded
         )
 
     # Refreshed on every attempt: the account dict survives setup retries and
@@ -1014,8 +1022,13 @@ async def async_setup_entry(hass, config_entry):
         if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
             hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
             hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
+    except asyncio.CancelledError:
+        account_data["login_in_progress"] = False
+        raise
     except Exception:
         account_data["login_in_progress"] = False
+        if account_data.get("relogin_pending"):
+            _schedule_pending_relogin()
         raise
     try:
         # Register before the login attempt so force_logout always reaches a

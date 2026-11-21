@@ -436,9 +436,12 @@ async def test_not_loaded_state_clears_retained_relogin_state(hass, fake_login):
     assert entry.state is ConfigEntryState.SETUP_RETRY
     account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
     assert "relogin_unsubs" in account
+    account["relogin_pending"] = True
 
-    entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
 
+    assert entry.state is ConfigEntryState.NOT_LOADED
     assert "relogin_unsubs" not in account
     assert "relogin_pending" not in account
 
@@ -510,3 +513,58 @@ async def test_relogin_rechecks_login_in_progress_after_uuid_lookup(hass, fake_l
 
     account["login_in_progress"] = False
     account.pop("relogin_pending", None)
+
+
+def test_state_cleanup_registration_is_optional():
+    """Home Assistant 2025.2 has no async_on_state_change; setup must not fail."""
+
+    class OldConfigEntry:
+        """Stand-in for a config entry without the newer API."""
+
+    assert (
+        alexa_media._async_on_state_change_if_supported(OldConfigEntry(), lambda: None)
+        is None
+    )
+
+
+async def test_deferred_request_survives_first_phase_failure(hass, fake_login):
+    """A request deferred during UUID lookup still runs when that lookup fails."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    login = account["login_obj"]
+    login.reset.reset_mock()
+
+    uuid_started = asyncio.Event()
+    uuid_release = asyncio.Event()
+    calls = 0
+
+    async def flaky_uuid(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            uuid_started.set()
+            await uuid_release.wait()
+            raise RuntimeError("uuid failed")
+        return {"uuid": "test-uuid", "index": 0}
+
+    with patch("custom_components.alexa_media.calculate_uuid", side_effect=flaky_uuid):
+        # Focused retry-phase unit test: call the setup function directly
+        # instead of driving HA's state machine through a second setup.
+        retry_task = hass.async_create_task(alexa_media.async_setup_entry(hass, entry))
+        await asyncio.wait_for(uuid_started.wait(), timeout=1)
+        assert account["login_in_progress"] is True
+
+        assert await AlexaMediaServices(hass).force_logout(MagicMock(data={}))
+        await _wait_until(lambda: account.get("relogin_pending"))
+
+        uuid_release.set()
+        with pytest.raises(RuntimeError, match="uuid failed"):
+            await retry_task
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert account["login_in_progress"] is False
+    login.reset.assert_awaited()

@@ -808,7 +808,7 @@ async def async_setup_entry(hass, config_entry):
                     email=email,
                     password=password,
                     outputpath=hass.config.path,
-                    debug=account.get(CONF_DEBUG),
+                    debug=config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
                     otp_secret=account.get(CONF_OTPSECRET, ""),
                     oauth=account.get(CONF_OAUTH, {}),
                     uuid=uuid,
@@ -922,7 +922,7 @@ async def async_setup_entry(hass, config_entry):
             CONF_EXTENDED_ENTITY_DISCOVERY,
             DEFAULT_EXTENDED_ENTITY_DISCOVERY,
         ),
-        CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, False),
+        CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
     }
     uuid_dict = await calculate_uuid(hass, email, url)
     uuid = uuid_dict["uuid"]
@@ -936,7 +936,7 @@ async def async_setup_entry(hass, config_entry):
             email=email,
             password=password,
             outputpath=hass.config.path,
-            debug=account.get(CONF_DEBUG),
+            debug=config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
             otp_secret=account.get(CONF_OTPSECRET, ""),
             oauth=account.get(CONF_OAUTH, {}),
             uuid=uuid,
@@ -1078,7 +1078,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # pylint: disable=too-many-statements,too-many-locals
     """Set up a alexa api based on host parameter."""
 
-    debug = config_entry_option(config_entry, CONF_DEBUG, False)
+    debug = config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG)
 
     # Record metrics
     metrics = get_metrics(hass)

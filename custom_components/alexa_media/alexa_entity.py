@@ -154,6 +154,8 @@ def get_led_indicator_instance(appliance: dict[str, Any]) -> str | None:
         if cap.get("interfaceName") != "Alexa.ToggleController":
             continue
         props = cap.get("properties") or {}
+        if not isinstance(props, dict):
+            continue
         if props.get("retrievable") is not True or props.get("readOnly") is not False:
             continue
         supported = props.get("supported")

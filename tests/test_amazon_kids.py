@@ -340,28 +340,21 @@ async def test_switch_setup_does_not_wait_for_profiles(kids, tmp_path):
         "amazon_kids": state,
     }
     hass.data[DATA_ALEXAMEDIA] = {"accounts": {"test@example.com": account}}
+    add = MagicMock()
     try:
-        with patch(
-            "custom_components.alexa_media.switch.add_devices",
-            new_callable=AsyncMock,
-            return_value=True,
-        ) as add:
-            assert (
-                await asyncio.wait_for(
-                    async_setup_platform(
-                        hass, {"email": "test@example.com"}, MagicMock()
-                    ),
-                    1,
-                )
-                is True
+        assert (
+            await asyncio.wait_for(
+                async_setup_platform(hass, {"email": "test@example.com"}, add), 1
             )
-            await asyncio.wait_for(entered.wait(), 1)
-            await asyncio.wait_for(hass.async_block_till_done(), 1)
-            assert add.await_count == 2
-            assert account["entities"]["amazon_kids_switch"][0].available is False
-            release.set()
-            await drain_refreshes(state)
-            assert account["entities"]["amazon_kids_switch"][0].available is True
+            is True
+        )
+        await asyncio.wait_for(entered.wait(), 1)
+        await asyncio.wait_for(hass.async_block_till_done(), 1)
+        add.assert_called_once()
+        assert account["entities"]["amazon_kids_switch"][0].available is False
+        release.set()
+        await drain_refreshes(state)
+        assert account["entities"]["amazon_kids_switch"][0].available is True
     finally:
         state.async_stop()
         await asyncio.gather(*state._refresh_tasks, return_exceptions=True)

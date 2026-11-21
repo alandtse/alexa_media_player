@@ -109,6 +109,22 @@ def test_discovery_rejects_other_capabilities(appliance, change):
     assert get_led_indicator_instance(appliance) is None
 
 
+@pytest.mark.parametrize("bad_properties", [["invalid"], "invalid", 7])
+def test_discovery_ignores_malformed_led_properties(appliance, bad_properties):
+    """A malformed LED capability must not abort discovery of the appliance."""
+    valid = deepcopy(appliance)
+    valid["entityId"] = "aqm-entity-2"
+    valid["applianceId"] = "aqm-appliance-2"
+    valid["alexaDeviceIdentifierList"] = [{"dmsDeviceSerialNumber": "aqm-serial-2"}]
+    appliance["capabilities"][1]["properties"] = bad_properties
+    assert get_led_indicator_instance(appliance) is None
+    parsed = parse_alexa_entities([appliance, valid])
+    aqms = {aqm["device_serial"]: aqm for aqm in parsed["aiaqm"]}
+    assert set(aqms) == {"aqm-serial", "aqm-serial-2"}
+    assert aqms["aqm-serial"].get("led_indicator_instance") is None
+    assert aqms["aqm-serial-2"]["led_indicator_instance"] == "11"
+
+
 @pytest.fixture
 def switch(appliance):
     """A real switch with a mocked shared coordinator."""
@@ -307,19 +323,17 @@ async def test_setup_filters_and_duplicates(appliance, include, exclude, count):
         "include_devices": include,
         "exclude_devices": exclude,
     }
-    with patch(
-        "custom_components.alexa_media.switch.add_devices", AsyncMock(return_value=True)
-    ) as add:
-        await async_setup_platform(hass, config, MagicMock())
-        await async_setup_platform(hass, config, MagicMock())
-        added_leds = [
-            entity
-            for call in add.call_args_list
-            for entity in call.args[1]
-            if isinstance(entity, LEDIndicatorSwitch)
-        ]
-        assert len(added_leds) == count
-        assert len(account["entities"]["smart_switch"]) == count
+    add = MagicMock()
+    await async_setup_platform(hass, config, add)
+    await async_setup_platform(hass, config, add)
+    added_leds = [
+        entity
+        for call in add.call_args_list
+        for entity in call.args[0]
+        if isinstance(entity, LEDIndicatorSwitch)
+    ]
+    assert len(added_leds) == count
+    assert len(account["entities"]["smart_switch"]) == count
 
 
 @pytest.mark.parametrize("supported", [None, [None], "toggleState", {}, 42, []])

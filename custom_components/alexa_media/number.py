@@ -30,7 +30,6 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa number platform."""
-    devices: list[AlexaNotificationVolume] = []
     account = None
     if config:
         account = config.get(CONF_EMAIL)
@@ -39,10 +38,11 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    numbers = account_dict["entities"]["number"]
+    staged: dict[str, NumberEntity] = {}
     _LOGGER.debug("%s: Loading numbers", hide_email(account))
 
-    # Validate display readiness before storing any entity, otherwise a later
-    # ConfigEntryNotReady would leave unregistered entries behind for a retry.
+    # Wait for the display dependencies before building the registration batch.
     login_obj = account_dict.get("login_obj")
     display_keys = [
         key
@@ -59,29 +59,30 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     for key in account_dict["devices"]["number"]:
         client = account_dict["entities"]["media_player"].get(key)
-        if client is None or key in account_dict["entities"]["number"]:
+        if client is None or key in numbers:
             continue
-        number = AlexaNotificationVolume(client)
-        account_dict["entities"]["number"][key] = number
-        devices.append(number)
+        staged[key] = AlexaNotificationVolume(client)
 
     for key, device in account_dict["devices"]["media_player"].items():
         if not can_probe_display(device):
             continue
         client = account_dict["entities"]["media_player"][key]
         entity_key = f"{key}_display_brightness"
-        if entity_key in account_dict["entities"]["number"]:
+        if entity_key in numbers:
             continue
         display_state = await async_get_display_state(
             hass, account_dict, login_obj, device, client
         )
         if display_state is None or not display_state.supports(SETTING_BRIGHTNESS):
             continue
-        number = AlexaDisplayBrightness(display_state)
-        account_dict["entities"]["number"][entity_key] = number
-        devices.append(number)
+        staged[entity_key] = AlexaDisplayBrightness(display_state)
 
-    return await add_devices(hide_email(account), devices, add_devices_callback)
+    added = await add_devices(
+        hide_email(account), list(staged.values()), add_devices_callback
+    )
+    if added:
+        numbers.update(staged)
+    return added
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):

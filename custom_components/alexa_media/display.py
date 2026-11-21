@@ -11,12 +11,10 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
-import json
 import logging
 from typing import Any
 
 from alexapy import AlexaAPI, AlexaLogin, hide_serial
-from alexapy.errors import AlexapyLoginError, AlexapyTooManyRequestsError
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import PERCENTAGE
@@ -60,86 +58,27 @@ def can_probe_display(device: dict[str, Any]) -> bool:
     return bool(device.get("serialNumber") and device.get("deviceAccountId"))
 
 
-def _decode_setting(value: Any) -> Any:
-    """Decode the JSON-encoded value used by the device settings API."""
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except (TypeError, ValueError):
-            return value
-    return value
-
-
-async def _decode_setting_response(response) -> tuple[int, Any]:
-    """Return the HTTP status and the decoded setting value."""
-    status = response.status
-    if status == 429:
-        raise AlexapyTooManyRequestsError(response.reason)
-    if not 200 <= status < 300:
-        return status, None
-    try:
-        data = await response.json(content_type=None)
-    except (TypeError, ValueError):
-        return status, None
-    if not isinstance(data, dict) or "value" not in data:
-        return status, None
-    value = _decode_setting(data["value"])
-    if isinstance(value, (dict, list)):
-        return status, None
-    return status, value
-
-
-# TODO(alexapy): replace this direct read with AlexaAPI.get_device_setting()
-# once https://gitlab.com/keatontaylor/alexapy/-/merge_requests/512 is released.
-# alexapy 1.36 collapses HTTP 400 and 5xx to None, and this endpoint must
-# distinguish an unsupported setting from a temporary failure.
 async def async_get_device_setting(
     login: AlexaLogin, device_account_id: str, setting: str
 ) -> tuple[int, Any]:
-    """Read one setting and return (HTTP status, decoded value).
+    """Read one setting through the status-aware alexapy API.
 
-    ``AlexaAPI._static_request`` returns ``None`` for every HTTP error >= 400
-    (except 401/429), which makes a temporary 503 indistinguishable from a 400
-    for an unsupported setting. This endpoint needs that distinction, so use
-    the authenticated session directly while keeping the same 401 retry.
+    The API returns ``(0, None)`` when the device has no account id, ``400``
+    for an explicitly unsupported setting and the HTTP status for anything
+    else, so callers can keep transient failures retryable.
     """
     if not device_account_id:
         return 0, None
-    if login.close_requested:
-        raise AlexapyLoginError("Login close requested")
-    if login.status and not login.status.get("login_successful"):
-        raise AlexapyLoginError("Login error detected; not contacting API")
-    session = login.session
-    if session is None or session.closed:
-        raise AlexapyLoginError("Session is closed")
-
-    url = (
-        f"https://alexa.{login.url}/api/v1/devices/{device_account_id}"
-        f"/settings/{setting}"
-    )
-    response = await session.get(url, headers=login._headers, ssl=login._ssl)
-    if response.status == 401 and await login.test_loggedin():
-        response = await session.get(url, headers=login._headers, ssl=login._ssl)
-    try:
-        return await _decode_setting_response(response)
-    finally:
-        response.release()
+    return await AlexaAPI.get_device_setting(login, device_account_id, setting)
 
 
 async def async_set_device_setting(
     login: AlexaLogin, device_account_id: str, setting: str, value: Any
 ) -> bool:
-    """Write one device setting."""
+    """Write one device setting and return whether Amazon accepted it."""
     if not device_account_id:
         return False
-
-    response = await AlexaAPI._static_request(
-        "put",
-        login,
-        f"/api/v1/devices/{device_account_id}/settings/{setting}",
-        data={"value": json.dumps(value)},
-    )
-    return response is not None
+    return await AlexaAPI.set_device_setting(login, device_account_id, setting, value)
 
 
 async def async_probe_display_settings(

@@ -3,8 +3,7 @@
 import asyncio
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-from alexapy import hide_serial
-from alexapy.errors import AlexapyLoginError, AlexapyTooManyRequestsError
+from alexapy import AlexaAPI, hide_serial
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 import pytest
 
@@ -19,7 +18,6 @@ from custom_components.alexa_media.display import (
     AlexaDisplayBrightness,
     AlexaDisplayPowerSwitch,
     DisplayState,
-    _decode_setting,
     _schedule_display_reload,
     async_get_device_setting,
     async_get_display_state,
@@ -63,175 +61,50 @@ def test_can_probe_display_requires_identity():
     assert not can_probe_display({})
 
 
-def test_decode_setting():
-    """Device settings are stored as JSON strings."""
-    assert _decode_setting('"ON"') == "ON"
-    assert _decode_setting("100") == 100
-    assert _decode_setting("plain") == "plain"
-    assert _decode_setting("{not json") == "{not json"
-    assert _decode_setting(123) == 123
+@pytest.mark.asyncio
+async def test_get_device_setting_without_account_id():
+    """A device without an account id is never queried."""
+    with patch.object(AlexaAPI, "get_device_setting", AsyncMock()) as get:
+        assert await async_get_device_setting(
+            MagicMock(), "", SETTING_DISPLAY_POWER
+        ) == (0, None)
+    get.assert_not_awaited()
 
 
-class _FakeResponse:
-    """Minimal aiohttp response for the direct settings request."""
-
-    def __init__(
-        self,
-        status: int,
-        value=None,
-        *,
-        missing_value: bool = False,
-        json_error: Exception | None = None,
-    ) -> None:
-        self.status = status
-        self.reason = "test"
-        self._value = value
-        self._missing_value = missing_value
-        self._json_error = json_error
-        self.released = False
-
-    async def json(self, content_type=None):
-        if self._json_error is not None:
-            raise self._json_error
-        if self._missing_value:
-            return {"no-value": True}
-        return {"value": self._value}
-
-    def release(self) -> None:
-        self.released = True
-
-
-def _login(*responses):
+@pytest.mark.asyncio
+async def test_get_device_setting_delegates_to_alexapy():
+    """The display layer uses the status-aware alexapy API."""
     login = MagicMock()
-    login.url = "amazon.com"
-    login.close_requested = False
-    login.status = {"login_successful": True}
-    login._headers = {}
-    login._ssl = None
-    login.session = MagicMock()
-    login.session.closed = False
-    login.session.get = AsyncMock(side_effect=list(responses))
-    login.test_loggedin = AsyncMock(return_value=True)
-    return login
-
-
-@pytest.mark.asyncio
-async def test_get_device_setting_error_paths():
-    """Only a 400 is unsupported; other statuses stay distinguishable."""
-    assert await async_get_device_setting(MagicMock(), "", SETTING_DISPLAY_POWER) == (
-        0,
-        None,
-    )
-
-    login = _login(_FakeResponse(400))
-    assert await async_get_device_setting(
-        login, "account-id", SETTING_DISPLAY_POWER
-    ) == (400, None)
-
-    login = _login(_FakeResponse(503))
-    assert await async_get_device_setting(
-        login, "account-id", SETTING_DISPLAY_POWER
-    ) == (503, None)
-
-    login = _login(_FakeResponse(200, json_error=ValueError("bad json")))
-    assert await async_get_device_setting(
-        login, "account-id", SETTING_DISPLAY_POWER
-    ) == (200, None)
-
-    login = _login(_FakeResponse(200, missing_value=True))
-    assert await async_get_device_setting(
-        login, "account-id", SETTING_DISPLAY_POWER
-    ) == (200, None)
-
-    login = _login(_FakeResponse(200, '{"nested": 1}'))
-    assert await async_get_device_setting(
-        login, "account-id", SETTING_DISPLAY_POWER
-    ) == (200, None)
-
-    login = _login(_FakeResponse(200, "[1, 2]"))
-    assert await async_get_device_setting(
-        login, "account-id", SETTING_DISPLAY_POWER
-    ) == (200, None)
-
-
-@pytest.mark.asyncio
-async def test_get_device_setting_retries_unauthorized_once():
-    """A 401 is retried once, matching alexapy's request behaviour."""
-    login = _login(_FakeResponse(401), _FakeResponse(200, '"ON"'))
-
-    assert await async_get_device_setting(
-        login, "account-id", SETTING_DISPLAY_POWER
-    ) == (200, "ON")
-    assert login.session.get.await_count == 2
-
-
-@pytest.mark.asyncio
-async def test_get_device_setting_raises_for_login_or_throttle():
-    """Closed sessions and 429 stay retryable for the caller."""
-    login = _login()
-    login.session.closed = True
-    with pytest.raises(AlexapyLoginError):
-        await async_get_device_setting(login, "account-id", SETTING_DISPLAY_POWER)
-
-    login = _login()
-    login.close_requested = True
-    with pytest.raises(AlexapyLoginError):
-        await async_get_device_setting(login, "account-id", SETTING_DISPLAY_POWER)
-
-    login = _login()
-    login.status = {"login_successful": False}
-    with pytest.raises(AlexapyLoginError):
-        await async_get_device_setting(login, "account-id", SETTING_DISPLAY_POWER)
-
-    login = _login(_FakeResponse(429))
-    with pytest.raises(AlexapyTooManyRequestsError):
-        await async_get_device_setting(login, "account-id", SETTING_DISPLAY_POWER)
+    with patch.object(
+        AlexaAPI, "get_device_setting", AsyncMock(return_value=(200, "ON"))
+    ) as get:
+        assert await async_get_device_setting(
+            login, "account-id", SETTING_DISPLAY_POWER
+        ) == (200, "ON")
+    get.assert_awaited_once_with(login, "account-id", SETTING_DISPLAY_POWER)
 
 
 @pytest.mark.asyncio
 async def test_set_device_setting_without_account_id():
     """A device without an account id is never written to."""
-    with patch(
-        "custom_components.alexa_media.display.AlexaAPI._static_request",
-        new_callable=AsyncMock,
-    ) as request:
+    with patch.object(AlexaAPI, "set_device_setting", AsyncMock()) as set_setting:
         assert not await async_set_device_setting(
             MagicMock(), "", SETTING_BRIGHTNESS, 50
         )
-    request.assert_not_awaited()
+    set_setting.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_get_device_setting():
-    """Reading a setting returns the HTTP status and decoded value."""
-    response = _FakeResponse(200, '"ON"')
-    login = _login(response)
-
-    status, value = await async_get_device_setting(
-        login, "account-id", SETTING_DISPLAY_POWER
-    )
-
-    assert (status, value) == (200, "ON")
-    login.session.get.assert_awaited_once()
-    assert login.session.get.await_args.args[0] == (
-        "https://alexa.amazon.com/api/v1/devices/account-id/settings/displayPower"
-    )
-    assert response.released
-
-
-@pytest.mark.asyncio
-async def test_set_device_setting_uses_json_value():
-    """Writing a setting wraps the value the way the Alexa app does."""
-    with patch(
-        "custom_components.alexa_media.display.AlexaAPI._static_request",
-        new_callable=AsyncMock,
-        return_value=MagicMock(),
-    ) as mock_request:
+async def test_set_device_setting_delegates_to_alexapy():
+    """The display layer writes through the alexapy API."""
+    login = MagicMock()
+    with patch.object(
+        AlexaAPI, "set_device_setting", AsyncMock(return_value=True)
+    ) as set_setting:
         assert await async_set_device_setting(
-            MagicMock(), "account-id", SETTING_BRIGHTNESS, 65
+            login, "account-id", SETTING_BRIGHTNESS, 65
         )
-
-    assert mock_request.call_args.kwargs["data"] == {"value": "65"}
+    set_setting.assert_awaited_once_with(login, "account-id", SETTING_BRIGHTNESS, 65)
 
 
 @pytest.mark.asyncio
@@ -885,31 +758,25 @@ async def test_switch_setup_creates_display_entities():
     hass.config.as_dict.return_value = {"components": set()}
     hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
 
-    with (
-        patch(
-            "custom_components.alexa_media.display.async_probe_display_settings",
-            new_callable=AsyncMock,
-            return_value=(
-                {
-                    SETTING_DISPLAY_POWER: "ON",
-                    SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
-                },
-                False,
-            ),
-        ) as probe,
-        patch(
-            "custom_components.alexa_media.switch.add_devices",
-            new_callable=AsyncMock,
-            return_value=True,
-        ) as mock_add_devices,
-    ):
-        await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+    add = MagicMock()
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+        return_value=(
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            },
+            False,
+        ),
+    ) as probe:
+        await async_setup_platform(hass, {"email": EMAIL}, add)
 
     probe.assert_awaited_once()
     switches = account_dict["entities"]["switch"][SERIAL]
     assert {"display_power", "adaptive_brightness"} <= set(switches)
     # The display switches are added unfiltered, after the filtered batch.
-    display_batch = mock_add_devices.call_args_list[-1].args[1]
+    display_batch = add.call_args_list[-1].args[0]
     assert {type(switch) for switch in display_batch} == {
         AlexaDisplayPowerSwitch,
         AlexaAdaptiveBrightnessSwitch,

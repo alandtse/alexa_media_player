@@ -37,10 +37,12 @@ from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .aqm_led import resolve_endpoint_id, set_led_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .display import (
+    SETTING_ADAPTIVE_BRIGHTNESS,
+    SETTING_DISPLAY_POWER,
     AlexaAdaptiveBrightnessSwitch,
     AlexaDisplayPowerSwitch,
     async_get_display_state,
-    supports_display,
+    can_probe_display,
 )
 from .helpers import (
     _catch_login_errors,
@@ -75,19 +77,20 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     clients = entities["media_player"]
     login_obj = account_dict["login_obj"]
     _LOGGER.debug("%s: Loading switches", hide_email(account))
-
     # Resolve prerequisites before submitting anything or modifying switch caches.
     for key, device in media_devices.items():
-        if key not in clients or (supports_display(device) and login_obj is None):
+        if key not in clients or (can_probe_display(device) and login_obj is None):
             raise PlatformNotReady(f"Media player {hide_serial(key)} not ready")
 
-    display_states = {
-        key: await async_get_display_state(
+    display_states = {}
+    for key, device in media_devices.items():
+        if not can_probe_display(device):
+            continue
+        state = await async_get_display_state(
             hass, account_dict, login_obj, device, clients[key]
         )
-        for key, device in media_devices.items()
-        if supports_display(device)
-    }
+        if state is not None:
+            display_states[key] = state
 
     async def async_submit(candidates, *filters):
         def schedule(selected, update_before_add):
@@ -128,17 +131,26 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     entity,
                     partial(switches.__setitem__, kind, entity),
                 )
-        if key in display_states:
-            for kind, switch_class in (
-                ("display_power", AlexaDisplayPowerSwitch),
-                ("adaptive_brightness", AlexaAdaptiveBrightnessSwitch),
+        if display_state := display_states.get(key):
+            for kind, setting, switch_class in (
+                (
+                    "display_power",
+                    SETTING_DISPLAY_POWER,
+                    AlexaDisplayPowerSwitch,
+                ),
+                (
+                    "adaptive_brightness",
+                    SETTING_ADAPTIVE_BRIGHTNESS,
+                    AlexaAdaptiveBrightnessSwitch,
+                ),
             ):
-                if kind not in switches:
-                    entity = switch_class(display_states[key])
-                    display[id(entity)] = (
-                        entity,
-                        partial(switches.__setitem__, kind, entity),
-                    )
+                if kind in switches or not display_state.supports(setting):
+                    continue
+                entity = switch_class(display_state)
+                display[id(entity)] = (
+                    entity,
+                    partial(switches.__setitem__, kind, entity),
+                )
 
     # Keep scheduled plugs and LEDs in the collection the coordinator polls.
     smart_switches = entities.setdefault("smart_switch", [])

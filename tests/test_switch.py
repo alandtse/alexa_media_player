@@ -279,10 +279,14 @@ def switch_setup(monkeypatch, mock_hass, mock_account_dict):
     monkeypatch.setattr(switch_platform, "async_get_state", lambda *_: kids)
     monkeypatch.setattr(
         switch_platform,
-        "supports_display",
+        "can_probe_display",
         lambda d: d is devices["media_player"]["echo"],
     )
-    monkeypatch.setattr(switch_platform, "async_get_display_state", AsyncMock())
+    monkeypatch.setattr(
+        switch_platform,
+        "async_get_display_state",
+        AsyncMock(return_value=SimpleNamespace(supports=lambda _setting: True)),
+    )
 
     def mock_switch(unique_id):
         return lambda *_: SimpleNamespace(

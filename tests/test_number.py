@@ -94,16 +94,18 @@ async def test_setup_retries_numbers_after_registration_failure(
     config = {"email": EMAIL}
     add_callback = MagicMock(side_effect=[RuntimeError("add failed"), None])
     numbers = mock_account_dict["entities"]["number"]
+    display_state = MagicMock(client=mock_client)
+    display_state.supports.return_value = True
 
     with (
         patch(
-            "custom_components.alexa_media.number.supports_display",
+            "custom_components.alexa_media.number.can_probe_display",
             side_effect=lambda candidate: candidate is device,
         ),
         patch(
             "custom_components.alexa_media.number.async_get_display_state",
             new_callable=AsyncMock,
-            return_value=MagicMock(client=mock_client),
+            return_value=display_state,
         ),
     ):
         assert not await async_setup_platform(mock_hass, config, add_callback)

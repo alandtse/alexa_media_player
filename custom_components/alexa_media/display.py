@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
-import json
 import logging
 from typing import Any
 
@@ -22,14 +21,19 @@ from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
-from .const import DOMAIN, MODEL_IDS
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 DISPLAY_SCAN_INTERVAL = timedelta(minutes=15)
 DISPLAY_REFRESH_TIMEOUT = 30
+DISPLAY_PROBE_TIMEOUT = 10
+DISPLAY_PROBE_ATTEMPTS = 2
+DISPLAY_PROBE_RETRY_DELAY = 1
+DISPLAY_PROBE_RELOAD_DELAY = 15 * 60
+DISPLAY_FAILURE_LIMIT = 3
 
 SETTING_DISPLAY_POWER = "displayPower"
 SETTING_BRIGHTNESS = "brightness"
@@ -41,63 +45,100 @@ DISPLAY_SETTINGS = (
     SETTING_ADAPTIVE_BRIGHTNESS,
 )
 
-DISPLAY_MODEL_MARKERS = ("Echo Show", "Echo Spot", "Echo Dot Clock")
 
+def can_probe_display(device: dict[str, Any]) -> bool:
+    """Return whether the device has the identity needed to probe settings.
 
-def supports_display(device: dict[str, Any]) -> bool:
-    """Return whether the device is a known model with an Echo display."""
-    model = MODEL_IDS.get(device.get("deviceType"), "")
-    return any(marker in model for marker in DISPLAY_MODEL_MARKERS)
-
-
-def _decode_setting(value: Any) -> Any:
-    """Decode the JSON-encoded value used by the device settings API."""
-    if isinstance(value, str):
-        try:
-            return json.loads(value)
-        except (TypeError, ValueError):
-            return value
-    return value
+    There is no reliable model list for this: Amazon keeps adding displays
+    (Echo Time, Echo Show 16, Alexa Photo Frame, ...) and the settings are
+    capability-gated per device. Every media player with an account id and a
+    serial is probed once, and only the settings that return a value become
+    entities.
+    """
+    return bool(device.get("serialNumber") and device.get("deviceAccountId"))
 
 
 async def async_get_device_setting(
     login: AlexaLogin, device_account_id: str, setting: str
-) -> Any | None:
-    """Read one device setting."""
+) -> tuple[int, Any]:
+    """Read one setting through the status-aware alexapy API.
+
+    The API returns ``(0, None)`` when the device has no account id, ``400``
+    for an explicitly unsupported setting and the HTTP status for anything
+    else, so callers can keep transient failures retryable.
+    """
     if not device_account_id:
-        return None
-
-    response = await AlexaAPI._static_request(
-        "get",
-        login,
-        f"/api/v1/devices/{device_account_id}/settings/{setting}",
-    )
-    if response is None:
-        return None
-
-    try:
-        data = await response.json(content_type=None)
-    except (TypeError, ValueError):
-        return None
-    if not isinstance(data, dict) or "value" not in data:
-        return None
-    return _decode_setting(data["value"])
+        return 0, None
+    return await AlexaAPI.get_device_setting(login, device_account_id, setting)
 
 
 async def async_set_device_setting(
     login: AlexaLogin, device_account_id: str, setting: str, value: Any
 ) -> bool:
-    """Write one device setting."""
+    """Write one device setting and return whether Amazon accepted it."""
     if not device_account_id:
         return False
+    return await AlexaAPI.set_device_setting(login, device_account_id, setting, value)
 
-    response = await AlexaAPI._static_request(
-        "put",
-        login,
-        f"/api/v1/devices/{device_account_id}/settings/{setting}",
-        data={"value": json.dumps(value)},
-    )
-    return response is not None
+
+async def async_probe_display_settings(
+    login: AlexaLogin, device: dict[str, Any]
+) -> tuple[dict[str, Any], bool]:
+    """Return the settings the device reports and whether a probe failed.
+
+    Amazon rejects unsupported settings with HTTP 400, which alexapy surfaces
+    as ``None``. A transport failure is reported separately so a temporary
+    network problem is not cached as "device does not support this".
+    """
+    serial = device.get("serialNumber", "")
+    device_account_id = device.get("deviceAccountId", "")
+    if not device_account_id:
+        return {}, False
+
+    async def _probe(setting: str) -> Any:
+        last_error: Exception | None = None
+        for attempt in range(DISPLAY_PROBE_ATTEMPTS):
+            try:
+                return await asyncio.wait_for(
+                    async_get_device_setting(login, device_account_id, setting),
+                    timeout=DISPLAY_PROBE_TIMEOUT,
+                )
+            except Exception as err:  # noqa: BLE001
+                last_error = err
+                if attempt + 1 < DISPLAY_PROBE_ATTEMPTS:
+                    await asyncio.sleep(DISPLAY_PROBE_RETRY_DELAY)
+        return last_error
+
+    results = await asyncio.gather(*(_probe(setting) for setting in DISPLAY_SETTINGS))
+
+    supported: dict[str, Any] = {}
+    failed = False
+    for setting, value in zip(DISPLAY_SETTINGS, results, strict=True):
+        if isinstance(value, Exception):
+            failed = True
+            _LOGGER.debug(
+                "%s: Unable to probe display setting %s: %s",
+                hide_serial(serial),
+                setting,
+                value,
+            )
+            continue
+        status, setting_value = value
+        if status == 400:
+            # Amazon explicitly says this setting is not supported.
+            continue
+        if status == 200 and setting_value is not None:
+            supported[setting] = setting_value
+            continue
+        # Anything else (5xx, 401, malformed 200, ...) is temporary.
+        failed = True
+        _LOGGER.debug(
+            "%s: Temporary HTTP %s probing display setting %s",
+            hide_serial(serial),
+            status,
+            setting,
+        )
+    return supported, failed
 
 
 class DisplayState:
@@ -108,6 +149,9 @@ class DisplayState:
         hass: HomeAssistant,
         login: AlexaLogin,
         device: dict[str, Any],
+        supported: dict[str, Any] | None = None,
+        *,
+        probed: bool = False,
     ) -> None:
         """Initialize the display state."""
         self.hass = hass
@@ -116,9 +160,15 @@ class DisplayState:
         self.serial = device["serialNumber"]
         self.device_account_id = device.get("deviceAccountId", "")
         self._values: dict[str, Any] = {setting: None for setting in DISPLAY_SETTINGS}
+        self._values.update(supported or {})
+        self._supported: set[str] = set(
+            DISPLAY_SETTINGS if supported is None else supported
+        )
+        self._failures = dict.fromkeys(DISPLAY_SETTINGS, 0)
         self._listeners: list = []
         self._refresh_lock = asyncio.Lock()
         self._unsub = None
+        self._probed = probed
 
     @property
     def client(self):
@@ -129,6 +179,14 @@ class DisplayState:
     def client(self, value) -> None:
         """Store the media player client for entity identity."""
         self._client = value
+
+    def supports(self, setting: str) -> bool:
+        """Return whether the device exposed this setting during the probe."""
+        return setting in self._supported
+
+    def available(self, setting: str) -> bool:
+        """Return whether the setting has a current, supported value."""
+        return setting in self._supported and self._values.get(setting) is not None
 
     def value(self, setting: str) -> Any | None:
         """Return the last known value of a setting."""
@@ -158,7 +216,8 @@ class DisplayState:
         self._unsub = async_track_time_interval(
             self.hass, self._async_interval, DISPLAY_SCAN_INTERVAL
         )
-        await self.async_refresh()
+        if not self._probed:
+            await self.async_refresh()
 
     @callback
     def async_stop(self) -> None:
@@ -172,19 +231,18 @@ class DisplayState:
         await self.async_refresh()
 
     async def async_refresh(self) -> None:
-        """Refresh all display settings for this Echo."""
+        """Refresh all supported display settings for this Echo."""
+        if not self._supported:
+            return
         async with self._refresh_lock:
+            settings = tuple(sorted(self._supported))
             values = await asyncio.gather(
-                *(
-                    async_get_device_setting(
-                        self.login, self.device_account_id, setting
-                    )
-                    for setting in DISPLAY_SETTINGS
-                ),
+                *(self._read_setting(setting) for setting in settings),
                 return_exceptions=True,
             )
-            for setting, value in zip(DISPLAY_SETTINGS, values, strict=True):
+            for setting, value in zip(settings, values, strict=True):
                 if isinstance(value, Exception):
+                    self._failures[setting] = 0
                     _LOGGER.debug(
                         "%s: Unable to read display setting %s: %s",
                         hide_serial(self.serial),
@@ -192,12 +250,46 @@ class DisplayState:
                         value,
                     )
                     continue
-                self._values[setting] = value
+                status, setting_value = value
+                if status == 400:
+                    self._failures[setting] += 1
+                    if self._failures[setting] >= DISPLAY_FAILURE_LIMIT:
+                        _LOGGER.debug(
+                            "%s: Display setting %s is no longer supported; "
+                            "stopping its refresh",
+                            hide_serial(self.serial),
+                            setting,
+                        )
+                        self._supported.discard(setting)
+                        self._values[setting] = None
+                    continue
+                if status == 200 and setting_value is not None:
+                    self._failures[setting] = 0
+                    self._values[setting] = setting_value
+                    continue
+                self._failures[setting] = 0
+                _LOGGER.debug(
+                    "%s: Temporary HTTP %s reading display setting %s; " "keeping %s",
+                    hide_serial(self.serial),
+                    status,
+                    setting,
+                    self._values.get(setting),
+                )
+            if not self._supported:
+                self.async_stop()
             self._async_notify()
 
+    async def _read_setting(self, setting: str) -> tuple[int, Any]:
+        """Read one setting without letting one failure cancel the others."""
+        return await async_get_device_setting(
+            self.login, self.device_account_id, setting
+        )
+
     async def async_set(self, setting: str, value: Any) -> bool:
-        """Set one display setting and update the cached value."""
+        """Set one supported display setting and update the cached value."""
         async with self._refresh_lock:
+            if setting not in self._supported:
+                return False
             try:
                 success = await async_set_device_setting(
                     self.login, self.device_account_id, setting, value
@@ -229,21 +321,80 @@ class DisplayState:
         return False
 
 
+@callback
+def _schedule_display_reload(hass: HomeAssistant, account_dict: dict[str, Any]) -> None:
+    """Reload the entry later so a failed display probe is retried."""
+    if account_dict.get("display_reload_unsub") is not None:
+        return
+    entry = account_dict.get("config_entry")
+    if entry is None:
+        return
+
+    @callback
+    def _reload(_now) -> None:
+        account_dict["display_reload_unsub"] = None
+        if hass.config_entries.async_get_entry(entry.entry_id) is None:
+            return
+        hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
+
+    account_dict["display_reload_unsub"] = async_call_later(
+        hass, DISPLAY_PROBE_RELOAD_DELAY, _reload
+    )
+
+
 async def async_get_display_state(
     hass: HomeAssistant,
     account_dict: dict[str, Any],
     login: AlexaLogin,
     device: dict[str, Any],
     client,
-) -> DisplayState:
-    """Return (creating if needed) the shared display state for an Echo."""
+) -> DisplayState | None:
+    """Return (creating and probing if needed) the shared display state."""
     states = account_dict.setdefault("display_states", {})
-    state = states.get(device["serialNumber"])
-    if state is None:
-        state = DisplayState(hass, login, device)
+    unsupported = account_dict.setdefault("display_unsupported", set())
+    serial = device.get("serialNumber")
+    if not serial:
+        return None
+    if serial in unsupported:
+        return None
+
+    locks = account_dict.setdefault("display_locks", {})
+    lock = locks.setdefault(serial, asyncio.Lock())
+    async with lock:
+        state = states.get(serial)
+        if state is not None:
+            # A setup retry can supply a new login/client while reusing the
+            # probed state from the previous attempt.
+            state.login = login
+            state.client = client
+            return state
+        if serial in unsupported:
+            return None
+
+        values, failed = await async_probe_display_settings(login, device)
+        if failed:
+            # Do not commit a partial capability result: the missing setting
+            # would never get an entity, and polling only reads supported
+            # settings. Reload the entry later to retry the whole probe.
+            _schedule_display_reload(hass, account_dict)
+            _LOGGER.debug(
+                "%s: Display settings probe incomplete; retrying on the next " "setup",
+                hide_serial(serial),
+            )
+            return None
+        if not values:
+            unsupported.add(serial)
+            _LOGGER.debug(
+                "%s: Device does not expose any display settings; "
+                "skipping display controls",
+                hide_serial(serial),
+            )
+            return None
+
+        state = DisplayState(hass, login, device, supported=values, probed=True)
         state.client = client
-        states[device["serialNumber"]] = state
-    return state
+        states[serial] = state
+        return state
 
 
 def _device_info(client) -> dict[str, Any]:
@@ -275,7 +426,7 @@ class AlexaDisplayPowerSwitch(SwitchEntity):
     @property
     def available(self) -> bool:
         """Return whether the display power setting is available."""
-        return self._state.value(SETTING_DISPLAY_POWER) is not None
+        return self._state.available(SETTING_DISPLAY_POWER)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to display state updates."""
@@ -317,7 +468,7 @@ class AlexaAdaptiveBrightnessSwitch(SwitchEntity):
     @property
     def available(self) -> bool:
         """Return whether the adaptive brightness setting is available."""
-        return self._state.value(SETTING_ADAPTIVE_BRIGHTNESS) is not None
+        return self._state.available(SETTING_ADAPTIVE_BRIGHTNESS)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to display state updates."""
@@ -363,7 +514,7 @@ class AlexaDisplayBrightness(NumberEntity):
     @property
     def available(self) -> bool:
         """Return whether the brightness setting is available."""
-        return self._state.value(SETTING_BRIGHTNESS) is not None
+        return self._state.available(SETTING_BRIGHTNESS)
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to display state updates."""

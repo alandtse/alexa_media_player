@@ -17,7 +17,12 @@ from homeassistant.helpers.entity import EntityCategory
 
 from . import CONF_EMAIL, DATA_ALEXAMEDIA, DOMAIN as ALEXA_DOMAIN, hide_email
 from .alexa_media import AlexaMedia
-from .display import AlexaDisplayBrightness, async_get_display_state, supports_display
+from .display import (
+    SETTING_BRIGHTNESS,
+    AlexaDisplayBrightness,
+    async_get_display_state,
+    can_probe_display,
+)
 from .helpers import _catch_login_errors, add_devices, config_entry_config, safe_get
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,7 +47,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     display_keys = [
         key
         for key, device in account_dict["devices"]["media_player"].items()
-        if supports_display(device)
+        if can_probe_display(device)
     ]
     if display_keys and (
         login_obj is None
@@ -59,7 +64,7 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         staged[key] = AlexaNotificationVolume(client)
 
     for key, device in account_dict["devices"]["media_player"].items():
-        if not supports_display(device):
+        if not can_probe_display(device):
             continue
         client = account_dict["entities"]["media_player"][key]
         entity_key = f"{key}_display_brightness"
@@ -68,6 +73,8 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         display_state = await async_get_display_state(
             hass, account_dict, login_obj, device, client
         )
+        if display_state is None or not display_state.supports(SETTING_BRIGHTNESS):
+            continue
         staged[entity_key] = AlexaDisplayBrightness(display_state)
 
     added = await add_devices(

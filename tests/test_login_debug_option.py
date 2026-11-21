@@ -12,7 +12,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.alexa_media.const import CONF_DEBUG, DATA_ALEXAMEDIA, DOMAIN
 
 EMAIL = "test@example.com"
-PASSWORD = "password"  # noqa: S105
+PASSWORD = "password"  # nosec B105  # noqa: S105
 
 
 @pytest.fixture(autouse=True)
@@ -28,6 +28,7 @@ class FakeAlexaLogin:
         self.url = url
         self.email = email
         self._session = None
+        self.session = MagicMock(closed=True)
         self.status = {"login_successful": True}
         self.stats = {"login_timestamp": datetime(1, 1, 1), "api_calls": 0}
         self.load_cookie = AsyncMock(return_value=None)

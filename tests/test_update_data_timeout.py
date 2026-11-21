@@ -183,6 +183,8 @@ async def test_network_discovery_failure_preserves_existing_entities(hass, amazo
     devices.return_value = [_sample_echo_device()]
     network_details.return_value = [aqm_appliance]
 
+    first_entity_state = {"aqm-entity": [{"name": "rangeValue", "value": 85}]}
+    retry_entity_state = {"aqm-entity": [{"name": "rangeValue", "value": 91}]}
     with (
         patch(
             "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
@@ -190,9 +192,7 @@ async def test_network_discovery_failure_preserves_existing_entities(hass, amazo
         ),
         patch(
             "custom_components.alexa_media.get_entity_data",
-            AsyncMock(
-                return_value={"aqm-entity": [{"name": "rangeValue", "value": 85}]}
-            ),
+            AsyncMock(side_effect=[first_entity_state, retry_entity_state]),
         ) as mock_entity_data,
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -200,15 +200,24 @@ async def test_network_discovery_failure_preserves_existing_entities(hass, amazo
 
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
         assert account["should_get_network"] is False
+        assert account["coordinator"].data == first_entity_state
         discovered_aiaqm = list(account["devices"]["aiaqm"])
         assert len(discovered_aiaqm) == 1
 
-        # Simulate a later poll after force_network_discovery where get_devices_gql fails.
+        # Simulate a later poll after force_network_discovery where get_devices_gql fails,
+        # while an enabled sensor still monitors entity state.
         aqm_device = dr.async_get(hass).async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, "AQMSERIAL0000001")},
             name="Kitchen Air Quality Monitor",
         )
+        account["entities"]["sensor"]["AQMSERIAL0000001"] = {
+            "Air_Quality": {
+                "aqm-entity_voc": MagicMock(
+                    enabled=True, alexa_entity_id="aqm-entity", device_info=None
+                )
+            }
+        }
         account["should_get_network"] = True
         network_details.return_value = None
         await account["coordinator"].async_refresh()
@@ -217,8 +226,10 @@ async def test_network_discovery_failure_preserves_existing_entities(hass, amazo
     assert account["should_get_network"] is True
     assert account["devices"]["aiaqm"] == discovered_aiaqm
     assert dr.async_get(hass).async_get(aqm_device.id) is not None
-    # Initial setup called get_entity_data once; failed retry must not clobber with [].
-    assert mock_entity_data.await_count == 1
+    # Initial setup + monitored-entity fetch during retry; failed discovery must not call get_entity_data([]).
+    assert mock_entity_data.await_count == 2
+    assert mock_entity_data.await_args_list[1].args[1] == ["aqm-entity"]
+    assert account["coordinator"].data == retry_entity_state
 
 
 async def test_successful_discovery_prunes_stale_devices(hass, amazon_api):

@@ -1,6 +1,7 @@
 """Tests for Echo display controls."""
 
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_serial
@@ -18,6 +19,7 @@ from custom_components.alexa_media.display import (
     AlexaDisplayBrightness,
     AlexaDisplayPowerSwitch,
     DisplayState,
+    _cancel_display_reload_if_idle,
     _normalize_setting_value,
     _schedule_display_reload,
     async_get_device_setting,
@@ -1399,3 +1401,36 @@ async def test_unsupported_probe_cancels_pending_reload():
     assert state is None
     unsub.assert_called_once()
     assert account_dict["display_probe_pending"] == set()
+
+
+def test_normalize_setting_value_rejects_unknown_setting():
+    """Unknown settings never produce a cached value."""
+    assert _normalize_setting_value("unknown", "ON") is None
+
+
+def test_cancel_display_reload_keeps_timer_while_pending():
+    """A device that still needs recovery keeps the timer alive."""
+    unsub = MagicMock()
+    account_dict = {
+        "display_probe_pending": {"serial"},
+        "display_reload_unsub": unsub,
+    }
+
+    _cancel_display_reload_if_idle(account_dict)
+
+    unsub.assert_not_called()
+    assert account_dict["display_reload_unsub"] is unsub
+
+
+def test_schedule_display_reload_requires_entry_id():
+    """An entry without an id cannot schedule a reload."""
+    hass = MagicMock()
+    account_dict = {
+        "config_entry": SimpleNamespace(),
+        "display_probe_pending": {"serial"},
+    }
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        _schedule_display_reload(hass, account_dict)
+
+    later.assert_not_called()

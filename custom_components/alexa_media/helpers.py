@@ -397,9 +397,11 @@ async def _catch_login_errors(func, instance, args, kwargs) -> Any:
     return result
 
 
-def report_relogin_required(hass, login, email) -> bool:
+def report_relogin_required(hass, login, email, *, require_status: bool = True) -> bool:
     """Send message for relogin required."""
     if not (hass and login and email):
+        return False
+    if require_status and not getattr(login, "status", None):
         return False
     stats = getattr(login, "stats", {})
     _LOGGER.debug(

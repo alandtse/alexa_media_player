@@ -365,13 +365,16 @@ class AlexaMediaServices:
     def _get_accounts(self, *, require_loaded: bool = True) -> dict[str, Any]:
         """Return usable accounts, allowing recovery during setup when requested."""
         accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts") or {}
+        # Recovery needs a live relogin handler: a login object alone can be a
+        # setup or unload window where the event would be lost.
         loaded = {
             email: account
             for email, account in accounts.items()
             if account.get("login_obj") is not None
             and (
-                not require_loaded
-                or getattr(account.get("config_entry"), "state", None)
+                account.get("relogin_unsubs")
+                if not require_loaded
+                else getattr(account.get("config_entry"), "state", None)
                 == ConfigEntryState.LOADED
             )
         }
@@ -419,7 +422,9 @@ class AlexaMediaServices:
 
             # This is the effective “force logout” for this account: mark it as
             # requiring reauthentication and notify the user/UI.
-            if report_relogin_required(self.hass, login_obj, email):
+            if report_relogin_required(
+                self.hass, login_obj, email, require_status=False
+            ):
                 success = True
                 _LOGGER.debug(
                     "Marked Alexa Media account %s for relogin via force_logout service",

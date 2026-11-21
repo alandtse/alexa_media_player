@@ -59,10 +59,15 @@ async def test_registered_force_logout_allows_recovery(state, targeted):
     hass.data = {
         DATA_ALEXAMEDIA: {
             "accounts": {
-                EMAIL: {"login_obj": login, "config_entry": MagicMock(state=state)},
+                EMAIL: {
+                    "login_obj": login,
+                    "config_entry": MagicMock(state=state),
+                    "relogin_unsubs": (MagicMock(),),
+                },
                 OTHER_EMAIL: {
                     "login_obj": other_login,
                     "config_entry": MagicMock(state=ConfigEntryState.LOADED),
+                    "relogin_unsubs": (MagicMock(),),
                 },
                 "incomplete@example.com": {},
             }
@@ -91,9 +96,17 @@ async def test_registered_force_logout_allows_recovery(state, targeted):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("accounts", [{}, {EMAIL: {}}, {EMAIL: {"login_obj": None}}])
+@pytest.mark.parametrize(
+    "accounts",
+    [
+        {},
+        {EMAIL: {}},
+        {EMAIL: {"login_obj": None}},
+        {EMAIL: {"login_obj": MagicMock()}},
+    ],
+)
 async def test_force_logout_without_login_raises(accounts):
-    """An absent login produces a service error rather than a false success."""
+    """An absent login or handler produces a service error, not a false success."""
     hass = MagicMock(data={DATA_ALEXAMEDIA: {"accounts": accounts}})
     with pytest.raises(ServiceValidationError):
         await AlexaMediaServices(hass).force_logout(MagicMock(data={}))
@@ -103,7 +116,16 @@ async def test_force_logout_without_login_raises(accounts):
 async def test_force_logout_validates_all_targets_before_reporting():
     """A mixed valid/invalid request must not partially log out accounts."""
     hass = MagicMock(
-        data={DATA_ALEXAMEDIA: {"accounts": {EMAIL: {"login_obj": MagicMock()}}}}
+        data={
+            DATA_ALEXAMEDIA: {
+                "accounts": {
+                    EMAIL: {
+                        "login_obj": MagicMock(),
+                        "relogin_unsubs": (MagicMock(),),
+                    }
+                }
+            }
+        }
     )
     services = AlexaMediaServices(hass)
     with patch(
@@ -386,7 +408,16 @@ def test_effective_config_keeps_legacy_fallback_and_does_not_mutate_entry():
 async def test_force_logout_does_not_report_success_without_an_event():
     """The service cannot claim recovery when the handler was not notified."""
     hass = MagicMock(
-        data={DATA_ALEXAMEDIA: {"accounts": {EMAIL: {"login_obj": MagicMock()}}}}
+        data={
+            DATA_ALEXAMEDIA: {
+                "accounts": {
+                    EMAIL: {
+                        "login_obj": MagicMock(),
+                        "relogin_unsubs": (MagicMock(),),
+                    }
+                }
+            }
+        }
     )
     services = AlexaMediaServices(hass)
     with patch(

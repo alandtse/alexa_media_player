@@ -36,7 +36,7 @@ from homeassistant.components.persistent_notification import (
     async_create as async_create_persistent_notification,
     async_dismiss as async_dismiss_persistent_notification,
 )
-from homeassistant.config_entries import SOURCE_REAUTH
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import (
     CONF_EMAIL,
     CONF_PASSWORD,
@@ -298,6 +298,9 @@ def _pop_relogin_listeners(hass, email: str) -> None:
     accounts = (data.get(DATA_ALEXAMEDIA) or {}).get("accounts") or {}
     account = accounts.get(email)
     if isinstance(account, dict):
+        unsub = account.pop("relogin_state_unsub", None)
+        if callable(unsub):
+            unsub()
         _drop_listeners(account.pop("relogin_unsubs", ()))
         account.pop("relogin_pending", None)
 
@@ -792,21 +795,29 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.debug("Refreshing notify targets")
             await notify.async_register_services()
 
+    def _defer_relogin(account_data) -> bool:
+        """Record a request while another task owns the login."""
+        if account_data.get("login_in_progress"):
+            account_data["relogin_pending"] = True
+            _LOGGER.debug(
+                "%s: Deferring relogin until the active setup finishes",
+                hide_email(email),
+            )
+            return True
+        return False
+
     async def relogin(event=None) -> None:
         """Relogin to Alexa."""
         if hide_email(email) == event.data.get("email"):
             account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-            if account_data.get("login_in_progress"):
-                account_data["relogin_pending"] = True
-                _LOGGER.debug(
-                    "%s: Deferring relogin until the active setup finishes",
-                    hide_email(email),
-                )
+            if _defer_relogin(account_data):
+                return
+            uuid = (await calculate_uuid(hass, email, url))["uuid"]
+            if _defer_relogin(account_data):
                 return
             connectivity_state(account_data).invalidate()
             _LOGGER.debug("%s: Received relogin request: %s", hide_email(email), event)
             login_obj: AlexaLogin = account_data.get("login_obj")
-            uuid = (await calculate_uuid(hass, email, url))["uuid"]
             if login_obj is None:
                 login_obj = AlexaLogin(
                     url=url,
@@ -925,6 +936,21 @@ async def async_setup_entry(hass, config_entry):
         with contextlib.suppress(RuntimeError):
             hass.loop.call_soon(_fire)
 
+    @callback
+    def _clear_relogin_state_on_not_loaded() -> None:
+        """Drop recovery state when the entry is disabled or unloaded."""
+        if config_entry.state is not ConfigEntryState.NOT_LOADED:
+            return
+        account = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+        if isinstance(account, dict):
+            _drop_listeners(account.pop("relogin_unsubs", ()))
+            account.pop("relogin_pending", None)
+
+    if not account_data.get("relogin_state_unsub"):
+        account_data["relogin_state_unsub"] = config_entry.async_on_state_change(
+            _clear_relogin_state_on_not_loaded
+        )
+
     # Refreshed on every attempt: the account dict survives setup retries and
     # a failed setup, so options saved in the meantime would otherwise be lost.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"] = {
@@ -950,40 +976,47 @@ async def async_setup_entry(hass, config_entry):
         ),
         CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, False),
     }
-    uuid_dict = await calculate_uuid(hass, email, url)
-    uuid = uuid_dict["uuid"]
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"] = uuid_dict[
-        "index"
-    ]
-    login: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-        "login_obj",
-        AlexaLogin(
-            url=url,
-            email=email,
-            password=password,
-            outputpath=hass.config.path,
-            debug=account.get(CONF_DEBUG),
-            otp_secret=account.get(CONF_OTPSECRET, ""),
-            oauth=account.get(CONF_OAUTH, {}),
-            uuid=uuid,
-            oauth_login=True,
-        ),
-    )
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
-
-    # Create runtime_data for optimized architecture
-    # This provides type-safe access to account data
-    if not hasattr(config_entry, "runtime_data") or config_entry.runtime_data is None:
-        config_entry.runtime_data = AlexaRuntimeData(
-            login_obj=login,
-            config_entry=config_entry,
-            second_account_index=uuid_dict["index"],
-        )
-    if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
     account_data["login_in_progress"] = True
+    try:
+        uuid_dict = await calculate_uuid(hass, email, url)
+        uuid = uuid_dict["uuid"]
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"] = (
+            uuid_dict["index"]
+        )
+        login: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+            "login_obj",
+            AlexaLogin(
+                url=url,
+                email=email,
+                password=password,
+                outputpath=hass.config.path,
+                debug=account.get(CONF_DEBUG),
+                otp_secret=account.get(CONF_OTPSECRET, ""),
+                oauth=account.get(CONF_OAUTH, {}),
+                uuid=uuid,
+                oauth_login=True,
+            ),
+        )
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
+
+        # Create runtime_data for optimized architecture
+        # This provides type-safe access to account data
+        if (
+            not hasattr(config_entry, "runtime_data")
+            or config_entry.runtime_data is None
+        ):
+            config_entry.runtime_data = AlexaRuntimeData(
+                login_obj=login,
+                config_entry=config_entry,
+                second_account_index=uuid_dict["index"],
+            )
+        if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
+    except Exception:
+        account_data["login_in_progress"] = False
+        raise
     try:
         # Register before the login attempt so force_logout always reaches a
         # handler. While this attempt owns the login, the handler records a

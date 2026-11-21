@@ -580,10 +580,24 @@ def test_report_relogin_required_fires_without_status_snapshot():
     login = MagicMock(url="amazon.com", stats={"api_calls": 0})
     login.status = {}
 
-    assert report_relogin_required(hass, login, "test@example.com") is True
+    assert (
+        report_relogin_required(hass, login, "test@example.com", require_status=False)
+        is True
+    )
 
     hass.bus.async_fire.assert_called_once()
     event = hass.bus.async_fire.call_args
     assert event.args[0] == "alexa_media_relogin_required"
     assert event.kwargs["event_data"]["url"] == "amazon.com"
     assert event.kwargs["event_data"]["stats"] == {"api_calls": 0}
+
+
+def test_report_relogin_required_requires_status_by_default():
+    """Callers that do not opt in keep the previous status guard."""
+    hass = MagicMock()
+    login = MagicMock(url="amazon.com", stats={"api_calls": 0})
+    login.status = {}
+
+    assert report_relogin_required(hass, login, "test@example.com") is False
+
+    hass.bus.async_fire.assert_not_called()

@@ -50,18 +50,34 @@ def make_device(friendly_name="Echo Show 8 (3rd generation)"):
     }
 
 
+def deprecated_registry_calls(source):
+    """Return the line numbers of deprecated registry lookups in source."""
+    tree = ast.parse(source)
+    return [
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "async_get_device"
+    ]
+
+
+def test_registry_guard_detects_deprecated_lookup():
+    """The guard must flag the call it is supposed to prevent."""
+    source = "registry.async_get_device(identifiers={('alexa_media', 'SERIAL')})"
+    assert deprecated_registry_calls(source) == [1]
+
+
 def test_no_deprecated_device_registry_lookup():
     """Identifiers are unique per config entry; the old lookup is ambiguous."""
-    offenders = []
-    for path in COMPONENT.rglob("*.py"):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Attribute)
-                and node.func.attr == "async_get_device"
-            ):
-                offenders.append(f"{path.relative_to(COMPONENT)}:{node.lineno}")
+    paths = list(COMPONENT.rglob("*.py"))
+    # Guard against a broken path silently turning this into a no-op.
+    assert COMPONENT / "media_player.py" in paths
+    offenders = [
+        f"{path.relative_to(COMPONENT)}:{line}"
+        for path in paths
+        for line in deprecated_registry_calls(path.read_text(encoding="utf-8"))
+    ]
     assert not offenders, offenders
 
 
@@ -99,13 +115,14 @@ async def test_refresh_before_registration_leaves_registry_to_hass(hass):
     """A refresh before the entity is registered must not write the registry."""
     client = make_client()
     client.hass = hass
-    registry = dr.async_get(hass)
 
     with (
-        patch.object(registry, "async_update_device") as update,
+        patch(
+            "custom_components.alexa_media.media_player.dr.async_get"
+        ) as get_registry,
         patch.object(client, "schedule_update_ha_state"),
     ):
         await client.refresh(make_device(), skip_api=True)
 
-    update.assert_not_called()
+    get_registry.assert_not_called()
     assert client.device_entry is None

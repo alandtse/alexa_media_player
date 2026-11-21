@@ -8,6 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import datetime
+from functools import partial
 import logging
 
 from alexapy import AlexaAPI
@@ -15,6 +16,7 @@ from homeassistant.exceptions import (
     ConfigEntryNotReady,
     HomeAssistantError,
     NoEntitySpecifiedError,
+    PlatformNotReady,
 )
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
@@ -59,15 +61,8 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa switch platform."""
-    devices: list[DNDSwitch] = []
-    SWITCH_TYPES = [  # pylint: disable=invalid-name
-        ("dnd", DNDSwitch),
-        ("shuffle", ShuffleSwitch),
-        ("repeat", RepeatSwitch),
-    ]
-    account = None
-    if config:
-        account = config.get(CONF_EMAIL)
+    config = config or {}
+    account = config.get(CONF_EMAIL)
     if account is None and discovery_info:
         account = safe_get(discovery_info, ["config", CONF_EMAIL])
     if account is None:
@@ -75,122 +70,96 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     include_filter = config.get(CONF_INCLUDE_DEVICES, [])
     exclude_filter = config.get(CONF_EXCLUDE_DEVICES, [])
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    media_devices = account_dict["devices"]["media_player"]
+    entities = account_dict["entities"]
+    clients = entities["media_player"]
+    login_obj = account_dict["login_obj"]
     _LOGGER.debug("%s: Loading switches", hide_email(account))
-    if "switch" not in account_dict["entities"]:
-        hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"] = {}
-    for key, _ in account_dict["devices"]["media_player"].items():
-        if key not in account_dict["entities"]["media_player"]:
-            _LOGGER.debug(
-                "%s: Media player %s not loaded yet; delaying load",
-                hide_email(account),
-                hide_serial(key),
-            )
-            raise ConfigEntryNotReady
-        if key not in (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"]
-        ):
-            hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"]["switch"][
-                key
-            ] = {}
-            for switch_key, class_ in SWITCH_TYPES:
-                if (
-                    switch_key == "dnd"
-                    and not safe_get(account_dict, ["devices", "switch", key, "dnd"])
-                ) or (
-                    switch_key in ["shuffle", "repeat"]
-                    and "MUSIC_SKILL"
-                    not in account_dict["devices"]["media_player"]
-                    .get(key, {})
-                    .get("capabilities", {})
-                ):
-                    _LOGGER.debug(
-                        "%s: Skipping %s for %s",
-                        hide_email(account),
-                        switch_key,
-                        hide_serial(key),
-                    )
-                    continue
-                alexa_client = class_(
-                    account_dict["entities"]["media_player"][key]
-                )  # type: AlexaMediaSwitch
-                _LOGGER.debug(
-                    "%s: Found %s %s switch with status: %s",
-                    hide_email(account),
-                    hide_serial(key),
-                    switch_key,
-                    alexa_client.is_on,
-                )
-                devices.append(alexa_client)
-                (
-                    hass.data[DATA_ALEXAMEDIA]["accounts"][account]["entities"][
-                        "switch"
-                    ][key][switch_key]
-                ) = alexa_client
-        else:
-            for alexa_client in hass.data[DATA_ALEXAMEDIA]["accounts"][account][
-                "entities"
-            ]["switch"][key].values():
-                _LOGGER.debug(
-                    "%s: Skipping already added device: %s",
-                    hide_email(account),
-                    alexa_client,
-                )
-    display_devices: list[SwitchDevice] = []
-    login_obj = account_dict.get("login_obj")
-    for key, device in account_dict["devices"]["media_player"].items():
-        if not supports_display(device):
-            continue
-        client = account_dict["entities"]["media_player"].get(key)
-        if login_obj is None or client is None:
-            _LOGGER.debug(
-                "%s: Media player %s not loaded yet; delaying display setup",
-                hide_email(account),
-                hide_serial(key),
-            )
-            raise ConfigEntryNotReady
 
-        display_state = await async_get_display_state(
-            hass, account_dict, login_obj, device, client
+    # Resolve prerequisites before submitting anything or modifying switch caches.
+    for key, device in media_devices.items():
+        if key not in clients or (supports_display(device) and login_obj is None):
+            raise PlatformNotReady(f"Media player {hide_serial(key)} not ready")
+
+    display_states = {
+        key: await async_get_display_state(
+            hass, account_dict, login_obj, device, clients[key]
         )
-        switch_dict = account_dict["entities"]["switch"].setdefault(key, {})
-        for switch_key, class_ in (
-            ("display_power", AlexaDisplayPowerSwitch),
-            ("adaptive_brightness", AlexaAdaptiveBrightnessSwitch),
-        ):
-            if switch_key in switch_dict:
-                continue
-            display_switch = class_(display_state)
-            switch_dict[switch_key] = display_switch
-            display_devices.append(display_switch)
+        for key, device in media_devices.items()
+        if supports_display(device)
+    }
 
-    # Add Amazon Smart Plug devices
-    switch_entities = safe_get(account_dict, ["devices", "smart_switch"], [])
-    hue_emulated_enabled = "emulated_hue" in hass.config.as_dict().get(
-        "components", set()
-    )
-    if switch_entities and account_dict["options"].get(CONF_EXTENDED_ENTITY_DISCOVERY):
-        for switch_entity in switch_entities:
-            if not (switch_entity["is_hue_v1"] and hue_emulated_enabled):
-                _LOGGER.debug(
-                    "Creating entity %s for a switch with name %s",
-                    hide_serial(switch_entity["id"]),
-                    switch_entity["name"],
+    async def async_submit(candidates, *filters):
+        def schedule(selected, update_before_add):
+            # HA schedules an add task. Remember the selected instances after the
+            # callback returns, even while that task is pending. HA owns the
+            # outcome of the task and resets the platform on reload.
+            add_devices_callback(selected, update_before_add)
+            for entity in selected:
+                candidates[id(entity)][1]()
+
+        return await add_devices(
+            hide_email(account),
+            [entity for entity, _ in candidates.values()],
+            schedule,
+            *filters,
+        )
+
+    # No event-loop suspension between checking the caches and the three
+    # submissions below: add_devices invokes the callback synchronously.
+    filtered = {}
+    display = {}
+    switches_by_echo = entities.setdefault("switch", {})
+    for key, device in media_devices.items():
+        switches = switches_by_echo.setdefault(key, {})
+        switch_types = (
+            (
+                "dnd",
+                DNDSwitch,
+                safe_get(account_dict, ["devices", "switch", key, "dnd"]),
+            ),
+            ("shuffle", ShuffleSwitch, "MUSIC_SKILL" in device.get("capabilities", {})),
+            ("repeat", RepeatSwitch, "MUSIC_SKILL" in device.get("capabilities", {})),
+        )
+        for kind, switch_class, supported in switch_types:
+            if supported and kind not in switches:
+                entity = switch_class(clients[key])
+                filtered[id(entity)] = (
+                    entity,
+                    partial(switches.__setitem__, kind, entity),
                 )
-                coordinator = account_dict["coordinator"]
-                switch = SmartSwitch(
-                    coordinator, account_dict["login_obj"], switch_entity
-                )
-                account_dict["entities"]["smart_switch"].append(switch)
-                devices.append(switch)
-            else:
-                _LOGGER.debug(
-                    "Switch '%s' has not been added because it may originate from emulated_hue",
-                    switch_entity["name"],
-                )
-    led_devices = []
+        if key in display_states:
+            for kind, switch_class in (
+                ("display_power", AlexaDisplayPowerSwitch),
+                ("adaptive_brightness", AlexaAdaptiveBrightnessSwitch),
+            ):
+                if kind not in switches:
+                    entity = switch_class(display_states[key])
+                    display[id(entity)] = (
+                        entity,
+                        partial(switches.__setitem__, kind, entity),
+                    )
+
+    # Keep scheduled plugs and LEDs in the collection the coordinator polls.
+    smart_switches = entities.setdefault("smart_switch", [])
+    known_ids = {entity.unique_id for entity in smart_switches}
+    if account_dict.get("options", {}).get(CONF_EXTENDED_ENTITY_DISCOVERY):
+        hue_emulated_enabled = "emulated_hue" in hass.config.as_dict().get(
+            "components", set()
+        )
+        for details in account_dict["devices"].get("smart_switch", []):
+            unique_id = details["id"]
+            if unique_id in known_ids or (
+                details["is_hue_v1"] and hue_emulated_enabled
+            ):
+                continue
+            entity = SmartSwitch(account_dict["coordinator"], login_obj, details)
+            filtered[id(entity)] = (entity, partial(smart_switches.append, entity))
+            known_ids.add(unique_id)
+
+    leds = {}
     led_include = _coerce_filter(include_filter)
     led_exclude = _coerce_filter(exclude_filter)
-    switches = account_dict["entities"].setdefault("smart_switch", [])
     for details in account_dict["devices"].get("aiaqm", []):
         if not details.get("led_indicator_instance"):
             continue
@@ -200,76 +169,62 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         ):
             continue
         unique_id = f"{details['id']}_led_indicator"
-        if any(entity.unique_id == unique_id for entity in switches):
+        if unique_id in known_ids:
             continue
-        switch = LEDIndicatorSwitch(
-            account_dict["coordinator"], account_dict["login_obj"], details
-        )
-        switches.append(switch)
-        led_devices.append(switch)
+        entity = LEDIndicatorSwitch(account_dict["coordinator"], login_obj, details)
+        leds[id(entity)] = (entity, partial(smart_switches.append, entity))
+        known_ids.add(unique_id)
 
-    # Amazon Kids (child mode) switch per capable Echo. Only devices that
-    # already have a media_player entity are used, so the configured
-    # include/exclude filters are inherited and unique ids stay account scoped.
-    login_obj = account_dict["login_obj"]
+    if not await async_submit(filtered, include_filter, exclude_filter):
+        return False
+    if leds and not await async_submit(leds):
+        return False
+    if display and not await async_submit(display):
+        return False
+
+    # Dashboard discovery has its own retry loop. Check submitted IDs when a
+    # waiter runs because another setup may have queued a waiter for the same Echo.
     kids_state = async_get_state(hass, account_dict, login_obj)
     kids_devices = []
-    for key, device in account_dict["devices"]["media_player"].items():
+    for key, device in media_devices.items():
         if device.get("deviceFamily") not in KIDS_CAPABLE_FAMILIES:
             continue
         device_type = device.get("deviceType")
-        client = account_dict["entities"]["media_player"].get(key)
-        if not device_type or client is None:
+        if not device_type:
             continue
+        client = clients[key]
         kids_state.track(client.device_serial_number, device_type)
         kids_devices.append(
             AmazonKidsSwitch(kids_state, login_obj, client, device_type)
         )
 
-    result = await add_devices(
-        hide_email(account),
-        devices,
-        add_devices_callback,
-        include_filter,
-        exclude_filter,
-    )
-    if led_devices:
-        result = (
-            await add_devices(hide_email(account), led_devices, add_devices_callback)
-            and result
-        )
-
-    if display_devices:
-        # Do not apply include/exclude filters to these entities.
-        result = (
-            await add_devices(
-                hide_email(account), display_devices, add_devices_callback
-            )
-            and result
-        )
     if kids_devices:
 
-        async def _add_kids_switches() -> bool:
-            kids_switches = account_dict["entities"]["amazon_kids_switch"]
-            # A failed add is retried, so only list the switches once.
-            kids_switches.extend([s for s in kids_devices if s not in kids_switches])
-            # Already scoped via the media_player entities, so no name filter.
-            return await add_devices(
-                hide_email(account), kids_devices, add_devices_callback
-            )
+        async def async_add_kids_switches():
+            kids_switches = entities["amazon_kids_switch"]
+            submitted = {entity.unique_id for entity in kids_switches}
+            candidates = {}
+            for entity in kids_devices:
+                if entity.unique_id not in submitted:
+                    candidates[id(entity)] = (
+                        entity,
+                        partial(kids_switches.append, entity),
+                    )
+                    submitted.add(entity.unique_id)
+            return await async_submit(candidates)
 
-        result = (
-            await kids_state.async_add_when_dashboard(_add_kids_switches) and result
-        )
+        await kids_state.async_add_when_dashboard(async_add_kids_switches)
         await kids_state.async_start()
-    return result
+    return True
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa switch platform by config_entry."""
-    return await async_setup_platform(
+    if not await async_setup_platform(
         hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
-    )
+    ):
+        raise PlatformNotReady("Unable to schedule Alexa switches")
+    return True
 
 
 async def async_unload_entry(hass, entry) -> bool:

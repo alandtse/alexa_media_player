@@ -112,10 +112,17 @@ def test_discovery_rejects_other_capabilities(appliance, change):
 @pytest.mark.parametrize("bad_properties", [["invalid"], "invalid", 7])
 def test_discovery_ignores_malformed_led_properties(appliance, bad_properties):
     """A malformed LED capability must not abort discovery of the appliance."""
+    valid = deepcopy(appliance)
+    valid["entityId"] = "aqm-entity-2"
+    valid["applianceId"] = "aqm-appliance-2"
+    valid["alexaDeviceIdentifierList"] = [{"dmsDeviceSerialNumber": "aqm-serial-2"}]
     appliance["capabilities"][1]["properties"] = bad_properties
     assert get_led_indicator_instance(appliance) is None
-    parsed = parse_alexa_entities([appliance])
-    assert parsed["aiaqm"][0].get("led_indicator_instance") is None
+    parsed = parse_alexa_entities([appliance, valid])
+    aqms = {aqm["device_serial"]: aqm for aqm in parsed["aiaqm"]}
+    assert set(aqms) == {"aqm-serial", "aqm-serial-2"}
+    assert aqms["aqm-serial"].get("led_indicator_instance") is None
+    assert aqms["aqm-serial-2"]["led_indicator_instance"] == "11"
 
 
 @pytest.fixture

@@ -9,11 +9,7 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_URL
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.alexa_media.const import (
-    CONF_DEBUG,
-    DATA_ALEXAMEDIA,
-    DOMAIN,
-)
+from custom_components.alexa_media.const import CONF_DEBUG, DATA_ALEXAMEDIA, DOMAIN
 
 EMAIL = "test@example.com"
 PASSWORD = "password"  # noqa: S105
@@ -104,19 +100,30 @@ async def test_setup_uses_effective_debug_option(
 
 
 @pytest.mark.asyncio
-async def test_replacement_login_uses_effective_debug_option(hass, login_factory):
+@pytest.mark.parametrize(
+    ("data_debug", "options_debug", "expected"),
+    [
+        (False, True, True),
+        (True, False, False),
+        (None, True, True),
+        (None, None, False),
+    ],
+)
+async def test_replacement_login_uses_effective_debug_option(
+    hass, login_factory, data_debug, options_debug, expected
+):
     """A relogin that rebuilds the client also honors the options value."""
-    entry = _entry(data_debug=False, options_debug=True)
+    entry = _entry(data_debug=data_debug, options_debug=options_debug)
     entry.add_to_hass(hass)
 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     account = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
-    assert login_factory.call_args.kwargs["debug"] is True
+    assert login_factory.call_args.kwargs["debug"] is expected
 
     account["login_obj"] = None
     hass.bus.async_fire("alexa_media_relogin_required", {"email": hide_email(EMAIL)})
     await hass.async_block_till_done()
 
     assert login_factory.call_count == 2
-    assert login_factory.call_args.kwargs["debug"] is True
+    assert login_factory.call_args.kwargs["debug"] is expected

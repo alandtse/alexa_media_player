@@ -5,6 +5,7 @@ was used but never defined, causing a NameError when users had Smart Plug
 devices with CONF_EXTENDED_ENTITY_DISCOVERY enabled.
 """
 
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -427,3 +428,34 @@ async def test_reload_resubmits_after_scheduled_add_fails(mock_hass, switch_setu
         entity.unique_id for entity in old_entities
     ]
     assert all(new is not old for new, old in zip(queued, old_entities, strict=True))
+
+
+async def test_non_display_switches_submit_before_display_probe(
+    mock_hass, switch_setup, monkeypatch
+):
+    """Ordinary switches do not wait for display discovery."""
+    entry, _, _ = switch_setup
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_display(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        return SimpleNamespace(supports=lambda _setting: True)
+
+    monkeypatch.setattr(switch_platform, "async_get_display_state", slow_display)
+    submitted = []
+
+    def schedule(entities, _):
+        submitted.extend(entity.unique_id for entity in entities)
+
+    task = asyncio.create_task(
+        switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    )
+    await asyncio.wait_for(started.wait(), timeout=1)
+    assert "dnd" in submitted
+    assert "display" not in submitted
+
+    release.set()
+    assert await task
+    assert "display" in submitted

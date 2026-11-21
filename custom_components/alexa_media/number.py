@@ -7,6 +7,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+import asyncio
 import logging
 
 from alexapy import AlexaAPI
@@ -57,31 +58,58 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     ):
         raise ConfigEntryNotReady
 
+    async def _probe_displays():
+        states = {}
+        for key, device in list(account_dict["devices"]["media_player"].items()):
+            if not can_probe_display(device):
+                continue
+            client = account_dict["entities"]["media_player"].get(key)
+            if client is None or login_obj is None:
+                continue
+            state = await async_get_display_state(
+                hass, account_dict, login_obj, device, client
+            )
+            if state is not None and state.supports(SETTING_BRIGHTNESS):
+                states[key] = state
+        return states
+
+    display_task = asyncio.create_task(_probe_displays())
+
     for key in account_dict["devices"]["number"]:
         client = account_dict["entities"]["media_player"].get(key)
         if client is None or key in numbers:
             continue
         staged[key] = AlexaNotificationVolume(client)
 
-    for key, device in account_dict["devices"]["media_player"].items():
-        if not can_probe_display(device):
-            continue
-        client = account_dict["entities"]["media_player"][key]
-        entity_key = f"{key}_display_brightness"
-        if entity_key in numbers:
-            continue
-        display_state = await async_get_display_state(
-            hass, account_dict, login_obj, device, client
-        )
-        if display_state is None or not display_state.supports(SETTING_BRIGHTNESS):
-            continue
-        staged[entity_key] = AlexaDisplayBrightness(display_state)
-
+    # Submit notification volumes before waiting for display discovery.
     added = await add_devices(
         hide_email(account), list(staged.values()), add_devices_callback
     )
-    if added:
-        numbers.update(staged)
+    if not added:
+        display_task.cancel()
+        await asyncio.gather(display_task, return_exceptions=True)
+        return False
+    numbers.update(staged)
+
+    try:
+        display_states = await display_task
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("%s: Unable to probe display brightness", hide_email(account))
+        display_states = {}
+
+    display_staged = {}
+    for key, display_state in display_states.items():
+        entity_key = f"{key}_display_brightness"
+        if entity_key in numbers:
+            continue
+        display_staged[entity_key] = AlexaDisplayBrightness(display_state)
+
+    if display_staged:
+        added = await add_devices(
+            hide_email(account), list(display_staged.values()), add_devices_callback
+        )
+        if added:
+            numbers.update(display_staged)
     return added
 
 

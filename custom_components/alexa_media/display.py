@@ -14,7 +14,7 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-from alexapy import AlexaAPI, AlexaLogin, hide_serial
+from alexapy import AlexaAPI, AlexaLogin, AlexapyLoginError, hide_serial
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import PERCENTAGE
@@ -23,13 +23,16 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
-from .const import DOMAIN
+from .const import DATA_ALEXAMEDIA, DOMAIN
+from .helpers import report_relogin_required
 
 _LOGGER = logging.getLogger(__name__)
 
 DISPLAY_SCAN_INTERVAL = timedelta(minutes=15)
 DISPLAY_REFRESH_TIMEOUT = 30
-DISPLAY_PROBE_TIMEOUT = 10
+# AlexaPy retries a throttled request once after 30-43 seconds. Keep the outer
+# bound above that window so the library's own retry can finish.
+DISPLAY_PROBE_TIMEOUT = 45
 DISPLAY_PROBE_ATTEMPTS = 2
 DISPLAY_PROBE_RETRY_DELAY = 1
 DISPLAY_PROBE_RELOAD_DELAY = 15 * 60
@@ -47,15 +50,25 @@ DISPLAY_SETTINGS = (
 
 
 def can_probe_display(device: dict[str, Any]) -> bool:
-    """Return whether the device has the identity needed to probe settings.
-
-    There is no reliable model list for this: Amazon keeps adding displays
-    (Echo Time, Echo Show 16, Alexa Photo Frame, ...) and the settings are
-    capability-gated per device. Every media player with an account id and a
-    serial is probed once, and only the settings that return a value become
-    entities.
-    """
+    """Return whether the device has the identity needed to probe settings."""
     return bool(device.get("serialNumber") and device.get("deviceAccountId"))
+
+
+def _normalize_setting_value(setting: str, value: Any) -> Any | None:
+    """Return a validated setting value, or None when the payload is malformed."""
+    if setting == SETTING_BRIGHTNESS:
+        if isinstance(value, bool):
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not 0 <= number <= 100:
+            return None
+        return int(number) if number.is_integer() else number
+    if setting in (SETTING_DISPLAY_POWER, SETTING_ADAPTIVE_BRIGHTNESS):
+        return value if value in ("ON", "OFF") else None
+    return None
 
 
 async def async_get_device_setting(
@@ -86,9 +99,9 @@ async def async_probe_display_settings(
 ) -> tuple[dict[str, Any], bool]:
     """Return the settings the device reports and whether a probe failed.
 
-    Amazon rejects unsupported settings with HTTP 400, which alexapy surfaces
-    as ``None``. A transport failure is reported separately so a temporary
-    network problem is not cached as "device does not support this".
+    A 400 is an explicit unsupported response unless AlexaPy reports a
+    concurrent throttle. A transport failure is reported separately so a
+    temporary network problem is not cached as "device does not support this".
     """
     serial = device.get("serialNumber", "")
     device_account_id = device.get("deviceAccountId", "")
@@ -124,16 +137,24 @@ async def async_probe_display_settings(
             )
             continue
         status, setting_value = value
+        if status == 400 and getattr(login, "_rate_retry_inflight", False) is True:
+            failed = True
+            _LOGGER.debug(
+                "%s: Throttled while probing display setting %s",
+                hide_serial(serial),
+                setting,
+            )
+            continue
         if status == 400:
-            # Amazon explicitly says this setting is not supported.
             continue
         if status == 200 and setting_value is not None:
-            supported[setting] = setting_value
-            continue
-        # Anything else (5xx, 401, malformed 200, ...) is temporary.
+            normalized = _normalize_setting_value(setting, setting_value)
+            if normalized is not None:
+                supported[setting] = normalized
+                continue
         failed = True
         _LOGGER.debug(
-            "%s: Temporary HTTP %s probing display setting %s",
+            "%s: Temporary or malformed HTTP %s probing display setting %s",
             hide_serial(serial),
             status,
             setting,
@@ -240,6 +261,8 @@ class DisplayState:
                 *(self._read_setting(setting) for setting in settings),
                 return_exceptions=True,
             )
+            if any(isinstance(value, AlexapyLoginError) for value in values):
+                report_relogin_required(self.hass, self.login, self.login.email)
             for setting, value in zip(settings, values, strict=True):
                 if isinstance(value, Exception):
                     self._failures[setting] = 0
@@ -251,6 +274,18 @@ class DisplayState:
                     )
                     continue
                 status, setting_value = value
+                if (
+                    status == 400
+                    and getattr(self.login, "_rate_retry_inflight", False) is True
+                ):
+                    self._failures[setting] = 0
+                    _LOGGER.debug(
+                        "%s: Throttled reading display setting %s; keeping %s",
+                        hide_serial(self.serial),
+                        setting,
+                        self._values.get(setting),
+                    )
+                    continue
                 if status == 400:
                     self._failures[setting] += 1
                     if self._failures[setting] >= DISPLAY_FAILURE_LIMIT:
@@ -264,12 +299,15 @@ class DisplayState:
                         self._values[setting] = None
                     continue
                 if status == 200 and setting_value is not None:
-                    self._failures[setting] = 0
-                    self._values[setting] = setting_value
-                    continue
+                    normalized = _normalize_setting_value(setting, setting_value)
+                    if normalized is not None:
+                        self._failures[setting] = 0
+                        self._values[setting] = normalized
+                        continue
                 self._failures[setting] = 0
                 _LOGGER.debug(
-                    "%s: Temporary HTTP %s reading display setting %s; " "keeping %s",
+                    "%s: Temporary or malformed HTTP %s reading display setting "
+                    "%s; keeping %s",
                     hide_serial(self.serial),
                     status,
                     setting,
@@ -321,14 +359,61 @@ class DisplayState:
         return False
 
 
+def _display_reload_budget(hass: HomeAssistant, account_dict: dict[str, Any]) -> dict:
+    """Return the automatic display reload budget for this Home Assistant run."""
+    data = getattr(hass, "data", None)
+    if not isinstance(data, dict):
+        return account_dict.setdefault("_display_reload_budget", {})
+    return data.setdefault(DATA_ALEXAMEDIA, {}).setdefault("display_reload_budget", {})
+
+
+def _cancel_display_reload(account_dict: dict[str, Any]) -> None:
+    """Cancel a pending display reload timer, if any."""
+    unsub = account_dict.pop("display_reload_unsub", None)
+    if unsub:
+        unsub()
+
+
+def _cancel_display_reload_if_idle(account_dict: dict[str, Any]) -> None:
+    """Cancel the timer once no display probe still needs recovery."""
+    if account_dict.get("display_probe_pending"):
+        return
+    _cancel_display_reload(account_dict)
+
+
+def _clear_display_reload_budget(
+    hass: HomeAssistant, account_dict: dict[str, Any]
+) -> None:
+    """Allow one future automatic retry after a successful probe."""
+    entry = account_dict.get("config_entry")
+    key = getattr(entry, "entry_id", None)
+    if key is None:
+        return
+    _display_reload_budget(hass, account_dict).pop(key, None)
+
+
 @callback
 def _schedule_display_reload(hass: HomeAssistant, account_dict: dict[str, Any]) -> None:
     """Reload the entry later so a failed display probe is retried."""
     if account_dict.get("display_reload_unsub") is not None:
         return
+    if not account_dict.get("display_probe_pending"):
+        return
     entry = account_dict.get("config_entry")
     if entry is None:
         return
+    key = getattr(entry, "entry_id", None)
+    if key is None:
+        return
+    budget = _display_reload_budget(hass, account_dict)
+    if budget.get(key, 0) >= 1:
+        _LOGGER.debug(
+            "%s: Automatic display reload already attempted; waiting for a "
+            "manual reload",
+            hide_serial(str(key)),
+        )
+        return
+    budget[key] = budget.get(key, 0) + 1
 
     @callback
     def _reload(_now) -> None:
@@ -352,10 +437,13 @@ async def async_get_display_state(
     """Return (creating and probing if needed) the shared display state."""
     states = account_dict.setdefault("display_states", {})
     unsupported = account_dict.setdefault("display_unsupported", set())
+    pending = account_dict.setdefault("display_probe_pending", set())
     serial = device.get("serialNumber")
     if not serial:
         return None
     if serial in unsupported:
+        pending.discard(serial)
+        _cancel_display_reload_if_idle(account_dict)
         return None
 
     locks = account_dict.setdefault("display_locks", {})
@@ -365,10 +453,14 @@ async def async_get_display_state(
         if state is not None:
             # A setup retry can supply a new login/client while reusing the
             # probed state from the previous attempt.
+            pending.discard(serial)
+            _cancel_display_reload_if_idle(account_dict)
             state.login = login
             state.client = client
             return state
         if serial in unsupported:
+            pending.discard(serial)
+            _cancel_display_reload_if_idle(account_dict)
             return None
 
         values, failed = await async_probe_display_settings(login, device)
@@ -376,12 +468,16 @@ async def async_get_display_state(
             # Do not commit a partial capability result: the missing setting
             # would never get an entity, and polling only reads supported
             # settings. Reload the entry later to retry the whole probe.
+            pending.add(serial)
             _schedule_display_reload(hass, account_dict)
             _LOGGER.debug(
                 "%s: Display settings probe incomplete; retrying on the next " "setup",
                 hide_serial(serial),
             )
             return None
+        pending.discard(serial)
+        _clear_display_reload_budget(hass, account_dict)
+        _cancel_display_reload_if_idle(account_dict)
         if not values:
             unsupported.add(serial)
             _LOGGER.debug(

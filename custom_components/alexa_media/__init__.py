@@ -3383,6 +3383,18 @@ async def async_unload_entry(hass, entry) -> bool:
     email = entry.data["email"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
     _pop_relogin_listeners(hass, email)
+    # Cancel the display retry before the first await so it cannot queue a
+    # second reload while this unload is waiting on other tasks.
+    for display_state in (
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("display_states", {}).values()
+    ):
+        display_state.async_stop()
+    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
+    display_reload_unsub = hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop(
+        "display_reload_unsub", None
+    )
+    if display_reload_unsub:
+        display_reload_unsub()
     for task_key in (
         "notifications_refresh_task",
         "notifications_init_task",
@@ -3432,17 +3444,6 @@ async def async_unload_entry(hass, entry) -> bool:
     if amazon_kids:
         amazon_kids.async_stop()
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["amazon_kids"] = None
-
-    for display_state in (
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("display_states", {}).values()
-    ):
-        display_state.async_stop()
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
-    display_reload_unsub = hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop(
-        "display_reload_unsub", None
-    )
-    if display_reload_unsub:
-        display_reload_unsub()
 
     account.pop("connectivity_discovery_unsub", lambda: None)()
 

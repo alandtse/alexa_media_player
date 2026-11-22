@@ -594,6 +594,25 @@ async def test_setup_not_ready_when_relogin_keeps_login(hass, fake_login):
     account["login_in_progress"] = False
 
 
+async def test_setup_attempt_clears_display_probe_failure(hass):
+    """A new setup attempt may probe again after a failed attempt."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    account = {
+        "display_probe_failed": {"serial"},
+        "login_in_progress": True,
+    }
+    hass.data.setdefault(DATA_ALEXAMEDIA, {}).setdefault("accounts", {})[
+        entry.data[CONF_EMAIL]
+    ] = account
+
+    with pytest.raises(alexa_media.ConfigEntryNotReady):
+        await alexa_media.async_setup_entry(hass, entry)
+
+    assert "display_probe_failed" not in account
+
+
 async def test_remove_retires_failed_entry_runtime_account():
     """Removing an entry that never unloaded must not leave its account behind."""
     entry, other = MagicMock(), MagicMock()

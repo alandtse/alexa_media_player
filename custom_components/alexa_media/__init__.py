@@ -940,6 +940,9 @@ async def async_setup_entry(hass, config_entry):
         },
     )
     account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    # A failed probe is remembered only for one setup attempt. The account
+    # record survives a setup retry, so clear the memo to let it probe again.
+    account_data.pop("display_probe_failed", None)
     # Keep a previous attempt's relogin listeners active until this attempt
     # installs its own pair, so force_logout always has a handler.
     previous_unsubs = account_data.get("relogin_unsubs", ())

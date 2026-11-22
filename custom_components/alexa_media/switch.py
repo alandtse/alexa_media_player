@@ -100,19 +100,23 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         )
 
     async def _probe_displays():
-        states = {}
-        for key, device in list(media_devices.items()):
-            if not can_probe_display(device):
-                continue
+        async def _probe_one(key, device):
             client = clients.get(key)
             if client is None or login_obj is None:
-                continue
+                return key, None
             state = await async_get_display_state(
                 hass, account_dict, login_obj, device, client
             )
-            if state is not None:
-                states[key] = state
-        return states
+            return key, state
+
+        results = await asyncio.gather(
+            *(
+                _probe_one(key, device)
+                for key, device in list(media_devices.items())
+                if can_probe_display(device)
+            )
+        )
+        return {key: state for key, state in results if state is not None}
 
     # No event-loop suspension between checking the caches and the three
     # submissions below: add_devices invokes the callback synchronously.

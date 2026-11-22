@@ -435,6 +435,7 @@ def test_display_reload_callback_reloads_entry():
     account_dict = {
         "config_entry": MagicMock(entry_id="entry"),
         "display_probe_pending": {"serial"},
+        "display_probe_failed": {"serial"},
     }
     hass = MagicMock()
     hass.config_entries.async_get_entry.return_value = MagicMock()
@@ -444,8 +445,9 @@ def test_display_reload_callback_reloads_entry():
         callback = later.call_args.args[2]
         callback(None)
 
-    hass.async_create_task.assert_called_once()
+    hass.config_entries.async_schedule_reload.assert_called_once_with("entry")
     assert account_dict["display_reload_unsub"] is None
+    assert "display_probe_failed" not in account_dict
 
 
 def test_display_reload_callback_skips_removed_entry():
@@ -462,7 +464,7 @@ def test_display_reload_callback_skips_removed_entry():
         callback = later.call_args.args[2]
         callback(None)
 
-    hass.async_create_task.assert_not_called()
+    hass.config_entries.async_schedule_reload.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -1131,6 +1133,45 @@ async def test_concurrent_platforms_share_one_display_probe():
 
 
 @pytest.mark.asyncio
+async def test_shared_probe_survives_one_caller_cancel():
+    """Cancelling one platform does not cancel the shared probe for the other."""
+    account_dict = {"display_states": {}}
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _probe(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        return {SETTING_BRIGHTNESS: 50}, False
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        side_effect=_probe,
+    ):
+        first = asyncio.create_task(
+            async_get_display_state(
+                MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+            )
+        )
+        await started.wait()
+        second = asyncio.create_task(
+            async_get_display_state(
+                MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+            )
+        )
+        await asyncio.sleep(0)
+        first.cancel()
+        release.set()
+
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        state = await second
+
+    assert state.supports(SETTING_BRIGHTNESS)
+    assert state.value(SETTING_BRIGHTNESS) == 50
+
+
+@pytest.mark.asyncio
 async def test_failed_probe_is_not_retried_by_sibling_platform():
     """A sibling platform cannot replace a failure with a success."""
     account_dict = {
@@ -1298,13 +1339,15 @@ def test_normalize_setting_value(setting, value, expected):
 
 @pytest.mark.asyncio
 async def test_probe_treats_throttled_400_as_temporary():
-    """A request that throttles and clears its flag is still temporary."""
+    """An isolated self-throttled 400 is temporary, not unsupported."""
     login = MagicMock()
     login._rate_retry_inflight = False
 
-    async def _get_setting(_login, _account_id, _setting):
+    async def _get_setting(_login, _account_id, setting):
+        if setting != SETTING_BRIGHTNESS:
+            return 200, "ON"
         login._rate_retry_inflight = True
-        await asyncio.sleep(0.02)
+        await asyncio.sleep(0.1)
         login._rate_retry_inflight = False
         return 400, None
 
@@ -1322,7 +1365,10 @@ async def test_probe_treats_throttled_400_as_temporary():
             MagicMock(), login, _device()
         )
 
-    assert values == {}
+    assert values == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_ADAPTIVE_BRIGHTNESS: "ON",
+    }
     assert failed is True
 
 
@@ -1357,7 +1403,7 @@ async def test_display_state_keeps_setting_on_throttled_400():
 
     async def _get_setting(_login, _account_id, _setting):
         state.login._rate_retry_inflight = True
-        await asyncio.sleep(0.02)
+        await asyncio.sleep(0.1)
         state.login._rate_retry_inflight = False
         return 400, None
 
@@ -1542,7 +1588,7 @@ async def test_probe_captures_concurrent_throttle_per_request():
             assert login._rate_retry_inflight is True
             # Keep the throttle window open long enough for the watcher to
             # sample it; a real retry holds this for 10-63 seconds.
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)
             brightness_done.set()
             return 400, None
         return 200, "OFF"
@@ -1608,7 +1654,7 @@ async def test_refresh_captures_concurrent_throttle_per_request():
                 await power_started.wait()
                 assert login._rate_retry_inflight is True
                 # Keep the throttle window open long enough for the watcher.
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0.1)
                 brightness_done.set()
                 return 400, None
 
@@ -1769,18 +1815,20 @@ async def test_throttle_watch_cancels_request_on_caller_cancel():
 
 
 @pytest.mark.asyncio
-async def test_probe_timeout_is_temporary():
-    """A probe that exceeds the outer bound is retried, not unsupported."""
+async def test_probe_timeout_discards_partial_results():
+    """The whole probe is bounded and a timeout keeps no partial capability."""
 
-    async def _get(*_args, **_kwargs):
-        await asyncio.sleep(10)
+    async def _get(_login, _account_id, setting):
+        if setting == SETTING_BRIGHTNESS:
+            await asyncio.sleep(10)
+        return 200, "ON"
 
     with (
         patch(
             "custom_components.alexa_media.display.async_get_device_setting",
             side_effect=_get,
         ),
-        patch("custom_components.alexa_media.display.DISPLAY_PROBE_TIMEOUT", 0.01),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_TIMEOUT", 0.05),
     ):
         values, failed = await async_probe_display_settings(
             MagicMock(), MagicMock(), _device()
@@ -1808,6 +1856,26 @@ def test_stale_pending_serials_are_pruned():
 
     _clear_display_reload_budget(hass, account_dict)
     assert "entry" not in hass.data[DATA_ALEXAMEDIA]["display_reload_budget"]
+
+
+def test_stale_pending_pruning_keeps_live_devices():
+    """Only removed serials are pruned; live recovery keeps the budget."""
+    hass = MagicMock()
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "display_entry_states": {"entry": {"pending": {"STALE", SERIAL}}},
+            "display_reload_budget": {"entry": 1},
+        }
+    }
+    account_dict = {
+        "config_entry": MagicMock(entry_id="entry"),
+        "devices": {"media_player": {SERIAL: _device()}},
+    }
+
+    assert _display_pending(hass, account_dict) == {SERIAL}
+
+    _clear_display_reload_budget(hass, account_dict)
+    assert hass.data[DATA_ALEXAMEDIA]["display_reload_budget"]["entry"] == 1
 
 
 @pytest.mark.asyncio

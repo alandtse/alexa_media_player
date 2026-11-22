@@ -59,19 +59,27 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         raise ConfigEntryNotReady
 
     async def _probe_displays():
-        states = {}
-        for key, device in list(account_dict["devices"]["media_player"].items()):
-            if not can_probe_display(device):
-                continue
+        async def _probe_one(key, device):
             client = account_dict["entities"]["media_player"].get(key)
             if client is None or login_obj is None:
-                continue
+                return key, None
             state = await async_get_display_state(
                 hass, account_dict, login_obj, device, client
             )
-            if state is not None and state.supports(SETTING_BRIGHTNESS):
-                states[key] = state
-        return states
+            return key, state
+
+        results = await asyncio.gather(
+            *(
+                _probe_one(key, device)
+                for key, device in list(account_dict["devices"]["media_player"].items())
+                if can_probe_display(device)
+            )
+        )
+        return {
+            key: state
+            for key, state in results
+            if state is not None and state.supports(SETTING_BRIGHTNESS)
+        }
 
     display_task = asyncio.create_task(_probe_displays())
     setup_tasks = account_dict.setdefault("display_setup_tasks", set())

@@ -30,14 +30,16 @@ _LOGGER = logging.getLogger(__name__)
 
 DISPLAY_SCAN_INTERVAL = timedelta(minutes=15)
 DISPLAY_REFRESH_TIMEOUT = 30
-# AlexaPy retries a throttled request once after 30-63 seconds. Keep the outer
-# bound above that window so the library's own retry can finish.
+# AlexaPy retries a throttled request once after 10-63 seconds (10-13s for a
+# rate-limit body, up to 30-63s for "Too many requests"). Keep the outer bound
+# above that window so the library's own retry can finish.
 DISPLAY_PROBE_TIMEOUT = 70
 DISPLAY_PROBE_ATTEMPTS = 2
 DISPLAY_PROBE_RETRY_DELAY = 1
 DISPLAY_PROBE_RELOAD_DELAY = 15 * 60
 DISPLAY_FAILURE_LIMIT = 3
 DISPLAY_THROTTLE_WATCH_INTERVAL = 0.05
+DISPLAY_PROBE_CONCURRENCY = 3
 
 SETTING_DISPLAY_POWER = "displayPower"
 SETTING_BRIGHTNESS = "brightness"
@@ -536,7 +538,10 @@ def _schedule_display_reload(hass: HomeAssistant, account_dict: dict[str, Any]) 
         account_dict["display_reload_unsub"] = None
         if hass.config_entries.async_get_entry(entry.entry_id) is None:
             return
-        hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
+        # A retry gets a fresh probe, even though the account record and the
+        # entry-scoped budget survive this reload.
+        account_dict.pop("display_probe_failed", None)
+        hass.config_entries.async_schedule_reload(entry.entry_id)
 
     account_dict["display_reload_unsub"] = async_call_later(
         hass, DISPLAY_PROBE_RELOAD_DELAY, _reload
@@ -557,7 +562,12 @@ async def _async_ensure_display_state(
     pending = _display_pending(hass, account_dict)
     serial = device["serialNumber"]
 
-    values, failed = await async_probe_display_settings(hass, login, device)
+    semaphore = account_dict.get("display_probe_semaphore")
+    if semaphore is None:
+        semaphore = asyncio.Semaphore(DISPLAY_PROBE_CONCURRENCY)
+        account_dict["display_probe_semaphore"] = semaphore
+    async with semaphore:
+        values, failed = await async_probe_display_settings(hass, login, device)
     if failed:
         # Do not commit a partial capability result: the missing setting
         # would never get an entity, and polling only reads supported

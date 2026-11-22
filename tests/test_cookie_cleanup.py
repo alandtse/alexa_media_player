@@ -134,6 +134,35 @@ async def test_alexapy_deletes_current_cookie_file(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_remove_leaves_other_entry_display_state(removal_context):
+    """Removing one entry must not stop another entry's display recovery."""
+    namespace, hass, entry, cookie = removal_context
+    namespace["DATA_ALEXAMEDIA"] = "alexa_media"
+    entry.entry_id = "entry"
+    other = SimpleNamespace(entry_id="other")
+    display_state = Mock()
+    unsub = Mock()
+    hass.data = {
+        "alexa_media": {
+            "accounts": {
+                "test@example.com": {
+                    "config_entry": other,
+                    "display_states": {"SERIAL": display_state},
+                    "display_reload_unsub": unsub,
+                }
+            }
+        }
+    }
+    delete = namespace["AlexaLogin"].return_value.delete_cookiefile
+    delete.side_effect = lambda: cookie.unlink()
+
+    assert await namespace["async_remove_entry"](hass, entry)
+
+    display_state.async_stop.assert_not_called()
+    unsub.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_remove_clears_display_recovery_state(removal_context):
     """Removing an entry stops display polling and drops its recovery state."""
     namespace, hass, entry, cookie = removal_context

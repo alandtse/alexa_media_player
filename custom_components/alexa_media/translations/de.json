@@ -95,6 +95,9 @@
       "air_quality_volatile_organic_compounds": {
         "name": "Flüchtige organische Verbindungen"
       },
+      "battery": {
+        "name": "Battery"
+      },
       "next_alarm": {
         "name": "Nächster Alarm"
       },

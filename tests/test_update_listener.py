@@ -607,7 +607,13 @@ async def test_setup_attempt_clears_display_probe_failure(hass):
         entry.data[CONF_EMAIL]
     ] = account
 
-    with pytest.raises(alexa_media.ConfigEntryNotReady):
+    async def no_wait(_delay):
+        return None
+
+    with (
+        patch("custom_components.alexa_media.asyncio.sleep", no_wait),
+        pytest.raises(alexa_media.ConfigEntryNotReady),
+    ):
         await alexa_media.async_setup_entry(hass, entry)
 
     assert "display_probe_failed" not in account

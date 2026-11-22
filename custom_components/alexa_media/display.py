@@ -112,7 +112,7 @@ def _report_display_relogin(hass: HomeAssistant, login: AlexaLogin) -> None:
     reported = _display_relogin_reported(hass)
     if email in reported:
         return
-    if report_relogin_required(hass, login, email):
+    if report_relogin_required(hass, login, email, require_status=False):
         reported.add(email)
 
 

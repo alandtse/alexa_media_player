@@ -1358,7 +1358,9 @@ async def test_display_refresh_reports_relogin_on_login_error():
     ):
         await state.async_refresh()
 
-    report.assert_called_once_with(state.hass, state.login, state.login.email)
+    report.assert_called_once_with(
+        state.hass, state.login, state.login.email, require_status=False
+    )
 
 
 def test_display_reload_budget_survives_account_recreation():

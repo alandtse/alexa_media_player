@@ -267,17 +267,13 @@ async def test_switch_setup_creates_display_entities():
     hass.config.as_dict.return_value = {"components": set()}
     hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
 
-    with patch(
-        "custom_components.alexa_media.switch.add_devices",
-        new_callable=AsyncMock,
-        return_value=True,
-    ) as mock_add_devices:
-        await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+    add = MagicMock()
+    await async_setup_platform(hass, {"email": EMAIL}, add)
 
     switches = account_dict["entities"]["switch"][SERIAL]
     assert {"display_power", "adaptive_brightness"} <= set(switches)
     # The display switches are added unfiltered, after the filtered batch.
-    display_batch = mock_add_devices.call_args_list[-1].args[1]
+    display_batch = add.call_args_list[-1].args[0]
     assert {type(switch) for switch in display_batch} == {
         AlexaDisplayPowerSwitch,
         AlexaAdaptiveBrightnessSwitch,

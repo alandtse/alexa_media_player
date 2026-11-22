@@ -18,14 +18,13 @@ from homeassistant.helpers.entity import EntityCategory
 from . import CONF_EMAIL, DATA_ALEXAMEDIA, DOMAIN as ALEXA_DOMAIN, hide_email
 from .alexa_media import AlexaMedia
 from .display import AlexaDisplayBrightness, async_get_display_state, supports_display
-from .helpers import _catch_login_errors, add_devices, safe_get
+from .helpers import _catch_login_errors, add_devices, config_entry_config, safe_get
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_platform(hass, config, add_devices_callback, discovery_info=None):
     """Set up the Alexa number platform."""
-    devices: list[AlexaNotificationVolume] = []
     account = None
     if config:
         account = config.get(CONF_EMAIL)
@@ -34,10 +33,11 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     if account is None:
         raise ConfigEntryNotReady
     account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
+    numbers = account_dict["entities"]["number"]
+    staged: dict[str, NumberEntity] = {}
     _LOGGER.debug("%s: Loading numbers", hide_email(account))
 
-    # Validate display readiness before storing any entity, otherwise a later
-    # ConfigEntryNotReady would leave unregistered entries behind for a retry.
+    # Wait for the display dependencies before building the registration batch.
     login_obj = account_dict.get("login_obj")
     display_keys = [
         key
@@ -54,33 +54,34 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     for key in account_dict["devices"]["number"]:
         client = account_dict["entities"]["media_player"].get(key)
-        if client is None or key in account_dict["entities"]["number"]:
+        if client is None or key in numbers:
             continue
-        number = AlexaNotificationVolume(client)
-        account_dict["entities"]["number"][key] = number
-        devices.append(number)
+        staged[key] = AlexaNotificationVolume(client)
 
     for key, device in account_dict["devices"]["media_player"].items():
         if not supports_display(device):
             continue
         client = account_dict["entities"]["media_player"][key]
         entity_key = f"{key}_display_brightness"
-        if entity_key in account_dict["entities"]["number"]:
+        if entity_key in numbers:
             continue
         display_state = await async_get_display_state(
             hass, account_dict, login_obj, device, client
         )
-        number = AlexaDisplayBrightness(display_state)
-        account_dict["entities"]["number"][entity_key] = number
-        devices.append(number)
+        staged[entity_key] = AlexaDisplayBrightness(display_state)
 
-    return await add_devices(hide_email(account), devices, add_devices_callback)
+    added = await add_devices(
+        hide_email(account), list(staged.values()), add_devices_callback
+    )
+    if added:
+        numbers.update(staged)
+    return added
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Alexa number platform by config_entry."""
     return await async_setup_platform(
-        hass, config_entry.data, async_add_devices, discovery_info=None
+        hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
 
 
@@ -144,7 +145,7 @@ class AlexaNotificationVolume(NumberEntity, AlexaMedia):
             int(value),
         ):
             raise HomeAssistantError(
-                f"Could not set the alarm volume of {self._client.name}"
+                f"Could not set the alarm volume of {self._client.device_name}"
             )
         device["notification_volume"] = int(value)
         self.async_write_ha_state()

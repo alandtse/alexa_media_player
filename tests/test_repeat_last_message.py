@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.auth.permissions.const import POLICY_CONTROL
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import Context
 from homeassistant.exceptions import (
     HomeAssistantError,
@@ -11,7 +12,10 @@ from homeassistant.exceptions import (
     UnknownUser,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import MockEntityPlatform
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    MockEntityPlatform,
+)
 
 from custom_components.alexa_media.const import (
     CONF_QUEUE_DELAY,
@@ -57,14 +61,22 @@ class TestRepeatLastMessage:
         """Add a media player for each name and register the services."""
         login = MagicMock(email=EMAIL, url="amazon.com")
         login.session.closed = False
+        config_entry = MockConfigEntry(
+            domain=DOMAIN, data={"email": EMAIL}, state=ConfigEntryState.LOADED
+        )
+        config_entry.add_to_hass(hass)
         account = {
             "login_obj": login,
+            "config_entry": config_entry,
             "options": {CONF_QUEUE_DELAY: 1.5},
             "entities": {"media_player": {}},
             "devices": {"media_player": {}},
         }
         hass.data[DATA_ALEXAMEDIA] = {"accounts": {EMAIL: account}}
         platform = MockEntityPlatform(hass, domain="media_player", platform_name=DOMAIN)
+        # Device names now supply the entity name. A config entry is required
+        # for the platform to register those devices and generate named IDs.
+        platform.config_entry = config_entry
         clients = []
         for index, name in enumerate(names):
             serial = f"SERIAL{index}"
@@ -276,7 +288,13 @@ async def test_repeat_checks_all_permissions_before_replay(hass, allowed):
     for player in players.values():
         player.async_repeat_last_message = AsyncMock()
     hass.data[DATA_ALEXAMEDIA] = {
-        "accounts": {EMAIL: {"entities": {"media_player": players}}}
+        "accounts": {
+            EMAIL: {
+                "login_obj": MagicMock(),
+                "config_entry": MagicMock(state=ConfigEntryState.LOADED),
+                "entities": {"media_player": players},
+            }
+        }
     }
     user = MagicMock()
     user.permissions.check_entity.side_effect = [True, allowed]

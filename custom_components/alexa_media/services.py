@@ -8,6 +8,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 """
 
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass
 import datetime
 import logging
@@ -15,7 +16,8 @@ from typing import Any, Callable
 
 from alexapy import AlexaAPI, AlexapyLoginError, hide_email
 from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
-from homeassistant.auth.permissions.const import POLICY_CONTROL
+from homeassistant.auth.permissions.const import POLICY_CONTROL, POLICY_READ
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import (
     HomeAssistantError,
@@ -331,9 +333,13 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
 
 
 class AlexaMediaServices:
-    def __init__(self, hass: HomeAssistant, functions: dict[str, Callable[..., Any]]):
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        functions: dict[str, Callable[..., Any]] | None = None,
+    ):
         self.hass = hass
-        self._functions = functions
+        self._functions = functions if functions is not None else {}
 
     async def register(self) -> None:
         """Register Alexa Media custom services."""
@@ -356,6 +362,49 @@ class AlexaMediaServices:
         for service_def in SERVICE_DEFS:
             self.hass.services.async_remove(DOMAIN, service_def.name)
 
+    def _get_accounts(self, *, require_loaded: bool = True) -> dict[str, Any]:
+        """Return usable accounts, allowing recovery during setup when requested."""
+        accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts") or {}
+        # Recovery needs a live relogin handler and an entry that can still
+        # recover: a login object alone can be a setup or unload window where
+        # the event would be lost.
+        recovery_states = {
+            ConfigEntryState.LOADED,
+            ConfigEntryState.SETUP_RETRY,
+            ConfigEntryState.SETUP_ERROR,
+            ConfigEntryState.SETUP_IN_PROGRESS,
+        }
+
+        def _eligible(account: dict[str, Any]) -> bool:
+            if account.get("login_obj") is None:
+                return False
+            state = getattr(account.get("config_entry"), "state", None)
+            if require_loaded:
+                return state is ConfigEntryState.LOADED
+            return bool(account.get("relogin_unsubs")) and state in recovery_states
+
+        loaded = {
+            email: account for email, account in accounts.items() if _eligible(account)
+        }
+        if not loaded:
+            raise ServiceValidationError(
+                "No eligible Alexa Media accounts found. Add or reload an account first."
+            )
+        return loaded
+
+    @staticmethod
+    def _validate_requested_emails(
+        requested_emails: list[str] | None, accounts: dict[str, Any]
+    ) -> None:
+        """Reject requests that name accounts unavailable to this service."""
+        if not requested_emails:
+            return
+        missing = [email for email in requested_emails if email not in accounts]
+        if missing:
+            raise ServiceValidationError(
+                "No eligible Alexa Media account found for: " + ", ".join(missing)
+            )
+
     async def force_logout(self, call: ServiceCall) -> bool:
         """Handle force logout service request.
 
@@ -369,7 +418,8 @@ class AlexaMediaServices:
         requested_emails = call.data.get(ATTR_EMAIL)
         _LOGGER.debug("Service force_logout called for: %s", requested_emails)
 
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+        accounts = self._get_accounts(require_loaded=False)
+        self._validate_requested_emails(requested_emails, accounts)
         success = False
 
         for email, account_dict in accounts.items():
@@ -380,12 +430,14 @@ class AlexaMediaServices:
 
             # This is the effective “force logout” for this account: mark it as
             # requiring reauthentication and notify the user/UI.
-            report_relogin_required(self.hass, login_obj, email)
-            success = True
-            _LOGGER.debug(
-                "Marked Alexa Media account %s for relogin via force_logout service",
-                hide_email(email),
-            )
+            if report_relogin_required(
+                self.hass, login_obj, email, require_status=False
+            ):
+                success = True
+                _LOGGER.debug(
+                    "Marked Alexa Media account %s for relogin via force_logout service",
+                    hide_email(email),
+                )
 
         if requested_emails and not success:
             _LOGGER.warning(
@@ -413,8 +465,10 @@ class AlexaMediaServices:
             return
 
         _LOGGER.debug("Service update_last_called called for: %s", requested_emails)
+        accounts = self._get_accounts()
+        self._validate_requested_emails(requested_emails, accounts)
 
-        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+        for email, account_dict in accounts.items():
             if requested_emails and email not in requested_emails:
                 continue
 
@@ -440,10 +494,16 @@ class AlexaMediaServices:
                     )
                 finally:
                     # Clean up task reference when done
-                    if email in self.hass.data[DATA_ALEXAMEDIA]["accounts"]:
-                        self.hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop(
-                            "service_update_last_called_task", None
-                        )
+                    accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get(
+                        "accounts", {}
+                    )
+                    account = accounts.get(email)
+                    if (
+                        account is not None
+                        and account.get("service_update_last_called_task")
+                        is asyncio.current_task()
+                    ):
+                        account.pop("service_update_last_called_task", None)
 
             # Cancel any existing task for this account before creating a new one
             existing_task = account_dict.get("service_update_last_called_task")
@@ -457,6 +517,23 @@ class AlexaMediaServices:
             )
             account_dict["service_update_last_called_task"] = task
 
+    async def _check_entity_permissions(
+        self, call: ServiceCall, entity_ids: Sequence[str], permission: str
+    ) -> None:
+        """Authorize all targets before resolving or acting on any of them."""
+        if not (user_id := call.context.user_id):
+            return
+        user = await self.hass.auth.async_get_user(user_id)
+        if user is None:
+            raise UnknownUser(context=call.context)
+        for entity_id in entity_ids:
+            if not user.permissions.check_entity(entity_id, permission):
+                raise Unauthorized(
+                    context=call.context,
+                    entity_id=entity_id,
+                    permission=permission,
+                )
+
     async def restore_volume(self, call: ServiceCall) -> bool:
         """Handle restore volume service request.
 
@@ -465,6 +542,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         _LOGGER.debug("Service restore_volume called for: %s", entity_id)
 
         # Retrieve the entity registry and entity entry
@@ -507,6 +585,7 @@ class AlexaMediaServices:
                 "volume_level": previous_volume,
             },
             target={"entity_id": entity_id},
+            context=call.context,
             blocking=True,
         )
 
@@ -521,8 +600,7 @@ class AlexaMediaServices:
             _LOGGER.error("Entity %s not found or not part of %s", entity_id, DOMAIN)
             return None, None, None
         unique_id = entity_entry.unique_id
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
-        for email, account_dict in accounts.items():
+        for email, account_dict in self._get_accounts().items():
             for device in AlexaAPI.devices.get(email, []):
                 serial = device.get("serialNumber")
                 if not serial:
@@ -565,6 +643,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         child = call.data.get(ATTR_CHILD)
         login_obj, serial, device_type = self._resolve_device(entity_id)
         if not login_obj:
@@ -586,6 +665,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, device_type = self._resolve_device(entity_id)
         if not login_obj:
             return False
@@ -602,21 +682,11 @@ class AlexaMediaServices:
 
         """
         entity_ids = call.data[ATTR_ENTITY_ID]
-        if call.context.user_id:
-            user = await self.hass.auth.async_get_user(call.context.user_id)
-            if user is None:
-                raise UnknownUser(context=call.context)
-            for entity_id in entity_ids:
-                if not user.permissions.check_entity(entity_id, POLICY_CONTROL):
-                    raise Unauthorized(
-                        context=call.context,
-                        entity_id=entity_id,
-                        permission=POLICY_CONTROL,
-                    )
+        await self._check_entity_permissions(call, entity_ids, POLICY_CONTROL)
         _LOGGER.debug("Service repeat_last_message called for: %s", entity_ids)
         media_players = {
             entity.entity_id: entity
-            for account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].values()
+            for account_dict in self._get_accounts().values()
             for entity in account_dict["entities"]["media_player"].values()
             # Disabled entities get an entity_id but are never added to hass
             if entity.hass
@@ -748,6 +818,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         days = call.data.get(ATTR_DAYS)
         alarm_type = call.data.get("alarm_type", "default")
         music_provider = call.data.get("music_provider")
@@ -801,6 +872,7 @@ class AlexaMediaServices:
     async def list_alarms(self, call: ServiceCall) -> dict[str, Any]:
         """Return cached Alexa alarm metadata without exposing serials or IDs."""
         entity_id = call.data[ATTR_ENTITY_ID]
+        await self._check_entity_permissions(call, (entity_id,), POLICY_READ)
         login_obj, serial, _, _ = self._resolve_alarm_device(entity_id)
         alarms = (
             safe_get(
@@ -837,6 +909,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, alarm, time_zone = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
@@ -872,6 +945,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
@@ -886,6 +960,7 @@ class AlexaMediaServices:
     async def skip_next_alarm(self, call: ServiceCall) -> bool:
         """Request skipping the next occurrence of an active recurring alarm."""
         entity_id = call.data[ATTR_ENTITY_ID]
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data[ATTR_ALARM_ID]
         )
@@ -915,6 +990,7 @@ class AlexaMediaServices:
 
         """
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         login_obj, serial, alarm, _ = self._resolve_alarm(
             entity_id, call.data.get(ATTR_ALARM_ID)
         )
@@ -936,6 +1012,8 @@ class AlexaMediaServices:
     async def get_history_records(self, call: ServiceCall) -> bool:
         """Handle request to get history records and store them on the entity."""
         entity_id = call.data.get(ATTR_ENTITY_ID)
+        # Fetching history publishes it to the entity's state attributes.
+        await self._check_entity_permissions(call, (entity_id,), POLICY_CONTROL)
         number_of_entries = call.data.get(ATTR_NUM_ENTRIES)
 
         # Validate number_of_entries
@@ -1003,7 +1081,7 @@ class AlexaMediaServices:
                 history_data_total.append(entry)
 
         # Iterate accounts and collect history
-        for email, account_dict in self.hass.data[DATA_ALEXAMEDIA]["accounts"].items():
+        for email, account_dict in self._get_accounts().items():
             login_obj = account_dict["login_obj"]
             try:
                 await _collect_history_for_account(login_obj)
@@ -1049,7 +1127,8 @@ class AlexaMediaServices:
         data = call.data or {}
         target_emails: list[str] = data.get(ATTR_EMAIL, [])
 
-        accounts = self.hass.data[DATA_ALEXAMEDIA]["accounts"]
+        accounts = self._get_accounts()
+        self._validate_requested_emails(target_emails, accounts)
         any_matched = False
 
         for email, account_dict in accounts.items():

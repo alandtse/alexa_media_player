@@ -25,9 +25,75 @@ Allows for control of Amazon Echo products as home assistant media devices with 
   - Album Name
   - Album Image
 
+# Features
+
+- Media player controls: play, pause, stop, next/previous, volume, mute,
+  shuffle, repeat, Bluetooth source selection and media metadata.
+- Send speech, announcements, mobile push notifications and drop-in
+  notifications through `notify.alexa_media`.
+- Run Alexa routines, skills, sounds and text commands from `play_media`.
+- Next alarm, timer and reminder sensors with dismissal events.
+- Do Not Disturb, shuffle and repeat switches; alarm and notification volume.
+- Echo temperature, Amazon Indoor Air Quality Monitor sensors and Alexa Guard.
+- Amazon Kids child-mode switch, select and binary sensor.
+- Optional extended discovery of lights, smart plugs/switches, contact sensors
+  and their battery levels through Alexa.
+- Echo Show / Echo Dot with clock display power, brightness and adaptive
+  brightness controls.
+- Restart button for Echo devices that support remote reboot.
+
+# Services
+
+| Service                                | Description                                           |
+| -------------------------------------- | ----------------------------------------------------- |
+| `alexa_media.force_logout`             | Mark one or all accounts for reauthentication.        |
+| `alexa_media.restore_volume`           | Restore the previous volume of a media player.        |
+| `alexa_media.get_history_records`      | Store recent voice-history records on a media player. |
+| `alexa_media.update_last_called`       | Refresh which Echo received the last voice command.   |
+| `alexa_media.enable_network_discovery` | Re-run Alexa network discovery.                       |
+| `alexa_media.amazon_kids_enable`       | Assign an Echo to an Amazon Kids child profile.       |
+| `alexa_media.amazon_kids_disable`      | Release an Echo from Amazon Kids.                     |
+| `alexa_media.repeat_last_message`      | Repeat the last message sent to a media player.       |
+| `alexa_media.create_alarm`             | Create an alarm on an Echo.                           |
+| `alexa_media.list_alarms`              | Return cached alarm metadata for one Echo.            |
+| `alexa_media.enable_alarm`             | Turn on an Echo alarm.                                |
+| `alexa_media.disable_alarm`            | Turn off an Echo alarm without deleting it.           |
+| `alexa_media.delete_alarm`             | Delete an Echo alarm.                                 |
+| `alexa_media.skip_next_alarm`          | Skip the next scheduled alarm.                        |
+
+# Events
+
+- `alexa_media_voice_command`: fired for new voice-history records that pass the
+  integration's filters (for example, records from unknown devices are skipped),
+  with the command text in `summary` plus `response`, `timestamp`, `serial` and
+  `entity_id`.
+- `alexa_media_alarm_dismissal_event`: fired when an alarm is dismissed.
+- `alexa_media_notification_event`: fired when an alarm, timer or reminder is
+  due.
+
+There are no integration-specific conditions.
+
 # Installation and Configuration
 
-Please see the [wiki.](https://github.com/alandtse/alexa_media_player/wiki/Configuration)
+Install through HACS or copy the `custom_components/alexa_media` directory to
+`<config>/custom_components/alexa_media`, restart Home Assistant, then add the
+integration from **Settings > Devices & services**. You need an Amazon account
+with access to the Alexa devices. Two-step verification must be enabled with an
+authenticator app, and you need the authenticator app key (the setup secret),
+not a one-time password.
+
+Detailed configuration options are documented in the
+[wiki](https://github.com/alandtse/alexa_media_player/wiki/Configuration).
+
+# Removal
+
+1. Remove the integration from **Settings > Devices & services**.
+2. Remove the `alexa_media` custom component directory.
+3. Restart Home Assistant.
+
+Removing the config entry normally deletes the login cookie file
+`.storage/alexa_media.<email>.cookies` and the runtime entities. If automatic
+cleanup fails, delete that file manually to discard the Amazon session.
 
 ## Authentication cookie storage
 

@@ -461,11 +461,20 @@ async def test_non_display_switches_submit_before_display_probe(
     assert "display" in submitted
 
 
-async def test_kids_device_added_during_display_probe_is_skipped(
+async def test_kids_device_added_during_display_probe_registers_later(
     mock_hass, switch_setup, monkeypatch
 ):
-    """A new Kids device without a client must not abort switch setup."""
-    entry, account, _ = switch_setup
+    """A new Kids device is registered after its client appears."""
+    entry, account, kids = switch_setup
+
+    def kids_switch(_state, _login, client, _device_type):
+        return SimpleNamespace(
+            unique_id=f"kids-{client.device_serial_number}",
+            name="kids",
+            is_on=False,
+        )
+
+    monkeypatch.setattr(switch_platform, "AmazonKidsSwitch", kids_switch)
 
     async def add_during_probe(*_args, **_kwargs):
         account["devices"]["media_player"]["new-kids"] = {
@@ -476,5 +485,15 @@ async def test_kids_device_added_during_display_probe_is_skipped(
 
     monkeypatch.setattr(switch_platform, "async_get_display_state", add_during_probe)
 
-    assert await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
-    assert "new-kids" not in account["entities"]["media_player"]
+    await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
+    assert account["entities"]["amazon_kids_switch"] == []
+
+    account["entities"]["media_player"]["new-kids"] = SimpleNamespace(
+        device_serial_number="new-kids"
+    )
+    await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
+
+    callback = kids.async_add_when_dashboard.await_args_list[-1].args[0]
+    await callback()
+    added = {entity.unique_id for entity in account["entities"]["amazon_kids_switch"]}
+    assert "kids-new-kids" in added

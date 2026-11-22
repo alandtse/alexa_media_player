@@ -852,6 +852,10 @@ async def async_setup_entry(hass, config_entry):
                 else:
                     login_obj.oauth_login = True
                 await login_obj.reset()
+                if config_entry.state is ConfigEntryState.NOT_LOADED:
+                    # Unloaded while reset() was suspended; do not raise a
+                    # reauthentication notice or set up a removed account.
+                    return
                 # await login_obj.login()
                 if await test_login_status(hass, config_entry, login_obj):
                     await setup_alexa(hass, config_entry, login_obj)

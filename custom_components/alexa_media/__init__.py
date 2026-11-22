@@ -3534,6 +3534,12 @@ async def async_unload_entry(hass, entry) -> bool:
     display_reload_unsub = account.pop("display_reload_unsub", None)
     if display_reload_unsub:
         display_reload_unsub()
+        # The timer never dispatched. Release the budget so re-enabling the
+        # entry can still make its one automatic retry.
+        integration_data = hass.data.get(DATA_ALEXAMEDIA, {})
+        budget = integration_data.get("display_reload_budget")
+        if isinstance(budget, dict):
+            budget.pop(entry.entry_id, None)
     for task_key in (
         "notifications_refresh_task",
         "notifications_init_task",

@@ -39,6 +39,10 @@ DISPLAY_PROBE_RETRY_DELAY = 1
 DISPLAY_PROBE_RELOAD_DELAY = 15 * 60
 DISPLAY_FAILURE_LIMIT = 3
 DISPLAY_THROTTLE_WATCH_INTERVAL = 0.05
+# AlexaPy holds the shared throttle flag for at least 10 seconds while it
+# retries. A fast 400 that merely overlaps another request's retry is a genuine
+# unsupported response, not a throttled one.
+DISPLAY_THROTTLE_MIN_DURATION = 10.0
 DISPLAY_PROBE_CONCURRENCY = 3
 
 SETTING_DISPLAY_POWER = "displayPower"
@@ -64,7 +68,7 @@ def _normalize_setting_value(setting: str, value: Any) -> Any | None:
             return None
         try:
             number = float(value)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return None
         if not 0 <= number <= 100:
             return None
@@ -118,6 +122,8 @@ async def _await_with_throttle_watch(login: AlexaLogin, awaitable) -> tuple[Any,
     throttle observation together with the failed result.
     """
     request = asyncio.ensure_future(_capture_request_flag(login, awaitable))
+    loop = asyncio.get_running_loop()
+    started = loop.time()
     throttled = False
     try:
         while not request.done():
@@ -129,11 +135,15 @@ async def _await_with_throttle_watch(login: AlexaLogin, awaitable) -> tuple[Any,
         await asyncio.gather(request, return_exceptions=True)
         raise
     result, response_throttled = request.result()
+    elapsed = loop.time() - started
+    # The shared flag cannot identify which request was throttled. Require the
+    # request to have lasted at least one AlexaPy retry delay, so a genuine fast
+    # 400 is not discarded just because a sibling request was in backoff.
     throttled = (
         throttled
         or response_throttled
         or getattr(login, "_rate_retry_inflight", False) is True
-    )
+    ) and elapsed >= DISPLAY_THROTTLE_MIN_DURATION
     return result, throttled
 
 
@@ -189,6 +199,8 @@ async def async_probe_display_settings(
             )
             if not isinstance(result, Exception):
                 return result, throttled
+            if isinstance(result, AlexapyLoginError):
+                _report_display_relogin(hass, login)
             last_error = result
             if attempt + 1 < DISPLAY_PROBE_ATTEMPTS:
                 await asyncio.sleep(DISPLAY_PROBE_RETRY_DELAY)
@@ -204,7 +216,9 @@ async def async_probe_display_settings(
         return {}, True
     if any(isinstance(result, AlexapyLoginError) for result, _ in results):
         _report_display_relogin(hass, login)
-    elif any(not isinstance(result, Exception) for result, _ in results):
+    elif any(
+        not isinstance(result, Exception) and result[0] == 200 for result, _ in results
+    ):
         _clear_display_relogin(hass, login)
 
     supported: dict[str, Any] = {}
@@ -350,7 +364,10 @@ class DisplayState:
             ]
             if any(isinstance(result, AlexapyLoginError) for result, _ in results):
                 _report_display_relogin(self.hass, self.login)
-            elif any(not isinstance(result, Exception) for result, _ in results):
+            elif any(
+                not isinstance(result, Exception) and result[0] == 200
+                for result, _ in results
+            ):
                 _clear_display_relogin(self.hass, self.login)
             for setting, (result, throttled) in zip(settings, results, strict=True):
                 if isinstance(result, Exception):
@@ -479,7 +496,15 @@ def _display_pending(hass: HomeAssistant, account_dict: dict[str, Any]) -> set:
             for device in media_players.values()
             if isinstance(device, dict) and can_probe_display(device)
         }
+        pruned = pending - known
         pending.intersection_update(known)
+        if pruned and not pending:
+            # Every unresolved device disappeared. The previous attempt did not
+            # run against the current inventory, so release its budget.
+            entry = account_dict.get("config_entry")
+            key = getattr(entry, "entry_id", None)
+            if key is not None:
+                _display_reload_budget(hass, account_dict).pop(key, None)
     return pending
 
 

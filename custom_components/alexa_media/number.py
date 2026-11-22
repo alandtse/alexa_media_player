@@ -10,7 +10,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 import asyncio
 import logging
 
-from alexapy import AlexaAPI
+from alexapy import AlexaAPI, hide_serial
 from homeassistant.components.number import NumberEntity
 from homeassistant.const import PERCENTAGE
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
@@ -63,9 +63,17 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             client = account_dict["entities"]["media_player"].get(key)
             if client is None or login_obj is None:
                 return key, None
-            state = await async_get_display_state(
-                hass, account_dict, login_obj, device, client
-            )
+            try:
+                state = await async_get_display_state(
+                    hass, account_dict, login_obj, device, client
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug(
+                    "%s: Unable to probe display brightness: %s",
+                    hide_serial(key),
+                    err,
+                )
+                return key, None
             return key, state
 
         results = await asyncio.gather(

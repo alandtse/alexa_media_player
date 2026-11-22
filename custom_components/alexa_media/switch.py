@@ -104,9 +104,17 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             client = clients.get(key)
             if client is None or login_obj is None:
                 return key, None
-            state = await async_get_display_state(
-                hass, account_dict, login_obj, device, client
-            )
+            try:
+                state = await async_get_display_state(
+                    hass, account_dict, login_obj, device, client
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug(
+                    "%s: Unable to probe display switches: %s",
+                    hide_serial(key),
+                    err,
+                )
+                return key, None
             return key, state
 
         results = await asyncio.gather(

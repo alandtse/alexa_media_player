@@ -1401,6 +1401,10 @@ async def test_probe_treats_throttled_400_as_temporary():
             "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
             0.001,
         ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
+            0.05,
+        ),
     ):
         values, failed = await async_probe_display_settings(
             MagicMock(), login, _device()
@@ -1427,6 +1431,11 @@ async def test_probe_rejects_invalid_brightness():
 
     assert values == {}
     assert failed is True
+
+
+def test_normalize_setting_value_rejects_float_overflow():
+    """An integer too large for float() is malformed, not a brightness."""
+    assert _normalize_setting_value(SETTING_BRIGHTNESS, 10**400) is None
 
 
 @pytest.mark.asyncio
@@ -1456,6 +1465,10 @@ async def test_display_state_keeps_setting_on_throttled_400():
         patch(
             "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
             0.001,
+        ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
+            0.05,
         ),
     ):
         for _ in range(DISPLAY_FAILURE_LIMIT):
@@ -1644,6 +1657,10 @@ async def test_probe_captures_concurrent_throttle_per_request():
             "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
             0.001,
         ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
+            0.05,
+        ),
     ):
         supported, failed = await async_probe_display_settings(
             MagicMock(), login, _device()
@@ -1654,6 +1671,53 @@ async def test_probe_captures_concurrent_throttle_per_request():
         SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
     }
     assert failed is True
+
+
+@pytest.mark.asyncio
+async def test_fast_400_during_sibling_throttle_is_unsupported():
+    """A genuine fast 400 is not discarded because a sibling request retried."""
+    login = MagicMock()
+    login._rate_retry_inflight = False
+    power_started = asyncio.Event()
+    brightness_done = asyncio.Event()
+
+    async def fake_get_setting(_login, _account_id, setting):
+        if setting == SETTING_DISPLAY_POWER:
+            login._rate_retry_inflight = True
+            power_started.set()
+            await brightness_done.wait()
+            login._rate_retry_inflight = False
+            return 200, "ON"
+        if setting == SETTING_BRIGHTNESS:
+            await power_started.wait()
+            brightness_done.set()
+            return 400, None
+        return 200, "OFF"
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            new_callable=AsyncMock,
+            side_effect=fake_get_setting,
+        ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+            0.001,
+        ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
+            0.05,
+        ),
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), login, _device()
+        )
+
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+    }
+    assert failed is False
 
 
 @pytest.mark.asyncio
@@ -1709,6 +1773,10 @@ async def test_refresh_captures_concurrent_throttle_per_request():
                 "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
                 0.001,
             ),
+            patch(
+                "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
+                0.05,
+            ),
         ):
             await state.async_refresh()
 
@@ -1748,7 +1816,7 @@ async def test_initial_probe_reports_relogin_once_and_resets_after_recovery():
         with patch(
             "custom_components.alexa_media.display.async_get_device_setting",
             new_callable=AsyncMock,
-            return_value=(400, None),
+            return_value=(200, "ON"),
         ):
             await async_probe_display_settings(hass, login, _device())
 
@@ -1788,6 +1856,72 @@ async def test_refresh_does_not_duplicate_probe_relogin_report():
         await state.async_refresh()
 
         assert report.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_transient_probe_failure_does_not_clear_relogin_marker():
+    """A 503 is not a successful read and must keep the relogin report marker."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {EMAIL}}}
+    login = MagicMock(email=EMAIL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(503, None),
+    ):
+        await async_probe_display_settings(hass, login, _device())
+
+    assert EMAIL in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_successful_probe_clears_relogin_marker():
+    """A confirmed device response allows a later failure to report again."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {EMAIL}}}
+    login = MagicMock(email=EMAIL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(200, "ON"),
+    ):
+        await async_probe_display_settings(hass, login, _device())
+
+    assert EMAIL not in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_probe_reports_relogin_before_group_timeout():
+    """A confirmed login failure is reported even if a sibling probe hangs."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {}}
+    login = MagicMock(email=EMAIL)
+
+    async def _get(_login, _account_id, setting):
+        if setting == SETTING_DISPLAY_POWER:
+            raise AlexapyLoginError("login failed")
+        await asyncio.sleep(10)
+        return 200, "ON"
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_TIMEOUT", 0.05),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_RETRY_DELAY", 0),
+        patch(
+            "custom_components.alexa_media.display.report_relogin_required",
+            return_value=True,
+        ) as report,
+    ):
+        values, failed = await async_probe_display_settings(hass, login, _device())
+
+    assert values == {}
+    assert failed is True
+    report.assert_called_once()
 
 
 def test_reload_budget_stays_consumed_until_all_devices_recover():
@@ -1870,9 +2004,15 @@ async def test_throttle_capture_wins_before_watcher_resumes():
         loop.call_soon(_clear)
         return 400, None
 
-    with patch(
-        "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
-        60,
+    with (
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+            60,
+        ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
+            0,
+        ),
     ):
         result, throttled = await _await_with_throttle_watch(login, _get())
 
@@ -1919,8 +2059,6 @@ def test_stale_pending_serials_are_pruned():
     }
 
     assert _display_pending(hass, account_dict) == set()
-
-    _clear_display_reload_budget(hass, account_dict)
     assert "entry" not in hass.data[DATA_ALEXAMEDIA]["display_reload_budget"]
 
 
@@ -1962,8 +2100,13 @@ async def test_unload_stops_display_recovery():
         "display_reload_unsub": unsub,
     }
     hass = MagicMock()
-    hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
-    entry = MagicMock(data={"email": EMAIL})
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "accounts": {EMAIL: account_dict},
+            "display_reload_budget": {"entry": 1},
+        }
+    }
+    entry = MagicMock(data={"email": EMAIL}, entry_id="entry")
 
     with (
         patch("custom_components.alexa_media.ALEXA_COMPONENTS", []),
@@ -1979,6 +2122,7 @@ async def test_unload_stops_display_recovery():
     probe.cancel.assert_called_once()
     setup_task.cancel.assert_called_once()
     unsub.assert_called_once()
+    assert "entry" not in hass.data[DATA_ALEXAMEDIA]["display_reload_budget"]
 
 
 @pytest.mark.asyncio

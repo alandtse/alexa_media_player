@@ -73,13 +73,17 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 _probe_one(key, device)
                 for key, device in list(account_dict["devices"]["media_player"].items())
                 if can_probe_display(device)
-            )
+            ),
+            return_exceptions=True,
         )
-        return {
-            key: state
-            for key, state in results
-            if state is not None and state.supports(SETTING_BRIGHTNESS)
-        }
+        states = {}
+        for result in results:
+            if isinstance(result, BaseException):
+                continue
+            key, state = result
+            if state is not None and state.supports(SETTING_BRIGHTNESS):
+                states[key] = state
+        return states
 
     display_task = asyncio.create_task(_probe_displays())
     setup_tasks = account_dict.setdefault("display_setup_tasks", set())

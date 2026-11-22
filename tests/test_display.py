@@ -11,6 +11,7 @@ import pytest
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.display import (
     DISPLAY_FAILURE_LIMIT,
+    DISPLAY_PROBE_CONCURRENCY,
     DISPLAY_SETTINGS,
     SETTING_ADAPTIVE_BRIGHTNESS,
     SETTING_BRIGHTNESS,
@@ -435,7 +436,6 @@ def test_display_reload_callback_reloads_entry():
     account_dict = {
         "config_entry": MagicMock(entry_id="entry"),
         "display_probe_pending": {"serial"},
-        "display_probe_failed": {"serial"},
     }
     hass = MagicMock()
     hass.config_entries.async_get_entry.return_value = MagicMock()
@@ -447,7 +447,6 @@ def test_display_reload_callback_reloads_entry():
 
     hass.config_entries.async_schedule_reload.assert_called_once_with("entry")
     assert account_dict["display_reload_unsub"] is None
-    assert "display_probe_failed" not in account_dict
 
 
 def test_display_reload_callback_skips_removed_entry():
@@ -1169,6 +1168,48 @@ async def test_shared_probe_survives_one_caller_cancel():
 
     assert state.supports(SETTING_BRIGHTNESS)
     assert state.value(SETTING_BRIGHTNESS) == 50
+
+
+@pytest.mark.asyncio
+async def test_display_probe_concurrency_is_bounded():
+    """Many devices are probed concurrently, but never above the bound."""
+    account_dict = {"display_states": {}}
+    current = 0
+    peak = 0
+
+    async def _probe(*_args, **_kwargs):
+        nonlocal current, peak
+        current += 1
+        peak = max(peak, current)
+        try:
+            await asyncio.sleep(0.01)
+        finally:
+            current -= 1
+        return {SETTING_BRIGHTNESS: 40}, False
+
+    serials = [f"SERIAL{i}" for i in range(6)]
+    devices = [
+        {"serialNumber": serial, "deviceAccountId": f"id-{serial}"}
+        for serial in serials
+    ]
+    clients = [MagicMock(unique_id=serial) for serial in serials]
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        side_effect=_probe,
+    ):
+        states = await asyncio.gather(
+            *(
+                async_get_display_state(
+                    MagicMock(), account_dict, MagicMock(), device, client
+                )
+                for device, client in zip(devices, clients, strict=True)
+            )
+        )
+
+    assert all(state is not None for state in states)
+    assert len(account_dict["display_states"]) == len(serials)
+    assert peak <= DISPLAY_PROBE_CONCURRENCY
 
 
 @pytest.mark.asyncio

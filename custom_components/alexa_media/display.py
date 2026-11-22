@@ -538,9 +538,6 @@ def _schedule_display_reload(hass: HomeAssistant, account_dict: dict[str, Any]) 
         account_dict["display_reload_unsub"] = None
         if hass.config_entries.async_get_entry(entry.entry_id) is None:
             return
-        # A retry gets a fresh probe, even though the account record and the
-        # entry-scoped budget survive this reload.
-        account_dict.pop("display_probe_failed", None)
         hass.config_entries.async_schedule_reload(entry.entry_id)
 
     account_dict["display_reload_unsub"] = async_call_later(
@@ -611,8 +608,8 @@ async def async_get_display_state(
     Platforms set up concurrently, so every caller for the same serial awaits
     one in-flight probe. A failed probe is remembered for the current setup: a
     sibling platform must not retry it, succeed, and cancel the reload that
-    repairs the platform which is still missing its entities. A new setup uses
-    a fresh account dict and probes again.
+    repairs the platform which is still missing its entities. The next setup
+    attempt clears that memo, even though the account dict survives retries.
     """
     serial = device.get("serialNumber")
     if not serial:

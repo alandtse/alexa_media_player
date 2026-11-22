@@ -114,9 +114,17 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 _probe_one(key, device)
                 for key, device in list(media_devices.items())
                 if can_probe_display(device)
-            )
+            ),
+            return_exceptions=True,
         )
-        return {key: state for key, state in results if state is not None}
+        states = {}
+        for result in results:
+            if isinstance(result, BaseException):
+                continue
+            key, state = result
+            if state is not None:
+                states[key] = state
+        return states
 
     # No event-loop suspension between checking the caches and the three
     # submissions below: add_devices invokes the callback synchronously.

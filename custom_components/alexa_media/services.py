@@ -365,15 +365,26 @@ class AlexaMediaServices:
     def _get_accounts(self, *, require_loaded: bool = True) -> dict[str, Any]:
         """Return usable accounts, allowing recovery during setup when requested."""
         accounts = self.hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts") or {}
+        # Recovery needs a live relogin handler and an entry that can still
+        # recover: a login object alone can be a setup or unload window where
+        # the event would be lost.
+        recovery_states = {
+            ConfigEntryState.LOADED,
+            ConfigEntryState.SETUP_RETRY,
+            ConfigEntryState.SETUP_ERROR,
+            ConfigEntryState.SETUP_IN_PROGRESS,
+        }
+
+        def _eligible(account: dict[str, Any]) -> bool:
+            if account.get("login_obj") is None:
+                return False
+            state = getattr(account.get("config_entry"), "state", None)
+            if require_loaded:
+                return state is ConfigEntryState.LOADED
+            return bool(account.get("relogin_unsubs")) and state in recovery_states
+
         loaded = {
-            email: account
-            for email, account in accounts.items()
-            if account.get("login_obj") is not None
-            and (
-                not require_loaded
-                or getattr(account.get("config_entry"), "state", None)
-                == ConfigEntryState.LOADED
-            )
+            email: account for email, account in accounts.items() if _eligible(account)
         }
         if not loaded:
             raise ServiceValidationError(
@@ -419,12 +430,14 @@ class AlexaMediaServices:
 
             # This is the effective “force logout” for this account: mark it as
             # requiring reauthentication and notify the user/UI.
-            report_relogin_required(self.hass, login_obj, email)
-            success = True
-            _LOGGER.debug(
-                "Marked Alexa Media account %s for relogin via force_logout service",
-                hide_email(email),
-            )
+            if report_relogin_required(
+                self.hass, login_obj, email, require_status=False
+            ):
+                success = True
+                _LOGGER.debug(
+                    "Marked Alexa Media account %s for relogin via force_logout service",
+                    hide_email(email),
+                )
 
         if requested_emails and not success:
             _LOGGER.warning(

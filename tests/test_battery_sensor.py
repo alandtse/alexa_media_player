@@ -81,13 +81,14 @@ async def test_sensor_setup_creates_battery_sensor():
         "custom_components.alexa_media.sensor.add_devices",
         new_callable=AsyncMock,
         return_value=True,
-    ):
+    ) as add_devices_mock:
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
 
-    assert isinstance(
-        account_dict["entities"]["sensor"][ENTITY_ID]["Battery"],
-        AlexaBatterySensor,
-    )
+    sensor = account_dict["entities"]["sensor"][ENTITY_ID]["Battery"]
+    assert isinstance(sensor, AlexaBatterySensor)
+    add_devices_mock.assert_awaited_once()
+    registered = add_devices_mock.await_args.args[1]
+    assert sensor in registered
 
 
 def test_create_battery_sensors_only_for_supported_devices():

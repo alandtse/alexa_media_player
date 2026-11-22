@@ -4,8 +4,10 @@ import asyncio
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.config_entries import ConfigEntryState
+from alexapy import hide_email
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_URL
+from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import (
@@ -20,6 +22,7 @@ from custom_components.alexa_media.const import (
     DATA_ALEXAMEDIA,
     DOMAIN,
 )
+from custom_components.alexa_media.services import AlexaMediaServices
 
 SETUP_RETRIES = 3
 
@@ -34,10 +37,15 @@ class FakeAlexaLogin:
     """Network-free stand-in for alexapy.AlexaLogin."""
 
     hang_login = False
+    login_gate: "asyncio.Event | None" = None
+    login_started: "asyncio.Event | None" = None
+    login_timeout = False
     last_instance: "FakeAlexaLogin | None" = None
+    instances: dict[str, "FakeAlexaLogin"] = {}
 
     def __init__(self, url, email, **kwargs):
         FakeAlexaLogin.last_instance = self
+        FakeAlexaLogin.instances[email] = self
         self.url = url
         self.email = email
         self.status = {}
@@ -54,8 +62,13 @@ class FakeAlexaLogin:
 
     async def login(self, cookies=None, **kwargs):
         """Hang like an unresponsive Amazon login, or succeed."""
+        if FakeAlexaLogin.login_started is not None:
+            FakeAlexaLogin.login_started.set()
         if FakeAlexaLogin.hang_login:
-            await asyncio.Event().wait()
+            FakeAlexaLogin.login_gate = asyncio.Event()
+            await FakeAlexaLogin.login_gate.wait()
+        if FakeAlexaLogin.login_timeout:
+            raise asyncio.TimeoutError
         self.status["login_successful"] = True
 
 
@@ -63,6 +76,10 @@ class FakeAlexaLogin:
 def fake_login():
     """Patch the Amazon login layer and the device fetch that follows it."""
     FakeAlexaLogin.hang_login = False
+    FakeAlexaLogin.login_gate = None
+    FakeAlexaLogin.login_started = asyncio.Event()
+    FakeAlexaLogin.login_timeout = False
+    FakeAlexaLogin.instances = {}
     with (
         patch("custom_components.alexa_media.AlexaLogin", FakeAlexaLogin),
         patch("custom_components.alexa_media.LOGIN_MAX_WAIT_S", 0.01),
@@ -84,11 +101,11 @@ def listener_spy():
         yield spy
 
 
-def _config_entry() -> MockConfigEntry:
+def _config_entry(email: str = "test@example.com") -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
         data={
-            CONF_EMAIL: "test@example.com",
+            CONF_EMAIL: email,
             CONF_PASSWORD: "password",
             CONF_URL: "amazon.com",
         },
@@ -108,6 +125,16 @@ async def _retry_then_load(hass, entry, fake_login, retries):
         async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=5 * attempt))
         await hass.async_block_till_done(wait_background_tasks=True)
     assert entry.state is ConfigEntryState.LOADED
+
+
+async def _wait_until(predicate, timeout=1.0):
+    """Wait for a predicate without assuming an event-loop tick count."""
+
+    async def _poll():
+        while not predicate():
+            await asyncio.sleep(0)
+
+    await asyncio.wait_for(_poll(), timeout=timeout)
 
 
 def _stored_options(hass, entry):
@@ -298,3 +325,389 @@ async def test_options_saved_after_failed_setup_are_loaded_on_reload(hass, fake_
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+async def test_force_logout_defers_only_accounts_still_in_setup(hass, fake_login):
+    """A recovery request during login waits for that account's setup."""
+    first = _config_entry("first@example.com")
+    second = _config_entry("second@example.com")
+    assert await async_setup_component(hass, DOMAIN, {})
+    first.add_to_hass(hass)
+    second.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(first.entry_id)
+    await hass.async_block_till_done()
+    first_login = fake_login.instances[first.data[CONF_EMAIL]]
+    first_login.reset.reset_mock()
+
+    fake_login.hang_login = True
+    fake_login.login_gate = None
+    with (
+        patch("custom_components.alexa_media.LOGIN_MAX_WAIT_S", 5),
+        patch(
+            "custom_components.alexa_media.calculate_uuid",
+            AsyncMock(return_value={"uuid": "test-uuid", "index": 1}),
+        ),
+        patch(
+            "custom_components.alexa_media.setup_alexa",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        fake_login.login_started = asyncio.Event()
+        setup_task = hass.async_create_task(
+            hass.config_entries.async_setup(second.entry_id)
+        )
+        await asyncio.wait_for(fake_login.login_started.wait(), timeout=1)
+
+        second_account = hass.data[DATA_ALEXAMEDIA]["accounts"][second.data[CONF_EMAIL]]
+        assert second_account["login_in_progress"] is True
+        assert "relogin_unsubs" in second_account
+
+        services = AlexaMediaServices(hass)
+        assert await services.force_logout(MagicMock(data={}))
+
+        await _wait_until(lambda: second_account.get("relogin_pending"))
+        second_login = fake_login.instances[second.data[CONF_EMAIL]]
+        second_login.reset.assert_not_awaited()
+
+        await _wait_until(lambda: first_login.reset.await_count)
+        first_login.reset.assert_awaited()
+
+        fake_login.login_gate.set()
+        assert await setup_task
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    second_login.reset.assert_awaited()
+
+
+async def test_deferred_relogin_runs_after_a_failed_setup_attempt(hass, fake_login):
+    """A request made during login survives the failed attempt and still runs."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    fake_login.hang_login = True
+    fake_login.login_gate = None
+    fake_login.login_timeout = True
+    with (
+        patch("custom_components.alexa_media.LOGIN_MAX_WAIT_S", 5),
+        patch(
+            "custom_components.alexa_media.calculate_uuid",
+            AsyncMock(return_value={"uuid": "test-uuid", "index": 0}),
+        ),
+        patch(
+            "custom_components.alexa_media.test_login_status",
+            AsyncMock(return_value=True),
+        ),
+        patch(
+            "custom_components.alexa_media.setup_alexa",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        fake_login.login_started = asyncio.Event()
+        setup_task = hass.async_create_task(
+            hass.config_entries.async_setup(entry.entry_id)
+        )
+        await asyncio.wait_for(fake_login.login_started.wait(), timeout=1)
+
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+        assert await AlexaMediaServices(hass).force_logout(MagicMock(data={}))
+        await _wait_until(lambda: account.get("relogin_pending"))
+
+        fake_login.login_gate.set()
+        assert not await setup_task
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    # The deferred request runs against the handler even though this attempt
+    # failed; the full reauth outcome is covered by the existing login tests.
+    fake_login.instances[entry.data[CONF_EMAIL]].reset.assert_awaited()
+
+
+@pytest.mark.skipif(
+    not hasattr(ConfigEntry, "async_on_state_change"),
+    reason="async_on_state_change requires Home Assistant 2025.3+",
+)
+async def test_not_loaded_state_clears_retained_relogin_state(hass, fake_login):
+    """Disabling an entry in SETUP_RETRY drops its retained recovery state."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    fake_login.hang_login = True
+    fake_login.login_gate = None
+    fake_login.login_timeout = True
+    with patch("custom_components.alexa_media.LOGIN_MAX_WAIT_S", 5):
+        fake_login.login_started = asyncio.Event()
+        setup_task = hass.async_create_task(
+            hass.config_entries.async_setup(entry.entry_id)
+        )
+        await asyncio.wait_for(fake_login.login_started.wait(), timeout=1)
+        fake_login.login_gate.set()
+        assert not await setup_task
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    assert "relogin_unsubs" in account
+    account["relogin_pending"] = True
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.NOT_LOADED
+    assert "relogin_unsubs" not in account
+    assert "relogin_pending" not in account
+
+
+async def test_force_logout_defers_before_setup_uuid_lookup_finishes(hass, fake_login):
+    """A retry request during calculate_uuid is deferred, not raced."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    login = account["login_obj"]
+    login.reset.reset_mock()
+
+    uuid_started = asyncio.Event()
+    uuid_release = asyncio.Event()
+
+    async def slow_uuid(*args, **kwargs):
+        uuid_started.set()
+        await uuid_release.wait()
+        return {"uuid": "test-uuid", "index": 0}
+
+    with patch("custom_components.alexa_media.calculate_uuid", side_effect=slow_uuid):
+        retry_task = hass.async_create_task(alexa_media.async_setup_entry(hass, entry))
+        await asyncio.wait_for(uuid_started.wait(), timeout=1)
+        assert account["login_in_progress"] is True
+
+        assert await AlexaMediaServices(hass).force_logout(MagicMock(data={}))
+        await _wait_until(lambda: account.get("relogin_pending"))
+        login.reset.assert_not_awaited()
+
+        uuid_release.set()
+        await retry_task
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    login.reset.assert_awaited()
+
+
+async def test_relogin_rechecks_login_in_progress_after_uuid_lookup(hass, fake_login):
+    """A handler that awaited UUID lookup still defers if setup took over."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    login = account["login_obj"]
+    login.reset.reset_mock()
+
+    uuid_started = asyncio.Event()
+    uuid_release = asyncio.Event()
+
+    async def slow_uuid(*args, **kwargs):
+        uuid_started.set()
+        await uuid_release.wait()
+        return {"uuid": "test-uuid", "index": 0}
+
+    with patch("custom_components.alexa_media.calculate_uuid", side_effect=slow_uuid):
+        hass.bus.async_fire(
+            "alexa_media_relogin_required",
+            {"email": hide_email(entry.data[CONF_EMAIL])},
+        )
+        await asyncio.wait_for(uuid_started.wait(), timeout=1)
+        account["login_in_progress"] = True
+        uuid_release.set()
+        await _wait_until(lambda: account.get("relogin_pending"))
+        login.reset.assert_not_awaited()
+
+    account["login_in_progress"] = False
+    account.pop("relogin_pending", None)
+
+
+async def test_relogin_owns_login_while_resetting(hass, fake_login):
+    """A relogin holds the login during reset; overlapping requests are replayed."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    login = account["login_obj"]
+    login.reset.reset_mock()
+
+    reset_started = asyncio.Event()
+    reset_release = asyncio.Event()
+
+    async def slow_reset():
+        reset_started.set()
+        await reset_release.wait()
+
+    login.reset.side_effect = slow_reset
+    event_data = {"email": hide_email(entry.data[CONF_EMAIL])}
+    with patch(
+        "custom_components.alexa_media.test_login_status",
+        AsyncMock(return_value=False),
+    ):
+        hass.bus.async_fire("alexa_media_relogin_required", event_data)
+        await asyncio.wait_for(reset_started.wait(), timeout=1)
+        assert account["login_in_progress"] is True
+
+        # A second request while reset() is suspended must not overlap it.
+        hass.bus.async_fire("alexa_media_relogin_required", event_data)
+        await _wait_until(lambda: account.get("relogin_pending"))
+        assert login.reset.await_count == 1
+
+        # Setup waits for the relogin instead of reusing the half-reset login.
+        reset_release.set()
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert account["login_in_progress"] is False
+    assert "relogin_pending" not in account
+    # The deferred request ran once the first relogin released the login.
+    assert login.reset.await_count == 2
+
+
+async def test_setup_not_ready_when_relogin_keeps_login(hass, fake_login):
+    """Setup must not claim a login a relogin still owns after the wait expires."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    account["login_in_progress"] = True
+
+    async def no_wait(_delay):
+        return None
+
+    with (
+        patch("custom_components.alexa_media.asyncio.sleep", no_wait),
+        pytest.raises(alexa_media.ConfigEntryNotReady),
+    ):
+        await alexa_media.async_setup_entry(hass, entry)
+
+    # The active relogin's ownership is left untouched.
+    assert account["login_in_progress"] is True
+    account["login_in_progress"] = False
+
+
+async def test_remove_retires_failed_entry_runtime_account():
+    """Removing an entry that never unloaded must not leave its account behind."""
+    entry, other = MagicMock(), MagicMock()
+    login = MagicMock(close=AsyncMock())
+    hass = MagicMock(
+        data={
+            DATA_ALEXAMEDIA: {
+                "accounts": {
+                    "a@example.com": {"config_entry": entry, "login_obj": login},
+                    "b@example.com": {"config_entry": other, "login_obj": login},
+                }
+            }
+        }
+    )
+
+    accounts = hass.data[DATA_ALEXAMEDIA]["accounts"]
+    seen = {}
+
+    async def record_detached():
+        seen["detached"] = "a@example.com" not in accounts
+
+    login.close.side_effect = record_detached
+    await alexa_media._retire_runtime_account(hass, "a@example.com", entry)
+    assert seen["detached"] is True
+    assert "a@example.com" not in accounts
+    login.close.assert_awaited_once()
+
+    # A record owned by a different entry is preserved.
+    await alexa_media._retire_runtime_account(hass, "b@example.com", entry)
+    assert "b@example.com" in accounts
+    login.close.assert_awaited_once()
+
+
+async def test_relogin_skips_status_check_when_entry_unloads(hass, fake_login):
+    """An entry that unloads during reset must not trigger reauthentication."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    login = account["login_obj"]
+    login.reset.reset_mock()
+
+    async def unload_during_reset():
+        entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
+
+    login.reset.side_effect = unload_during_reset
+    with (
+        patch("custom_components.alexa_media.test_login_status", AsyncMock()) as status,
+        patch("custom_components.alexa_media.setup_alexa", AsyncMock()) as setup,
+    ):
+        hass.bus.async_fire(
+            "alexa_media_relogin_required",
+            {"email": hide_email(entry.data[CONF_EMAIL])},
+        )
+        await hass.async_block_till_done()
+
+    login.reset.assert_awaited_once()
+    status.assert_not_awaited()
+    setup.assert_not_awaited()
+    assert account["login_in_progress"] is False
+
+
+def test_state_cleanup_registration_is_optional():
+    """Home Assistant 2025.2 has no async_on_state_change; setup must not fail."""
+
+    class OldConfigEntry:
+        """Stand-in for a config entry without the newer API."""
+
+    assert (
+        alexa_media._async_on_state_change_if_supported(OldConfigEntry(), lambda: None)
+        is None
+    )
+
+
+async def test_deferred_request_survives_first_phase_failure(hass, fake_login):
+    """A request deferred during UUID lookup still runs when that lookup fails."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    login = account["login_obj"]
+    login.reset.reset_mock()
+
+    uuid_started = asyncio.Event()
+    uuid_release = asyncio.Event()
+    calls = 0
+
+    async def flaky_uuid(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            uuid_started.set()
+            await uuid_release.wait()
+            raise RuntimeError("uuid failed")
+        return {"uuid": "test-uuid", "index": 0}
+
+    with patch("custom_components.alexa_media.calculate_uuid", side_effect=flaky_uuid):
+        # Focused retry-phase unit test: call the setup function directly
+        # instead of driving HA's state machine through a second setup.
+        retry_task = hass.async_create_task(alexa_media.async_setup_entry(hass, entry))
+        await asyncio.wait_for(uuid_started.wait(), timeout=1)
+        assert account["login_in_progress"] is True
+
+        assert await AlexaMediaServices(hass).force_logout(MagicMock(data={}))
+        await _wait_until(lambda: account.get("relogin_pending"))
+
+        uuid_release.set()
+        with pytest.raises(RuntimeError, match="uuid failed"):
+            await retry_task
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert account["login_in_progress"] is False
+    login.reset.assert_awaited()

@@ -861,21 +861,20 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._timezone = device["timeZoneId"] if "timeZoneId" in device else "UTC"
             self._dnd = device["dnd"] if "dnd" in device else None
             self._set_authentication_details(device["auth_info"])
-            if self.hass:
+            if self.hass and (entry := self.device_entry):
                 try:
-                    registry = dr.async_get(self.hass)
                     info = self.device_info
-                    if entry := self.device_entry:
-                        metadata = {
-                            key: info[key]
-                            for key in ("model", "model_id", "hw_version")
-                            if getattr(entry, key) != info[key]
-                        }
-                        if metadata:
-                            self.device_entry = registry.async_update_device(
-                                entry.id, **metadata
-                            )
-                except Exception as ex:  # pylint: disable=broad-except
+                    metadata = {
+                        key: info[key]
+                        for key in ("model", "model_id", "hw_version")
+                        if getattr(entry, key) != info[key]
+                    }
+                    if metadata:
+                        registry = dr.async_get(self.hass)
+                        self.device_entry = registry.async_update_device(
+                            entry.id, **metadata
+                        )
+                except (AttributeError, KeyError, TypeError) as ex:
                     _LOGGER.debug(
                         "%s: Unable to update device registry metadata: %s",
                         self.account,

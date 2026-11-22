@@ -36,7 +36,7 @@ from homeassistant.components.persistent_notification import (
     async_create as async_create_persistent_notification,
     async_dismiss as async_dismiss_persistent_notification,
 )
-from homeassistant.config_entries import SOURCE_REAUTH
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.const import (
     CONF_EMAIL,
     CONF_PASSWORD,
@@ -290,6 +290,14 @@ def _drop_listeners(unsubs) -> None:
         unsub()
 
 
+def _async_on_state_change_if_supported(config_entry, callback):
+    """Register a state-change callback on Home Assistant versions that have it."""
+    register = getattr(config_entry, "async_on_state_change", None)
+    if register is None:
+        return None
+    return register(callback)
+
+
 def _pop_relogin_listeners(hass, email: str) -> None:
     """Unsubscribe the relogin listeners kept for an account, if any."""
     data = getattr(hass, "data", None)
@@ -298,7 +306,11 @@ def _pop_relogin_listeners(hass, email: str) -> None:
     accounts = (data.get(DATA_ALEXAMEDIA) or {}).get("accounts") or {}
     account = accounts.get(email)
     if isinstance(account, dict):
+        unsub = account.pop("relogin_state_unsub", None)
+        if callable(unsub):
+            unsub()
         _drop_listeners(account.pop("relogin_unsubs", ()))
+        account.pop("relogin_pending", None)
 
 
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
@@ -791,36 +803,68 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.debug("Refreshing notify targets")
             await notify.async_register_services()
 
+    def _defer_relogin(account_data) -> bool:
+        """Record a request while another task owns the login."""
+        if account_data.get("login_in_progress"):
+            account_data["relogin_pending"] = True
+            _LOGGER.debug(
+                "%s: Deferring relogin until the active setup finishes",
+                hide_email(email),
+            )
+            return True
+        return False
+
     async def relogin(event=None) -> None:
         """Relogin to Alexa."""
         if hide_email(email) == event.data.get("email"):
-            connectivity_state(
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-            ).invalidate()
-            _LOGGER.debug("%s: Received relogin request: %s", hide_email(email), event)
-            login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-                "login_obj"
-            )
+            account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+            if _defer_relogin(account_data):
+                return
             uuid = (await calculate_uuid(hass, email, url))["uuid"]
-            if login_obj is None:
-                login_obj = AlexaLogin(
-                    url=url,
-                    email=email,
-                    password=password,
-                    outputpath=hass.config.path,
-                    debug=account.get(CONF_DEBUG),
-                    otp_secret=account.get(CONF_OTPSECRET, ""),
-                    oauth=account.get(CONF_OAUTH, {}),
-                    uuid=uuid,
-                    oauth_login=True,
+            if _defer_relogin(account_data):
+                return
+            # Own the login while it is reset and rebuilt, so a setup attempt
+            # or another relogin cannot reuse the same login_obj mid-reset.
+            account_data["login_in_progress"] = True
+            try:
+                connectivity_state(account_data).invalidate()
+                _LOGGER.debug(
+                    "%s: Received relogin request: %s", hide_email(email), event
                 )
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
-            else:
-                login_obj.oauth_login = True
-            await login_obj.reset()
-            # await login_obj.login()
-            if await test_login_status(hass, config_entry, login_obj):
-                await setup_alexa(hass, config_entry, login_obj)
+                login_obj: AlexaLogin = account_data.get("login_obj")
+                if login_obj is None:
+                    login_obj = AlexaLogin(
+                        url=url,
+                        email=email,
+                        password=password,
+                        outputpath=hass.config.path,
+                        debug=config_entry_option(
+                            config_entry, CONF_DEBUG, DEFAULT_DEBUG
+                        ),
+                        otp_secret=account.get(CONF_OTPSECRET, ""),
+                        oauth=account.get(CONF_OAUTH, {}),
+                        uuid=uuid,
+                        oauth_login=True,
+                    )
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "login_obj"
+                    ] = login_obj
+                else:
+                    login_obj.oauth_login = True
+                await login_obj.reset()
+                if config_entry.state is ConfigEntryState.NOT_LOADED:
+                    # Unloaded while reset() was suspended; do not raise a
+                    # reauthentication notice or set up a removed account.
+                    return
+                # await login_obj.login()
+                if await test_login_status(hass, config_entry, login_obj):
+                    await setup_alexa(hass, config_entry, login_obj)
+            finally:
+                account_data["login_in_progress"] = False
+                if account_data.pop("relogin_pending", False):
+                    hass.bus.async_fire(
+                        "alexa_media_relogin_required", {"email": hide_email(email)}
+                    )
 
     async def login_success(event=None) -> None:
         """Relogin to Alexa."""
@@ -896,9 +940,45 @@ async def async_setup_entry(hass, config_entry):
         },
     )
     account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-    # A previous attempt may have left its relogin listeners behind while the
-    # entry was retrying; this attempt registers its own pair below.
-    _drop_listeners(account_data.pop("relogin_unsubs", ()))
+    # Keep a previous attempt's relogin listeners active until this attempt
+    # installs its own pair, so force_logout always has a handler.
+    previous_unsubs = account_data.get("relogin_unsubs", ())
+    account_data.setdefault("relogin_pending", False)
+
+    def _schedule_pending_relogin() -> None:
+        """Run a relogin deferred while this setup attempt owned the login."""
+
+        def _fire() -> None:
+            if not account_data.pop("relogin_pending", False):
+                return
+            if not account_data.get("relogin_unsubs"):
+                # The handler did not survive this attempt; keep the request
+                # for the next setup attempt.
+                account_data["relogin_pending"] = True
+                return
+            _LOGGER.debug("%s: Running deferred relogin request", hide_email(email))
+            hass.bus.async_fire(
+                "alexa_media_relogin_required", {"email": hide_email(email)}
+            )
+
+        with contextlib.suppress(RuntimeError):
+            hass.loop.call_soon(_fire)
+
+    @callback
+    def _clear_relogin_state_on_not_loaded() -> None:
+        """Drop recovery state when the entry is disabled or unloaded."""
+        if config_entry.state is not ConfigEntryState.NOT_LOADED:
+            return
+        account = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
+        if isinstance(account, dict):
+            _drop_listeners(account.pop("relogin_unsubs", ()))
+            account.pop("relogin_pending", None)
+
+    if not account_data.get("relogin_state_unsub"):
+        account_data["relogin_state_unsub"] = _async_on_state_change_if_supported(
+            config_entry, _clear_relogin_state_on_not_loaded
+        )
+
     # Refreshed on every attempt: the account dict survives setup retries and
     # a failed setup, so options saved in the meantime would otherwise be lost.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["options"] = {
@@ -922,42 +1002,71 @@ async def async_setup_entry(hass, config_entry):
             CONF_EXTENDED_ENTITY_DISCOVERY,
             DEFAULT_EXTENDED_ENTITY_DISCOVERY,
         ),
-        CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, False),
+        CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
     }
-    uuid_dict = await calculate_uuid(hass, email, url)
-    uuid = uuid_dict["uuid"]
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"] = uuid_dict[
-        "index"
-    ]
-    login: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
-        "login_obj",
-        AlexaLogin(
-            url=url,
-            email=email,
-            password=password,
-            outputpath=hass.config.path,
-            debug=account.get(CONF_DEBUG),
-            otp_secret=account.get(CONF_OTPSECRET, ""),
-            oauth=account.get(CONF_OAUTH, {}),
-            uuid=uuid,
-            oauth_login=True,
-        ),
-    )
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
-
-    # Create runtime_data for optimized architecture
-    # This provides type-safe access to account data
-    if not hasattr(config_entry, "runtime_data") or config_entry.runtime_data is None:
-        config_entry.runtime_data = AlexaRuntimeData(
-            login_obj=login,
-            config_entry=config_entry,
-            second_account_index=uuid_dict["index"],
+    # A relogin may be resetting the shared login_obj; wait (bounded) for it.
+    for _ in range(300):
+        if not account_data.get("login_in_progress"):
+            break
+        await asyncio.sleep(0.1)
+    else:
+        # Never take over a login another task still owns; retry setup later.
+        raise ConfigEntryNotReady(
+            "A relogin is still in progress; retrying setup shortly"
         )
-    if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
+    account_data["login_in_progress"] = True
     try:
+        uuid_dict = await calculate_uuid(hass, email, url)
+        uuid = uuid_dict["uuid"]
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"] = (
+            uuid_dict["index"]
+        )
+        login: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
+            "login_obj",
+            AlexaLogin(
+                url=url,
+                email=email,
+                password=password,
+                outputpath=hass.config.path,
+                debug=config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
+                otp_secret=account.get(CONF_OTPSECRET, ""),
+                oauth=account.get(CONF_OAUTH, {}),
+                uuid=uuid,
+                oauth_login=True,
+            ),
+        )
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login
+        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["last_push_activity"] = 0
+
+        # Create runtime_data for optimized architecture
+        # This provides type-safe access to account data
+        if (
+            not hasattr(config_entry, "runtime_data")
+            or config_entry.runtime_data is None
+        ):
+            config_entry.runtime_data = AlexaRuntimeData(
+                login_obj=login,
+                config_entry=config_entry,
+                second_account_index=uuid_dict["index"],
+            )
+        if not hass.data[DATA_ALEXAMEDIA]["accounts"][email]["second_account_index"]:
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, close_alexa_media)
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, complete_startup)
+    except asyncio.CancelledError:
+        account_data["login_in_progress"] = False
+        raise
+    except Exception:
+        account_data["login_in_progress"] = False
+        if account_data.get("relogin_pending"):
+            _schedule_pending_relogin()
+        raise
+    try:
+        # Register before the login attempt so force_logout always reaches a
+        # handler. While this attempt owns the login, the handler records a
+        # pending request instead of racing the active login.
+        relogin_unsub = hass.bus.async_listen("alexa_media_relogin_required", relogin)
+        account_data["relogin_unsubs"] = (relogin_unsub,)
+        _drop_listeners(previous_unsubs)
         _t = time.monotonic()
         cookies = await login.load_cookie()
         cookie_login_ok = False
@@ -1020,10 +1129,6 @@ async def async_setup_entry(hass, config_entry):
                 ) from err
         _LOGGER.debug("[BOOT] login completed in %.2fs", time.monotonic() - _t)
         _t = time.monotonic()
-        # Register before the login check: login_obj is already stored, so
-        # force_logout can reach a handler if it is called while this attempt
-        # is still running.
-        relogin_unsub = hass.bus.async_listen("alexa_media_relogin_required", relogin)
         login_success_unsub = hass.bus.async_listen(
             "alexa_media_relogin_success", login_success
         )
@@ -1051,9 +1156,8 @@ async def async_setup_entry(hass, config_entry):
                 "[BOOT] setup_entry total: %.2fs", time.monotonic() - _boot_start
             )
             return True
-        # The entry is not loaded, so no listener can act on a relogin event
-        # and the retained login_obj would let force_logout report a recovery
-        # that never starts. Release the session, then drop both.
+        # The entry is not loaded. Release the session; keep the relogin
+        # listener only when a deferred recovery request still needs it.
         try:
             await login.close()
         except Exception as err:  # pylint: disable=broad-except
@@ -1066,19 +1170,24 @@ async def async_setup_entry(hass, config_entry):
                 err,
             )
         else:
-            _drop_listeners(account_data.pop("relogin_unsubs", ()))
+            if not account_data.get("relogin_pending"):
+                _drop_listeners(account_data.pop("relogin_unsubs", ()))
             account_data.pop("login_obj", None)
         config_entry.runtime_data = None
         return False
     except AlexapyConnectionError as err:
         raise ConfigEntryNotReady(str(err) or "Connection Error during login") from err
+    finally:
+        account_data["login_in_progress"] = False
+        if account_data.get("relogin_pending"):
+            _schedule_pending_relogin()
 
 
 async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # pylint: disable=too-many-statements,too-many-locals
     """Set up a alexa api based on host parameter."""
 
-    debug = config_entry_option(config_entry, CONF_DEBUG, False)
+    debug = config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG)
 
     # Record metrics
     metrics = get_metrics(hass)
@@ -1143,6 +1252,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             "should_get_network"
         ]
         first_run = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["first_run"]
+        network_discovery_failed = False
         devices = {}
         bluetooth = {}
         preferences = {}
@@ -1324,76 +1434,89 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             )
 
                     _t_post = time.monotonic()
-                    if should_get_network and optional_task_results:
-                        # First run is a special case. Get the state of all entities(including disabled)
-                        # This ensures all entities have state during startup without needing to request coordinator refresh
-
-                        _LOGGER.info(
-                            "%s: Network Discovery: Checking", hide_email(email)
-                        )
-                        api_devices = optional_task_results.pop()
-                        if not api_devices:
-                            _LOGGER.warning(
-                                "%s: Network Discovery: AlexaAPI returned an unexpected response. Retrying on next polling cycle",
-                                hide_email(email),
-                            )
+                    if should_get_network:
+                        if not optional_task_results:
+                            network_discovery_failed = True
                         else:
-                            _LOGGER.debug(
-                                "%s: Network Discovery: Success, processing response",
-                                hide_email(email),
-                            )
-                            # Only process this once after success
-                            hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                                "should_get_network"
-                            ] = False
+                            # First run is a special case. Get the state of all entities(including disabled)
+                            # This ensures all entities have state during startup without needing to request coordinator refresh
 
-                            # Discard the entities_to_monitor results since we now have full network details
-                            if entities_to_monitor and optional_task_results:
-                                optional_task_results.pop()
-                                entities_to_monitor.clear()
-
-                        alexa_entities = parse_alexa_entities(
-                            api_devices,
-                            debug=hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-                                "options"
-                            ].get(CONF_DEBUG, False),
-                        )
-                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"].update(
-                            alexa_entities
-                        )
-
-                        _entities_to_monitor = set()
-                        for type_of_entity, entities in alexa_entities.items():
-                            if (
-                                type_of_entity
-                                in {"guard", "temperature", "air_quality", "aiaqm"}
-                                or extended_entity_discovery
-                            ):
-                                for entity in entities:
-                                    _entities_to_monitor.add(entity.get("id"))
-                                    _LOGGER.debug("Monitoring: %s", entity.get("name"))
-                        _LOGGER.debug(
-                            "%s: Network Discovery: %s entities will be monitored",
-                            hide_email(email),
-                            len(list(_entities_to_monitor)),
-                        )
-                        # Use shorter timeout for entity data to avoid blocking
-                        _t_ed = time.monotonic()
-                        try:
-                            entity_state = await asyncio.wait_for(
-                                get_entity_data(login_obj, list(_entities_to_monitor)),
-                                timeout=10.0,
+                            _LOGGER.info(
+                                "%s: Network Discovery: Checking", hide_email(email)
                             )
-                        except asyncio.TimeoutError:
-                            _LOGGER.warning(
-                                "%s: get_entity_data timed out after 10s, "
-                                "entity states will be fetched on next cycle",
-                                hide_email(email),
-                            )
-                        _LOGGER.debug(
-                            "[BOOT] get_entity_data (network) in %.2fs",
-                            time.monotonic() - _t_ed,
-                        )
+                            api_devices = optional_task_results.pop()
+                            if not api_devices:
+                                network_discovery_failed = True
+                                _LOGGER.warning(
+                                    "%s: Network Discovery: AlexaAPI returned an unexpected response. Retrying on next polling cycle",
+                                    hide_email(email),
+                                )
+                            else:
+                                _LOGGER.debug(
+                                    "%s: Network Discovery: Success, processing response",
+                                    hide_email(email),
+                                )
+                                # Only process this once after success
+                                hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                                    "should_get_network"
+                                ] = False
+
+                                # Discard the entities_to_monitor results since we now have full network details
+                                if entities_to_monitor and optional_task_results:
+                                    optional_task_results.pop()
+                                    entities_to_monitor.clear()
+
+                                alexa_entities = parse_alexa_entities(
+                                    api_devices,
+                                    debug=hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                                        "options"
+                                    ].get(CONF_DEBUG, False),
+                                )
+                                hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                                    "devices"
+                                ].update(alexa_entities)
+
+                                _entities_to_monitor = set()
+                                for type_of_entity, entities in alexa_entities.items():
+                                    if (
+                                        type_of_entity
+                                        in {
+                                            "guard",
+                                            "temperature",
+                                            "air_quality",
+                                            "aiaqm",
+                                        }
+                                        or extended_entity_discovery
+                                    ):
+                                        for entity in entities:
+                                            _entities_to_monitor.add(entity.get("id"))
+                                            _LOGGER.debug(
+                                                "Monitoring: %s", entity.get("name")
+                                            )
+                                _LOGGER.debug(
+                                    "%s: Network Discovery: %s entities will be monitored",
+                                    hide_email(email),
+                                    len(list(_entities_to_monitor)),
+                                )
+                                # Use shorter timeout for entity data to avoid blocking
+                                _t_ed = time.monotonic()
+                                try:
+                                    entity_state = await asyncio.wait_for(
+                                        get_entity_data(
+                                            login_obj, list(_entities_to_monitor)
+                                        ),
+                                        timeout=10.0,
+                                    )
+                                except asyncio.TimeoutError:
+                                    _LOGGER.warning(
+                                        "%s: get_entity_data timed out after 10s, "
+                                        "entity states will be fetched on next cycle",
+                                        hide_email(email),
+                                    )
+                                _LOGGER.debug(
+                                    "[BOOT] get_entity_data (network) in %.2fs",
+                                    time.monotonic() - _t_ed,
+                                )
 
                 if entities_to_monitor and optional_task_results:
                     entity_state = optional_task_results.pop()
@@ -1648,37 +1771,43 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 ) from ex
 
         hass.data[DATA_ALEXAMEDIA]["accounts"][email]["new_devices"] = False
-        # prune stale devices
-        device_registry = dr.async_get(hass)
-        entity_backed_ids = _entity_backed_device_identifiers(
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]
-        )
-        for device_entry in dr.async_entries_for_config_entry(
-            device_registry, config_entry.entry_id
-        ):
-            for _, identifier in device_entry.identifiers:
-                if (
-                    identifier
-                    in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
-                        "media_player"
-                    ]
-                    or identifier
-                    in map(
-                        lambda x: slugify(f"{x}_{email}"),
-                        hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+        # prune stale devices only when network discovery did not fail
+        if network_discovery_failed:
+            _LOGGER.debug(
+                "%s: Skipping stale device pruning because network discovery failed",
+                hide_email(email),
+            )
+        else:
+            device_registry = dr.async_get(hass)
+            entity_backed_ids = _entity_backed_device_identifiers(
+                hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+            )
+            for device_entry in dr.async_entries_for_config_entry(
+                device_registry, config_entry.entry_id
+            ):
+                for _, identifier in device_entry.identifiers:
+                    if (
+                        identifier
+                        in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
                             "media_player"
-                        ].keys(),
+                        ]
+                        or identifier
+                        in map(
+                            lambda x: slugify(f"{x}_{email}"),
+                            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["devices"][
+                                "media_player"
+                            ].keys(),
+                        )
+                        or identifier in entity_backed_ids
+                    ):
+                        break
+                else:
+                    device_registry.async_remove_device(device_entry.id)
+                    _LOGGER.debug(
+                        "%s: Removing stale device %s",
+                        hide_email(email),
+                        device_entry.name,
                     )
-                    or identifier in entity_backed_ids
-                ):
-                    break
-            else:
-                device_registry.async_remove_device(device_entry.id)
-                _LOGGER.debug(
-                    "%s: Removing stale device %s",
-                    hide_email(email),
-                    device_entry.name,
-                )
 
         await login_obj.save_cookiefile()
         if login_obj.access_token:
@@ -3501,11 +3630,41 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
+async def _retire_runtime_account(hass, email: str, entry) -> None:
+    """Discard the runtime record a failed entry left behind.
+
+    Home Assistant skips async_unload_entry when an entry in SETUP_RETRY or
+    SETUP_ERROR is removed, so the account dict (with its retained login and
+    config entry) would otherwise be reused by a replacement entry for the same
+    email. Only a record owned by this entry is retired.
+    """
+    data = getattr(hass, "data", None)
+    if not isinstance(data, dict):
+        return
+    accounts = (data.get(DATA_ALEXAMEDIA) or {}).get("accounts") or {}
+    account = accounts.get(email)
+    if not isinstance(account, dict) or account.get("config_entry") is not entry:
+        return
+    # Detach the record before awaiting so nothing can re-home it mid-close.
+    accounts.pop(email, None)
+    login_obj = account.get("login_obj")
+    if login_obj is not None:
+        try:
+            await login_obj.close()
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug(
+                "%s: Unable to close login while removing entry: %s",
+                hide_email(email),
+                err,
+            )
+
+
 async def async_remove_entry(hass, entry) -> bool:
     """Handle removal of an entry."""
     email = entry.data["email"]
     obfuscated_email = hide_email(email)
     _pop_relogin_listeners(hass, email)
+    await _retire_runtime_account(hass, email, entry)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
     login_obj = AlexaLogin(
         url="",

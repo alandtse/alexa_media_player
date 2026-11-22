@@ -3639,6 +3639,8 @@ async def _retire_runtime_account(hass, email: str, entry) -> None:
     account = accounts.get(email)
     if not isinstance(account, dict) or account.get("config_entry") is not entry:
         return
+    # Detach the record before awaiting so nothing can re-home it mid-close.
+    accounts.pop(email, None)
     login_obj = account.get("login_obj")
     if login_obj is not None:
         try:
@@ -3649,7 +3651,6 @@ async def _retire_runtime_account(hass, email: str, entry) -> None:
                 hide_email(email),
                 err,
             )
-    accounts.pop(email, None)
 
 
 async def async_remove_entry(hass, entry) -> bool:

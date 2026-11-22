@@ -609,8 +609,15 @@ async def test_remove_retires_failed_entry_runtime_account():
         }
     )
 
-    await alexa_media._retire_runtime_account(hass, "a@example.com", entry)
     accounts = hass.data[DATA_ALEXAMEDIA]["accounts"]
+    seen = {}
+
+    async def record_detached():
+        seen["detached"] = "a@example.com" not in accounts
+
+    login.close.side_effect = record_detached
+    await alexa_media._retire_runtime_account(hass, "a@example.com", entry)
+    assert seen["detached"] is True
     assert "a@example.com" not in accounts
     login.close.assert_awaited_once()
 

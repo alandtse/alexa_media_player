@@ -3647,8 +3647,12 @@ async def async_unload_entry(hass, entry) -> bool:
             hass.data.pop(DATA_ALEXAMEDIA)
     else:
         _LOGGER.debug(
-            "Unable to remove alexa_media data structure: %s",
-            hass.data.get(DATA_ALEXAMEDIA),
+            "Unable to remove alexa_media data structure; remaining record "
+            "types: %s",
+            {
+                key: type(value).__name__
+                for key, value in hass.data.get(DATA_ALEXAMEDIA, {}).items()
+            },
         )
     _LOGGER.debug("Unloaded entry for %s", hide_email(email))
     return True

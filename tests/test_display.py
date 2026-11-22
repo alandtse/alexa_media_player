@@ -1244,7 +1244,7 @@ async def test_display_probe_concurrency_is_bounded():
 
     assert all(state is not None for state in states)
     assert len(account_dict["display_states"]) == len(serials)
-    assert peak <= DISPLAY_PROBE_CONCURRENCY
+    assert peak == DISPLAY_PROBE_CONCURRENCY
 
 
 @pytest.mark.asyncio

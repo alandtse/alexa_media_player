@@ -3,8 +3,8 @@
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from homeassistant.components.media_player import MediaPlayerEntity
+import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.media_player import AlexaClient

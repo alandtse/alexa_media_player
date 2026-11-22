@@ -173,6 +173,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         known_ids.add(unique_id)
 
     display_task = asyncio.create_task(_probe_displays())
+    setup_tasks = account_dict.setdefault("display_setup_tasks", set())
+    setup_tasks.add(display_task)
+    display_task.add_done_callback(setup_tasks.discard)
 
     if not await async_submit(filtered, include_filter, exclude_filter):
         display_task.cancel()

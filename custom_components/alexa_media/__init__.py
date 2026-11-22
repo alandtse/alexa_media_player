@@ -3511,17 +3511,24 @@ async def async_unload_entry(hass, entry) -> bool:
     """Unload a config entry"""
     email = entry.data["email"]
     _LOGGER.debug("Unloading entry: %s", hide_email(email))
+    accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
+    account = accounts.get(email)
+    if not account:
+        # A failed setup may have left no runtime record for this entry.
+        return True
     _pop_relogin_listeners(hass, email)
     # Cancel the display retry before the first await so it cannot queue a
     # second reload while this unload is waiting on other tasks.
-    for display_state in (
-        hass.data[DATA_ALEXAMEDIA]["accounts"][email].get("display_states", {}).values()
-    ):
+    for display_state in account.get("display_states", {}).values():
         display_state.async_stop()
-    hass.data[DATA_ALEXAMEDIA]["accounts"][email]["display_states"] = {}
-    display_reload_unsub = hass.data[DATA_ALEXAMEDIA]["accounts"][email].pop(
-        "display_reload_unsub", None
-    )
+    account["display_states"] = {}
+    for probe in account.pop("display_probes", {}).values():
+        if not probe.done():
+            probe.cancel()
+    for probe in account.pop("display_setup_tasks", set()):
+        if not probe.done():
+            probe.cancel()
+    display_reload_unsub = account.pop("display_reload_unsub", None)
     if display_reload_unsub:
         display_reload_unsub()
     for task_key in (
@@ -3530,10 +3537,6 @@ async def async_unload_entry(hass, entry) -> bool:
         "last_called_init_task",
         "service_update_last_called_task",
     ):
-        accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
-        account = accounts.get(email)
-        if not account:
-            return True
         task = account.get(task_key)
         if task and not task.done():
             task.cancel()
@@ -3659,11 +3662,40 @@ async def _retire_runtime_account(hass, email: str, entry) -> None:
             )
 
 
+def _stop_display_recovery(hass, email: str, entry) -> None:
+    """Stop display polling and pending retries owned by a removed entry.
+
+    Home Assistant skips async_unload_entry for entries in SETUP_RETRY or
+    SETUP_ERROR, so removal is the only chance to stop a display state or probe
+    that an earlier partial setup created.
+    """
+    data = getattr(hass, "data", None)
+    if not isinstance(data, dict):
+        return
+    accounts = (data.get(DATA_ALEXAMEDIA) or {}).get("accounts") or {}
+    account = accounts.get(email)
+    if not isinstance(account, dict) or account.get("config_entry") is not entry:
+        return
+    for display_state in account.get("display_states", {}).values():
+        display_state.async_stop()
+    account["display_states"] = {}
+    for probe in account.pop("display_probes", {}).values():
+        if not probe.done():
+            probe.cancel()
+    for probe in account.pop("display_setup_tasks", set()):
+        if not probe.done():
+            probe.cancel()
+    unsub = account.pop("display_reload_unsub", None)
+    if unsub:
+        unsub()
+
+
 async def async_remove_entry(hass, entry) -> bool:
     """Handle removal of an entry."""
     email = entry.data["email"]
     obfuscated_email = hide_email(email)
     _pop_relogin_listeners(hass, email)
+    _stop_display_recovery(hass, email, entry)
     await _retire_runtime_account(hass, email, entry)
     data = getattr(hass, "data", None)
     if isinstance(data, dict):

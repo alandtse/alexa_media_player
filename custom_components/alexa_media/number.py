@@ -74,6 +74,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         return states
 
     display_task = asyncio.create_task(_probe_displays())
+    setup_tasks = account_dict.setdefault("display_setup_tasks", set())
+    setup_tasks.add(display_task)
+    display_task.add_done_callback(setup_tasks.discard)
 
     for key in account_dict["devices"]["number"]:
         client = account_dict["entities"]["media_player"].get(key)

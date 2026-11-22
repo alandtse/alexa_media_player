@@ -527,6 +527,49 @@ async def test_relogin_rechecks_login_in_progress_after_uuid_lookup(hass, fake_l
     account.pop("relogin_pending", None)
 
 
+async def test_relogin_owns_login_while_resetting(hass, fake_login):
+    """A relogin holds the login during reset; overlapping requests are replayed."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    login = account["login_obj"]
+    login.reset.reset_mock()
+
+    reset_started = asyncio.Event()
+    reset_release = asyncio.Event()
+
+    async def slow_reset():
+        reset_started.set()
+        await reset_release.wait()
+
+    login.reset.side_effect = slow_reset
+    event_data = {"email": hide_email(entry.data[CONF_EMAIL])}
+    with patch(
+        "custom_components.alexa_media.test_login_status",
+        AsyncMock(return_value=False),
+    ):
+        hass.bus.async_fire("alexa_media_relogin_required", event_data)
+        await asyncio.wait_for(reset_started.wait(), timeout=1)
+        assert account["login_in_progress"] is True
+
+        # A second request while reset() is suspended must not overlap it.
+        hass.bus.async_fire("alexa_media_relogin_required", event_data)
+        await _wait_until(lambda: account.get("relogin_pending"))
+        assert login.reset.await_count == 1
+
+        # Setup waits for the relogin instead of reusing the half-reset login.
+        reset_release.set()
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert account["login_in_progress"] is False
+    assert "relogin_pending" not in account
+    # The deferred request ran once the first relogin released the login.
+    assert login.reset.await_count == 2
+
+
 def test_state_cleanup_registration_is_optional():
     """Home Assistant 2025.2 has no async_on_state_change; setup must not fail."""
 

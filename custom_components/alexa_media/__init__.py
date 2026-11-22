@@ -823,28 +823,44 @@ async def async_setup_entry(hass, config_entry):
             uuid = (await calculate_uuid(hass, email, url))["uuid"]
             if _defer_relogin(account_data):
                 return
-            connectivity_state(account_data).invalidate()
-            _LOGGER.debug("%s: Received relogin request: %s", hide_email(email), event)
-            login_obj: AlexaLogin = account_data.get("login_obj")
-            if login_obj is None:
-                login_obj = AlexaLogin(
-                    url=url,
-                    email=email,
-                    password=password,
-                    outputpath=hass.config.path,
-                    debug=config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
-                    otp_secret=account.get(CONF_OTPSECRET, ""),
-                    oauth=account.get(CONF_OAUTH, {}),
-                    uuid=uuid,
-                    oauth_login=True,
+            # Own the login while it is reset and rebuilt, so a setup attempt
+            # or another relogin cannot reuse the same login_obj mid-reset.
+            account_data["login_in_progress"] = True
+            try:
+                connectivity_state(account_data).invalidate()
+                _LOGGER.debug(
+                    "%s: Received relogin request: %s", hide_email(email), event
                 )
-                hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
-            else:
-                login_obj.oauth_login = True
-            await login_obj.reset()
-            # await login_obj.login()
-            if await test_login_status(hass, config_entry, login_obj):
-                await setup_alexa(hass, config_entry, login_obj)
+                login_obj: AlexaLogin = account_data.get("login_obj")
+                if login_obj is None:
+                    login_obj = AlexaLogin(
+                        url=url,
+                        email=email,
+                        password=password,
+                        outputpath=hass.config.path,
+                        debug=config_entry_option(
+                            config_entry, CONF_DEBUG, DEFAULT_DEBUG
+                        ),
+                        otp_secret=account.get(CONF_OTPSECRET, ""),
+                        oauth=account.get(CONF_OAUTH, {}),
+                        uuid=uuid,
+                        oauth_login=True,
+                    )
+                    hass.data[DATA_ALEXAMEDIA]["accounts"][email][
+                        "login_obj"
+                    ] = login_obj
+                else:
+                    login_obj.oauth_login = True
+                await login_obj.reset()
+                # await login_obj.login()
+                if await test_login_status(hass, config_entry, login_obj):
+                    await setup_alexa(hass, config_entry, login_obj)
+            finally:
+                account_data["login_in_progress"] = False
+                if account_data.pop("relogin_pending", False):
+                    hass.bus.async_fire(
+                        "alexa_media_relogin_required", {"email": hide_email(email)}
+                    )
 
     async def login_success(event=None) -> None:
         """Relogin to Alexa."""
@@ -984,6 +1000,11 @@ async def async_setup_entry(hass, config_entry):
         ),
         CONF_DEBUG: config_entry_option(config_entry, CONF_DEBUG, DEFAULT_DEBUG),
     }
+    # A relogin may be resetting the shared login_obj; wait (bounded) for it.
+    for _ in range(300):
+        if not account_data.get("login_in_progress"):
+            break
+        await asyncio.sleep(0.1)
     account_data["login_in_progress"] = True
     try:
         uuid_dict = await calculate_uuid(hass, email, url)

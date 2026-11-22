@@ -3665,6 +3665,15 @@ async def async_remove_entry(hass, entry) -> bool:
     obfuscated_email = hide_email(email)
     _pop_relogin_listeners(hass, email)
     await _retire_runtime_account(hass, email, entry)
+    data = getattr(hass, "data", None)
+    if isinstance(data, dict):
+        for key in ("display_entry_states", "display_reload_budget"):
+            mapping = data.get(key)
+            if isinstance(mapping, dict):
+                mapping.pop(entry.entry_id, None)
+        reported = data.get("display_relogin_reported")
+        if isinstance(reported, set):
+            reported.discard(email)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
     login_obj = AlexaLogin(
         url="",

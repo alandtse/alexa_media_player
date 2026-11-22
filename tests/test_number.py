@@ -210,4 +210,4 @@ async def test_setup_survives_device_added_during_probe(
     ):
         assert await async_setup_platform(mock_hass, {"email": EMAIL}, MagicMock())
 
-    assert SERIAL in mock_account_dict["entities"]["number"]
+    assert f"{SERIAL}_display_brightness" in mock_account_dict["entities"]["number"]

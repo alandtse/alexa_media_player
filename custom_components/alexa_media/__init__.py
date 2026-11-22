@@ -1005,6 +1005,11 @@ async def async_setup_entry(hass, config_entry):
         if not account_data.get("login_in_progress"):
             break
         await asyncio.sleep(0.1)
+    else:
+        # Never take over a login another task still owns; retry setup later.
+        raise ConfigEntryNotReady(
+            "A relogin is still in progress; retrying setup shortly"
+        )
     account_data["login_in_progress"] = True
     try:
         uuid_dict = await calculate_uuid(hass, email, url)

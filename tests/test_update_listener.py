@@ -570,6 +570,30 @@ async def test_relogin_owns_login_while_resetting(hass, fake_login):
     assert login.reset.await_count == 2
 
 
+async def test_setup_not_ready_when_relogin_keeps_login(hass, fake_login):
+    """Setup must not claim a login a relogin still owns after the wait expires."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    account["login_in_progress"] = True
+
+    async def no_wait(_delay):
+        return None
+
+    with (
+        patch("custom_components.alexa_media.asyncio.sleep", no_wait),
+        pytest.raises(alexa_media.ConfigEntryNotReady),
+    ):
+        await alexa_media.async_setup_entry(hass, entry)
+
+    # The active relogin's ownership is left untouched.
+    assert account["login_in_progress"] is True
+    account["login_in_progress"] = False
+
+
 def test_state_cleanup_registration_is_optional():
     """Home Assistant 2025.2 has no async_on_state_change; setup must not fail."""
 

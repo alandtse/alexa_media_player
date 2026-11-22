@@ -459,3 +459,22 @@ async def test_non_display_switches_submit_before_display_probe(
     release.set()
     assert await task
     assert "display" in submitted
+
+
+async def test_kids_device_added_during_display_probe_is_skipped(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A new Kids device without a client must not abort switch setup."""
+    entry, account, _ = switch_setup
+
+    async def add_during_probe(*_args, **_kwargs):
+        account["devices"]["media_player"]["new-kids"] = {
+            "deviceFamily": "ECHO",
+            "deviceType": "echo-type",
+        }
+        return SimpleNamespace(supports=lambda _setting: True)
+
+    monkeypatch.setattr(switch_platform, "async_get_display_state", add_during_probe)
+
+    assert await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
+    assert "new-kids" not in account["entities"]["media_player"]

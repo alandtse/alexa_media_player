@@ -298,6 +298,16 @@ def _async_on_state_change_if_supported(config_entry, callback):
     return register(callback)
 
 
+def _clear_display_relogin_marker(hass, email: str) -> None:
+    """Allow a later display failure to report after account auth recovers."""
+    data = getattr(hass, "data", None)
+    if not isinstance(data, dict):
+        return
+    reported = (data.get(DATA_ALEXAMEDIA) or {}).get("display_relogin_reported")
+    if isinstance(reported, set):
+        reported.discard(email)
+
+
 def _pop_relogin_listeners(hass, email: str) -> None:
     """Unsubscribe the relogin listeners kept for an account, if any."""
     data = getattr(hass, "data", None)
@@ -873,6 +883,7 @@ async def async_setup_entry(hass, config_entry):
             login_obj: AlexaLogin = hass.data[DATA_ALEXAMEDIA]["accounts"][email].get(
                 "login_obj"
             )
+            _clear_display_relogin_marker(hass, email)
             await setup_alexa(hass, config_entry, login_obj)
 
     hass.data.setdefault(DATA_ALEXAMEDIA, {})
@@ -1140,6 +1151,7 @@ async def async_setup_entry(hass, config_entry):
         # reaching a handler while the account is retrying or reauthorizing.
         account_data["relogin_unsubs"] = (relogin_unsub, login_success_unsub)
         if await test_login_status(hass, config_entry, login):
+            _clear_display_relogin_marker(hass, email)
             _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)

@@ -619,6 +619,18 @@ async def test_setup_attempt_clears_display_probe_failure(hass):
     assert "display_probe_failed" not in account
 
 
+def test_clear_display_relogin_marker():
+    """A successful account login lets a later display failure report again."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {"test@example.com"}}}
+
+    alexa_media._clear_display_relogin_marker(hass, "test@example.com")
+
+    assert (
+        "test@example.com" not in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+    )
+
+
 async def test_remove_retires_failed_entry_runtime_account():
     """Removing an entry that never unloaded must not leave its account behind."""
     entry, other = MagicMock(), MagicMock()

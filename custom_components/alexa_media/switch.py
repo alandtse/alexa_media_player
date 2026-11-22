@@ -248,7 +248,11 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         device_type = device.get("deviceType")
         if not device_type:
             continue
-        client = clients[key]
+        client = clients.get(key)
+        if client is None:
+            # Discovery can add the device while the display probe is pending;
+            # register its Kids switch once a media-player client exists.
+            continue
         kids_state.track(client.device_serial_number, device_type)
         kids_devices.append(
             AmazonKidsSwitch(kids_state, login_obj, client, device_type)

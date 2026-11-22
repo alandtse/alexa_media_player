@@ -216,9 +216,7 @@ async def async_probe_display_settings(
         return {}, True
     if any(isinstance(result, AlexapyLoginError) for result, _ in results):
         _report_display_relogin(hass, login)
-    elif _auth_recovered(login) or any(
-        not isinstance(result, Exception) and result[0] == 200 for result, _ in results
-    ):
+    elif _auth_recovered(login):
         _clear_display_relogin(hass, login)
 
     supported: dict[str, Any] = {}
@@ -287,6 +285,7 @@ class DisplayState:
         self._refresh_lock = asyncio.Lock()
         self._unsub = None
         self._probed = probed
+        self._stopped = False
 
     @property
     def client(self):
@@ -331,6 +330,7 @@ class DisplayState:
         """Start polling the display settings."""
         if self._unsub is not None:
             return
+        self._stopped = False
         self._unsub = async_track_time_interval(
             self.hass, self._async_interval, DISPLAY_SCAN_INTERVAL
         )
@@ -340,6 +340,7 @@ class DisplayState:
     @callback
     def async_stop(self) -> None:
         """Stop polling the display settings."""
+        self._stopped = True
         if self._unsub:
             self._unsub()
             self._unsub = None
@@ -350,7 +351,7 @@ class DisplayState:
 
     async def async_refresh(self) -> None:
         """Refresh all supported display settings for this Echo."""
-        if not self._supported:
+        if self._stopped or not self._supported:
             return
         async with self._refresh_lock:
             settings = tuple(sorted(self._supported))
@@ -358,16 +359,17 @@ class DisplayState:
                 *(self._read_setting(setting) for setting in settings),
                 return_exceptions=True,
             )
+            if self._stopped:
+                # Unload or removal retired this state while the reads were in
+                # flight; do not report relogin or update entities afterwards.
+                return
             results = [
                 value if isinstance(value, tuple) else (value, False)
                 for value in values
             ]
             if any(isinstance(result, AlexapyLoginError) for result, _ in results):
                 _report_display_relogin(self.hass, self.login)
-            elif _auth_recovered(self.login) or any(
-                not isinstance(result, Exception) and result[0] == 200
-                for result, _ in results
-            ):
+            elif _auth_recovered(self.login):
                 _clear_display_relogin(self.hass, self.login)
             for setting, (result, throttled) in zip(settings, results, strict=True):
                 if isinstance(result, Exception):
@@ -429,6 +431,8 @@ class DisplayState:
 
     async def async_set(self, setting: str, value: Any) -> bool:
         """Set one supported display setting and update the cached value."""
+        if self._stopped:
+            return False
         async with self._refresh_lock:
             if setting not in self._supported:
                 return False
@@ -572,7 +576,13 @@ def _schedule_display_reload(hass: HomeAssistant, account_dict: dict[str, Any]) 
     @callback
     def _reload(_now) -> None:
         account_dict["display_reload_unsub"] = None
-        if hass.config_entries.async_get_entry(entry.entry_id) is None:
+        reload_entry = hass.config_entries.async_get_entry(entry.entry_id)
+        if reload_entry is None:
+            return
+        if getattr(reload_entry, "disabled_by", None) is not None:
+            # Home Assistant will not set up a disabled entry, so do not spend
+            # the only automatic retry on it.
+            _display_reload_budget(hass, account_dict).pop(key, None)
             return
         hass.config_entries.async_schedule_reload(entry.entry_id)
 

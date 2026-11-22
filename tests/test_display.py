@@ -1401,10 +1401,6 @@ async def test_probe_treats_throttled_400_as_temporary():
             "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
             0.001,
         ),
-        patch(
-            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
-            0.05,
-        ),
     ):
         values, failed = await async_probe_display_settings(
             MagicMock(), login, _device()
@@ -1465,10 +1461,6 @@ async def test_display_state_keeps_setting_on_throttled_400():
         patch(
             "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
             0.001,
-        ),
-        patch(
-            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
-            0.05,
         ),
     ):
         for _ in range(DISPLAY_FAILURE_LIMIT):
@@ -1657,10 +1649,6 @@ async def test_probe_captures_concurrent_throttle_per_request():
             "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
             0.001,
         ),
-        patch(
-            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
-            0.05,
-        ),
     ):
         supported, failed = await async_probe_display_settings(
             MagicMock(), login, _device()
@@ -1671,53 +1659,6 @@ async def test_probe_captures_concurrent_throttle_per_request():
         SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
     }
     assert failed is True
-
-
-@pytest.mark.asyncio
-async def test_fast_400_during_sibling_throttle_is_unsupported():
-    """A genuine fast 400 is not discarded because a sibling request retried."""
-    login = MagicMock()
-    login._rate_retry_inflight = False
-    power_started = asyncio.Event()
-    brightness_done = asyncio.Event()
-
-    async def fake_get_setting(_login, _account_id, setting):
-        if setting == SETTING_DISPLAY_POWER:
-            login._rate_retry_inflight = True
-            power_started.set()
-            await brightness_done.wait()
-            login._rate_retry_inflight = False
-            return 200, "ON"
-        if setting == SETTING_BRIGHTNESS:
-            await power_started.wait()
-            brightness_done.set()
-            return 400, None
-        return 200, "OFF"
-
-    with (
-        patch(
-            "custom_components.alexa_media.display.async_get_device_setting",
-            new_callable=AsyncMock,
-            side_effect=fake_get_setting,
-        ),
-        patch(
-            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
-            0.001,
-        ),
-        patch(
-            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
-            0.05,
-        ),
-    ):
-        supported, failed = await async_probe_display_settings(
-            MagicMock(), login, _device()
-        )
-
-    assert supported == {
-        SETTING_DISPLAY_POWER: "ON",
-        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
-    }
-    assert failed is False
 
 
 @pytest.mark.asyncio
@@ -1772,10 +1713,6 @@ async def test_refresh_captures_concurrent_throttle_per_request():
             patch(
                 "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
                 0.001,
-            ),
-            patch(
-                "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
-                0.05,
             ),
         ):
             await state.async_refresh()
@@ -1873,6 +1810,50 @@ async def test_transient_probe_failure_does_not_clear_relogin_marker():
         await async_probe_display_settings(hass, login, _device())
 
     assert EMAIL in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_auth_recovery_clears_relogin_marker_on_probe():
+    """A recovered account clears the marker even if display reads are 503."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {EMAIL}}}
+    login = MagicMock(email=EMAIL)
+    login.status = {"login_successful": True}
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(503, None),
+    ):
+        await async_probe_display_settings(hass, login, _device())
+
+    assert EMAIL not in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_auth_recovery_clears_relogin_marker_on_refresh():
+    """The refresh path also clears the marker after account recovery."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {EMAIL}}}
+    login = MagicMock(email=EMAIL)
+    login.status = {"login_successful": True}
+    state = DisplayState(
+        hass,
+        login,
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(503, None),
+    ):
+        await state.async_refresh()
+
+    assert EMAIL not in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
 
 
 @pytest.mark.asyncio
@@ -2008,10 +1989,6 @@ async def test_throttle_capture_wins_before_watcher_resumes():
         patch(
             "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
             60,
-        ),
-        patch(
-            "custom_components.alexa_media.display.DISPLAY_THROTTLE_MIN_DURATION",
-            0,
         ),
     ):
         result, throttled = await _await_with_throttle_watch(login, _get())

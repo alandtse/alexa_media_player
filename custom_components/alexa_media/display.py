@@ -39,10 +39,6 @@ DISPLAY_PROBE_RETRY_DELAY = 1
 DISPLAY_PROBE_RELOAD_DELAY = 15 * 60
 DISPLAY_FAILURE_LIMIT = 3
 DISPLAY_THROTTLE_WATCH_INTERVAL = 0.05
-# AlexaPy holds the shared throttle flag for at least 10 seconds while it
-# retries. A fast 400 that merely overlaps another request's retry is a genuine
-# unsupported response, not a throttled one.
-DISPLAY_THROTTLE_MIN_DURATION = 10.0
 DISPLAY_PROBE_CONCURRENCY = 3
 
 SETTING_DISPLAY_POWER = "displayPower"
@@ -122,8 +118,6 @@ async def _await_with_throttle_watch(login: AlexaLogin, awaitable) -> tuple[Any,
     throttle observation together with the failed result.
     """
     request = asyncio.ensure_future(_capture_request_flag(login, awaitable))
-    loop = asyncio.get_running_loop()
-    started = loop.time()
     throttled = False
     try:
         while not request.done():
@@ -135,15 +129,15 @@ async def _await_with_throttle_watch(login: AlexaLogin, awaitable) -> tuple[Any,
         await asyncio.gather(request, return_exceptions=True)
         raise
     result, response_throttled = request.result()
-    elapsed = loop.time() - started
-    # The shared flag cannot identify which request was throttled. Require the
-    # request to have lasted at least one AlexaPy retry delay, so a genuine fast
-    # 400 is not discarded just because a sibling request was in backoff.
+    # AlexaPy exposes one shared throttle flag, so a 400 that overlaps any
+    # concurrent retry is treated as temporary. This can delay a genuine
+    # unsupported setting, but it must never be cached as unsupported. Per-
+    # response attribution would require an AlexaPy API change.
     throttled = (
         throttled
         or response_throttled
         or getattr(login, "_rate_retry_inflight", False) is True
-    ) and elapsed >= DISPLAY_THROTTLE_MIN_DURATION
+    )
     return result, throttled
 
 
@@ -174,6 +168,12 @@ def _clear_display_relogin(hass: HomeAssistant, login: AlexaLogin) -> None:
     email = getattr(login, "email", None)
     if email:
         _display_relogin_reported(hass).discard(email)
+
+
+def _auth_recovered(login: AlexaLogin) -> bool:
+    """Return whether AlexaPy reports a successful account login."""
+    status = getattr(login, "status", None)
+    return isinstance(status, dict) and status.get("login_successful") is True
 
 
 async def async_probe_display_settings(
@@ -216,7 +216,7 @@ async def async_probe_display_settings(
         return {}, True
     if any(isinstance(result, AlexapyLoginError) for result, _ in results):
         _report_display_relogin(hass, login)
-    elif any(
+    elif _auth_recovered(login) or any(
         not isinstance(result, Exception) and result[0] == 200 for result, _ in results
     ):
         _clear_display_relogin(hass, login)
@@ -364,7 +364,7 @@ class DisplayState:
             ]
             if any(isinstance(result, AlexapyLoginError) for result, _ in results):
                 _report_display_relogin(self.hass, self.login)
-            elif any(
+            elif _auth_recovered(self.login) or any(
                 not isinstance(result, Exception) and result[0] == 200
                 for result, _ in results
             ):

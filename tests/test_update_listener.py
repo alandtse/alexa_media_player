@@ -594,6 +594,32 @@ async def test_setup_not_ready_when_relogin_keeps_login(hass, fake_login):
     account["login_in_progress"] = False
 
 
+async def test_remove_retires_failed_entry_runtime_account():
+    """Removing an entry that never unloaded must not leave its account behind."""
+    entry, other = MagicMock(), MagicMock()
+    login = MagicMock(close=AsyncMock())
+    hass = MagicMock(
+        data={
+            DATA_ALEXAMEDIA: {
+                "accounts": {
+                    "a@example.com": {"config_entry": entry, "login_obj": login},
+                    "b@example.com": {"config_entry": other, "login_obj": login},
+                }
+            }
+        }
+    )
+
+    await alexa_media._retire_runtime_account(hass, "a@example.com", entry)
+    accounts = hass.data[DATA_ALEXAMEDIA]["accounts"]
+    assert "a@example.com" not in accounts
+    login.close.assert_awaited_once()
+
+    # A record owned by a different entry is preserved.
+    await alexa_media._retire_runtime_account(hass, "b@example.com", entry)
+    assert "b@example.com" in accounts
+    login.close.assert_awaited_once()
+
+
 def test_state_cleanup_registration_is_optional():
     """Home Assistant 2025.2 has no async_on_state_change; setup must not fail."""
 

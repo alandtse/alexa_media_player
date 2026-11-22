@@ -30,6 +30,7 @@ def removal_context(tmp_path):
         # Account listeners are unrelated to cookie cleanup; the hook only
         # calls this helper when an entry is removed.
         "_pop_relogin_listeners": lambda *_: None,
+        "_retire_runtime_account": AsyncMock(),
     }
     namespace["AlexaLogin"].delete_cookiefile = AsyncMock()
     exec(  # nosec B102: execute only the repository hook to isolate HA imports

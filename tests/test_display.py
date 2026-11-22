@@ -1856,6 +1856,31 @@ async def test_throttle_watch_cancels_request_on_caller_cancel():
 
 
 @pytest.mark.asyncio
+async def test_throttle_capture_wins_before_watcher_resumes():
+    """A flag cleared before the watcher samples is still captured."""
+    login = MagicMock()
+    login._rate_retry_inflight = False
+    loop = asyncio.get_running_loop()
+
+    def _clear() -> None:
+        login._rate_retry_inflight = False
+
+    async def _get():
+        login._rate_retry_inflight = True
+        loop.call_soon(_clear)
+        return 400, None
+
+    with patch(
+        "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+        60,
+    ):
+        result, throttled = await _await_with_throttle_watch(login, _get())
+
+    assert result == (400, None)
+    assert throttled is True
+
+
+@pytest.mark.asyncio
 async def test_probe_timeout_discards_partial_results():
     """The whole probe is bounded and a timeout keeps no partial capability."""
 

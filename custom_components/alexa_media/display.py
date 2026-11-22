@@ -97,6 +97,15 @@ async def async_set_device_setting(
     return await AlexaAPI.set_device_setting(login, device_account_id, setting, value)
 
 
+async def _capture_request_flag(login: AlexaLogin, awaitable) -> tuple[Any, bool]:
+    """Capture the shared throttle flag in the request task at completion."""
+    try:
+        result = await awaitable
+    except Exception as err:  # noqa: BLE001
+        return err, getattr(login, "_rate_retry_inflight", False) is True
+    return result, getattr(login, "_rate_retry_inflight", False) is True
+
+
 async def _await_with_throttle_watch(login: AlexaLogin, awaitable) -> tuple[Any, bool]:
     """Await one request and report whether throttling overlapped it.
 
@@ -108,7 +117,7 @@ async def _await_with_throttle_watch(login: AlexaLogin, awaitable) -> tuple[Any,
     Exceptions are returned instead of raised so the caller can keep the
     throttle observation together with the failed result.
     """
-    request = asyncio.ensure_future(awaitable)
+    request = asyncio.ensure_future(_capture_request_flag(login, awaitable))
     throttled = False
     try:
         while not request.done():
@@ -119,11 +128,13 @@ async def _await_with_throttle_watch(login: AlexaLogin, awaitable) -> tuple[Any,
         request.cancel()
         await asyncio.gather(request, return_exceptions=True)
         raise
-    throttled = throttled or getattr(login, "_rate_retry_inflight", False) is True
-    try:
-        return request.result(), throttled
-    except Exception as err:  # noqa: BLE001
-        return err, throttled
+    result, response_throttled = request.result()
+    throttled = (
+        throttled
+        or response_throttled
+        or getattr(login, "_rate_retry_inflight", False) is True
+    )
+    return result, throttled
 
 
 def _display_relogin_reported(hass: HomeAssistant) -> set:

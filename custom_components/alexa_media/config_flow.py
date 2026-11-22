@@ -717,7 +717,11 @@ class AlexaMediaFlowHandler(config_entries.ConfigFlow):
             except KeyError:
                 self.login = None
         seconds_since_login: int = (
-            (datetime.datetime.now() - self.login.stats["login_timestamp"]).seconds
+            int(
+                (
+                    datetime.datetime.now() - self.login.stats["login_timestamp"]
+                ).total_seconds()
+            )
             if self.login
             else 60
         )

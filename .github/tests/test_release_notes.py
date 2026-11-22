@@ -73,13 +73,37 @@ def test_actual_pr_author_cache_direct_commits_and_missing_users():
     client = client_for({10: user("alice"), 11: None, 12: 404})
     authors = prepare.collect_authors(history, client, "owner", "repo")
     assert authors == {
-        "0": " by [@alice](https://github.com/alice)",
-        "1": " by [@alice](https://github.com/alice)",
+        "0#10": " by [@alice](https://github.com/alice)",
+        "1#10": " by [@alice](https://github.com/alice)",
     }
     assert client.get.call_count == 3
     assert all(
         "/repos/owner/repo/pulls/" in c.args[0] for c in client.get.call_args_list
     )
+
+
+def test_same_sha_distinct_prs_keep_separate_authors():
+    """One squash commit parsed into multiple records must credit each PR author.
+
+    PSR 10.2.0 can emit several parsed records that share a commit SHA but carry
+    different linked PR references. Keying the snapshot by SHA alone let the last
+    record overwrite earlier ones, so every PR link showed the same author.
+    """
+    shared_sha = "abcdef1234567890"
+    history = SimpleNamespace(
+        unreleased={
+            "fix": [
+                SimpleNamespace(hexsha=shared_sha, linked_merge_request="#10"),
+                SimpleNamespace(hexsha=shared_sha, linked_merge_request="#11"),
+            ]
+        }
+    )
+    client = client_for({10: user("alice"), 11: user("bob")})
+    authors = prepare.collect_authors(history, client, "owner", "repo")
+    assert authors == {
+        f"{shared_sha}#10": " by [@alice](https://github.com/alice)",
+        f"{shared_sha}#11": " by [@bob](https://github.com/bob)",
+    }
 
 
 @pytest.mark.parametrize(
@@ -313,7 +337,10 @@ def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
         )
         == default_notes
     )
-    authors = {c.hexsha: " by [@alice](https://github.com/alice)" for c in project[2]}
+    authors = {
+        f"{c.hexsha}#{getattr(c, 'linked_merge_request', '')}": " by [@alice](https://github.com/alice)"
+        for c in project[2]
+    }
     Path("CHANGELOG.md").write_text(old, newline="\n")
     prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
     write_changelog_files(runtime, history, runtime.hvcs_client)

@@ -78,7 +78,7 @@ def collect_authors(history, client, owner, repo):
                             raise ValueError(f"PR #{number}: expected a JSON object")
                         cache[number] = author_link(payload.get("user"))
                 if cache[number]:
-                    authors[commit.hexsha] = cache[number]
+                    authors[f"{commit.hexsha}#{number}"] = cache[number]
     except (requests.RequestException, ValueError):
         print(
             f"::warning::PR #{number}: author lookup failed; "
@@ -104,7 +104,8 @@ def prepare_templates(destination, authors):
             "PSR PR-link template has changed; review attribution integration"
         )
     macro = '{% from ".authors.j2" import pr_authors %}' + macro.replace(
-        PR_LINK, PR_LINK + ' ~ pr_authors.get(commit.hexsha, "")'
+        PR_LINK,
+        PR_LINK + ' ~ pr_authors.get(commit.hexsha ~ commit.linked_merge_request, "")',
     )
     macro_file.write_text(macro, encoding="utf-8")
     (destination / ".components/.authors.j2").write_text(

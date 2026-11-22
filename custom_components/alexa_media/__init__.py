@@ -3667,13 +3667,15 @@ async def async_remove_entry(hass, entry) -> bool:
     await _retire_runtime_account(hass, email, entry)
     data = getattr(hass, "data", None)
     if isinstance(data, dict):
-        for key in ("display_entry_states", "display_reload_budget"):
-            mapping = data.get(key)
-            if isinstance(mapping, dict):
-                mapping.pop(entry.entry_id, None)
-        reported = data.get("display_relogin_reported")
-        if isinstance(reported, set):
-            reported.discard(email)
+        integration_data = data.get(DATA_ALEXAMEDIA)
+        if isinstance(integration_data, dict):
+            for key in ("display_entry_states", "display_reload_budget"):
+                mapping = integration_data.get(key)
+                if isinstance(mapping, dict):
+                    mapping.pop(entry.entry_id, None)
+            reported = integration_data.get("display_relogin_reported")
+            if isinstance(reported, set):
+                reported.discard(email)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
     login_obj = AlexaLogin(
         url="",

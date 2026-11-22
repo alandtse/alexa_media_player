@@ -122,3 +122,27 @@ async def test_alexapy_deletes_current_cookie_file(tmp_path):
         assert not cookie.exists()
     finally:
         await login.close()
+
+
+@pytest.mark.asyncio
+async def test_remove_clears_display_recovery_state(removal_context):
+    """Removing an entry drops its display recovery state and report marker."""
+    namespace, hass, entry, cookie = removal_context
+    namespace["DATA_ALEXAMEDIA"] = "alexa_media"
+    entry.entry_id = "entry"
+    hass.data = {
+        "alexa_media": {
+            "display_entry_states": {"entry": {"pending": {"SERIAL"}}},
+            "display_reload_budget": {"entry": 1},
+            "display_relogin_reported": {"test@example.com"},
+        }
+    }
+    delete = namespace["AlexaLogin"].return_value.delete_cookiefile
+    delete.side_effect = lambda: cookie.unlink()
+
+    assert await namespace["async_remove_entry"](hass, entry)
+
+    integration_data = hass.data["alexa_media"]
+    assert "entry" not in integration_data["display_entry_states"]
+    assert "entry" not in integration_data["display_reload_budget"]
+    assert "test@example.com" not in integration_data["display_relogin_reported"]

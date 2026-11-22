@@ -852,6 +852,10 @@ async def async_setup_entry(hass, config_entry):
                 else:
                     login_obj.oauth_login = True
                 await login_obj.reset()
+                if config_entry.state is ConfigEntryState.NOT_LOADED:
+                    # Unloaded while reset() was suspended; do not raise a
+                    # reauthentication notice or set up a removed account.
+                    return
                 # await login_obj.login()
                 if await test_login_status(hass, config_entry, login_obj):
                     await setup_alexa(hass, config_entry, login_obj)
@@ -3620,11 +3624,41 @@ async def async_unload_entry(hass, entry) -> bool:
     return True
 
 
+async def _retire_runtime_account(hass, email: str, entry) -> None:
+    """Discard the runtime record a failed entry left behind.
+
+    Home Assistant skips async_unload_entry when an entry in SETUP_RETRY or
+    SETUP_ERROR is removed, so the account dict (with its retained login and
+    config entry) would otherwise be reused by a replacement entry for the same
+    email. Only a record owned by this entry is retired.
+    """
+    data = getattr(hass, "data", None)
+    if not isinstance(data, dict):
+        return
+    accounts = (data.get(DATA_ALEXAMEDIA) or {}).get("accounts") or {}
+    account = accounts.get(email)
+    if not isinstance(account, dict) or account.get("config_entry") is not entry:
+        return
+    # Detach the record before awaiting so nothing can re-home it mid-close.
+    accounts.pop(email, None)
+    login_obj = account.get("login_obj")
+    if login_obj is not None:
+        try:
+            await login_obj.close()
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug(
+                "%s: Unable to close login while removing entry: %s",
+                hide_email(email),
+                err,
+            )
+
+
 async def async_remove_entry(hass, entry) -> bool:
     """Handle removal of an entry."""
     email = entry.data["email"]
     obfuscated_email = hide_email(email)
     _pop_relogin_listeners(hass, email)
+    await _retire_runtime_account(hass, email, entry)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
     login_obj = AlexaLogin(
         url="",

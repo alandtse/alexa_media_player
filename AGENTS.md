@@ -24,40 +24,19 @@ easy to miss during a change.
   only those features.
 - Test partial outages: one device failing must not remove or block entities
   that another device has already discovered.
-- Test concurrent requests when the upstream client shares retry or throttle
-  state. Capture that state alongside each request result, not after a
-  `gather()` where another request may already have cleared it. If the client
-  clears the flag in a `finally` block before returning, sample it while the
-  request is still in flight; checking only before and after the call misses a
-  request that was throttled and retried internally.
-- Share one in-flight capability probe per device between platforms. If it
-  fails, remember the failure for the current setup attempt so a sibling
-  platform cannot retry it, succeed, and cancel the reload that repairs the
-  platform still missing its entities. Clear that memo when a new setup attempt
-  begins, because the account record survives setup retries.
-- Probe many devices with bounded concurrency. Serializing an unbounded number
-  of slow capability probes inside setup turns one throttle into minutes of
-  entry startup time.
-- Test scheduled retries: scheduling, deduplication, persistence across reloads,
-  and cancellation on unload.
-- Test setup-time probing: devices or services that reject the capability must
-  not create entities and must not generate repeated calls.
-- Test authentication failures from setup and probe paths, not only from the
-  refresh loop. Keep the probe unresolved and report reauthentication once per
-  account episode; allow a new report after a successful read.
+- Test authentication failures from setup paths, not only from the refresh
+  loop.
 
 ### Entities and state
 
 - Test the success path, unavailable/unknown paths and state restoration.
 - Assert entity availability, not only the value.
-- Cover listener updates and state writes for shared state objects.
 - Verify entity naming, unique IDs, translation keys, device info, entity
   category and device class.
 - Test setup, reload and unload cleanup for listeners, timers, tasks and shared
   state.
-- When setup probes a slow capability, submit unrelated entities first. Snapshot
-  any live collection before an `await`; skip entries whose dependent entity is
-  not registered yet instead of indexing it directly.
+- Snapshot any live collection before an `await`; skip entries whose dependent
+  entity is not registered yet instead of indexing it directly.
 
 ### Tests and validation
 
@@ -67,12 +46,9 @@ easy to miss during a change.
   pass through a sibling entity is not a regression test.
 - Make timeout tests wait on an unset event with a short timeout; do not raise
   `asyncio.TimeoutError` directly from a mock, which would pass even if the
-  timeout wrapper disappeared. For a shared/group timeout, let one request
-  succeed and another hang, and assert that partial results are discarded.
-- When setup probes many devices, assert the concurrency bound and that every
-  device still receives a result.
+  timeout wrapper disappeared.
 - Keep touched modules at high coverage; config flow changes should keep the
-  existing 100% coverage target.
+  existing 100% coverage of `config_flow.py`.
 - Run the full test suite, coverage for the touched module and pre-commit before
   pushing.
 - When a test is environment-specific, note it in the PR and verify the same
@@ -87,7 +63,7 @@ these patterns when touching integration code:
   `config_entry_config()`. Reauth moves settings from `entry.data` to
   `entry.options`; never assume a key still lives in `entry.data`.
 - Keep `CONFIG_ENTRY_OPTION_KEYS` in sync when adding or moving options.
-- Use `entry.runtime_data` for per-entry runtime state and keep `hass.data`
+- Prefer `entry.runtime_data` for per-entry runtime state, and keep `hass.data`
   usage consistent with the surrounding code.
 - Give entities stable unique IDs, `has_entity_name`/translation keys, device
   info and the correct entity category and device class.
@@ -97,6 +73,9 @@ these patterns when touching integration code:
   return data.
 - Implement `async_unload_entry` cleanup for listeners, timers, tasks,
   coordinators and per-account state.
+- Home Assistant skips `async_unload_entry` when an entry that never finished
+  setup is removed, so `async_remove_entry` must also drop runtime state that
+  the entry owns.
 - Support reauthentication and reconcile `data`/`options`; preserve explicit
   removals and keep unspecified credentials unchanged.
 - Raise `ConfigEntryNotReady` for transient setup failures and
@@ -114,42 +93,22 @@ these patterns when touching integration code:
 - Distinguish explicit "unsupported" responses from transient failures.
 - Preserve cached state and availability on transient failures.
 - Treat malformed payloads as failures, not as valid scalar values.
-- Capture shared retry/throttle state per request. Do not decide whether a
-  response was throttled after awaiting several requests, because the shared
-  flag may already be clear. When the client clears the flag before returning,
-  sample it while the request is in flight instead of only before and after.
+- Retry transient failures with bounded attempts and avoid tight loops.
+- Do not decide whether a response was throttled after awaiting several
+  requests; shared client state may already be clear.
 - When an upstream dependency hides the status that distinguishes failure
   classes, document the limitation and prefer a safe retry over classifying an
   uncertain response as definitive.
-- Retry transient failures with bounded attempts and avoid tight loops.
-- Scope retry budgets to the entry and to the devices that still need recovery.
-  A successful sibling must not release the budget while another device is
-  unresolved. Keep that state in `hass.data` so it survives config-entry
-  reloads, prune it against the current device inventory, and clear it on entry
-  removal.
-- Share one in-flight capability probe per device across platforms and remember
-  a failure for the current setup attempt. Letting a sibling retry and succeed
-  would cancel the reload that repairs the platform still missing its entities.
-  Reset the memo on each setup attempt; the account record survives setup
-  retries.
-- Bound how many capability probes run at once, and bound the whole probe group.
-  A per-request timeout alone can still multiply into minutes of setup time.
-- Report authentication failures from every path that can encounter them,
-  including initial probing. Deduplicate once per account episode and reset the
-  marker after a successful read.
-- Resolve the account record first and return early when it is already gone:
-  a failed setup may never have created one. Then cancel scheduled retries
-  before the first `await`; keep the timer active during normal operation.
-- On unload, cancel timers, listeners and tasks. Keep entry-scoped recovery
-  state across automatic reloads, and drop it on entry removal so a removed
-  entry cannot be recovered or reloaded behind the user's back.
+- Report authentication failures from every path that can encounter them, and
+  report them once per account episode.
+- On unload, cancel timers, listeners and tasks. Do not hold a shared login
+  object across an `await` another task can interleave with.
 
 ## PR expectations
 
 - Use conventional commit messages.
 - Link fixed issues (`Fixes #...`) and explain external dependencies or release
   order.
-- Keep the PR scoped to the reported behavior. Move unrelated documentation,
-  test checklists or refactors to a separate PR.
+- Keep the PR scoped to the reported behavior.
 - Update tests and docs in the same PR.
 - Do not commit local workspace files.

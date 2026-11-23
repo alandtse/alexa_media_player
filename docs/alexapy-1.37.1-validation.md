@@ -1,6 +1,6 @@
 # AlexaPy 1.37.1 upgrade validation
 
-AMP moves from `alexapy==1.36.0` to `alexapy==1.37.1`. The existing AMP authentication bootstrap workaround stays in place.
+AMP moves from `alexapy==1.36.0` to `alexapy==1.37.1`. AMP keeps its existing bootstrap probe. A successful probe now delegates cookie validation and adoption to AlexaPy before AMP can skip the normal login path.
 
 ## Release verification
 
@@ -13,6 +13,7 @@ AMP moves from `alexapy==1.36.0` to `alexapy==1.37.1`. The existing AMP authenti
 ## Automated validation
 
 - AMP CI installed the published AlexaPy 1.37.1 dependency and passed 840 tests on Linux with Python 3.13.18.
+- AMP regression tests cover cookie adoption after a successful bootstrap probe and fallback when adoption fails.
 - AlexaPy !513 has automated coverage for saved-cookie validation and failed recovery. The [MR discussion](https://gitlab.com/keatontaylor/alexapy/-/merge_requests/513) records the follow-up fixes and outstanding live authentication scenarios.
 
 ## Previous live validation

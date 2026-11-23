@@ -54,7 +54,14 @@ DISPLAY_SETTINGS = (
 
 def can_probe_display(device: dict[str, Any]) -> bool:
     """Return whether the device has the identity needed to probe settings."""
-    return bool(device.get("serialNumber") and device.get("deviceAccountId"))
+    serial = device.get("serialNumber")
+    account_id = device.get("deviceAccountId")
+    return (
+        isinstance(serial, str)
+        and bool(serial)
+        and isinstance(account_id, str)
+        and bool(account_id)
+    )
 
 
 def _normalize_setting_value(setting: str, value: Any) -> Any | None:
@@ -367,7 +374,9 @@ class DisplayState:
                 value if isinstance(value, tuple) else (value, False)
                 for value in values
             ]
-            if any(isinstance(result, AlexapyLoginError) for result, _ in results):
+            if any(
+                isinstance(result, AlexapyLoginError) for result, _ in results
+            ) and not _auth_recovered(self.login):
                 _report_display_relogin(self.hass, self.login)
             elif _auth_recovered(self.login):
                 _clear_display_relogin(self.hass, self.login)
@@ -434,7 +443,7 @@ class DisplayState:
         if self._stopped:
             return False
         async with self._refresh_lock:
-            if setting not in self._supported:
+            if self._stopped or setting not in self._supported:
                 return False
             try:
                 success = await async_set_device_setting(
@@ -449,8 +458,9 @@ class DisplayState:
                 )
                 success = False
             if success:
-                self._values[setting] = value
-                self._async_notify()
+                if not self._stopped:
+                    self._values[setting] = value
+                    self._async_notify()
                 return True
 
         # Do not call async_refresh while holding the lock: it is not re-entrant.

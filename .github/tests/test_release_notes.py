@@ -370,6 +370,74 @@ def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
     ) == normalize(default_notes)
 
 
+def test_same_sha_distinct_prs_render_through_templates(project, monkeypatch):
+    """Two parsed PR records sharing one SHA must each credit their own author.
+
+    This exercises the actual template rendering (not just the author map) for
+    the squash-commit case from #3719: a single commit SHA parsed into two
+    records with different linked PRs. Both the generated CHANGELOG and the
+    published release notes must attribute each PR link to its respective
+    author, and the existing changelog-preservation assertions must still hold.
+    """
+    from semantic_release.cli.changelog_writer import generate_release_notes
+
+    repo, old, _ = project
+    runtime, history = runtime_and_history(repo)
+    version = runtime.version_translator.from_tag("v1.1.0")
+    from datetime import datetime, timezone
+
+    history = history.release(
+        version,
+        Actor("Test", "test@example.com"),
+        Actor("Test", "test@example.com"),
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    release = history.released[version]
+
+    # Find a SHA that was parsed into two records with distinct PR references.
+    by_sha = {}
+    for commits in release["elements"].values():
+        for commit in commits:
+            ref = getattr(commit, "linked_merge_request", "")
+            if re.fullmatch(r"#[1-9]\d*", ref):
+                by_sha.setdefault(commit.hexsha, []).append(int(ref[1:]))
+    shared_sha, numbers = next(
+        ((sha, refs) for sha, refs in by_sha.items() if len(set(refs)) >= 2),
+        (None, None),
+    )
+    assert shared_sha is not None, "fixture must produce a shared-SHA, distinct-PR case"
+    first, second = sorted(set(numbers))[:2]
+
+    # Each PR link must resolve to a different author.
+    authors = {
+        f"{shared_sha}#{first}": " by [@alice](https://github.com/alice)",
+        f"{shared_sha}#{second}": " by [@bob](https://github.com/bob)",
+    }
+
+    default_notes = generate_release_notes(
+        runtime.hvcs_client, release, Path("missing"), history, "conventional", True
+    )
+
+    prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
+    enriched_notes = generate_release_notes(
+        runtime.hvcs_client, release, prepare.TEMPLATE_DIR, history, "conventional", True
+    )
+
+    # Both authors must appear in the rendered release notes.
+    assert " by [@alice](https://github.com/alice)" in enriched_notes
+    assert " by [@bob](https://github.com/bob)" in enriched_notes
+    # Both PR links must be present and distinct.
+    assert f"/pull/{first}" in enriched_notes
+    assert f"/pull/{second}" in enriched_notes
+    # Preservation: stripping attribution yields the default byte-for-byte.
+    stripped = re.sub(
+        r" by \[@(?:alice|bob)\]\(https://github\.com/(?:alice|bob)\)",
+        "",
+        normalize(enriched_notes),
+    )
+    assert normalize(stripped) == normalize(default_notes)
+
+
 def test_main_prepares_snapshot_before_release(project, monkeypatch):
     """Verify main prepares snapshot before release."""
     session = requests.Session()

@@ -555,6 +555,18 @@ async def test_display_state_set_after_stop_returns_false():
 @pytest.mark.asyncio
 async def test_display_state_set_waiting_for_lock_rejects_after_stop():
     """A write queued behind a refresh is rejected when the state retires."""
+
+    class _TrackingLock(asyncio.Lock):
+        """Lock that signals when a waiter starts acquiring it."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.waiter_started = asyncio.Event()
+
+        async def acquire(self):
+            self.waiter_started.set()
+            return await super().acquire()
+
     state = DisplayState(
         MagicMock(),
         MagicMock(),
@@ -563,16 +575,18 @@ async def test_display_state_set_waiting_for_lock_rejects_after_stop():
         probed=True,
     )
     state.client = MagicMock(unique_id=SERIAL)
-    await state._refresh_lock.acquire()
+    lock = _TrackingLock()
+    state._refresh_lock = lock
+    await lock.acquire()
 
     with patch(
         "custom_components.alexa_media.display.async_set_device_setting",
         new_callable=AsyncMock,
     ) as setter:
         task = asyncio.create_task(state.async_set(SETTING_BRIGHTNESS, 50))
-        await asyncio.sleep(0)
+        await asyncio.wait_for(lock.waiter_started.wait(), timeout=1)
         state.async_stop()
-        state._refresh_lock.release()
+        lock.release()
 
         assert await task is False
 

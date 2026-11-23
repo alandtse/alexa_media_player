@@ -1596,19 +1596,20 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             else:
                 await self.alexa_api.set_volume(0)
         else:
-            if self._saved_volume is not None:
-                if self.hass:
-                    self.hass.async_create_task(
-                        self.alexa_api.set_volume(self._saved_volume)
-                    )
-                else:
-                    await self.alexa_api.set_volume(self._saved_volume)
-            else:
-                # alexapy expects 0..1 levels; skip set_volume when nothing was saved.
-                _LOGGER.warning(
-                    "Skipping unmute for %s because no previous volume is stored",
+            volume = self._saved_volume
+            if volume is None:
+                # alexapy expects 0..1 levels; use a mid-level default when no
+                # volume was stored (e.g. muted before a restart).
+                volume = 0.5
+                _LOGGER.debug(
+                    "%s: No previous volume stored; unmuting to %s",
                     self.entity_id,
+                    volume,
                 )
+            if self.hass:
+                self.hass.async_create_task(self.alexa_api.set_volume(volume))
+            else:
+                await self.alexa_api.set_volume(volume)
         if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 

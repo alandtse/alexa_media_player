@@ -35,8 +35,8 @@ def _make_client(*, volume_level: float | None = 0.35, with_hass: bool = False):
 
 
 @pytest.mark.asyncio
-async def test_unmute_without_saved_volume_skips_set_volume(caplog):
-    """Unmuting with no stored _saved_volume must not call set_volume(50)."""
+async def test_unmute_without_saved_volume_uses_default_level(caplog):
+    """Unmuting with no stored _saved_volume sets 0.5, never the invalid 50."""
     client = _make_client(volume_level=0.2)
     assert isinstance(client, MediaPlayerEntity)
     assert client._saved_volume is None
@@ -50,15 +50,14 @@ async def test_unmute_without_saved_volume_skips_set_volume(caplog):
     ):
         await client.async_mute_volume(False)
 
-    client.alexa_api.set_volume.assert_not_called()
-    assert "Skipping unmute for media_player.living_room" in caplog.text
+    client.alexa_api.set_volume.assert_awaited_once_with(0.5)
     assert client.is_volume_muted is False
     client.async_update.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_unmute_without_saved_volume_skips_task_when_hass_set(caplog):
-    """With hass attached, unmuting without _saved_volume must not schedule set_volume(50)."""
+async def test_unmute_without_saved_volume_schedules_default_when_hass_set(caplog):
+    """With hass attached, unmuting without _saved_volume schedules set_volume(0.5)."""
     client = _make_client(volume_level=0.2, with_hass=True)
 
     with (
@@ -70,9 +69,8 @@ async def test_unmute_without_saved_volume_skips_task_when_hass_set(caplog):
     ):
         await client.async_mute_volume(False)
 
-    client.hass.async_create_task.assert_not_called()
-    client.alexa_api.set_volume.assert_not_called()
-    assert "Skipping unmute for media_player.living_room" in caplog.text
+    client.hass.async_create_task.assert_called_once()
+    client.alexa_api.set_volume.assert_called_once_with(0.5)
 
 
 @pytest.mark.asyncio

@@ -342,19 +342,31 @@ def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
     # Render with empty authors — must match the default byte-for-byte.
     prepare.prepare_templates(prepare.TEMPLATE_DIR, {})
     empty_notes = generate_release_notes(
-        runtime.hvcs_client, release, prepare.TEMPLATE_DIR, history, "conventional", True
+        runtime.hvcs_client,
+        release,
+        prepare.TEMPLATE_DIR,
+        history,
+        "conventional",
+        True,
     )
     assert empty_notes == default_notes
 
     # Render with real authors — attribution must be present.
     prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
     enriched_notes = generate_release_notes(
-        runtime.hvcs_client, release, prepare.TEMPLATE_DIR, history, "conventional", True
+        runtime.hvcs_client,
+        release,
+        prepare.TEMPLATE_DIR,
+        history,
+        "conventional",
+        True,
     )
     # Attribution must actually be present before we strip it for comparison.
     assert " by [@alice](https://github.com/alice)" in enriched_notes
     assert normalize(
-        re.sub(r" by \[@alice\]\(https://github.com/alice\)", "", normalize(enriched_notes))
+        re.sub(
+            r" by \[@alice\]\(https://github.com/alice\)", "", normalize(enriched_notes)
+        )
     ) == normalize(default_notes)
 
 

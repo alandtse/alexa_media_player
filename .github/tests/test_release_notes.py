@@ -420,7 +420,12 @@ def test_same_sha_distinct_prs_render_through_templates(project, monkeypatch):
 
     prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
     enriched_notes = generate_release_notes(
-        runtime.hvcs_client, release, prepare.TEMPLATE_DIR, history, "conventional", True
+        runtime.hvcs_client,
+        release,
+        prepare.TEMPLATE_DIR,
+        history,
+        "conventional",
+        True,
     )
 
     # Both authors must appear in the rendered release notes.

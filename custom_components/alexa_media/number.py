@@ -78,15 +78,8 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             if isinstance(result, BaseException):
                 continue
             key, state = result
-            if state is None or not state.supports(SETTING_BRIGHTNESS):
-                continue
-            if getattr(state, "_stopped", False) is True:
-                # Unload retired this state while the probe was in flight.
-                continue
-            current = account_dict.get("display_states")
-            if current and current.get(key) is not state:
-                continue
-            states[key] = state
+            if state is not None and state.supports(SETTING_BRIGHTNESS):
+                states[key] = state
         return states
 
     display_task = asyncio.create_task(_probe_displays())
@@ -118,6 +111,11 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
     display_staged = {}
     for key, display_state in display_states.items():
+        if getattr(display_state, "_stopped", False) is True:
+            continue
+        current = account_dict.get("display_states")
+        if current and current.get(key) is not display_state:
+            continue
         entity_key = f"{key}_display_brightness"
         if entity_key in numbers:
             continue

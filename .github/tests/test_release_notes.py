@@ -478,19 +478,25 @@ def test_same_sha_distinct_prs_render_through_templates(project, monkeypatch):
     )
     release = history.released[version]
 
-    # Find a SHA that was parsed into two records with distinct PR references.
-    by_sha = {}
-    for commits in release["elements"].values():
+    # The conventional parser yields one record per git commit, so a real
+    # squash commit that GitHub reports under two PR numbers is modelled here by
+    # cloning a single parsed record into two records that share one hexsha but
+    # carry distinct linked_merge_request values. This is exactly the #3719 case:
+    # one commit SHA, two PR references, two different authors.
+    base = None
+    base_category = None
+    for category, commits in release["elements"].items():
         for commit in commits:
-            ref = getattr(commit, "linked_merge_request", "")
-            if re.fullmatch(r"#[1-9]\d*", ref):
-                by_sha.setdefault(commit.hexsha, []).append(int(ref[1:]))
-    shared_sha, numbers = next(
-        ((sha, refs) for sha, refs in by_sha.items() if len(set(refs)) >= 2),
-        (None, None),
-    )
-    assert shared_sha is not None, "fixture must produce a shared-SHA, distinct-PR case"
-    first, second = sorted(set(numbers))[:2]
+            if getattr(commit, "linked_merge_request", "") == "#10":
+                base, base_category = commit, category
+                break
+        if base is not None:
+            break
+    assert base is not None, "fixture must contain a PR-linked commit to clone"
+    first, second = 10, 11
+    shared_sha = base.hexsha
+    twin = base._replace(linked_merge_request=f"#{second}")
+    release["elements"][base_category].append(twin)
 
     # Each PR link must resolve to a different author.
     authors = {

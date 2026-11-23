@@ -743,6 +743,43 @@ async def test_display_state_stop_cancels_tracked_refresh():
 
 
 @pytest.mark.asyncio
+async def test_display_state_stop_cancels_all_tracked_refreshes():
+    """Overlapping refreshes are all cancelled when the state stops."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    started = [asyncio.Event(), asyncio.Event()]
+    cancelled = [asyncio.Event(), asyncio.Event()]
+    refresh_count = 0
+
+    async def _refresh():
+        nonlocal refresh_count
+        index = refresh_count
+        refresh_count += 1
+        started[index].set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled[index].set()
+            raise
+
+    state.async_refresh = _refresh
+    first = asyncio.create_task(state._tracked_refresh())
+    await asyncio.wait_for(started[0].wait(), timeout=1)
+    second = asyncio.create_task(state._tracked_refresh())
+    await asyncio.wait_for(started[1].wait(), timeout=1)
+
+    state.async_stop()
+    await asyncio.gather(first, second, return_exceptions=True)
+
+    assert all(event.is_set() for event in cancelled)
+
+
+@pytest.mark.asyncio
 async def test_display_state_set_stopped_during_put_keeps_cache():
     """A successful PUT after unload does not update or notify retired state."""
     state = DisplayState(

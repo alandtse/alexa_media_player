@@ -314,7 +314,7 @@ class DisplayState:
         self._unsub = None
         self._probed = probed
         self._stopped = False
-        self._refresh_task: asyncio.Task | None = None
+        self._refresh_tasks: set[asyncio.Task] = set()
 
     @property
     def client(self):
@@ -369,13 +369,13 @@ class DisplayState:
     def async_stop(self) -> None:
         """Stop polling the display settings."""
         self._stopped = True
-        task = self._refresh_task
         try:
             current = asyncio.current_task()
         except RuntimeError:
             current = None
-        if task is not None and not task.done() and task is not current:
-            task.cancel()
+        for task in tuple(self._refresh_tasks):
+            if not task.done() and task is not current:
+                task.cancel()
         if self._unsub:
             self._unsub()
             self._unsub = None
@@ -387,12 +387,11 @@ class DisplayState:
     async def _tracked_refresh(self) -> None:
         """Run a refresh that unload can cancel."""
         task = asyncio.current_task()
-        self._refresh_task = task
+        self._refresh_tasks.add(task)
         try:
             await self.async_refresh()
         finally:
-            if self._refresh_task is task:
-                self._refresh_task = None
+            self._refresh_tasks.discard(task)
 
     async def async_refresh(self) -> None:
         """Refresh all supported display settings for this Echo."""

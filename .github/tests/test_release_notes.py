@@ -144,12 +144,16 @@ def test_same_sha_distinct_authors_render_in_template(project, monkeypatch):
     second = base_commit._replace(linked_merge_request="#11")
     release["elements"]["fix"] = [first, second]
 
-    # Build the composite-key attribution map: same SHA, two different authors.
-    authors = {
+    # Drive the two same-SHA records through the REAL attribution lookup so the
+    # composite-key snapshot is built by production code, not hand-assembled.
+    # collect_authors reads ``history.unreleased``, so present the two records there.
+    lookup_history = SimpleNamespace(unreleased={"fix": [first, second]})
+    client = client_for({10: user("alice"), 11: user("bob")})
+    authors = prepare.collect_authors(lookup_history, client, "owner", "repo")
+    assert authors == {
         f"{shared_sha}#10": " by [@alice](https://github.com/alice)",
         f"{shared_sha}#11": " by [@bob](https://github.com/bob)",
-    }
-    assert len(authors) == 2, "composite keys must stay distinct for one SHA"
+    }, "same SHA with distinct PRs must yield two distinct composite keys"
 
     prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
     notes = generate_release_notes(
@@ -167,6 +171,23 @@ def test_same_sha_distinct_authors_render_in_template(project, monkeypatch):
     # Both PR references sharing the one commit SHA must render as separate links.
     assert "pull/10" in text
     assert "pull/11" in text
+
+    # Negative control: a SHA-only snapshot (the pre-fix behaviour) collapses
+    # both records onto one author, so bob's attribution is lost. This proves the
+    # composite key is what keeps the two same-SHA authors distinct.
+    collapsed = {shared_sha: " by [@alice](https://github.com/alice)"}
+    prepare.prepare_templates(prepare.TEMPLATE_DIR, collapsed)
+    collapsed_notes = normalize(
+        generate_release_notes(
+            runtime.hvcs_client,
+            release,
+            prepare.TEMPLATE_DIR,
+            history,
+            "conventional",
+            True,
+        )
+    )
+    assert "by [@bob](https://github.com/bob)" not in collapsed_notes
 
 
 @pytest.mark.parametrize(

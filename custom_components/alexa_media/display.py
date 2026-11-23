@@ -205,8 +205,14 @@ async def async_probe_display_settings(
                 login, async_get_device_setting(login, device_account_id, setting)
             )
             if not isinstance(result, Exception):
+                status = result[0]
+                if status not in (200, 400) and attempt + 1 < DISPLAY_PROBE_ATTEMPTS:
+                    # 429, 5xx and other temporary statuses are retried within
+                    # the outer probe deadline.
+                    await asyncio.sleep(DISPLAY_PROBE_RETRY_DELAY)
+                    continue
                 return result, throttled
-            if isinstance(result, AlexapyLoginError):
+            if isinstance(result, AlexapyLoginError) and not _auth_recovered(login):
                 _report_display_relogin(hass, login)
             last_error = result
             if attempt + 1 < DISPLAY_PROBE_ATTEMPTS:
@@ -221,7 +227,9 @@ async def async_probe_display_settings(
     except asyncio.TimeoutError:
         _LOGGER.debug("%s: Display probe timed out", hide_serial(serial))
         return {}, True
-    if any(isinstance(result, AlexapyLoginError) for result, _ in results):
+    if any(
+        isinstance(result, AlexapyLoginError) for result, _ in results
+    ) and not _auth_recovered(login):
         _report_display_relogin(hass, login)
     elif _auth_recovered(login):
         _clear_display_relogin(hass, login)
@@ -335,9 +343,8 @@ class DisplayState:
 
     async def async_start(self) -> None:
         """Start polling the display settings."""
-        if self._unsub is not None:
+        if self._stopped or self._unsub is not None:
             return
-        self._stopped = False
         self._unsub = async_track_time_interval(
             self.hass, self._async_interval, DISPLAY_SCAN_INTERVAL
         )
@@ -361,6 +368,8 @@ class DisplayState:
         if self._stopped or not self._supported:
             return
         async with self._refresh_lock:
+            if self._stopped:
+                return
             settings = tuple(sorted(self._supported))
             values = await asyncio.gather(
                 *(self._read_setting(setting) for setting in settings),

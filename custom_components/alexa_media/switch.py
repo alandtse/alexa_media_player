@@ -130,8 +130,15 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             if isinstance(result, BaseException):
                 continue
             key, state = result
-            if state is not None:
-                states[key] = state
+            if state is None:
+                continue
+            if getattr(state, "_stopped", False) is True:
+                # Unload retired this state while the probe was in flight.
+                continue
+            current = account_dict.get("display_states")
+            if current and current.get(key) is not state:
+                continue
+            states[key] = state
         return states
 
     # No event-loop suspension between checking the caches and the three

@@ -43,20 +43,9 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     staged: dict[str, NumberEntity] = {}
     _LOGGER.debug("%s: Loading numbers", hide_email(account))
 
-    # Wait for the display dependencies before building the registration batch.
+    # Display probing is best-effort and must not block notification volumes
+    # for devices whose media-player client is already available.
     login_obj = account_dict.get("login_obj")
-    display_keys = [
-        key
-        for key, device in account_dict["devices"]["media_player"].items()
-        if can_probe_display(device)
-    ]
-    if display_keys and (
-        login_obj is None
-        or any(
-            key not in account_dict["entities"]["media_player"] for key in display_keys
-        )
-    ):
-        raise ConfigEntryNotReady
 
     async def _probe_displays():
         async def _probe_one(key, device):
@@ -89,8 +78,15 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             if isinstance(result, BaseException):
                 continue
             key, state = result
-            if state is not None and state.supports(SETTING_BRIGHTNESS):
-                states[key] = state
+            if state is None or not state.supports(SETTING_BRIGHTNESS):
+                continue
+            if getattr(state, "_stopped", False) is True:
+                # Unload retired this state while the probe was in flight.
+                continue
+            current = account_dict.get("display_states")
+            if current and current.get(key) is not state:
+                continue
+            states[key] = state
         return states
 
     display_task = asyncio.create_task(_probe_displays())

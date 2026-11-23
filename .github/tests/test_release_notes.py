@@ -106,6 +106,69 @@ def test_same_sha_distinct_prs_keep_separate_authors():
     }
 
 
+def test_same_sha_distinct_authors_render_in_template(project, monkeypatch):
+    """Two parsed PR records sharing one SHA must each render their own author.
+
+    This exercises the actual Jinja2 template rendering (not just collect_authors)
+    to prove the composite ``hexsha#number`` key disambiguates two parsed records
+    that share a commit SHA but credit different PR authors. A SHA-only key would
+    collapse both PR links onto a single author in the rendered release notes.
+    """
+    from semantic_release.cli.changelog_writer import generate_release_notes
+
+    repo, _old, _commits = project
+    runtime, history = runtime_and_history(repo)
+    version = runtime.version_translator.from_tag("v1.1.0")
+    from datetime import datetime, timezone
+
+    history = history.release(
+        version,
+        Actor("Test", "test@example.com"),
+        Actor("Test", "test@example.com"),
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    release = history.released[version]
+
+    # Pick a real parsed commit from the release and clone it into two records
+    # that share its SHA but carry distinct PR references. This mirrors the PSR
+    # 10.2.0 squash scenario where one commit yields multiple parsed records.
+    # ParsedCommit is a NamedTuple, so use _replace to derive the variants.
+    base_commit = None
+    for commits in release["elements"].values():
+        if commits:
+            base_commit = commits[0]
+            break
+    assert base_commit is not None, "fixture must yield at least one parsed commit"
+    shared_sha = base_commit.hexsha
+    first = base_commit._replace(linked_merge_request="#10")
+    second = base_commit._replace(linked_merge_request="#11")
+    release["elements"]["fix"] = [first, second]
+
+    # Build the composite-key attribution map: same SHA, two different authors.
+    authors = {
+        f"{shared_sha}#10": " by [@alice](https://github.com/alice)",
+        f"{shared_sha}#11": " by [@bob](https://github.com/bob)",
+    }
+    assert len(authors) == 2, "composite keys must stay distinct for one SHA"
+
+    prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
+    notes = generate_release_notes(
+        runtime.hvcs_client,
+        release,
+        prepare.TEMPLATE_DIR,
+        history,
+        "conventional",
+        True,
+    )
+    text = normalize(notes)
+    # Both authors must be attributed distinctly in the rendered output.
+    assert "by [@alice](https://github.com/alice)" in text
+    assert "by [@bob](https://github.com/bob)" in text
+    # Both PR references sharing the one commit SHA must render as separate links.
+    assert "pull/10" in text
+    assert "pull/11" in text
+
+
 @pytest.mark.parametrize(
     "metadata",
     [

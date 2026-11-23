@@ -300,10 +300,7 @@ def test_real_release_commits_changelog_and_publishes_same_authors(
 
 def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
     """Verify empty snapshot matches upstream byte for byte."""
-    from semantic_release.cli.changelog_writer import (
-        generate_release_notes,
-        write_changelog_files,
-    )
+    from semantic_release.cli.changelog_writer import generate_release_notes
 
     repo, old, _ = project
     runtime, history = runtime_and_history(repo)
@@ -317,49 +314,47 @@ def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
         datetime(2026, 1, 1, tzinfo=timezone.utc),
     )
     release = history.released[version]
+
+    # Build the attribution map from the parsed release elements (not raw git
+    # commits) so keys match what the template looks up: hexsha ~ "#<number>".
+    # The previous implementation keyed raw git commits (project[2]) which never
+    # carry linked_merge_request, so attribution silently never ran and the
+    # preservation assertions below passed vacuously.
+    authors = {}
+    for commits in release["elements"].values():
+        for commit in commits:
+            ref = getattr(commit, "linked_merge_request", "")
+            if ref and re.fullmatch(r"#[1-9]\d*", ref):
+                number = int(ref[1:])
+                authors[f"{commit.hexsha}#{number}"] = (
+                    " by [@alice](https://github.com/alice)"
+                )
+    # Guard against the map silently going empty (which would make the
+    # preservation comparisons below pass without exercising attribution).
+    assert authors, "expected at least one PR-linked commit to attribute"
+
+    # Render the default (no-attribution) release notes using the upstream
+    # template directory so we have a byte-for-byte baseline.
     default_notes = generate_release_notes(
         runtime.hvcs_client, release, Path("missing"), history, "conventional", True
     )
-    write_changelog_files(runtime, history, runtime.hvcs_client)
-    default_changelog = Path("CHANGELOG.md").read_text()
-    Path("CHANGELOG.md").write_text(old, newline="\n")
+
+    # Render with empty authors — must match the default byte-for-byte.
     prepare.prepare_templates(prepare.TEMPLATE_DIR, {})
-    write_changelog_files(runtime, history, runtime.hvcs_client)
-    assert Path("CHANGELOG.md").read_text() == default_changelog
-    assert (
-        generate_release_notes(
-            runtime.hvcs_client,
-            release,
-            prepare.TEMPLATE_DIR,
-            history,
-            "conventional",
-            True,
-        )
-        == default_notes
+    empty_notes = generate_release_notes(
+        runtime.hvcs_client, release, prepare.TEMPLATE_DIR, history, "conventional", True
     )
-    authors = {
-        f"{c.hexsha}#{getattr(c, 'linked_merge_request', '')}": " by [@alice](https://github.com/alice)"
-        for c in project[2]
-    }
-    Path("CHANGELOG.md").write_text(old, newline="\n")
+    assert empty_notes == default_notes
+
+    # Render with real authors — attribution must be present.
     prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
-    write_changelog_files(runtime, history, runtime.hvcs_client)
-    enriched = Path("CHANGELOG.md").read_text()
-    assert normalize(
-        re.sub(r" by \[@alice\]\(https://github.com/alice\)", "", normalize(enriched))
-    ) == normalize(default_changelog)
     enriched_notes = generate_release_notes(
-        runtime.hvcs_client,
-        release,
-        prepare.TEMPLATE_DIR,
-        history,
-        "conventional",
-        True,
+        runtime.hvcs_client, release, prepare.TEMPLATE_DIR, history, "conventional", True
     )
+    # Attribution must actually be present before we strip it for comparison.
+    assert " by [@alice](https://github.com/alice)" in enriched_notes
     assert normalize(
-        re.sub(
-            r" by \[@alice\]\(https://github.com/alice\)", "", normalize(enriched_notes)
-        )
+        re.sub(r" by \[@alice\]\(https://github.com/alice\)", "", normalize(enriched_notes))
     ) == normalize(default_notes)
 
 

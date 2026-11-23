@@ -1,7 +1,7 @@
 """Additional config-flow tests for the Bronze coverage rule."""
 
 from collections import OrderedDict
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -989,3 +989,54 @@ async def test_options_flow_factory_and_empty_form():
     result = await flow.async_step_init()
     assert result["type"] == "form"
     flow.async_show_form.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_reauth_uses_total_seconds_for_login_age():
+    """Reauth measures elapsed time with total_seconds rather than wrapping at 24h."""
+    now = datetime(2026, 11, 22, 12, 0, 0)
+
+    # A login 24h30s old has timedelta.seconds == 30, but total_seconds() == 86430 (>= 60).
+    flow_old = _flow()
+    flow_old.context = {"entry_id": "entry"}
+    flow_old.hass.config_entries.async_get_entry.return_value = MagicMock(options={})
+    flow_old.config = {CONF_EMAIL: EMAIL}
+    old_login = _login()
+    old_login.stats = {"login_timestamp": now - timedelta(days=1, seconds=30)}
+    flow_old.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL] = {"login_obj": old_login}
+    flow_old.async_step_user_legacy = AsyncMock(return_value={"type": "create_entry"})
+
+    with (
+        patch("custom_components.alexa_media.config_flow.sleep", new=AsyncMock()),
+        patch("custom_components.alexa_media.config_flow.datetime") as mock_dt,
+    ):
+        mock_dt.datetime.now.return_value = now
+        result = await flow_old.async_step_reauth(None)
+    assert result == {"type": "create_entry"}
+    flow_old.async_step_user_legacy.assert_awaited_once()
+    flow_old.async_show_form.assert_not_called()
+
+    # A login genuinely under 60 seconds old still falls back to manual login form.
+    flow_recent = _flow()
+    flow_recent.context = {"entry_id": "entry"}
+    flow_recent.hass.config_entries.async_get_entry.return_value = MagicMock(options={})
+    flow_recent.config = {CONF_EMAIL: EMAIL}
+    recent_login = _login()
+    recent_login.stats = {"login_timestamp": now - timedelta(seconds=30)}
+    flow_recent.hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL] = {
+        "login_obj": recent_login
+    }
+    flow_recent.async_step_user_legacy = AsyncMock(
+        return_value={"type": "create_entry"}
+    )
+
+    with (
+        patch("custom_components.alexa_media.config_flow.sleep", new=AsyncMock()),
+        patch("custom_components.alexa_media.config_flow.datetime") as mock_dt,
+    ):
+        mock_dt.datetime.now.return_value = now
+        result = await flow_recent.async_step_reauth(None)
+    assert result["type"] == "form"
+    assert result["step_id"] == "user"
+    flow_recent.async_show_form.assert_called_once()
+    flow_recent.async_step_user_legacy.assert_not_called()

@@ -172,11 +172,17 @@ def test_same_sha_distinct_authors_render_in_template(project, monkeypatch):
     assert "pull/10" in text
     assert "pull/11" in text
 
-    # Negative control: a SHA-only snapshot (the pre-fix behaviour) collapses
-    # both records onto one author, so bob's attribution is lost. This proves the
-    # composite key is what keeps the two same-SHA authors distinct.
-    collapsed = {shared_sha: " by [@alice](https://github.com/alice)"}
-    prepare.prepare_templates(prepare.TEMPLATE_DIR, collapsed)
+    # Negative control: reproduce the pre-fix SHA-only keying over the SAME two
+    # real records. Keying the snapshot by hexsha alone lets the later record
+    # overwrite the earlier one, so the two same-SHA records collapse to a single
+    # author and one PR link loses its attribution. This is the exact bug #3719
+    # fixes; deriving it from the real records (not a hand-typed dict) makes the
+    # composite ``hexsha#number`` key's role in keeping authors distinct explicit.
+    sha_only = {}
+    for record, login in ((first, "alice"), (second, "bob")):
+        sha_only[record.hexsha] = f" by [@{login}](https://github.com/{login})"
+    assert len(sha_only) == 1, "SHA-only keying must collapse the two same-SHA records"
+    prepare.prepare_templates(prepare.TEMPLATE_DIR, sha_only)
     collapsed_notes = normalize(
         generate_release_notes(
             runtime.hvcs_client,
@@ -187,6 +193,7 @@ def test_same_sha_distinct_authors_render_in_template(project, monkeypatch):
             True,
         )
     )
+    # The overwritten author's attribution is lost under SHA-only keying.
     assert "by [@bob](https://github.com/bob)" not in collapsed_notes
 
 

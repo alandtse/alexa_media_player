@@ -9,6 +9,7 @@ AMP moves from `alexapy==1.36.0` to `alexapy==1.37.1`. The existing AMP authenti
   - [AlexaPy !513](https://gitlab.com/keatontaylor/alexapy/-/merge_requests/513), `7b23371`, validates saved cookies before replacing authentication state and preserves verified state on failed recovery.
   - [AlexaPy !515](https://gitlab.com/keatontaylor/alexapy/-/merge_requests/515), `fc84165`, uses the PitanguiBridge User-Agent for Alexa API calls, notification reads, and OAuth alarm requests. Login and token requests retain their own identities.
 - [x] Check package metadata against AMP's Python range and existing dependency constraints. The wheel requires Python `>=3.11,<4` and declares the same runtime dependencies as 1.36.0. AMP requires Python `>=3.13,<4`.
+
 ## Automated validation
 
 - AMP CI installed the published AlexaPy 1.37.1 dependency and passed 840 tests on Linux with Python 3.13.18.

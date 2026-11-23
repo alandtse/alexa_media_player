@@ -452,12 +452,13 @@ async def test_non_display_switches_submit_before_display_probe(
     task = asyncio.create_task(
         switch_platform.async_setup_entry(mock_hass, entry, schedule)
     )
-    await asyncio.wait_for(started.wait(), timeout=1)
-    assert "dnd" in submitted
-    assert "display" not in submitted
-
-    release.set()
-    assert await task
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        assert "dnd" in submitted
+        assert "display" not in submitted
+    finally:
+        release.set()
+        assert await asyncio.wait_for(task, timeout=1)
     assert "display" in submitted
 
 

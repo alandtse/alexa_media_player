@@ -206,6 +206,19 @@ async def async_probe_display_settings(
             )
             if not isinstance(result, Exception):
                 status = result[0]
+                if status == 400 and throttled and attempt + 1 < DISPLAY_PROBE_ATTEMPTS:
+                    # A 400 that overlapped another request's backoff is
+                    # ambiguous. Wait for the shared backoff to clear, then ask
+                    # again instead of discarding the settings that succeeded.
+                    loop = asyncio.get_running_loop()
+                    deadline = loop.time() + DISPLAY_PROBE_TIMEOUT
+                    while (
+                        getattr(login, "_rate_retry_inflight", False) is True
+                        and loop.time() < deadline
+                    ):
+                        await asyncio.sleep(DISPLAY_THROTTLE_WATCH_INTERVAL)
+                    await asyncio.sleep(DISPLAY_PROBE_RETRY_DELAY)
+                    continue
                 if status not in (200, 400) and attempt + 1 < DISPLAY_PROBE_ATTEMPTS:
                     # 429, 5xx and other temporary statuses are retried within
                     # the outer probe deadline.
@@ -301,6 +314,7 @@ class DisplayState:
         self._unsub = None
         self._probed = probed
         self._stopped = False
+        self._refresh_task: asyncio.Task | None = None
 
     @property
     def client(self):
@@ -355,13 +369,30 @@ class DisplayState:
     def async_stop(self) -> None:
         """Stop polling the display settings."""
         self._stopped = True
+        task = self._refresh_task
+        try:
+            current = asyncio.current_task()
+        except RuntimeError:
+            current = None
+        if task is not None and not task.done() and task is not current:
+            task.cancel()
         if self._unsub:
             self._unsub()
             self._unsub = None
 
     async def _async_interval(self, now) -> None:
         """Refresh the display settings periodically."""
-        await self.async_refresh()
+        await self._tracked_refresh()
+
+    async def _tracked_refresh(self) -> None:
+        """Run a refresh that unload can cancel."""
+        task = asyncio.current_task()
+        self._refresh_task = task
+        try:
+            await self.async_refresh()
+        finally:
+            if self._refresh_task is task:
+                self._refresh_task = None
 
     async def async_refresh(self) -> None:
         """Refresh all supported display settings for this Echo."""
@@ -475,7 +506,7 @@ class DisplayState:
         # Do not call async_refresh while holding the lock: it is not re-entrant.
         try:
             await asyncio.wait_for(
-                self.async_refresh(), timeout=DISPLAY_REFRESH_TIMEOUT
+                self._tracked_refresh(), timeout=DISPLAY_REFRESH_TIMEOUT
             )
         except asyncio.TimeoutError:
             _LOGGER.warning(

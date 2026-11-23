@@ -150,7 +150,8 @@ async def test_remove_leaves_other_entry_display_state(removal_context):
                     "display_states": {"SERIAL": display_state},
                     "display_reload_unsub": unsub,
                 }
-            }
+            },
+            "display_relogin_reported": {"test@example.com"},
         }
     }
     delete = namespace["AlexaLogin"].return_value.delete_cookiefile
@@ -160,6 +161,7 @@ async def test_remove_leaves_other_entry_display_state(removal_context):
 
     display_state.async_stop.assert_not_called()
     unsub.assert_not_called()
+    assert "test@example.com" in hass.data["alexa_media"]["display_relogin_reported"]
 
 
 @pytest.mark.asyncio

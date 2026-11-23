@@ -284,6 +284,54 @@ async def test_probe_display_settings_retries_429():
 
 
 @pytest.mark.asyncio
+async def test_probe_retries_ambiguous_throttled_400():
+    """An ambiguous throttled 400 is retried before dropping good settings."""
+    login = MagicMock()
+    login._rate_retry_inflight = False
+    attempts = dict.fromkeys(DISPLAY_SETTINGS, 0)
+
+    async def _get(_login, _account_id, setting):
+        attempts[setting] += 1
+        if setting == SETTING_ADAPTIVE_BRIGHTNESS and attempts[setting] == 1:
+            login._rate_retry_inflight = True
+            asyncio.get_running_loop().call_later(
+                0.01, setattr, login, "_rate_retry_inflight", False
+            )
+            return 400, None
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_RETRY_DELAY", 0),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+            0.001,
+        ),
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), login, _device()
+        )
+
+    assert not failed
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_BRIGHTNESS: 42,
+        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+    }
+    assert attempts[SETTING_ADAPTIVE_BRIGHTNESS] == 2
+
+
+@pytest.mark.asyncio
 async def test_probe_display_settings_without_account_id():
     """A device without an account id is never probed."""
     with patch(
@@ -661,6 +709,40 @@ async def test_display_state_refresh_waiting_for_lock_stops_before_reads():
 
 
 @pytest.mark.asyncio
+async def test_display_state_stop_cancels_tracked_refresh():
+    """Stopping a state cancels the polling refresh that is in flight."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def _get(*_args, **_kwargs):
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_get,
+    ):
+        task = asyncio.create_task(state._tracked_refresh())
+        await asyncio.wait_for(started.wait(), timeout=1)
+        state.async_stop()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert cancelled.is_set()
+
+
+@pytest.mark.asyncio
 async def test_display_state_set_stopped_during_put_keeps_cache():
     """A successful PUT after unload does not update or notify retired state."""
     state = DisplayState(
@@ -704,6 +786,21 @@ async def test_display_state_start_after_stop_is_noop():
     assert state._unsub is None
 
 
+def test_display_state_stop_without_running_loop():
+    """Stopping a state outside an event loop is harmless."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+
+    state.async_stop()
+
+    assert state._unsub is None
+
+
 @pytest.mark.asyncio
 async def test_display_state_refresh_logs_read_exception():
     """A failed read is logged while the other settings still refresh."""
@@ -742,12 +839,19 @@ async def test_display_state_refresh_logs_read_exception():
 
 @pytest.mark.asyncio
 async def test_display_state_set_times_out_on_refresh():
-    """A stuck fallback refresh is bounded and reported."""
+    """A stuck fallback refresh is started, bounded and cancelled."""
     state = _state()
     release = asyncio.Event()
+    entered = asyncio.Event()
+    cancelled = asyncio.Event()
 
     async def stuck_refresh():
-        await release.wait()
+        entered.set()
+        try:
+            await release.wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
 
     state.async_refresh = stuck_refresh
 
@@ -760,6 +864,9 @@ async def test_display_state_set_times_out_on_refresh():
         patch("custom_components.alexa_media.display.DISPLAY_REFRESH_TIMEOUT", 0.01),
     ):
         assert not await state.async_set(SETTING_DISPLAY_POWER, "OFF")
+
+    assert entered.is_set()
+    assert cancelled.is_set()
 
 
 @pytest.mark.asyncio
@@ -943,6 +1050,7 @@ async def test_display_brightness_entity_set():
 
     await number.async_set_native_value(70.0)
     state.async_set.assert_awaited_once_with(SETTING_BRIGHTNESS, 70)
+    assert isinstance(state.async_set.await_args.args[1], int)
 
 
 @pytest.mark.asyncio
@@ -1402,7 +1510,7 @@ async def test_concurrent_platforms_share_one_display_probe():
                 MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
             )
         )
-        await started.wait()
+        await asyncio.wait_for(started.wait(), timeout=1)
         second = asyncio.create_task(
             async_get_display_state(
                 MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
@@ -1438,7 +1546,7 @@ async def test_shared_probe_survives_one_caller_cancel():
                 MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
             )
         )
-        await started.wait()
+        await asyncio.wait_for(started.wait(), timeout=1)
         second = asyncio.create_task(
             async_get_display_state(
                 MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
@@ -1789,7 +1897,7 @@ async def test_refresh_after_stop_does_not_report_relogin():
         ) as report,
     ):
         task = asyncio.create_task(state.async_refresh())
-        await started.wait()
+        await asyncio.wait_for(started.wait(), timeout=1)
         state.async_stop()
         release.set()
         await task
@@ -2348,7 +2456,7 @@ async def test_throttle_watch_cancels_request_on_caller_cancel():
             finished.set()
 
     task = asyncio.create_task(_await_with_throttle_watch(MagicMock(), _get()))
-    await started.wait()
+    await asyncio.wait_for(started.wait(), timeout=1)
     task.cancel()
 
     with pytest.raises(asyncio.CancelledError):

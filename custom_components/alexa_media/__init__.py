@@ -983,6 +983,7 @@ async def async_setup_entry(hass, config_entry):
         """Drop recovery state when the entry is disabled or unloaded."""
         if config_entry.state is not ConfigEntryState.NOT_LOADED:
             return
+        _stop_display_recovery(hass, email, config_entry)
         account = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {}).get(email)
         if isinstance(account, dict):
             _drop_listeners(account.pop("relogin_unsubs", ()))
@@ -3713,6 +3714,12 @@ def _stop_display_recovery(hass, email: str, entry) -> None:
     unsub = account.pop("display_reload_unsub", None)
     if unsub:
         unsub()
+        entry_id = getattr(entry, "entry_id", None)
+        if entry_id:
+            integration_data = data.get(DATA_ALEXAMEDIA) or {}
+            budget = integration_data.get("display_reload_budget")
+            if isinstance(budget, dict):
+                budget.pop(entry_id, None)
 
 
 async def async_remove_entry(hass, entry) -> bool:
@@ -3720,19 +3727,25 @@ async def async_remove_entry(hass, entry) -> bool:
     email = entry.data["email"]
     obfuscated_email = hide_email(email)
     _pop_relogin_listeners(hass, email)
+    data = getattr(hass, "data", None)
+    integration_data = data.get(DATA_ALEXAMEDIA) if isinstance(data, dict) else None
+    accounts = (
+        integration_data.get("accounts", {})
+        if isinstance(integration_data, dict)
+        else {}
+    )
+    account = accounts.get(email) if isinstance(accounts, dict) else None
+    owned = isinstance(account, dict) and account.get("config_entry") is entry
     _stop_display_recovery(hass, email, entry)
     await _retire_runtime_account(hass, email, entry)
-    data = getattr(hass, "data", None)
-    if isinstance(data, dict):
-        integration_data = data.get(DATA_ALEXAMEDIA)
-        if isinstance(integration_data, dict):
-            for key in ("display_entry_states", "display_reload_budget"):
-                mapping = integration_data.get(key)
-                if isinstance(mapping, dict):
-                    mapping.pop(entry.entry_id, None)
-            reported = integration_data.get("display_relogin_reported")
-            if isinstance(reported, set):
-                reported.discard(email)
+    if isinstance(integration_data, dict):
+        for key in ("display_entry_states", "display_reload_budget"):
+            mapping = integration_data.get(key)
+            if isinstance(mapping, dict):
+                mapping.pop(entry.entry_id, None)
+        reported = integration_data.get("display_relogin_reported")
+        if owned and isinstance(reported, set):
+            reported.discard(email)
     _LOGGER.debug("Removing config entry: %s", hide_email(email))
     login_obj = AlexaLogin(
         url="",

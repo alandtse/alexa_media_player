@@ -38,9 +38,7 @@ def test_account_identity_is_stable_and_private():
     assert account_device_identifier(first) != account_device_identifier(second)
     registry = MagicMock()
     hass = MagicMock()
-    with patch(
-        "custom_components.alexa_media.dr.async_get", return_value=registry
-    ):
+    with patch("custom_components.alexa_media.dr.async_get", return_value=registry):
         _register_account_device(hass, first)
         _register_account_device(hass, first)
     assert registry.async_get_or_create.call_count == 2
@@ -54,9 +52,7 @@ def test_authentication_sensor_state_and_account_device():
     a = account()
     sensor = AlexaAccountAuthenticationSensor(a, entry())
     assert sensor.native_value == "authenticated"
-    assert sensor.device_info["identifiers"] == {
-        (DOMAIN, "account_entry-one")
-    }
+    assert sensor.device_info["identifiers"] == {(DOMAIN, "account_entry-one")}
     assert sensor.unique_id == "entry-one_account_authentication"
     assert sensor.should_poll is False
     a["login_obj"].status["login_successful"] = False
@@ -92,7 +88,8 @@ async def test_sensor_platform_adds_account_without_echoes():
     add = MagicMock()
     with patch(
         "custom_components.alexa_media.sensor.async_setup_platform",
-        new_callable=AsyncMock, return_value=True,
+        new_callable=AsyncMock,
+        return_value=True,
     ):
         assert await async_setup_entry(hass, e, add)
         assert await async_setup_entry(hass, e, add)
@@ -110,7 +107,8 @@ async def test_failed_sensor_platform_does_not_mark_account_loaded():
     add = MagicMock()
     with patch(
         "custom_components.alexa_media.sensor.async_setup_platform",
-        new_callable=AsyncMock, return_value=False,
+        new_callable=AsyncMock,
+        return_value=False,
     ):
         assert not await async_setup_entry(hass, e, add)
     add.assert_not_called()

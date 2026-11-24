@@ -18,10 +18,10 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import PERCENTAGE, UnitOfTemperature, __version__ as HA_VERSION
 from homeassistant.core import callback
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt
@@ -29,11 +29,11 @@ from packaging import version
 
 from . import (
     CONF_EMAIL,
-    account_device_identifier,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
     DOMAIN as ALEXA_DOMAIN,
+    account_device_identifier,
     hide_email,
     hide_serial,
 )

@@ -18,6 +18,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import PERCENTAGE, UnitOfTemperature, __version__ as HA_VERSION
 from homeassistant.core import callback
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.exceptions import ConfigEntryNotReady, NoEntitySpecifiedError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -28,6 +29,7 @@ from packaging import version
 
 from . import (
     CONF_EMAIL,
+    account_device_identifier,
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     DATA_ALEXAMEDIA,
@@ -35,6 +37,7 @@ from . import (
     hide_email,
     hide_serial,
 )
+from .account_auth import subscribe_authentication
 from .alexa_entity import (
     parse_air_quality_from_coordinator,
     parse_temperature_from_coordinator,
@@ -172,10 +175,18 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
-    """Set up the Alexa sensor platform by config_entry."""
-    return await async_setup_platform(
+    """Set up Echo sensors and the account authentication diagnostic."""
+    result = await async_setup_platform(
         hass, config_entry_config(config_entry), async_add_devices, discovery_info=None
     )
+    if not result:
+        return False
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
+    account["sensor_add_devices"] = async_add_devices
+    if not account.get("account_sensor_forwarded"):
+        async_add_devices([AlexaAccountAuthenticationSensor(account, config_entry)])
+        account["account_sensor_forwarded"] = True
+    return True
 
 
 async def async_unload_entry(hass, entry) -> bool:
@@ -366,6 +377,46 @@ def lookup_device_info(account_dict, device_serial):
             for ident in mediaplayer.device_info["identifiers"]:
                 return ident
     return None
+
+
+class AlexaAccountAuthenticationSensor(SensorEntity):
+    """Show the login status on the virtual Alexa Account device."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Authentication"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:account-check"
+    _attr_should_poll = False
+
+    def __init__(self, account: dict, config_entry) -> None:
+        """Bind this diagnostic to the account, not an Echo."""
+        self._account = account
+        self._attr_unique_id = f"{config_entry.entry_id}_account_authentication"
+        self._attr_device_info = dr.DeviceInfo(
+            identifiers={account_device_identifier(config_entry)},
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """React to authentication transitions without coordinator polling."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            subscribe_authentication(self._account, self.async_write_ha_state)
+        )
+
+    @property
+    def available(self) -> bool:
+        """Keep the diagnostic visible if Amazon is unavailable."""
+        return True
+
+    @property
+    def native_value(self) -> str:
+        """Return the current login status."""
+        login = self._account.get("login_obj")
+        return (
+            "authenticated"
+            if login is not None and login.status.get("login_successful")
+            else "not authenticated"
+        )
 
 
 class TemperatureSensor(SensorEntity, CoordinatorEntity):

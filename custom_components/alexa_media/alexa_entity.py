@@ -677,10 +677,13 @@ async def get_entity_data(
                 if entity_id and entity_id not in entities:
                     code = err.get("code") or "ENDPOINT_UNREACHABLE"
                     if code in (
+                        "ENDPOINT_UNREACHABLE",
                         "TransientAccessTokenRetrievalException",
                         "NO_SUCH_ENDPOINT",
                         "DEVICE_DELETED",
                         "INVALID_ACCESS_TOKEN_EXCEPTION",
+                        "DEVICE_OFFLINE",
+                        "UNREACHABLE",
                     ):
                         entities[entity_id] = [
                             {
@@ -719,10 +722,13 @@ def parse_availability_from_coordinator(
             if str(val).upper() in ("UNREACHABLE", "OFFLINE", "DOWN"):
                 return False
         if cap_state.get("error") in (
+            "ENDPOINT_UNREACHABLE",
             "TransientAccessTokenRetrievalException",
             "NO_SUCH_ENDPOINT",
             "DEVICE_DELETED",
             "INVALID_ACCESS_TOKEN_EXCEPTION",
+            "DEVICE_OFFLINE",
+            "UNREACHABLE",
         ):
             return False
 

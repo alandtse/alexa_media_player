@@ -416,10 +416,13 @@ class TestParseAvailabilityFromCoordinator:
     def test_entity_with_hard_error_codes(self):
         """Test returns False when hard unrecoverable error code is present."""
         for error_code in (
+            "ENDPOINT_UNREACHABLE",
             "TransientAccessTokenRetrievalException",
             "NO_SUCH_ENDPOINT",
             "DEVICE_DELETED",
             "INVALID_ACCESS_TOKEN_EXCEPTION",
+            "DEVICE_OFFLINE",
+            "UNREACHABLE",
         ):
             coord = self.MockCoordinator(
                 data={
@@ -434,19 +437,3 @@ class TestParseAvailabilityFromCoordinator:
                 }
             )
             assert parse_availability_from_coordinator(coord, "dev1") is False
-
-    def test_entity_with_transient_endpoint_unreachable_remains_available(self):
-        """Test transient ENDPOINT_UNREACHABLE does not falsely mark entity offline."""
-        coord = self.MockCoordinator(
-            data={
-                "dev1": [
-                    {
-                        "namespace": "Alexa.EndpointHealth",
-                        "name": "connectivity",
-                        "value": {"value": "OK"},
-                        "error": "ENDPOINT_UNREACHABLE",
-                    }
-                ]
-            }
-        )
-        assert parse_availability_from_coordinator(coord, "dev1") is True

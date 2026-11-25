@@ -38,6 +38,7 @@ from . import (
     hide_email,
 )
 from .alexa_entity import (
+    parse_availability_from_coordinator,
     parse_brightness_from_coordinator,
     parse_color_from_coordinator,
     parse_color_temp_from_coordinator,
@@ -183,6 +184,13 @@ class AlexaLight(CoordinatorEntity, LightEntity):
                 return ColorMode.COLOR_TEMP
             return ColorMode.HS
         return self._attr_supported_color_modes[0]
+
+    @property
+    def available(self) -> bool:
+        """Return whether the light is available."""
+        return super().available and parse_availability_from_coordinator(
+            self.coordinator, self.alexa_entity_id
+        )
 
     @property
     def is_on(self):

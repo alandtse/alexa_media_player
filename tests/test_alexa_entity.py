@@ -363,10 +363,10 @@ class TestParseAvailabilityFromCoordinator:
         coord = self.MockCoordinator(data={"dev1": []}, last_update_success=False)
         assert parse_availability_from_coordinator(coord, "dev1") is False
 
-    def test_coordinator_missing_entity(self):
-        """Test returns False when entity is not in coordinator data."""
+    def test_coordinator_missing_entity_assumed_available(self):
+        """Test returns True (assumed available) when entity is not in coordinator data."""
         coord = self.MockCoordinator(data={"dev1": []})
-        assert parse_availability_from_coordinator(coord, "dev2") is False
+        assert parse_availability_from_coordinator(coord, "dev2") is True
 
     def test_coordinator_empty_data(self):
         """Test returns False when coordinator data is None."""
@@ -413,13 +413,13 @@ class TestParseAvailabilityFromCoordinator:
         )
         assert parse_availability_from_coordinator(coord, "dev1") is False
 
-    def test_entity_with_error_code(self):
-        """Test returns False when error code is present."""
+    def test_entity_with_hard_error_codes(self):
+        """Test returns False when hard unrecoverable error code is present."""
         for error_code in (
-            "ENDPOINT_UNREACHABLE",
             "TransientAccessTokenRetrievalException",
             "NO_SUCH_ENDPOINT",
-            "DEVICE_OFFLINE",
+            "DEVICE_DELETED",
+            "INVALID_ACCESS_TOKEN_EXCEPTION",
         ):
             coord = self.MockCoordinator(
                 data={
@@ -434,3 +434,19 @@ class TestParseAvailabilityFromCoordinator:
                 }
             )
             assert parse_availability_from_coordinator(coord, "dev1") is False
+
+    def test_entity_with_transient_endpoint_unreachable_remains_available(self):
+        """Test transient ENDPOINT_UNREACHABLE does not falsely mark entity offline."""
+        coord = self.MockCoordinator(
+            data={
+                "dev1": [
+                    {
+                        "namespace": "Alexa.EndpointHealth",
+                        "name": "connectivity",
+                        "value": {"value": "OK"},
+                        "error": "ENDPOINT_UNREACHABLE",
+                    }
+                ]
+            }
+        )
+        assert parse_availability_from_coordinator(coord, "dev1") is True

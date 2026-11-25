@@ -649,9 +649,7 @@ async def get_entity_data(
 
     entities = {}
     if entity_ids:
-        raw = await AlexaAPI.get_entity_state(
-            login_obj, entity_ids=entity_ids, appliance_ids=entity_ids
-        )
+        raw = await AlexaAPI.get_entity_state(login_obj, entity_ids=entity_ids)
         if isinstance(raw, dict):
             device_states = raw.get("deviceStates", [])
             for device_state in device_states:
@@ -676,15 +674,22 @@ async def get_entity_data(
 
             for err in raw.get("errors", []):
                 entity_id = safe_get(err, ["entity", "entityId"])
-                if entity_id:
-                    entities[entity_id] = [
-                        {
-                            "namespace": "Alexa.EndpointHealth",
-                            "name": "connectivity",
-                            "value": {"value": "UNREACHABLE"},
-                            "error": err.get("code") or "ENDPOINT_UNREACHABLE",
-                        }
-                    ]
+                if entity_id and entity_id not in entities:
+                    code = err.get("code") or "ENDPOINT_UNREACHABLE"
+                    if code in (
+                        "TransientAccessTokenRetrievalException",
+                        "NO_SUCH_ENDPOINT",
+                        "DEVICE_DELETED",
+                        "INVALID_ACCESS_TOKEN_EXCEPTION",
+                    ):
+                        entities[entity_id] = [
+                            {
+                                "namespace": "Alexa.EndpointHealth",
+                                "name": "connectivity",
+                                "value": {"value": "UNREACHABLE"},
+                                "error": code,
+                            }
+                        ]
     return entities
 
 
@@ -694,8 +699,10 @@ def parse_availability_from_coordinator(
     """Get the availability of an entity from the coordinator data."""
     if not coordinator.last_update_success:
         return False
-    if not coordinator.data or entity_id not in coordinator.data:
+    if not coordinator.data:
         return False
+    if entity_id not in coordinator.data:
+        return True
 
     cap_states = coordinator.data[entity_id]
     if not cap_states:
@@ -712,11 +719,10 @@ def parse_availability_from_coordinator(
             if str(val).upper() in ("UNREACHABLE", "OFFLINE", "DOWN"):
                 return False
         if cap_state.get("error") in (
-            "ENDPOINT_UNREACHABLE",
-            "DEVICE_OFFLINE",
-            "UNREACHABLE",
             "TransientAccessTokenRetrievalException",
             "NO_SUCH_ENDPOINT",
+            "DEVICE_DELETED",
+            "INVALID_ACCESS_TOKEN_EXCEPTION",
         ):
             return False
 

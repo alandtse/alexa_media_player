@@ -44,22 +44,57 @@ Allows for control of Amazon Echo products as home assistant media devices with 
 
 # Services
 
-| Service                                | Description                                           |
-| -------------------------------------- | ----------------------------------------------------- |
-| `alexa_media.force_logout`             | Mark one or all accounts for reauthentication.        |
-| `alexa_media.restore_volume`           | Restore the previous volume of a media player.        |
-| `alexa_media.get_history_records`      | Store recent voice-history records on a media player. |
-| `alexa_media.update_last_called`       | Refresh which Echo received the last voice command.   |
-| `alexa_media.enable_network_discovery` | Re-run Alexa network discovery.                       |
-| `alexa_media.amazon_kids_enable`       | Assign an Echo to an Amazon Kids child profile.       |
-| `alexa_media.amazon_kids_disable`      | Release an Echo from Amazon Kids.                     |
-| `alexa_media.repeat_last_message`      | Repeat the last message sent to a media player.       |
-| `alexa_media.create_alarm`             | Create an alarm on an Echo.                           |
-| `alexa_media.list_alarms`              | Return cached alarm metadata for one Echo.            |
-| `alexa_media.enable_alarm`             | Turn on an Echo alarm.                                |
-| `alexa_media.disable_alarm`            | Turn off an Echo alarm without deleting it.           |
-| `alexa_media.delete_alarm`             | Delete an Echo alarm.                                 |
-| `alexa_media.skip_next_alarm`          | Skip the next scheduled alarm.                        |
+| Service                                     | Description                                             |
+| ------------------------------------------- | ------------------------------------------------------- |
+| `alexa_media.force_logout`                  | Mark one or all accounts for reauthentication.          |
+| `alexa_media.restore_volume`                | Restore the previous volume of a media player.          |
+| `alexa_media.get_history_records`           | Store recent voice-history records on a media player.   |
+| `alexa_media.update_last_called`            | Refresh which Echo received the last voice command.     |
+| `alexa_media.enable_network_discovery`      | Re-run Alexa network discovery.                         |
+| `alexa_media.amazon_kids_enable`            | Assign an Echo to an Amazon Kids child profile.         |
+| `alexa_media.amazon_kids_disable`           | Release an Echo from Amazon Kids.                       |
+| `alexa_media.repeat_last_message`           | Repeat the last message sent to a media player.         |
+| `alexa_media.create_alarm`                  | Create an alarm on an Echo.                             |
+| `alexa_media.list_alarms`                   | Return cached alarm metadata for one Echo.              |
+| `alexa_media.enable_alarm`                  | Turn on an Echo alarm.                                  |
+| `alexa_media.disable_alarm`                 | Turn off an Echo alarm without deleting it.             |
+| `alexa_media.delete_alarm`                  | Delete an Echo alarm.                                   |
+| `alexa_media.skip_next_alarm`               | Skip the next scheduled alarm.                          |
+| `alexa_media.get_smart_home_groups`         | Return the smart-home groups and devices of an account. |
+| `alexa_media.create_smart_home_group`       | Create a smart-home group (room).                       |
+| `alexa_media.rename_smart_home_group`       | Rename a smart-home group.                              |
+| `alexa_media.set_smart_home_group_members`  | Replace the devices of a smart-home group.              |
+| `alexa_media.delete_smart_home_group`       | Delete a smart-home group.                              |
+| `alexa_media.rename_smart_home_device`      | Rename a smart-home device in the Alexa account.        |
+| `alexa_media.set_smart_home_device_enabled` | Enable or disable a smart-home device.                  |
+| `alexa_media.forget_smart_home_device`      | Remove a smart-home device from the Alexa account.      |
+| `alexa_media.discover_smart_home_devices`   | Start an Alexa smart-home device search.                |
+
+## Smart-home groups and devices
+
+The smart-home services change the Alexa account itself, so only Home Assistant
+administrators can call them. Each call uses one account: set `email` when more
+than one account is set up.
+
+`alexa_media.get_smart_home_groups` returns the groups (rooms) with their `id`,
+`name` and `appliance_ids`, and the devices with their `endpoint_id`,
+`appliance_id` and `name`. Groups list their devices by `appliance_id`, so use
+these IDs for `create_smart_home_group` and `set_smart_home_group_members`. The
+device services take the `endpoint_id`.
+
+```yaml
+action: alexa_media.create_smart_home_group
+data:
+  name: Office
+  appliance_ids:
+    - "<appliance_id from get_smart_home_groups>"
+response_variable: group
+```
+
+Alexa does not accept device names with an underscore.
+`discover_smart_home_devices` works like the device search in the Alexa app:
+Echo devices with a Zigbee hub search as well, so it can add new devices to the
+account.
 
 # Events
 

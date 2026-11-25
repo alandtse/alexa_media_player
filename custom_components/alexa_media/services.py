@@ -31,10 +31,15 @@ import voluptuous as vol
 
 from .const import (
     ATTR_ALARM_ID,
+    ATTR_APPLIANCE_IDS,
     ATTR_CHILD,
     ATTR_DAYS,
     ATTR_EMAIL,
+    ATTR_ENABLED,
+    ATTR_ENDPOINT_ID,
     ATTR_ENTITY_ID,
+    ATTR_GROUP_ID,
+    ATTR_NAME,
     ATTR_NUM_ENTRIES,
     ATTR_TIME,
     DATA_ALEXAMEDIA,
@@ -43,14 +48,23 @@ from .const import (
     SERVICE_AMAZON_KIDS_DISABLE,
     SERVICE_AMAZON_KIDS_ENABLE,
     SERVICE_CREATE_ALARM,
+    SERVICE_CREATE_SMART_HOME_GROUP,
     SERVICE_DELETE_ALARM,
+    SERVICE_DELETE_SMART_HOME_GROUP,
     SERVICE_DISABLE_ALARM,
+    SERVICE_DISCOVER_SMART_HOME_DEVICES,
     SERVICE_ENABLE_ALARM,
     SERVICE_ENABLE_NETWORK_DISCOVERY,
     SERVICE_FORCE_LOGOUT,
+    SERVICE_FORGET_SMART_HOME_DEVICE,
     SERVICE_GET_HISTORY_RECORDS,
+    SERVICE_GET_SMART_HOME_GROUPS,
+    SERVICE_RENAME_SMART_HOME_DEVICE,
+    SERVICE_RENAME_SMART_HOME_GROUP,
     SERVICE_REPEAT_LAST_MESSAGE,
     SERVICE_RESTORE_VOLUME,
+    SERVICE_SET_SMART_HOME_DEVICE_ENABLED,
+    SERVICE_SET_SMART_HOME_GROUP_MEMBERS,
     SERVICE_SKIP_NEXT_ALARM,
     SERVICE_UPDATE_LAST_CALLED,
 )
@@ -120,6 +134,47 @@ ALARM_SCHEMA = vol.Schema(
         vol.Required(ATTR_ENTITY_ID): cv.entity_id,
         vol.Required(ATTR_ALARM_ID): cv.string,
     }
+)
+
+# Smart-home services change the Alexa account, so each call targets one account.
+SMART_HOME_SCHEMA = vol.Schema({vol.Optional(ATTR_EMAIL): cv.string})
+NON_EMPTY_STRING = vol.All(cv.string, vol.Strip, vol.Length(min=1))
+APPLIANCE_IDS = vol.All(cv.ensure_list, [NON_EMPTY_STRING])
+CREATE_SMART_HOME_GROUP_SCHEMA = SMART_HOME_SCHEMA.extend(
+    {
+        vol.Required(ATTR_NAME): NON_EMPTY_STRING,
+        vol.Optional(ATTR_APPLIANCE_IDS, default=[]): APPLIANCE_IDS,
+    }
+)
+RENAME_SMART_HOME_GROUP_SCHEMA = SMART_HOME_SCHEMA.extend(
+    {
+        vol.Required(ATTR_GROUP_ID): NON_EMPTY_STRING,
+        vol.Required(ATTR_NAME): NON_EMPTY_STRING,
+    }
+)
+SET_SMART_HOME_GROUP_MEMBERS_SCHEMA = SMART_HOME_SCHEMA.extend(
+    {
+        vol.Required(ATTR_GROUP_ID): NON_EMPTY_STRING,
+        vol.Required(ATTR_APPLIANCE_IDS): APPLIANCE_IDS,
+    }
+)
+SMART_HOME_GROUP_SCHEMA = SMART_HOME_SCHEMA.extend(
+    {vol.Required(ATTR_GROUP_ID): NON_EMPTY_STRING}
+)
+RENAME_SMART_HOME_DEVICE_SCHEMA = SMART_HOME_SCHEMA.extend(
+    {
+        vol.Required(ATTR_ENDPOINT_ID): NON_EMPTY_STRING,
+        vol.Required(ATTR_NAME): NON_EMPTY_STRING,
+    }
+)
+SET_SMART_HOME_DEVICE_ENABLED_SCHEMA = SMART_HOME_SCHEMA.extend(
+    {
+        vol.Required(ATTR_ENDPOINT_ID): NON_EMPTY_STRING,
+        vol.Required(ATTR_ENABLED): cv.boolean,
+    }
+)
+SMART_HOME_DEVICE_SCHEMA = SMART_HOME_SCHEMA.extend(
+    {vol.Required(ATTR_ENDPOINT_ID): NON_EMPTY_STRING}
 )
 
 
@@ -249,6 +304,31 @@ def next_alarm_time(
         return when.isoformat(timespec="seconds")
 
 
+def smart_home_group(group: dict[str, Any]) -> dict[str, Any]:
+    """Return the fields of an Alexa smart-home group that services expose."""
+    return {
+        "id": group["groupId"],
+        "name": group.get("name"),
+        "appliance_ids": [
+            appliance_id
+            for appliance_id in group.get("applianceIds") or []
+            if isinstance(appliance_id, str)
+        ],
+    }
+
+
+def smart_home_device(endpoint: dict[str, Any]) -> dict[str, Any]:
+    """Return the IDs and name of an Alexa smart-home endpoint."""
+    appliance = endpoint.get("legacyAppliance")
+    if not isinstance(appliance, dict):
+        appliance = {}
+    return {
+        "endpoint_id": endpoint.get("id"),
+        "appliance_id": appliance.get("applianceId"),
+        "name": appliance.get("friendlyName"),
+    }
+
+
 @dataclass(frozen=True)
 class AlexaServiceDef:
     """Definition for an Alexa Media custom service."""
@@ -256,6 +336,7 @@ class AlexaServiceDef:
     name: str  # service name as exposed in HA: alexa_media.<name>
     schema: vol.Schema  # voluptuous schema
     handler: str  # method name on AlexaMediaServices
+    supports_response: SupportsResponse = SupportsResponse.NONE
 
 
 SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
@@ -308,6 +389,7 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         name="list_alarms",
         schema=LIST_ALARMS_SCHEMA,
         handler="list_alarms",
+        supports_response=SupportsResponse.ONLY,
     ),
     AlexaServiceDef(
         name=SERVICE_ENABLE_ALARM,
@@ -328,6 +410,53 @@ SERVICE_DEFS: tuple[AlexaServiceDef, ...] = (
         name=SERVICE_SKIP_NEXT_ALARM,
         schema=ALARM_SCHEMA,
         handler="skip_next_alarm",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_GET_SMART_HOME_GROUPS,
+        schema=SMART_HOME_SCHEMA,
+        handler="get_smart_home_groups",
+        supports_response=SupportsResponse.ONLY,
+    ),
+    AlexaServiceDef(
+        name=SERVICE_CREATE_SMART_HOME_GROUP,
+        schema=CREATE_SMART_HOME_GROUP_SCHEMA,
+        handler="create_smart_home_group",
+        supports_response=SupportsResponse.OPTIONAL,
+    ),
+    AlexaServiceDef(
+        name=SERVICE_RENAME_SMART_HOME_GROUP,
+        schema=RENAME_SMART_HOME_GROUP_SCHEMA,
+        handler="rename_smart_home_group",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_SET_SMART_HOME_GROUP_MEMBERS,
+        schema=SET_SMART_HOME_GROUP_MEMBERS_SCHEMA,
+        handler="set_smart_home_group_members",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_DELETE_SMART_HOME_GROUP,
+        schema=SMART_HOME_GROUP_SCHEMA,
+        handler="delete_smart_home_group",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_RENAME_SMART_HOME_DEVICE,
+        schema=RENAME_SMART_HOME_DEVICE_SCHEMA,
+        handler="rename_smart_home_device",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_SET_SMART_HOME_DEVICE_ENABLED,
+        schema=SET_SMART_HOME_DEVICE_ENABLED_SCHEMA,
+        handler="set_smart_home_device_enabled",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_FORGET_SMART_HOME_DEVICE,
+        schema=SMART_HOME_DEVICE_SCHEMA,
+        handler="forget_smart_home_device",
+    ),
+    AlexaServiceDef(
+        name=SERVICE_DISCOVER_SMART_HOME_DEVICES,
+        schema=SMART_HOME_SCHEMA,
+        handler="discover_smart_home_devices",
     ),
 )
 
@@ -350,11 +479,7 @@ class AlexaMediaServices:
                 service_def.name,
                 handler,
                 schema=service_def.schema,
-                supports_response=(
-                    SupportsResponse.ONLY
-                    if service_def.name == "list_alarms"
-                    else SupportsResponse.NONE
-                ),
+                supports_response=service_def.supports_response,
             )
 
     async def unregister(self) -> None:
@@ -1155,3 +1280,193 @@ class AlexaMediaServices:
                 "enable_network_discovery called for %s but no matching Alexa Media accounts were found",
                 target_emails,
             )
+
+    async def _require_admin(self, call: ServiceCall) -> None:
+        """Allow changes to the Alexa account only for administrators."""
+        if not (user_id := call.context.user_id):
+            return
+        user = await self.hass.auth.async_get_user(user_id)
+        if user is None:
+            raise UnknownUser(context=call.context)
+        if not user.is_admin:
+            raise Unauthorized(context=call.context)
+
+    async def _smart_home_account(self, call: ServiceCall) -> tuple[str, Any]:
+        """Return the email and login of the account a smart-home call targets."""
+        await self._require_admin(call)
+        accounts = self._get_accounts()
+        email = call.data.get(ATTR_EMAIL)
+        if email:
+            self._validate_requested_emails([email], accounts)
+        elif len(accounts) == 1:
+            email = next(iter(accounts))
+        else:
+            raise ServiceValidationError(
+                "Several Alexa Media accounts are loaded; set email to choose one"
+            )
+        return email, accounts[email]["login_obj"]
+
+    async def _smart_home_request(
+        self, email: str, login_obj, action: str, request: Callable[..., Any], *args
+    ) -> Any:
+        """Run an AlexaAPI smart-home request and report its errors."""
+        try:
+            return await request(login_obj, *args)
+        except AlexapyLoginError as err:
+            report_relogin_required(self.hass, login_obj, email)
+            raise HomeAssistantError(
+                f"Unable to {action}: the Alexa login of {hide_email(email)} "
+                "expired; reauthenticate the account"
+            ) from err
+        except (AlexapyConnectionError, AlexapyTooManyRequestsError) as err:
+            raise HomeAssistantError(
+                f"Unable to {action}: Alexa did not respond ({type(err).__name__})"
+            ) from err
+
+    async def _change_smart_home(
+        self, call: ServiceCall, action: str, request: Callable[..., Any], *args
+    ) -> None:
+        """Run a smart-home change and raise if Alexa did not accept it."""
+        email, login_obj = await self._smart_home_account(call)
+        if not await self._smart_home_request(email, login_obj, action, request, *args):
+            hint = "; check the IDs with get_smart_home_groups" if args else ""
+            raise HomeAssistantError(f"Alexa did not {action}{hint}")
+        _LOGGER.debug("Alexa accepted the request to %s", action)
+
+    async def get_smart_home_groups(self, call: ServiceCall) -> dict[str, Any]:
+        """Return the smart-home groups and devices of an Alexa account."""
+        email, login_obj = await self._smart_home_account(call)
+        action = "read the smart-home groups"
+        groups = await self._smart_home_request(
+            email, login_obj, action, AlexaAPI.get_appliance_groups
+        )
+        endpoints = await self._smart_home_request(
+            email, login_obj, action, AlexaAPI.get_devices_gql
+        )
+        if not isinstance(groups, list) or not isinstance(endpoints, list):
+            raise HomeAssistantError(
+                "Alexa did not return the smart-home groups and devices"
+            )
+        group_list = [
+            smart_home_group(group)
+            for group in groups
+            if isinstance(group, dict) and group.get("groupId")
+        ]
+        device_list = [
+            device
+            for device in (
+                smart_home_device(endpoint)
+                for endpoint in endpoints
+                if isinstance(endpoint, dict)
+            )
+            if device["endpoint_id"] or device["appliance_id"]
+        ]
+        group_list.sort(key=lambda group: (group["name"] or "").casefold())
+        device_list.sort(key=lambda device: (device["name"] or "").casefold())
+        _LOGGER.debug(
+            "Read %s smart-home groups and %s devices for %s",
+            len(group_list),
+            len(device_list),
+            hide_email(email),
+        )
+        return {"groups": group_list, "devices": device_list}
+
+    async def create_smart_home_group(self, call: ServiceCall) -> dict[str, Any]:
+        """Create a smart-home group and return it."""
+        email, login_obj = await self._smart_home_account(call)
+        name = call.data[ATTR_NAME]
+        group = await self._smart_home_request(
+            email,
+            login_obj,
+            f"create the smart-home group {name}",
+            AlexaAPI.create_appliance_group,
+            name,
+            call.data[ATTR_APPLIANCE_IDS],
+        )
+        if not isinstance(group, dict) or not group.get("groupId"):
+            # The request may have succeeded even though the new group was not
+            # found afterwards, so a blind retry could create a duplicate.
+            raise HomeAssistantError(
+                f"Alexa did not confirm the smart-home group {name}; "
+                "check get_smart_home_groups before trying again"
+            )
+        _LOGGER.debug("Created a smart-home group for %s", hide_email(email))
+        return smart_home_group(group)
+
+    async def rename_smart_home_group(self, call: ServiceCall) -> None:
+        """Rename a smart-home group and keep its members."""
+        group_id = call.data[ATTR_GROUP_ID]
+        await self._change_smart_home(
+            call,
+            f"rename the smart-home group {group_id}",
+            AlexaAPI.rename_appliance_group,
+            group_id,
+            call.data[ATTR_NAME],
+        )
+
+    async def set_smart_home_group_members(self, call: ServiceCall) -> None:
+        """Replace the members of a smart-home group."""
+        group_id = call.data[ATTR_GROUP_ID]
+        await self._change_smart_home(
+            call,
+            f"change the members of the smart-home group {group_id}",
+            AlexaAPI.set_appliance_group_members,
+            group_id,
+            call.data[ATTR_APPLIANCE_IDS],
+        )
+
+    async def delete_smart_home_group(self, call: ServiceCall) -> None:
+        """Delete a smart-home group but not its devices."""
+        group_id = call.data[ATTR_GROUP_ID]
+        await self._change_smart_home(
+            call,
+            f"delete the smart-home group {group_id}",
+            AlexaAPI.delete_appliance_group,
+            group_id,
+        )
+
+    async def rename_smart_home_device(self, call: ServiceCall) -> None:
+        """Rename a smart-home device in the Alexa account."""
+        endpoint_id = call.data[ATTR_ENDPOINT_ID]
+        name = call.data[ATTR_NAME]
+        if "_" in name:
+            raise ServiceValidationError(
+                "Alexa does not accept device names with an underscore"
+            )
+        await self._change_smart_home(
+            call,
+            f"rename the smart-home device {endpoint_id}",
+            AlexaAPI.set_endpoint_friendly_name,
+            endpoint_id,
+            name,
+        )
+
+    async def set_smart_home_device_enabled(self, call: ServiceCall) -> None:
+        """Enable or disable a smart-home device in the Alexa account."""
+        endpoint_id = call.data[ATTR_ENDPOINT_ID]
+        enabled = call.data[ATTR_ENABLED]
+        await self._change_smart_home(
+            call,
+            f"{'enable' if enabled else 'disable'} the smart-home device {endpoint_id}",
+            AlexaAPI.set_endpoint_enabled,
+            endpoint_id,
+            enabled,
+        )
+
+    async def forget_smart_home_device(self, call: ServiceCall) -> None:
+        """Remove a smart-home device from the Alexa account."""
+        endpoint_id = call.data[ATTR_ENDPOINT_ID]
+        await self._change_smart_home(
+            call,
+            f"forget the smart-home device {endpoint_id}",
+            AlexaAPI.forget_endpoint,
+            endpoint_id,
+        )
+
+    async def discover_smart_home_devices(self, call: ServiceCall) -> None:
+        """Ask Alexa to search for new smart-home devices."""
+        await self._change_smart_home(
+            call,
+            "start a smart-home device search",
+            AlexaAPI.discover_appliances,
+        )

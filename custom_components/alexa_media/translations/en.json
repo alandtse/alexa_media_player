@@ -211,6 +211,24 @@
       },
       "name": "Create alarm"
     },
+    "create_smart_home_group": {
+      "description": "Creates a smart-home group (room) and returns its ID.",
+      "fields": {
+        "appliance_ids": {
+          "description": "Appliance IDs of the devices to add to the group.",
+          "name": "Appliance IDs"
+        },
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        },
+        "name": {
+          "description": "Name of the new group.",
+          "name": "Name"
+        }
+      },
+      "name": "Create smart-home group"
+    },
     "delete_alarm": {
       "description": "Deletes an Echo alarm.",
       "fields": {
@@ -225,6 +243,20 @@
       },
       "name": "Delete alarm"
     },
+    "delete_smart_home_group": {
+      "description": "Deletes a smart-home group. Its devices stay in the account.",
+      "fields": {
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        },
+        "group_id": {
+          "description": "ID of the group, from get_smart_home_groups.",
+          "name": "Group ID"
+        }
+      },
+      "name": "Delete smart-home group"
+    },
     "disable_alarm": {
       "description": "Turns off an Echo alarm without deleting it.",
       "fields": {
@@ -238,6 +270,16 @@
         }
       },
       "name": "Disable alarm"
+    },
+    "discover_smart_home_devices": {
+      "description": "Starts an Alexa smart-home device search, like the device search in the Alexa app. Echo devices with a Zigbee hub search as well, so new devices can be added to the account without a group.",
+      "fields": {
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        }
+      },
+      "name": "Discover smart-home devices"
     },
     "enable_alarm": {
       "description": "Turns on an Echo alarm.",
@@ -273,6 +315,20 @@
       },
       "name": "Force Logout"
     },
+    "forget_smart_home_device": {
+      "description": "Removes a smart-home device from the Alexa account. A later device search can add it again.",
+      "fields": {
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        },
+        "endpoint_id": {
+          "description": "Endpoint ID of the device, from get_smart_home_groups.",
+          "name": "Endpoint ID"
+        }
+      },
+      "name": "Forget smart-home device"
+    },
     "get_history_records": {
       "description": "Parses the history records for the specified device",
       "fields": {
@@ -287,6 +343,16 @@
       },
       "name": "Get History Records"
     },
+    "get_smart_home_groups": {
+      "description": "Returns the smart-home groups (rooms) of an Alexa account and its smart-home devices with their endpoint and appliance IDs.",
+      "fields": {
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        }
+      },
+      "name": "Get smart-home groups"
+    },
     "list_alarms": {
       "description": "Returns cached alarm metadata for one Echo, including music station/provider.",
       "fields": {
@@ -295,6 +361,42 @@
         }
       },
       "name": "List alarms (experimental)"
+    },
+    "rename_smart_home_device": {
+      "description": "Renames a smart-home device in the Alexa account. Alexa does not accept names with an underscore.",
+      "fields": {
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        },
+        "endpoint_id": {
+          "description": "Endpoint ID of the device, from get_smart_home_groups.",
+          "name": "Endpoint ID"
+        },
+        "name": {
+          "description": "New name of the device.",
+          "name": "Name"
+        }
+      },
+      "name": "Rename smart-home device"
+    },
+    "rename_smart_home_group": {
+      "description": "Renames a smart-home group and keeps its devices.",
+      "fields": {
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        },
+        "group_id": {
+          "description": "ID of the group, from get_smart_home_groups.",
+          "name": "Group ID"
+        },
+        "name": {
+          "description": "New name of the group.",
+          "name": "Name"
+        }
+      },
+      "name": "Rename smart-home group"
     },
     "repeat_last_message": {
       "description": "Sends the last TTS message or announcement sent to an Echo by the notify service again. Messages are kept until Home Assistant restarts or the integration reloads.",
@@ -315,6 +417,42 @@
         }
       },
       "name": "Restore Previous Volume"
+    },
+    "set_smart_home_device_enabled": {
+      "description": "Enables or disables a smart-home device in the Alexa account.",
+      "fields": {
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        },
+        "enabled": {
+          "description": "Whether the device is enabled.",
+          "name": "Enabled"
+        },
+        "endpoint_id": {
+          "description": "Endpoint ID of the device, from get_smart_home_groups.",
+          "name": "Endpoint ID"
+        }
+      },
+      "name": "Enable or disable smart-home device"
+    },
+    "set_smart_home_group_members": {
+      "description": "Replaces the devices of a smart-home group.",
+      "fields": {
+        "appliance_ids": {
+          "description": "Appliance IDs of all devices the group should contain. An empty list removes all devices.",
+          "name": "Appliance IDs"
+        },
+        "email": {
+          "description": "Alexa account to use. Required when more than one account is set up.",
+          "name": "Account email"
+        },
+        "group_id": {
+          "description": "ID of the group, from get_smart_home_groups.",
+          "name": "Group ID"
+        }
+      },
+      "name": "Set smart-home group members"
     },
     "skip_next_alarm": {
       "description": "Requests skipping the next occurrence of an active recurring Echo alarm. Check the next alarm sensor after it refreshes before calling again.",

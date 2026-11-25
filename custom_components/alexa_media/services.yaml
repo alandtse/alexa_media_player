@@ -230,3 +230,208 @@ repeat_last_message:
           domain: media_player
           integration: alexa_media
           multiple: true
+
+get_smart_home_groups:
+  name: Get smart-home groups
+  description: >
+    Returns the smart-home groups (rooms) of an Alexa account and its
+    smart-home devices with their endpoint and appliance IDs.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:
+
+create_smart_home_group:
+  name: Create smart-home group
+  description: Creates a smart-home group (room) and returns its ID.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:
+    name:
+      name: Name
+      description: Name of the new group.
+      required: true
+      example: Office
+      selector:
+        text:
+    appliance_ids:
+      name: Appliance IDs
+      description: Appliance IDs of the devices to add to the group.
+      required: false
+      selector:
+        text:
+          multiple: true
+
+rename_smart_home_group:
+  name: Rename smart-home group
+  description: Renames a smart-home group and keeps its devices.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:
+    group_id:
+      name: Group ID
+      description: ID of the group, from get_smart_home_groups.
+      required: true
+      selector:
+        text:
+    name:
+      name: Name
+      description: New name of the group.
+      required: true
+      example: Office
+      selector:
+        text:
+
+set_smart_home_group_members:
+  name: Set smart-home group members
+  description: Replaces the devices of a smart-home group.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:
+    group_id:
+      name: Group ID
+      description: ID of the group, from get_smart_home_groups.
+      required: true
+      selector:
+        text:
+    appliance_ids:
+      name: Appliance IDs
+      description: >
+        Appliance IDs of all devices the group should contain. An empty list
+        removes all devices.
+      required: true
+      selector:
+        text:
+          multiple: true
+
+delete_smart_home_group:
+  name: Delete smart-home group
+  description: Deletes a smart-home group. Its devices stay in the account.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:
+    group_id:
+      name: Group ID
+      description: ID of the group, from get_smart_home_groups.
+      required: true
+      selector:
+        text:
+
+rename_smart_home_device:
+  name: Rename smart-home device
+  description: >
+    Renames a smart-home device in the Alexa account. Alexa does not accept
+    names with an underscore.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:
+    endpoint_id:
+      name: Endpoint ID
+      description: Endpoint ID of the device, from get_smart_home_groups.
+      required: true
+      selector:
+        text:
+    name:
+      name: Name
+      description: New name of the device.
+      required: true
+      example: Desk lamp
+      selector:
+        text:
+
+set_smart_home_device_enabled:
+  name: Enable or disable smart-home device
+  description: Enables or disables a smart-home device in the Alexa account.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:
+    endpoint_id:
+      name: Endpoint ID
+      description: Endpoint ID of the device, from get_smart_home_groups.
+      required: true
+      selector:
+        text:
+    enabled:
+      name: Enabled
+      description: Whether the device is enabled.
+      required: true
+      selector:
+        boolean:
+
+forget_smart_home_device:
+  name: Forget smart-home device
+  description: >
+    Removes a smart-home device from the Alexa account. A later device search
+    can add it again.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:
+    endpoint_id:
+      name: Endpoint ID
+      description: Endpoint ID of the device, from get_smart_home_groups.
+      required: true
+      selector:
+        text:
+
+discover_smart_home_devices:
+  name: Discover smart-home devices
+  description: >
+    Starts an Alexa smart-home device search, like the device search in the
+    Alexa app. Echo devices with a Zigbee hub search as well, so new devices
+    can be added to the account without a group.
+  fields:
+    email:
+      name: Account email
+      description: >
+        Alexa account to use. Required when more than one account is set up.
+      required: false
+      example: "my_email@alexa.com"
+      selector:
+        text:

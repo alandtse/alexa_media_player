@@ -297,3 +297,51 @@ class TestIsLocal:
         appliance = {"applianceId": "invalid_pattern"}
         result = is_local(appliance)
         assert result is False
+
+    def test_is_local_third_party_smartlife_skill(self):
+        """Test is_local returns True for SmartLife skill-connected device."""
+        appliance = {
+            "manufacturerName": "SmartLife",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert is_local(appliance)
+
+    def test_is_local_third_party_smartthings_skill(self):
+        """Test is_local returns True for SmartThings skill-connected device."""
+        appliance = {
+            "manufacturerName": "SmartThings",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert is_local(appliance)
+
+    def test_is_local_third_party_tuya_skill(self):
+        """Test is_local returns True for Tuya skill-connected device."""
+        appliance = {
+            "manufacturerName": "Tuya",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert is_local(appliance)
+
+    def test_is_local_loopback_home_assistant(self):
+        """Test is_local returns False for Home Assistant bridge loopback."""
+        appliance = {
+            "manufacturerName": "Home Assistant",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert not is_local(appliance)
+
+    def test_is_local_loopback_nodered(self):
+        """Test is_local returns False for Node-RED bridge loopback."""
+        appliance = {
+            "manufacturerName": "Node-RED",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert not is_local(appliance)
+
+    def test_is_local_loopback_matterbridge(self):
+        """Test is_local returns False for Matterbridge loopback."""
+        appliance = {
+            "manufacturerName": "Matterbridge",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert not is_local(appliance)

@@ -115,6 +115,42 @@ def is_local(appliance: dict[str, Any]) -> bool:
     if appliance.get("manufacturerName") in manufacturerNames:
         return not is_skill(appliance)
 
+    # Allow common third-party smart home devices (SmartLife, SmartThings, Tuya, Koogeek, Tapo, etc.)
+    # while explicitly excluding loopback bridges from Home Assistant, Node-RED, or Matterbridge.
+    third_party_manufacturers = (
+        "smartlife",
+        "smartthings",
+        "tuya",
+        "koogeek",
+        "tapo",
+        "tp-link",
+        "nanoleaf",
+        "meross",
+        "gosund",
+        "broadlink",
+        "govee",
+        "lifx",
+        "yeelight",
+        "switchbot",
+    )
+    manufacturer = str(appliance.get("manufacturerName", "")).lower()
+    if manufacturer:
+        if any(
+            loopback in manufacturer
+            for loopback in (
+                "node-red",
+                "home assistant",
+                "homeassistant",
+                "matterbridge",
+                "t0bst4r",
+                "testvendor",
+            )
+        ):
+            return False
+
+        if any(brand in manufacturer for brand in third_party_manufacturers):
+            return True
+
     # Zigbee devices are guaranteed to be local and have a particular pattern of id
     zigbee_pattern = re.compile(
         "AAA_SonarCloudService_([0-9A-F][0-9A-F]:){7}[0-9A-F][0-9A-F]", flags=re.I

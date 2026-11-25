@@ -1,0 +1,92 @@
+name: AlexaPy 1.38.0 validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify wheel and source distribution against the release tag
+        run: |
+          python - <<'PY'
+          import hashlib
+          import io
+          import json
+          import tarfile
+          import tomllib
+          import urllib.request
+          import zipfile
+          from email.parser import BytesParser
+
+          def download(url):
+              with urllib.request.urlopen(url, timeout=60) as response:
+                  return response.read()
+
+          release = json.loads(download("https://pypi.org/pypi/alexapy/1.38.0/json"))
+          hashes = {
+              "alexapy-1.38.0-py3-none-any.whl": "c2f3a57d196fdad88efb56ec20eb48739244f8675d4ed074b3038f810da19650",
+              "alexapy-1.38.0.tar.gz": "47c2bb8c879f669bb3302462fe4c31f0a38aaed77215dd92bd28006bd0cb74c5",
+          }
+          distributions = {}
+          for item in release["urls"]:
+              filename = item["filename"]
+              blob = download(item["url"])
+              assert hashlib.sha256(blob).hexdigest() == item["digests"]["sha256"] == hashes[filename]
+              distributions[item["packagetype"]] = blob
+              print(filename, hashes[filename])
+
+          with zipfile.ZipFile(io.BytesIO(distributions["bdist_wheel"])) as wheel:
+              wheel_sources = {name: wheel.read(name) for name in wheel.namelist()
+                               if name.startswith("alexapy/") and name.endswith(".py")}
+              wheel_meta = BytesParser().parsebytes(wheel.read("alexapy-1.38.0.dist-info/METADATA"))
+
+          def tar_files(blob):
+              with tarfile.open(fileobj=io.BytesIO(blob), mode="r:gz") as archive:
+                  return {member.name.split("/", 1)[1]: archive.extractfile(member).read()
+                          for member in archive.getmembers() if member.isfile()}
+
+          sdist_files = tar_files(distributions["sdist"])
+          source_meta = BytesParser().parsebytes(sdist_files["PKG-INFO"])
+          tag_commit = "72e908cc1edd0bf7c08dea7506d968b6b41ad4f7"
+          project = "https://gitlab.com/keatontaylor/alexapy"
+          tag_files = tar_files(download(f"{project}/-/archive/{tag_commit}/alexapy-{tag_commit}.tar.gz"))
+          for metadata in (wheel_meta, source_meta):
+              assert metadata["Version"] == "1.38.0"
+              assert metadata["Requires-Python"] == release["info"]["requires_python"]
+              assert sorted(metadata.get_all("Requires-Dist")) == sorted(release["info"]["requires_dist"])
+          tag_sources = {name: value for name, value in tag_files.items()
+                         if name.startswith("alexapy/") and name.endswith(".py")}
+          assert wheel_sources == tag_sources
+          assert wheel_sources == {name: sdist_files[name] for name in tag_sources}
+          assert sdist_files["pyproject.toml"] == tag_files["pyproject.toml"]
+
+          with open("poetry.lock", "rb") as input_lock:
+              record = next(p for p in tomllib.load(input_lock)["package"] if p["name"] == "alexapy")
+          assert record["version"] == "1.38.0"
+          assert {f["file"]: f["hash"] for f in record["files"]} == {
+              name: f"sha256:{digest}" for name, digest in hashes.items()
+          }
+          print(f"Matched both distributions to {len(tag_sources)} Python files at {tag_commit}")
+          PY
+      - name: Regenerate and check the Poetry lockfile
+        run: |
+          python -m pip install poetry==2.5.1 pre-commit
+          poetry check --lock
+          git show 681590d43565cb5bf459627f3b2ff439cf9bec8e:poetry.lock > poetry.lock
+          poetry lock --no-interaction
+          git diff --exit-code -- poetry.lock
+      - name: Run formatting and lint hooks
+        run: |
+          pre-commit run --files pyproject.toml poetry.lock custom_components/alexa_media/manifest.json .github/copilot-instructions.md docs/alexapy-1.37.1-validation.md tests/test_login_debug_option.py

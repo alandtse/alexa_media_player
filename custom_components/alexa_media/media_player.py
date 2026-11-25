@@ -22,6 +22,7 @@ from homeassistant.components.media_player.browse_media import (
     async_process_play_media_url,
 )
 from homeassistant.components.media_player.const import (
+    ATTR_GROUP_MEMBERS,
     ATTR_MEDIA_ANNOUNCE,
     MediaPlayerEntityFeature,
     MediaPlayerState,
@@ -1248,6 +1249,37 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         return self._cluster_members or []
 
     @property
+    def group_members(self) -> list[str] | None:
+        """Return the players that play together with this one, group first.
+
+        A speaker group or stereo/subwoofer pair lists itself and then its
+        members. A member lists the group whose session it currently mirrors,
+        and nothing while it plays on its own.
+        """
+        if not self.hass:
+            return None
+        group = self if self._cluster_members else self._get_session_parent()
+        if not group or not group.entity_id:
+            return None
+        players = safe_get(
+            self.hass.data,
+            [
+                DATA_ALEXAMEDIA,
+                "accounts",
+                self._login.email,
+                "entities",
+                "media_player",
+            ],
+            {},
+        )
+        members = [
+            player.entity_id
+            for serial in group.cluster_members
+            if (player := players.get(serial)) and player.entity_id
+        ]
+        return [group.entity_id, *members] if members else None
+
+    @property
     def session(self):
         """Return the session, if any."""
         return self._session
@@ -2148,6 +2180,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "last_message_type": last_message.get("type"),
             "last_message_timestamp": last_message.get("timestamp"),
         }
+        # Home Assistant only reports group_members for players that support
+        # join/unjoin, which Alexa groups cannot do, so report it here.
+        if group_members := self.group_members:
+            attr[ATTR_GROUP_MEMBERS] = group_members
         return attr
 
     @property

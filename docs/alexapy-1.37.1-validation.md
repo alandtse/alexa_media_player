@@ -8,6 +8,19 @@ unchanged. The [new management methods](https://gitlab.com/keatontaylor/alexapy/
 device renaming, and skill listing are available in AlexaPy and are not called
 by AMP.
 
+## AlexaPy 1.38.0 validation
+
+- The wheel and source distribution SHA-256 digests match PyPI and the Poetry lockfile.
+  Both distributions match all 11 Python source files at the
+  [release tag](https://gitlab.com/keatontaylor/alexapy/-/tags/v1.38.0) and have
+  equivalent Python and dependency requirements.
+- The Linux AMP suite passed 842 tests, including the two bootstrap cookie-adoption
+  cases. The [draft CI run](https://github.com/alandtse/alexa_media_player/pull/3745/checks)
+  records the lockfile regeneration and the integration, lint, formatting, and
+  release-note attribution checks.
+- Isolated discovery checks used mocked Alexa responses to cover endpoint ID
+  stripping, legacy fallback, GraphQL throttling, and unusable discovery responses.
+
 No live Amazon API validation of the published 1.38.0 package has been recorded.
 The earlier 1.37.1 verification and live development-build results are below.
 

@@ -325,7 +325,8 @@ def smart_home_device(endpoint: dict[str, Any]) -> dict[str, Any]:
     return {
         "endpoint_id": endpoint.get("id"),
         "appliance_id": appliance.get("applianceId"),
-        "name": appliance.get("friendlyName"),
+        # The legacy name stays behind when a device is renamed in the app.
+        "name": endpoint.get("friendlyName") or appliance.get("friendlyName"),
     }
 
 

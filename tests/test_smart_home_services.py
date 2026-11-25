@@ -46,6 +46,12 @@ ENDPOINTS = [
         "id": ENDPOINT_ID,
         "legacyAppliance": {"applianceId": APPLIANCE_ID, "friendlyName": "Lamp"},
     },
+    # Renamed in the Alexa app: only the endpoint has the current name.
+    {
+        "id": "amzn1.alexa.endpoint.LOCK",
+        "friendlyName": "Front door",
+        "legacyAppliance": {"applianceId": "SKILL_LOCK", "friendlyName": "Door lock"},
+    },
     {"id": "amzn1.alexa.endpoint.ECHO", "legacyAppliance": None},
     # The legacy query has no endpoint id.
     {"legacyAppliance": {"applianceId": "SKILL_PLUG", "friendlyName": "Desk plug"}},
@@ -168,7 +174,7 @@ async def test_services_are_registered_with_response_support():
 
 
 async def test_get_smart_home_groups_maps_groups_to_devices(call, amazon, accounts):
-    """The response lists groups and devices with the IDs the services take."""
+    """The response lists groups and devices with IDs and current names."""
     login = accounts[EMAIL]["login_obj"]
 
     response = await call("get_smart_home_groups")
@@ -191,6 +197,11 @@ async def test_get_smart_home_groups_maps_groups_to_devices(call, amazon, accoun
                 "name": None,
             },
             {"endpoint_id": None, "appliance_id": "SKILL_PLUG", "name": "Desk plug"},
+            {
+                "endpoint_id": "amzn1.alexa.endpoint.LOCK",
+                "appliance_id": "SKILL_LOCK",
+                "name": "Front door",
+            },
             {"endpoint_id": ENDPOINT_ID, "appliance_id": APPLIANCE_ID, "name": "Lamp"},
         ],
     }

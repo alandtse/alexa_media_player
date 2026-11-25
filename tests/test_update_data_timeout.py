@@ -15,6 +15,7 @@ from custom_components.alexa_media.const import (
     CONF_EXCLUDE_DEVICES,
     CONF_INCLUDE_DEVICES,
     CONF_SCAN_INTERVAL,
+    DATA_ALEXAMEDIA,
     DOMAIN,
 )
 
@@ -68,9 +69,25 @@ def amazon_api():
         patch.object(AlexaAPI, "get_dnd_state", AsyncMock(return_value={})),
         patch.object(AlexaAPI, "get_notification_states", AsyncMock(return_value=[])),
         patch.object(AlexaAPI, "get_authentication", AsyncMock(return_value={})),
-        patch.object(AlexaAPI, "get_network_details", AsyncMock(return_value={})),
+        patch.object(
+            AlexaAPI, "get_network_details", AsyncMock(return_value={})
+        ) as network_details,
     ):
-        yield devices
+        yield devices, network_details
+
+
+def _sample_echo_device():
+    """Return a minimal Echo device payload from AlexaAPI.get_devices."""
+    return {
+        "serialNumber": DEVICE_SERIAL,
+        "accountName": "Kitchen Echo",
+        "capabilities": ["MUSIC_SKILL"],
+        "deviceFamily": "ECHO",
+        "deviceType": "A3RMGO6LYLH7YN",
+        "softwareVersion": "1",
+        "online": True,
+        "auth_info": None,
+    }
 
 
 def _entry_with_registered_device(hass):
@@ -97,12 +114,155 @@ def _entry_with_registered_device(hass):
 
 async def test_get_devices_timeout_keeps_registered_devices(hass, amazon_api):
     """A get_devices timeout must retry setup, not wipe the device registry."""
+    devices, _ = amazon_api
     entry, device = _entry_with_registered_device(hass)
-    amazon_api.side_effect = asyncio.TimeoutError
+    devices.side_effect = asyncio.TimeoutError
 
     assert not await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    amazon_api.assert_awaited()
+    devices.assert_awaited()
     assert entry.state is ConfigEntryState.SETUP_RETRY
     assert dr.async_get(hass).async_get(device.id) is not None
+
+
+@pytest.mark.parametrize("network_response", [None, {}, []])
+async def test_network_discovery_failure_keeps_registered_devices(
+    hass, amazon_api, network_response
+):
+    """A failed/empty network discovery must keep non-media_player devices intact."""
+    devices, network_details = amazon_api
+    entry, echo_device = _entry_with_registered_device(hass)
+    aqm_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "AQMSERIAL0000001")},
+        name="Kitchen Air Quality Monitor",
+    )
+    devices.return_value = [_sample_echo_device()]
+    network_details.return_value = network_response
+
+    with patch(
+        "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+        AsyncMock(return_value=None),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["should_get_network"] is True
+    registry = dr.async_get(hass)
+    assert registry.async_get(echo_device.id) is not None
+    assert registry.async_get(aqm_device.id) is not None
+
+
+async def test_network_discovery_failure_preserves_existing_entities(hass, amazon_api):
+    """Failed force-rediscovery must preserve existing entity discovery and state."""
+    devices, network_details = amazon_api
+    entry, _ = _entry_with_registered_device(hass)
+    aqm_appliance = {
+        "entityId": "aqm-entity",
+        "applianceId": "aqm-appliance",
+        "friendlyName": "Kitchen Air Quality Monitor",
+        "modelName": "AQM",
+        "manufacturerName": "Amazon",
+        "friendlyDescription": "Amazon Indoor Air Quality Monitor",
+        "applianceTypes": ["AIR_QUALITY_MONITOR"],
+        "alexaDeviceIdentifierList": [{"dmsDeviceSerialNumber": "AQMSERIAL0000001"}],
+        "capabilities": [
+            {
+                "interfaceName": "Alexa.RangeController",
+                "instance": "9",
+                "properties": {
+                    "supported": [{"name": "rangeValue"}],
+                    "retrievable": True,
+                    "proactivelyReported": True,
+                },
+            }
+        ],
+    }
+    devices.return_value = [_sample_echo_device()]
+    network_details.return_value = [aqm_appliance]
+
+    first_entity_state = {"aqm-entity": [{"name": "rangeValue", "value": 85}]}
+    retry_entity_state = {"aqm-entity": [{"name": "rangeValue", "value": 91}]}
+    with (
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+            AsyncMock(return_value=None),
+        ),
+        patch(
+            "custom_components.alexa_media.get_entity_data",
+            AsyncMock(side_effect=[first_entity_state, retry_entity_state]),
+        ) as mock_entity_data,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
+        assert account["should_get_network"] is False
+        assert account["coordinator"].data == first_entity_state
+        discovered_aiaqm = list(account["devices"]["aiaqm"])
+        assert len(discovered_aiaqm) == 1
+
+        # Simulate a later poll after force_network_discovery where get_devices_gql fails,
+        # while an enabled sensor still monitors entity state.
+        aqm_device = dr.async_get(hass).async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, "AQMSERIAL0000001")},
+            name="Kitchen Air Quality Monitor",
+        )
+        account["entities"]["sensor"]["AQMSERIAL0000001"] = {
+            "Air_Quality": {
+                "aqm-entity_voc": MagicMock(
+                    enabled=True, alexa_entity_id="aqm-entity", device_info=None
+                )
+            }
+        }
+        account["should_get_network"] = True
+        network_details.return_value = None
+        await account["coordinator"].async_refresh()
+        await hass.async_block_till_done()
+
+    assert account["should_get_network"] is True
+    assert account["devices"]["aiaqm"] == discovered_aiaqm
+    assert dr.async_get(hass).async_get(aqm_device.id) is not None
+    # Initial setup + monitored-entity fetch during retry; failed discovery must not call get_entity_data([]).
+    assert mock_entity_data.await_count == 2
+    assert mock_entity_data.await_args_list[1].args[1] == ["aqm-entity"]
+    assert account["coordinator"].data == retry_entity_state
+
+
+async def test_successful_discovery_prunes_stale_devices(hass, amazon_api):
+    """Stale devices are still pruned when network discovery succeeds."""
+    devices, network_details = amazon_api
+    entry, echo_device = _entry_with_registered_device(hass)
+    stale_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "STALE0000000001")},
+        name="Removed Smart Plug",
+    )
+    devices.return_value = [_sample_echo_device()]
+    network_details.return_value = [
+        {
+            "entityId": "light-1",
+            "applianceId": "appliance-1",
+            "friendlyName": "Hall Light",
+            "modelName": "Smart Light",
+            "manufacturerName": "Philips",
+            "applianceTypes": ["LIGHT"],
+            "capabilities": [],
+        }
+    ]
+
+    with patch(
+        "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+        AsyncMock(return_value=None),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["should_get_network"] is False
+    registry = dr.async_get(hass)
+    assert registry.async_get(echo_device.id) is not None
+    assert registry.async_get(stale_device.id) is None

@@ -861,21 +861,20 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             self._timezone = device["timeZoneId"] if "timeZoneId" in device else "UTC"
             self._dnd = device["dnd"] if "dnd" in device else None
             self._set_authentication_details(device["auth_info"])
-            if self.hass:
+            if self.hass and (entry := self.device_entry):
                 try:
-                    registry = dr.async_get(self.hass)
                     info = self.device_info
-                    if entry := self.device_entry:
-                        metadata = {
-                            key: info[key]
-                            for key in ("model", "model_id", "hw_version")
-                            if getattr(entry, key) != info[key]
-                        }
-                        if metadata:
-                            self.device_entry = registry.async_update_device(
-                                entry.id, **metadata
-                            )
-                except Exception as ex:  # pylint: disable=broad-except
+                    metadata = {
+                        key: info[key]
+                        for key in ("model", "model_id", "hw_version")
+                        if getattr(entry, key) != info[key]
+                    }
+                    if metadata:
+                        registry = dr.async_get(self.hass)
+                        self.device_entry = registry.async_update_device(
+                            entry.id, **metadata
+                        )
+                except (AttributeError, KeyError, TypeError) as ex:
                     _LOGGER.debug(
                         "%s: Unable to update device registry metadata: %s",
                         self.account,
@@ -1597,18 +1596,20 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             else:
                 await self.alexa_api.set_volume(0)
         else:
-            if self._saved_volume is not None:
-                if self.hass:
-                    self.hass.async_create_task(
-                        self.alexa_api.set_volume(self._saved_volume)
-                    )
-                else:
-                    await self.alexa_api.set_volume(self._saved_volume)
+            volume = self._saved_volume
+            if volume is None:
+                # alexapy expects 0..1 levels; use a mid-level default when no
+                # volume was stored (e.g. muted before a restart).
+                volume = 0.5
+                _LOGGER.debug(
+                    "%s: No previous volume stored; unmuting to %s",
+                    self.entity_id,
+                    volume,
+                )
+            if self.hass:
+                self.hass.async_create_task(self.alexa_api.set_volume(volume))
             else:
-                if self.hass:
-                    self.hass.async_create_task(self.alexa_api.set_volume(50))
-                else:
-                    await self.alexa_api.set_volume(50)
+                await self.alexa_api.set_volume(volume)
         if not is_http2_enabled(self.hass, self._login.email):
             await self.async_update()
 

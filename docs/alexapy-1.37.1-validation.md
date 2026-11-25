@@ -1,4 +1,17 @@
-# AlexaPy 1.37.1 upgrade validation
+# AlexaPy 1.38.0 upgrade validation
+
+AMP pins `alexapy==1.38.0` and retains the cookie adoption and bootstrap
+behavior validated with 1.37.1. The expanded GraphQL query adds endpoint
+`id`. AMP receives the same legacy appliance records and identifiers through
+`get_network_details()`. The legacy-query fallback and throttle handling are
+unchanged. The [new management methods](https://gitlab.com/keatontaylor/alexapy/-/merge_requests/520),
+device renaming, and skill listing are available in AlexaPy and are not called
+by AMP.
+
+No live Amazon API validation of the published 1.38.0 package has been recorded.
+The earlier 1.37.1 verification and live development-build results are below.
+
+## AlexaPy 1.37.1 baseline
 
 AMP moves from `alexapy==1.36.0` to `alexapy==1.37.1`. AMP keeps its existing bootstrap probe. A successful probe now delegates cookie validation and adoption to AlexaPy before AMP can skip the normal login path.
 
@@ -23,7 +36,7 @@ AMP moves from `alexapy==1.36.0` to `alexapy==1.37.1`. AMP keeps its existing bo
 
 ## Optional live HAOS regression checklist
 
-These checks are available for follow-up on an authorized test installation. The published 1.37.1 package has no live HAOS result recorded here.
+These checks are available for follow-up on an authorized test installation. The published package has no live HAOS result recorded here.
 
 | Area                       | Checks and expected results                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

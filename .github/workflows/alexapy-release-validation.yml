@@ -20,6 +20,7 @@ jobs:
           python-version: "3.13"
       - name: Verify wheel and source distribution against the release tag
         run: |
+          python -m pip install packaging
           python - <<'PY'
           import hashlib
           import io
@@ -29,6 +30,9 @@ jobs:
           import urllib.request
           import zipfile
           from email.parser import BytesParser
+
+          from packaging.requirements import Requirement
+          from packaging.specifiers import SpecifierSet
 
           def download(url):
               with urllib.request.urlopen(url, timeout=60) as response:
@@ -64,8 +68,13 @@ jobs:
           tag_files = tar_files(download(f"{project}/-/archive/{tag_commit}/alexapy-{tag_commit}.tar.gz"))
           for metadata in (wheel_meta, source_meta):
               assert metadata["Version"] == "1.38.0"
-              assert metadata["Requires-Python"] == release["info"]["requires_python"]
-              assert sorted(metadata.get_all("Requires-Dist")) == sorted(release["info"]["requires_dist"])
+              python_range = metadata["Requires-Python"]
+              dependencies = metadata.get_all("Requires-Dist")
+              print(f"Requires-Python: {python_range}")
+              assert SpecifierSet(python_range) == SpecifierSet(release["info"]["requires_python"])
+              assert {Requirement(dep) for dep in dependencies} == {
+                  Requirement(dep) for dep in release["info"]["requires_dist"]
+              }
           tag_sources = {name: value for name, value in tag_files.items()
                          if name.startswith("alexapy/") and name.endswith(".py")}
           assert wheel_sources == tag_sources

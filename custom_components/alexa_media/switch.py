@@ -7,6 +7,7 @@ For more details about this platform, please refer to the documentation at
 https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers-needed/58639
 """
 
+import asyncio
 import datetime
 from functools import partial
 import logging
@@ -37,10 +38,12 @@ from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .aqm_led import resolve_endpoint_id, set_led_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .display import (
+    SETTING_ADAPTIVE_BRIGHTNESS,
+    SETTING_DISPLAY_POWER,
     AlexaAdaptiveBrightnessSwitch,
     AlexaDisplayPowerSwitch,
     async_get_display_state,
-    supports_display,
+    can_probe_display,
 )
 from .helpers import (
     _catch_login_errors,
@@ -75,19 +78,10 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
     clients = entities["media_player"]
     login_obj = account_dict["login_obj"]
     _LOGGER.debug("%s: Loading switches", hide_email(account))
-
     # Resolve prerequisites before submitting anything or modifying switch caches.
     for key, device in media_devices.items():
-        if key not in clients or (supports_display(device) and login_obj is None):
+        if key not in clients or (can_probe_display(device) and login_obj is None):
             raise PlatformNotReady(f"Media player {hide_serial(key)} not ready")
-
-    display_states = {
-        key: await async_get_display_state(
-            hass, account_dict, login_obj, device, clients[key]
-        )
-        for key, device in media_devices.items()
-        if supports_display(device)
-    }
 
     async def async_submit(candidates, *filters):
         def schedule(selected, update_before_add):
@@ -105,10 +99,44 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             *filters,
         )
 
+    async def _probe_displays():
+        async def _probe_one(key, device):
+            client = clients.get(key)
+            if client is None or login_obj is None:
+                return key, None
+            try:
+                state = await async_get_display_state(
+                    hass, account_dict, login_obj, device, client
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug(
+                    "%s: Unable to probe display switches: %s",
+                    hide_serial(key),
+                    err,
+                )
+                return key, None
+            return key, state
+
+        results = await asyncio.gather(
+            *(
+                _probe_one(key, device)
+                for key, device in list(media_devices.items())
+                if can_probe_display(device)
+            ),
+            return_exceptions=True,
+        )
+        states = {}
+        for result in results:
+            if isinstance(result, BaseException):
+                continue
+            key, state = result
+            if state is not None:
+                states[key] = state
+        return states
+
     # No event-loop suspension between checking the caches and the three
     # submissions below: add_devices invokes the callback synchronously.
     filtered = {}
-    display = {}
     switches_by_echo = entities.setdefault("switch", {})
     for key, device in media_devices.items():
         switches = switches_by_echo.setdefault(key, {})
@@ -128,17 +156,6 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                     entity,
                     partial(switches.__setitem__, kind, entity),
                 )
-        if key in display_states:
-            for kind, switch_class in (
-                ("display_power", AlexaDisplayPowerSwitch),
-                ("adaptive_brightness", AlexaAdaptiveBrightnessSwitch),
-            ):
-                if kind not in switches:
-                    entity = switch_class(display_states[key])
-                    display[id(entity)] = (
-                        entity,
-                        partial(switches.__setitem__, kind, entity),
-                    )
 
     # Keep scheduled plugs and LEDs in the collection the coordinator polls.
     smart_switches = entities.setdefault("smart_switch", [])
@@ -175,10 +192,54 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         leds[id(entity)] = (entity, partial(smart_switches.append, entity))
         known_ids.add(unique_id)
 
+    display_task = asyncio.create_task(_probe_displays())
+    setup_tasks = account_dict.setdefault("display_setup_tasks", set())
+    setup_tasks.add(display_task)
+    display_task.add_done_callback(setup_tasks.discard)
+
     if not await async_submit(filtered, include_filter, exclude_filter):
+        display_task.cancel()
+        await asyncio.gather(display_task, return_exceptions=True)
         return False
     if leds and not await async_submit(leds):
+        display_task.cancel()
+        await asyncio.gather(display_task, return_exceptions=True)
         return False
+
+    try:
+        display_states = await display_task
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("%s: Unable to probe display switches", hide_email(account))
+        display_states = {}
+
+    display = {}
+    for key, display_state in display_states.items():
+        if getattr(display_state, "_stopped", False) is True:
+            continue
+        current = account_dict.get("display_states")
+        if current and current.get(key) is not display_state:
+            continue
+        switches = switches_by_echo.setdefault(key, {})
+        for kind, setting, switch_class in (
+            (
+                "display_power",
+                SETTING_DISPLAY_POWER,
+                AlexaDisplayPowerSwitch,
+            ),
+            (
+                "adaptive_brightness",
+                SETTING_ADAPTIVE_BRIGHTNESS,
+                AlexaAdaptiveBrightnessSwitch,
+            ),
+        ):
+            if kind in switches or not display_state.supports(setting):
+                continue
+            entity = switch_class(display_state)
+            display[id(entity)] = (
+                entity,
+                partial(switches.__setitem__, kind, entity),
+            )
+
     if display and not await async_submit(display):
         return False
 
@@ -192,7 +253,11 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         device_type = device.get("deviceType")
         if not device_type:
             continue
-        client = clients[key]
+        client = clients.get(key)
+        if client is None:
+            # Discovery can add the device while the display probe is pending;
+            # register its Kids switch once a media-player client exists.
+            continue
         kids_state.track(client.device_serial_number, device_type)
         kids_devices.append(
             AmazonKidsSwitch(kids_state, login_obj, client, device_type)

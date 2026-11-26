@@ -36,10 +36,14 @@ def mock_hass_with_emulated_hue():
 
 
 async def _drain_display_registration(account):
-    """Wait for the tracked display registration tasks to finish."""
+    """Wait for the tracked display registration tasks to finish.
+
+    Exceptions propagate intentionally: a failed registration task must fail the
+    test instead of letting a negative assertion pass for the wrong reason.
+    """
     tasks = list(account.get("display_setup_tasks", ()))
     if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks)
 
 
 @pytest.fixture
@@ -491,7 +495,9 @@ async def test_display_probe_exception_keeps_setup_loaded(
     await _drain_display_registration(account)
     # The filtered switches and the LED batch were submitted; no display batch.
     assert add.call_count == 2
-    assert "display" not in account["entities"]["switch"].get("echo", {})
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
 
 
 async def test_setup_retry_cancels_previous_registration(
@@ -537,7 +543,9 @@ async def test_switch_setup_skips_replaced_display_state(
 
     await switch_platform.async_setup_entry(mock_hass, entry, add)
     await _drain_display_registration(account)
-    assert "display" not in account["entities"]["switch"].get("echo", {})
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
 
 
 async def test_switch_setup_skips_retired_display_state(
@@ -553,7 +561,9 @@ async def test_switch_setup_skips_retired_display_state(
 
     await switch_platform.async_setup_entry(mock_hass, entry, add)
     await _drain_display_registration(account)
-    assert "display" not in account["entities"]["switch"].get("echo", {})
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
 
 
 async def test_display_add_failure_keeps_setup_loaded(mock_hass, switch_setup):
@@ -569,7 +579,9 @@ async def test_display_add_failure_keeps_setup_loaded(mock_hass, switch_setup):
 
     assert await switch_platform.async_setup_entry(mock_hass, entry, reject_display)
     await _drain_display_registration(account)
-    assert "display" not in account["entities"]["switch"].get("echo", {})
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
 
     await switch_platform.async_setup_entry(mock_hass, entry, reject_display)
     await _drain_display_registration(account)

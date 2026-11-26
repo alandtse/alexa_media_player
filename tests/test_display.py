@@ -72,10 +72,14 @@ def _state() -> DisplayState:
 
 
 async def _drain_display_registration(account_dict) -> None:
-    """Wait for the tracked display registration tasks to finish."""
+    """Wait for the tracked display registration tasks to finish.
+
+    Exceptions propagate intentionally: a failed registration task must fail the
+    test instead of letting a negative assertion pass for the wrong reason.
+    """
     tasks = list(account_dict.get("display_setup_tasks", ()))
     if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks)
 
 
 def test_can_probe_display_requires_identity():

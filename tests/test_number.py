@@ -18,10 +18,14 @@ SERIAL = "G090XXXXXXXXXXXX"
 
 
 async def _drain_display_registration(account):
-    """Wait for the tracked display registration tasks to finish."""
+    """Wait for the tracked display registration tasks to finish.
+
+    Exceptions propagate intentionally: a failed registration task must fail the
+    test instead of letting a negative assertion pass for the wrong reason.
+    """
     tasks = list(account.get("display_setup_tasks", ()))
     if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*tasks)
 
 
 @pytest.fixture

@@ -75,9 +75,15 @@ async def _drain_display_registration(account_dict) -> None:
     """Wait for the tracked display registration tasks to finish.
 
     Exceptions propagate intentionally: a failed registration task must fail the
-    test instead of letting a negative assertion pass for the wrong reason.
+    test instead of letting a negative assertion pass for the wrong reason. The
+    current registration task is included even after it leaves
+    ``display_setup_tasks``, so a finished task cannot hide its exception.
     """
-    tasks = list(account_dict.get("display_setup_tasks", ()))
+    tasks = set(account_dict.get("display_setup_tasks", ()))
+    for key in ("display_registration_number", "display_registration_switch"):
+        task = account_dict.get(key)
+        if isinstance(task, asyncio.Task):
+            tasks.add(task)
     if tasks:
         await asyncio.gather(*tasks)
 

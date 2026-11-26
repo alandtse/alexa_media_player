@@ -39,9 +39,15 @@ async def _drain_display_registration(account):
     """Wait for the tracked display registration tasks to finish.
 
     Exceptions propagate intentionally: a failed registration task must fail the
-    test instead of letting a negative assertion pass for the wrong reason.
+    test instead of letting a negative assertion pass for the wrong reason. The
+    current registration task is included even after it leaves
+    ``display_setup_tasks``, so a finished task cannot hide its exception.
     """
-    tasks = list(account.get("display_setup_tasks", ()))
+    tasks = set(account.get("display_setup_tasks", ()))
+    for key in ("display_registration_number", "display_registration_switch"):
+        task = account.get(key)
+        if isinstance(task, asyncio.Task):
+            tasks.add(task)
     if tasks:
         await asyncio.gather(*tasks)
 
@@ -523,9 +529,11 @@ async def test_setup_retry_cancels_previous_registration(
     await switch_platform.async_setup_entry(mock_hass, entry, add)
     await asyncio.wait_for(asyncio.gather(previous, return_exceptions=True), timeout=1)
     assert previous.cancelled()
-    assert account["display_registration_switch"] is not previous
+    replacement = account["display_registration_switch"]
+    assert replacement is not previous
 
     release.set()
+    await asyncio.wait_for(asyncio.gather(replacement), timeout=1)
     await _drain_display_registration(account)
 
 

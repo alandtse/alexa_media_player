@@ -1123,16 +1123,11 @@ async def async_setup_entry(hass, config_entry):
                             auth.get("authenticated")
                             and customer_email == email.lower()
                         ):
-                            _LOGGER.debug(
-                                "[BOOT] Cookie auth confirmed via /api/bootstrap"
+                            # Bootstrap authenticates the request. AlexaPy must
+                            # validate and adopt its own API cookies and CSRF.
+                            cookie_login_ok = await login.test_loggedin(
+                                cookies=cookies, rebuild_session=False
                             )
-                            login.status["login_successful"] = True
-                            login.customer_id = auth.get("customerId")
-                            login.stats["login_timestamp"] = datetime.now()
-                            login.stats["api_calls"] = 0
-                            await login.check_domain()
-                            await login.finalize_login()
-                            cookie_login_ok = True
             except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
                 _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
         if not cookie_login_ok:

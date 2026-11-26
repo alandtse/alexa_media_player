@@ -65,7 +65,7 @@ class HistoryContinuationTests(TestCase):
             await self.m._async_get_last_called_history(
                 self.login, self.account, {"A"}, queue
             )
-        self.assertNotIn("push", self.account["last_called_history_scans"])
+        self.assertIsNone(self.account["last_called_history_scans"]["push"]["cursor"])
         self.assertEqual(self.account["last_called_overlap_ts"], 0)
 
     @immediate_async
@@ -351,6 +351,41 @@ class HistoryContinuationTests(TestCase):
         baseline = self.account["last_called_history_voice_account"]
         events = self.m._take_new_voice_records(baseline, records, NOW, NOW, {"A", "B"})
         self.assertEqual([r["timestamp"] for r in events], [NOW - 100, NOW])
+
+    @immediate_async
+    async def test_cursor_restart_preserves_event_baseline_across_poll(self):
+        queue = [{"serial": "A", "activity_ts": NOW}]
+        self.request.side_effect = [
+            {"customerHistoryRecords": [record()], "encodedRequestToken": "saved"},
+            None,
+            {"customerHistoryRecords": [record(ts=NOW + 1000)]},
+            {"customerHistoryRecords": []},
+            {"customerHistoryRecords": [], "encodedRequestToken": "saved"},
+            None,
+            {"customerHistoryRecords": [record(), record(ts=NOW + 2000)]},
+        ]
+
+        async def publish(login, payload):
+            self.account["last_called_customer_history_ts"] = payload["timestamp"]
+
+        async def push():
+            return await self.m._async_get_last_called_history(
+                self.login, self.account, {"A"}, queue, on_payload=publish
+            )
+
+        self.assertIsNone(await push())
+        await self.m._async_get_last_called_history(
+            self.login, self.account, {"A"}, on_payload=publish
+        )
+        self.assertEqual(self.account["last_called_overlap_ts"], NOW + 1000)
+        self.assertIsNone(await push())
+        self.assertIsNone(await push())
+        records = await push()
+        baseline = self.account["last_called_history_voice_account"]
+        events = self.m._take_new_voice_records(
+            baseline, records, NOW + 2000, NOW, {"A"}
+        )
+        self.assertEqual([event["timestamp"] for event in events], [NOW, NOW + 2000])
 
     @immediate_async
     async def test_slow_head_cannot_starve_saved_continuation(self):

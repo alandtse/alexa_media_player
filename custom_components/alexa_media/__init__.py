@@ -828,7 +828,17 @@ async def _async_get_last_called_history(
                 # so bound failures without cursor progress to recover expiry.
                 state["failures"] = state.get("failures", 0) + 1
                 if page.continuation is None or state["failures"] >= 3:
-                    scans.pop(kind, None)
+                    if queue_snapshot and (
+                        state["cursor"] is not None or state.get("restarting")
+                    ):
+                        # Rebuild the traversal while retaining its event baseline.
+                        # Polling can advance the live watermark before this retry.
+                        state.update(
+                            cursor=None, records=[], failures=0, restarting=True
+                        )
+                        state.pop("connection_retries", None)
+                    else:
+                        scans.pop(kind, None)
                     if page.continuation is not None:
                         account["last_called_history_next_allowed"] = (
                             time.monotonic() + LAST_CALLED_HISTORY_BUDGET_S

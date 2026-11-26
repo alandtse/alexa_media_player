@@ -22,6 +22,7 @@ from homeassistant.components.media_player.browse_media import (
     async_process_play_media_url,
 )
 from homeassistant.components.media_player.const import (
+    ATTR_GROUP_MEMBERS,
     ATTR_MEDIA_ANNOUNCE,
     MediaPlayerEntityFeature,
     MediaPlayerState,
@@ -168,9 +169,17 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 alexa_client,
             )
     result = await add_devices(hide_email(account), devices, add_devices_callback)
+    if result and devices and account_dict.get("account_sensor_forwarded"):
+        from .sensor import async_setup_platform as setup_sensors
+
+        sensor_adder = account_dict.get("sensor_add_devices")
+        if sensor_adder:
+            await setup_sensors(hass, config, sensor_adder)
     if result and entry_setup:
         _LOGGER.debug("Detected config entry already setup, using load platform")
         for component in DEPENDENT_ALEXA_COMPONENTS:
+            if component == "sensor" and account_dict.get("account_sensor_forwarded"):
+                continue
             hass.async_create_task(
                 async_load_platform(
                     hass,
@@ -191,6 +200,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         account = config_entry.data[CONF_EMAIL]
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
         for component in DEPENDENT_ALEXA_COMPONENTS:
+            if component == "sensor" and account_dict.get("account_sensor_forwarded"):
+                continue
             try:
                 entry_setup = len(account_dict["entities"][component])
             except (TypeError, KeyError):
@@ -1248,6 +1259,70 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         return self._cluster_members or []
 
     @property
+    def group_members(self) -> list[str] | None:
+        """Return the players that play together with this one, group first.
+
+        A speaker group or stereo/subwoofer pair lists itself and then its
+        members. A member lists the group whose session it currently mirrors,
+        and nothing while it plays on its own. When that group is a pair
+        following a larger group, every player in the chain lists the larger
+        group, including the pair's speakers. Nothing is listed unless the
+        group is playing or paused, so an idle group never claims a speaker
+        that is playing something else.
+        """
+        if not self.hass:
+            return None
+        group = self._get_session_parent() or (self if self._cluster_members else None)
+        if not group:
+            return None
+        seen = {group.device_serial_number}
+        while (
+            (parent := group._get_session_parent())
+            and parent._is_active_group()
+            and parent.device_serial_number not in seen
+        ):
+            group = parent
+            seen.add(group.device_serial_number)
+        if not group._is_active_group():
+            return None
+        players = safe_get(
+            self.hass.data,
+            [
+                DATA_ALEXAMEDIA,
+                "accounts",
+                self._login.email,
+                "entities",
+                "media_player",
+            ],
+            {},
+        )
+        members: list[str] = []
+        visited = {group.device_serial_number}
+        pending = [(serial, group) for serial in group.cluster_members]
+        # Nested groups append their members while the list is being walked.
+        for serial, container in pending:
+            if serial in visited or not (player := players.get(serial)):
+                continue
+            visited.add(serial)
+            if player._is_listable():
+                members.append(player.entity_id)
+            if player.cluster_members and player._get_session_parent() is container:
+                pending.extend((child, player) for child in player.cluster_members)
+        return [group.entity_id, *members] if members else None
+
+    def _is_listable(self) -> bool:
+        """Return whether this player can appear in group_members."""
+        # A disabled entity keeps its entity_id, so check hass and enabled too.
+        return bool(self.hass and self.enabled and self.entity_id)
+
+    def _is_active_group(self) -> bool:
+        """Return whether this group can lead a group_members list."""
+        return self._is_listable() and self.state in (
+            MediaPlayerState.PLAYING,
+            MediaPlayerState.PAUSED,
+        )
+
+    @property
     def session(self):
         """Return the session, if any."""
         return self._session
@@ -2148,6 +2223,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
             "last_message_type": last_message.get("type"),
             "last_message_timestamp": last_message.get("timestamp"),
         }
+        # Home Assistant only reports group_members for players that support
+        # join/unjoin, which Alexa groups cannot do, so report it here.
+        if group_members := self.group_members:
+            attr[ATTR_GROUP_MEMBERS] = group_members
         return attr
 
     @property

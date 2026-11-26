@@ -229,20 +229,74 @@ def _make_multiroom(hass, pair):
     )
 
 
+NESTED_LIST = [
+    "media_player.everywhere",
+    "media_player.kitchen_pair",
+    "media_player.office",
+    "media_player.echo",
+    "media_player.echo_sub",
+]
+
+
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("speaker", "sub")
 @pytest.mark.parametrize("state", ["PLAYING", "PAUSED"])
-async def test_pair_lists_the_multiroom_group_it_follows(hass, pair, state):
-    """A pair following a larger group reports that group's list."""
+async def test_nested_chain_reports_one_list(hass, pair, speaker, sub, state):
+    """The top group, the pair and the pair's speakers all report one list."""
     everywhere = _make_multiroom(hass, pair)
+    office = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["entities"]["media_player"][
+        OTHER
+    ]
 
     await _pair_reports(everywhere, pair, state)
+    await _pair_reports(everywhere, office, state)
+    await _pair_reports(pair, speaker, state)
+    await _pair_reports(pair, sub, state)
 
-    assert pair.group_members == [
-        "media_player.everywhere",
+    for player in (everywhere, pair, office, speaker, sub):
+        assert player.group_members == NESTED_LIST
+
+
+@pytest.mark.asyncio
+async def test_pair_on_its_own_keeps_speakers_out_of_larger_group(
+    hass, pair, speaker, sub
+):
+    """An active larger group does not claim speakers of an independent pair."""
+    everywhere = _make_multiroom(hass, pair)
+    everywhere._media_player_state = "PLAYING"
+    await _pair_reports(pair, speaker, "PLAYING")
+
+    assert everywhere.group_members == NESTED_LIST[:3]
+    assert speaker.group_members == [
         "media_player.kitchen_pair",
-        "media_player.office",
+        "media_player.echo",
+        "media_player.echo_sub",
     ]
+
+
+@pytest.mark.asyncio
+async def test_nested_chain_lists_each_player_once(hass, pair, speaker, sub):
+    """A speaker listed by both levels appears once."""
+    everywhere = _make_multiroom(hass, pair)
+    everywhere._cluster_members = [PAIR, OTHER, SPEAKER]
+
+    await _pair_reports(everywhere, pair, "PLAYING")
+    await _pair_reports(pair, speaker, "PLAYING")
+
+    assert speaker.group_members == NESTED_LIST
+    assert everywhere.group_members == NESTED_LIST
+
+
+@pytest.mark.asyncio
+async def test_nested_chain_skips_disabled_pair(hass, pair, speaker, sub):
+    """A disabled pair is left out while its speakers stay grouped."""
+    everywhere = _make_multiroom(hass, pair)
+    await _pair_reports(everywhere, pair, "PLAYING")
+    await _pair_reports(pair, speaker, "PLAYING")
+    pair.registry_entry = MagicMock(disabled=True)
+
+    expected = [entity for entity in NESTED_LIST if "kitchen_pair" not in entity]
+    assert speaker.group_members == expected
+    assert everywhere.group_members == expected
 
 
 @pytest.mark.usefixtures("speaker", "sub")

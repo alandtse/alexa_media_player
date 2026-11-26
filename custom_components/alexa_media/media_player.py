@@ -1254,12 +1254,17 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
 
         A speaker group or stereo/subwoofer pair lists itself and then its
         members. A member lists the group whose session it currently mirrors,
-        and nothing while it plays on its own.
+        and nothing while it plays on its own. Nothing is listed unless the
+        group is playing or paused, so an idle group never claims a speaker
+        that is playing something else.
         """
         if not self.hass:
             return None
         group = self if self._cluster_members else self._get_session_parent()
-        if not group or not group.entity_id:
+        # A disabled entity keeps its entity_id but is detached from hass.
+        if not group or not group.hass or not group.entity_id:
+            return None
+        if group.state not in (MediaPlayerState.PLAYING, MediaPlayerState.PAUSED):
             return None
         players = safe_get(
             self.hass.data,
@@ -1275,7 +1280,7 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         members = [
             player.entity_id
             for serial in group.cluster_members
-            if (player := players.get(serial)) and player.entity_id
+            if (player := players.get(serial)) and player.hass and player.entity_id
         ]
         return [group.entity_id, *members] if members else None
 

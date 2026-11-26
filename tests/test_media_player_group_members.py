@@ -62,10 +62,12 @@ def hass():
 
 @pytest.fixture
 def pair(hass):
-    """Return a stereo/subwoofer pair of a speaker and a sub."""
-    return _make_client(
+    """Return a playing stereo/subwoofer pair of a speaker and a sub."""
+    client = _make_client(
         hass, PAIR, "media_player.kitchen_pair", cluster_members=[SPEAKER, SUB]
     )
+    client._media_player_state = "PLAYING"
+    return client
 
 
 @pytest.fixture
@@ -133,6 +135,66 @@ async def test_member_lists_the_pair_it_follows(pair, speaker, sub, state):
 def test_member_on_its_own_has_no_group(speaker):
     """A member that is not following a group is not grouped."""
     speaker._session = _player_info("PLAYING")
+
+    assert speaker.group_members is None
+
+
+@pytest.mark.usefixtures("speaker", "sub")
+def test_paused_pair_lists_its_members(pair):
+    """A paused pair still holds its members' session."""
+    pair._media_player_state = "PAUSED"
+
+    assert pair.group_members == [
+        "media_player.kitchen_pair",
+        "media_player.echo",
+        "media_player.echo_sub",
+    ]
+
+
+@pytest.mark.usefixtures("sub")
+@pytest.mark.parametrize("state", ["IDLE", None])
+def test_idle_group_does_not_claim_member_playing_alone(pair, speaker, state):
+    """An idle pair leaves a speaker playing its own song ungrouped."""
+    pair._media_player_state = state
+    speaker._media_player_state = "PLAYING"
+    speaker._session = _player_info("PLAYING")
+
+    assert pair.group_members is None
+    assert speaker.group_members is None
+
+
+def test_unavailable_group_has_no_group(pair, speaker):
+    """An offline pair does not group its members."""
+    pair._available = False
+
+    assert pair.group_members is None
+
+
+@pytest.mark.asyncio
+async def test_member_drops_group_that_went_idle(pair, speaker):
+    """A member stops listing a group that is idle before telling the member."""
+    await _pair_reports(pair, speaker, "PLAYING")
+    pair._media_player_state = "IDLE"
+
+    assert speaker.group_members is None
+
+
+def test_disabled_member_is_skipped(pair, speaker, sub):
+    """A disabled entity keeps its entity_id but has no state to group."""
+    speaker.add_to_platform_abort()
+
+    assert speaker.entity_id == "media_player.echo"
+    assert pair.group_members == [
+        "media_player.kitchen_pair",
+        "media_player.echo_sub",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_member_does_not_list_disabled_group(pair, speaker):
+    """A member never leads its list with a disabled group entity."""
+    await _pair_reports(pair, speaker, "PLAYING")
+    pair.add_to_platform_abort()
 
     assert speaker.group_members is None
 

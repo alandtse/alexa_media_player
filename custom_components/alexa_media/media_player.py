@@ -169,9 +169,17 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
                 alexa_client,
             )
     result = await add_devices(hide_email(account), devices, add_devices_callback)
+    if result and devices and account_dict.get("account_sensor_forwarded"):
+        from .sensor import async_setup_platform as setup_sensors
+
+        sensor_adder = account_dict.get("sensor_add_devices")
+        if sensor_adder:
+            await setup_sensors(hass, config, sensor_adder)
     if result and entry_setup:
         _LOGGER.debug("Detected config entry already setup, using load platform")
         for component in DEPENDENT_ALEXA_COMPONENTS:
+            if component == "sensor" and account_dict.get("account_sensor_forwarded"):
+                continue
             hass.async_create_task(
                 async_load_platform(
                     hass,
@@ -192,6 +200,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         account = config_entry.data[CONF_EMAIL]
         account_dict = hass.data[DATA_ALEXAMEDIA]["accounts"][account]
         for component in DEPENDENT_ALEXA_COMPONENTS:
+            if component == "sensor" and account_dict.get("account_sensor_forwarded"):
+                continue
             try:
                 entry_setup = len(account_dict["entities"][component])
             except (TypeError, KeyError):

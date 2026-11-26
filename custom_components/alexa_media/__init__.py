@@ -55,6 +55,7 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt, slugify
 import voluptuous as vol
 
+from .account_auth import publish_authentication
 from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state
@@ -321,6 +322,22 @@ def _pop_relogin_listeners(hass, email: str) -> None:
             unsub()
         _drop_listeners(account.pop("relogin_unsubs", ()))
         account.pop("relogin_pending", None)
+
+
+def account_device_identifier(config_entry) -> tuple[str, str]:
+    """Identify the account independently of its email and Echo inventory."""
+    return DOMAIN, f"account_{config_entry.entry_id}"
+
+
+def _register_account_device(hass, config_entry) -> None:
+    """Register one virtual device for the configured account."""
+    dr.async_get(hass).async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={account_device_identifier(config_entry)},
+        name=f"Alexa Account ({config_entry.entry_id[:8]})",
+        manufacturer="Amazon",
+        model="Alexa Account",
+    )
 
 
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
@@ -862,12 +879,14 @@ async def async_setup_entry(hass, config_entry):
                 else:
                     login_obj.oauth_login = True
                 await login_obj.reset()
+                publish_authentication(account_data)
                 if config_entry.state is ConfigEntryState.NOT_LOADED:
                     # Unloaded while reset() was suspended; do not raise a
                     # reauthentication notice or set up a removed account.
                     return
                 # await login_obj.login()
                 if await test_login_status(hass, config_entry, login_obj):
+                    publish_authentication(account_data)
                     await setup_alexa(hass, config_entry, login_obj)
             finally:
                 account_data["login_in_progress"] = False
@@ -884,6 +903,7 @@ async def async_setup_entry(hass, config_entry):
                 "login_obj"
             )
             _clear_display_relogin_marker(hass, email)
+            publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
             await setup_alexa(hass, config_entry, login_obj)
 
     hass.data.setdefault(DATA_ALEXAMEDIA, {})
@@ -1103,16 +1123,11 @@ async def async_setup_entry(hass, config_entry):
                             auth.get("authenticated")
                             and customer_email == email.lower()
                         ):
-                            _LOGGER.debug(
-                                "[BOOT] Cookie auth confirmed via /api/bootstrap"
+                            # Bootstrap authenticates the request. AlexaPy must
+                            # validate and adopt its own API cookies and CSRF.
+                            cookie_login_ok = await login.test_loggedin(
+                                cookies=cookies, rebuild_session=False
                             )
-                            login.status["login_successful"] = True
-                            login.customer_id = auth.get("customerId")
-                            login.stats["login_timestamp"] = datetime.now()
-                            login.stats["api_calls"] = 0
-                            await login.check_domain()
-                            await login.finalize_login()
-                            cookie_login_ok = True
             except (JSONDecodeError, ValueError, aiohttp.ClientError) as ex:
                 _LOGGER.debug("[BOOT] Bootstrap cookie auth check failed: %s", ex)
         if not cookie_login_ok:
@@ -1153,6 +1168,7 @@ async def async_setup_entry(hass, config_entry):
         account_data["relogin_unsubs"] = (relogin_unsub, login_success_unsub)
         if await test_login_status(hass, config_entry, login):
             _clear_display_relogin_marker(hass, email)
+            publish_authentication(account_data)
             _LOGGER.debug("[BOOT] test_login_status in %.2fs", time.monotonic() - _t)
             _t = time.monotonic()
             await setup_alexa(hass, config_entry, login)
@@ -1208,6 +1224,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     # Record metrics
     metrics = get_metrics(hass)
     email = login_obj.email
+    _register_account_device(hass, config_entry)
     if metrics:
         metrics.record_boot_stage(f"setup_alexa_start_{hide_email(email)}")
 
@@ -1815,6 +1832,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                             ].keys(),
                         )
                         or identifier in entity_backed_ids
+                        or identifier == account_device_identifier(config_entry)[1]
                     ):
                         break
                 else:
@@ -3433,6 +3451,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         scan_value.total_seconds() if isinstance(scan_value, timedelta) else scan_value
     )
     hass.data[DATA_ALEXAMEDIA]["accounts"][email]["login_obj"] = login_obj
+    publish_authentication(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
 
     # Initialize the per-account probe worker exactly once here (not per push message).
     _init_last_called_probe_worker(hass.data[DATA_ALEXAMEDIA]["accounts"][email])
@@ -3484,6 +3503,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     _t = time.monotonic()
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.debug("[BOOT] first_refresh in %.2fs", time.monotonic() - _t)
+
+    # Sensor forwarding is independent of the presence of Echo devices.
+    account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
+    if not account_data.get("account_sensor_forwarded"):
+        await hass.config_entries.async_forward_entry_setups(config_entry, ["sensor"])
 
     # Services are registered once in async_setup; attach the setup-local callback.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email][

@@ -199,6 +199,25 @@ async def test_member_does_not_list_disabled_group(pair, speaker):
     assert speaker.group_members is None
 
 
+def test_member_disabled_after_setup_is_skipped(pair, speaker, sub):
+    """Disabling at runtime keeps hass and entity_id but disables the entry."""
+    speaker.registry_entry = MagicMock(disabled=True)
+
+    assert pair.group_members == [
+        "media_player.kitchen_pair",
+        "media_player.echo_sub",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_member_does_not_list_group_disabled_after_setup(pair, speaker):
+    """A member drops a group disabled at runtime with a retained state."""
+    await _pair_reports(pair, speaker, "PLAYING")
+    pair.registry_entry = MagicMock(disabled=True)
+
+    assert speaker.group_members is None
+
+
 @pytest.mark.usefixtures("speaker")
 def test_unregistered_member_is_skipped(pair):
     """A member with no entity yet is left out instead of failing."""

@@ -1261,8 +1261,8 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         if not self.hass:
             return None
         group = self if self._cluster_members else self._get_session_parent()
-        # A disabled entity keeps its entity_id but is detached from hass.
-        if not group or not group.hass or not group.entity_id:
+        # A disabled entity keeps its entity_id, so check it can be listed.
+        if not group or not group.hass or not group.enabled or not group.entity_id:
             return None
         if group.state not in (MediaPlayerState.PLAYING, MediaPlayerState.PAUSED):
             return None
@@ -1280,7 +1280,10 @@ class AlexaClient(MediaPlayerDevice, AlexaMedia):
         members = [
             player.entity_id
             for serial in group.cluster_members
-            if (player := players.get(serial)) and player.hass and player.entity_id
+            if (player := players.get(serial))
+            and player.hass
+            and player.enabled
+            and player.entity_id
         ]
         return [group.entity_id, *members] if members else None
 

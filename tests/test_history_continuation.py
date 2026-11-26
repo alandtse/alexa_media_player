@@ -7,7 +7,15 @@ from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import Mock
 
-from test_last_called_selection import NOW, immediate_async, load_helpers, record
+from alexapy import AlexapyConnectionError
+from test_last_called_selection import (
+    HISTORY_BUDGET_S,
+    HISTORY_MAX_PAGES,
+    NOW,
+    immediate_async,
+    load_helpers,
+    record,
+)
 
 
 class HistoryContinuationTests(TestCase):
@@ -68,7 +76,7 @@ class HistoryContinuationTests(TestCase):
                 "customerHistoryRecords": [record(kind="ROUTINES_3P")],
                 "encodedRequestToken": f"page-{i}",
             }
-            for i in range(25)
+            for i in range(HISTORY_MAX_PAGES)
         ] + [
             {
                 "customerHistoryRecords": [record(kind="UNKNOWN")],
@@ -80,16 +88,16 @@ class HistoryContinuationTests(TestCase):
             self.login, self.account, {"A", "B"}
         )
         self.assertEqual(result[0]["deviceSerialNumber"], "B")
-        self.assertEqual(self.request.await_count, 27)
+        self.assertEqual(self.request.await_count, HISTORY_MAX_PAGES + 2)
         self.assertEqual(
             self.request.call_args_list[-1].kwargs["data"]["previousRequestToken"],
-            "page-24",
+            f"page-{HISTORY_MAX_PAGES - 1}",
         )
         self.assertEqual(
             self.request.call_args_list[0].kwargs["query"],
             self.request.call_args_list[-1].kwargs["query"],
         )
-        self.m.asyncio.sleep.assert_awaited_once_with(10)
+        self.m.asyncio.sleep.assert_awaited_once_with(HISTORY_BUDGET_S)
 
     @immediate_async
     async def test_time_budget_checks_fresh_head(self):
@@ -97,7 +105,7 @@ class HistoryContinuationTests(TestCase):
 
         async def reply(*args, **kwargs):
             if self.request.await_count == 1:
-                self.m.time.monotonic.return_value = 11
+                self.m.time.monotonic.return_value = HISTORY_BUDGET_S + 1
                 return {
                     "customerHistoryRecords": [record(kind="UNKNOWN")],
                     "encodedRequestToken": "saved",
@@ -110,7 +118,7 @@ class HistoryContinuationTests(TestCase):
         )
         self.assertEqual(result[0]["utteranceType"], "GENERAL")
         self.assertEqual(self.request.await_count, 2)
-        self.m.asyncio.sleep.assert_awaited_once_with(10)
+        self.m.asyncio.sleep.assert_awaited_once_with(HISTORY_BUDGET_S)
 
     @immediate_async
     async def test_publish_push_before_overlap_then_resume_and_emit(self):
@@ -128,7 +136,7 @@ class HistoryContinuationTests(TestCase):
                 ],
                 "encodedRequestToken": f"page-{i}",
             }
-            for i in range(25)
+            for i in range(HISTORY_MAX_PAGES)
         ] + [
             {
                 "customerHistoryRecords": [record("B", NOW + 1000)],
@@ -151,7 +159,7 @@ class HistoryContinuationTests(TestCase):
         )
         self.assertEqual(self.account["last_called"]["timestamp"], NOW + 1000)
         self.assertEqual(
-            self.account["last_called_history_result"]["serialNumber"], "B"
+            self.account["last_called_history_result"][0]["serialNumber"], "B"
         )
         baseline = self.account["last_called_history_voice_account"]
         events = self.m._take_new_voice_records(
@@ -160,7 +168,7 @@ class HistoryContinuationTests(TestCase):
         self.assertEqual([r["timestamp"] for r in events], [NOW - 200, NOW, NOW + 1000])
         self.assertEqual(
             self.request.call_args_list[-1].kwargs["data"]["previousRequestToken"],
-            "page-24",
+            f"page-{HISTORY_MAX_PAGES - 1}",
         )
         self.assertFalse(self.account["last_called_history_recheck"])
         self.account["last_called_overlap_ts"] = NOW + 1000
@@ -226,6 +234,79 @@ class HistoryContinuationTests(TestCase):
         )
 
     @immediate_async
+    async def test_failed_fresh_head_keeps_buffer_and_resumes_saved_cursor(self):
+        queue = [{"serial": "A", "activity_ts": NOW}]
+        self.request.side_effect = [
+            {"customerHistoryRecords": [record()], "encodedRequestToken": "saved"},
+            None,
+            None,
+            None,
+            AlexapyConnectionError(),
+            {"customerHistoryRecords": [record("B", NOW - 100)]},
+        ]
+        self.assertIsNone(
+            await self.m._async_get_last_called_history(
+                self.login, self.account, {"A", "B"}, queue
+            )
+        )
+        self.assertIsNone(
+            await self.m._async_get_last_called_history(
+                self.login, self.account, {"A", "B"}, queue
+            )
+        )
+        records = await self.m._async_get_last_called_history(
+            self.login, self.account, {"A", "B"}, queue
+        )
+        self.assertEqual(records, [record(), record("B", NOW - 100)])
+        self.assertEqual(
+            self.request.await_args.kwargs["data"]["previousRequestToken"], "saved"
+        )
+
+    @immediate_async
+    async def test_poll_between_pushes_does_not_forget_emitted_overlap(self):
+        self.request.side_effect = [
+            {"customerHistoryRecords": [record()]},
+            {"customerHistoryRecords": [record(ts=NOW + 1000)]},
+            {"customerHistoryRecords": [record(), record(ts=NOW + 2000)]},
+            {
+                "customerHistoryRecords": [
+                    record(),
+                    record("B", NOW + 500),
+                    record("B", NOW + 500),
+                    record(ts=NOW + 3000),
+                ]
+            },
+        ]
+        serials = {"A", "B"}
+
+        async def publish(login, payload):
+            self.account["last_called_customer_history_ts"] = payload["timestamp"]
+
+        async def push(ts):
+            queue = [{"serial": "A", "activity_ts": ts}]
+            records = await self.m._async_get_last_called_history(
+                self.login, self.account, serials, queue, on_payload=publish
+            )
+            baseline = self.account["last_called_history_voice_account"]
+            events = self.m._take_new_voice_records(baseline, records, ts, ts, serials)
+            self.account.update(
+                {
+                    k: v
+                    for k, v in baseline.items()
+                    if k.startswith("last_called_voice_")
+                }
+            )
+            self.account["last_called_overlap_ts"] = ts
+            return [(event["serial"], event["timestamp"]) for event in events]
+
+        self.assertEqual(await push(NOW), [("A", NOW)])
+        await self.m._async_get_last_called_history(
+            self.login, self.account, serials, on_payload=publish
+        )
+        self.assertEqual(await push(NOW + 2000), [("A", NOW + 2000)])
+        self.assertEqual(await push(NOW + 3000), [("B", NOW + 500), ("A", NOW + 3000)])
+
+    @immediate_async
     async def test_session_replacement_discards_saved_cursor(self):
         """A cursor from a previous transport must not leak into the new session."""
         self.request.side_effect = [
@@ -279,7 +360,7 @@ class HistoryContinuationTests(TestCase):
                 "customerHistoryRecords": [record(kind="UNKNOWN")],
                 "encodedRequestToken": f"page-{i}",
             }
-            for i in range(25)
+            for i in range(HISTORY_MAX_PAGES)
         ] + [
             {
                 "customerHistoryRecords": [record(kind="UNKNOWN")],
@@ -291,8 +372,8 @@ class HistoryContinuationTests(TestCase):
 
         # AsyncMock stores iterable side effects as iterators.
         async def reply(*args, **kwargs):
-            if self.request.await_count == 26:
-                self.m.time.monotonic.return_value += 11
+            if self.request.await_count == HISTORY_MAX_PAGES + 1:
+                self.m.time.monotonic.return_value += HISTORY_BUDGET_S + 1
             return next(original)
 
         self.request.side_effect = reply
@@ -300,9 +381,9 @@ class HistoryContinuationTests(TestCase):
             self.login, self.account, {"A"}
         )
         self.assertEqual(result[0]["utteranceType"], "GENERAL")
-        self.assertEqual(self.request.await_count, 27)
+        self.assertEqual(self.request.await_count, HISTORY_MAX_PAGES + 2)
 
-    async def _exercise_worker(self, trigger="PUSH_ACTIVITY"):
+    async def _exercise_worker(self, trigger="PUSH_ACTIVITY", *, during_pacing=None):
         """Execute the real worker body with mocked HA and scheduling transports."""
         from test_last_called_selection import SOURCE
 
@@ -330,6 +411,8 @@ class HistoryContinuationTests(TestCase):
                 return False
 
         async def wait_for(awaitable, timeout):
+            if timeout != 15 and during_pacing is not None:
+                during_pacing()
             try:
                 return await awaitable
             except asyncio.CancelledError:
@@ -341,12 +424,14 @@ class HistoryContinuationTests(TestCase):
         self.login.close_requested = False
         self.login.status = {"login_successful": True}
         self.login.session.closed = False
+        self.account.setdefault(
+            "last_called_activity_queue", [{"serial": "A", "activity_ts": NOW}]
+        )
         self.account.update(
             login_obj=self.login,
             last_called_probe_event=Event(),
             last_called_api_lock=Lock(),
             last_called_probe_trigger_cmd=trigger,
-            last_called_activity_queue=[{"serial": "A", "activity_ts": NOW}],
             last_called_last_pushed_activity={},
         )
         if self.request.side_effect is None:
@@ -380,7 +465,6 @@ class HistoryContinuationTests(TestCase):
         for name in (
             "AlexapyTooManyRequestsError",
             "AlexapyLoginError",
-            "AlexapyConnectionError",
         ):
             ns[name] = type(name, (Exception,), {})
         worker = next(
@@ -398,11 +482,17 @@ class HistoryContinuationTests(TestCase):
         self.assertEqual(self.account["last_called"]["serialNumber"], "A")
         expected_ts = getattr(self, "expected_ts", NOW)
         self.assertEqual(self.account["last_called"]["timestamp"], expected_ts)
-        self.assertEqual(self.account["last_called_overlap_ts"], expected_ts)
+        self.assertEqual(
+            self.account["last_called_overlap_ts"],
+            getattr(self, "expected_overlap_ts", expected_ts),
+        )
         self.assertEqual(
             hass.bus.async_fire.call_count, getattr(self, "expected_events", 1)
         )
-        self.assertEqual(self.account["last_called_activity_queue"], [])
+        self.assertEqual(
+            self.account["last_called_activity_queue"],
+            getattr(self, "expected_queue", []),
+        )
         return [
             call.kwargs["event_data"] for call in hass.bus.async_fire.call_args_list
         ]
@@ -411,6 +501,105 @@ class HistoryContinuationTests(TestCase):
     async def test_actual_worker_publishes_and_emits_after_overlap(self):
         """The real worker publishes once and emits the completed voice event."""
         await self._exercise_worker()
+
+    @immediate_async
+    async def test_completed_scan_retires_only_matched_customer_key(self):
+        unmatched = {"serial": "A", "customer_id": None, "activity_ts": NOW + 6000}
+        matched = {"serial": "A", "customer_id": "owner", "activity_ts": NOW}
+        self.account["last_called_activity_queue"] = [unmatched, matched]
+        self.expected_queue = [unmatched]
+        events = await self._exercise_worker()
+        self.assertEqual([event["timestamp"] for event in events], [NOW])
+
+    @immediate_async
+    async def test_push_during_probe_pacing_is_processed_after_cooldown(self):
+        self.account["last_called_probe_next_allowed"] = 5.0
+        self.expected_ts = NOW + 1000
+        arrival = Mock()
+
+        def push():
+            if arrival.called:
+                return
+            arrival()
+            self.account["last_called_probe_generation"] = 1
+            self.account["last_called_activity_queue"] = [
+                {"serial": "A", "activity_ts": NOW + 1000}
+            ]
+            self.account["last_called_probe_event"].set()
+
+        async def reply(*args, **kwargs):
+            self.assertGreaterEqual(self.m.time.monotonic(), 5.0)
+            return {"customerHistoryRecords": [record(ts=NOW + 1000)]}
+
+        self.request.side_effect = reply
+        await self._exercise_worker(during_pacing=push)
+        arrival.assert_called_once()
+        self.assertEqual(self.request.await_count, 1)
+
+    @immediate_async
+    async def test_connection_error_resumes_push_without_external_trigger(self):
+        self.expected_events = 2
+        request_times = []
+
+        async def reply(*args, **kwargs):
+            request_times.append(self.m.time.monotonic())
+            token = kwargs["data"]["previousRequestToken"]
+            if len(request_times) == 1:
+                return {
+                    "customerHistoryRecords": [record()],
+                    "encodedRequestToken": "saved",
+                }
+            if len(request_times) == 2:
+                self.assertEqual(token, "saved")
+                raise AlexapyConnectionError()
+            if token is None:
+                return {"customerHistoryRecords": [record()]}
+            self.assertEqual(token, "saved")
+            return {"customerHistoryRecords": [record(), record("B", NOW - 100)]}
+
+        self.request.side_effect = reply
+        events = await self._exercise_worker()
+        self.assertEqual([event["timestamp"] for event in events], [NOW - 100, NOW])
+        self.assertEqual(self.request.await_count, 4)
+        backoff = self.m._async_get_last_called_history.__globals__[
+            "LAST_CALLED_CONN_BACKOFF_S"
+        ]
+        self.assertAlmostEqual(request_times[2] - request_times[1], backoff)
+        self.assertEqual(self.m.async_dispatcher_send.call_count, 1)
+
+    @immediate_async
+    async def test_persistent_connection_errors_stop_automatic_retries(self):
+        self.expected_events = 0
+        self.expected_overlap_ts = 0
+        self.expected_queue = [{"serial": "A", "activity_ts": NOW}]
+        tokens = []
+        request_times = []
+
+        async def reply(*args, **kwargs):
+            token = kwargs["data"]["previousRequestToken"]
+            tokens.append(token)
+            if self.request.await_count == 1:
+                return {
+                    "customerHistoryRecords": [record()],
+                    "encodedRequestToken": "saved",
+                }
+            if token is None:
+                return {"customerHistoryRecords": []}
+            request_times.append(self.m.time.monotonic())
+            raise AlexapyConnectionError()
+
+        self.request.side_effect = reply
+        await self._exercise_worker()
+        self.assertEqual(tokens, [None, "saved", None, "saved", None, "saved"])
+        backoff = self.m._async_get_last_called_history.__globals__[
+            "LAST_CALLED_CONN_BACKOFF_S"
+        ]
+        for earlier, later in zip(request_times, request_times[1:]):
+            self.assertAlmostEqual(later - earlier, backoff)
+        self.assertEqual(self.m.async_dispatcher_send.call_count, 1)
+        self.assertIsNotNone(
+            self.account["last_called_history_scans"]["push"]["cursor"]
+        )
 
     @immediate_async
     async def test_resumed_head_emits_late_voice_once_below_selection_watermark(self):
@@ -422,7 +611,7 @@ class HistoryContinuationTests(TestCase):
                 ],
                 "encodedRequestToken": f"page-{i}",
             }
-            for i in range(25)
+            for i in range(HISTORY_MAX_PAGES)
         ] + [
             {
                 "customerHistoryRecords": [
@@ -438,7 +627,7 @@ class HistoryContinuationTests(TestCase):
             [(event["serial"], event["timestamp"]) for event in events],
             [("B", NOW - 100), ("A", NOW)],
         )
-        self.assertEqual(self.request.await_count, 27)
+        self.assertEqual(self.request.await_count, HISTORY_MAX_PAGES + 2)
         self.assertEqual(self.m.async_dispatcher_send.call_count, 1)
 
     @immediate_async
@@ -476,7 +665,7 @@ class HistoryContinuationTests(TestCase):
                 ],
                 "encodedRequestToken": f"page-{i}",
             }
-            for i in range(25)
+            for i in range(HISTORY_MAX_PAGES)
         ] + [
             {
                 "customerHistoryRecords": [
@@ -488,7 +677,7 @@ class HistoryContinuationTests(TestCase):
             {"customerHistoryRecords": [record("A", NOW - 200)]},
         ]
         await self._exercise_worker()
-        self.assertEqual(self.request.await_count, 27)
+        self.assertEqual(self.request.await_count, HISTORY_MAX_PAGES + 2)
         self.assertEqual(self.m.async_dispatcher_send.call_count, 2)
 
     @immediate_async

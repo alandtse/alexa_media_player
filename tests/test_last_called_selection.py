@@ -12,8 +12,12 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, Mock
 
+from alexapy import AlexapyConnectionError
+
 SOURCE = Path(__file__).parents[1] / "custom_components/alexa_media/__init__.py"
 NOW = 1_800_000_000_000
+HISTORY_MAX_PAGES = 25
+HISTORY_BUDGET_S = 10.0
 
 
 def record(serial="A", ts=NOW, kind="GENERAL", summary="turn on lights"):
@@ -60,14 +64,15 @@ def load_helpers():
         "hide_serial": lambda v: v,
         "async_dispatcher_send": Mock(),
         "_existing_serials": lambda *args: {"A", "B"},
-        "LAST_CALLED_HISTORY_MAX_PAGES": 25,
-        "LAST_CALLED_HISTORY_BUDGET_S": 10.0,
+        "LAST_CALLED_HISTORY_MAX_PAGES": HISTORY_MAX_PAGES,
+        "LAST_CALLED_HISTORY_BUDGET_S": HISTORY_BUDGET_S,
         "time": SimpleNamespace(
             time=lambda: NOW / 1000, monotonic=Mock(return_value=0)
         ),
         "get_json_value": AsyncMock(
             side_effect=lambda response, *args: (response, isinstance(response, dict))
         ),
+        "AlexapyConnectionError": AlexapyConnectionError,
         "AlexaAPI": SimpleNamespace(
             _static_request=AsyncMock(),
             _normalize_history_record=AsyncMock(side_effect=lambda login, raw: raw),

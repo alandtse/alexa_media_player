@@ -558,14 +558,16 @@ def _take_new_voice_records(
     # the watermark and dedupe against what was already emitted. Only while
     # this function emitted up to the watermark: refresh paths advance it
     # without emitting, and the overlap would replay their records late.
+    overlap_floor = max(floor, watermark - LAST_CALLED_STALE_FUDGE_MS)
     lower_ts = max(floor, watermark)
     if watermark <= int(account.get("last_called_voice_upper_ts") or 0):
-        lower_ts = max(floor, watermark - LAST_CALLED_STALE_FUDGE_MS)
+        lower_ts = overlap_floor
     account["last_called_voice_upper_ts"] = upper_ts
     emitted: set[tuple[str, int]] = account.setdefault(
         "last_called_voice_emitted", set()
     )
-    for key in [key for key in emitted if key[1] <= lower_ts]:
+    # A refresh can narrow the current window, but the next push can reopen it.
+    for key in [key for key in emitted if key[1] <= overlap_floor]:
         emitted.discard(key)
 
     new_records = []
@@ -801,16 +803,26 @@ async def _async_get_last_called_history(
             # Every resumed burst first checks the current head. It must not
             # replace the saved continuation or the original query bounds.
             head = index == 0 and state["cursor"] is not None
-            page = await AlexaAPI.get_customer_history_page(
-                login_obj,
-                start_time=state["start"],
-                end_time=(
-                    max(state["end"], int(time.time() * 1000)) if head else state["end"]
-                ),
-                max_record_size=state["size"],
-                continuation=None if head else state["cursor"],
-            )
+            try:
+                page = await AlexaAPI.get_customer_history_page(
+                    login_obj,
+                    start_time=state["start"],
+                    end_time=(
+                        max(state["end"], int(time.time() * 1000))
+                        if head
+                        else state["end"]
+                    ),
+                    max_record_size=state["size"],
+                    continuation=None if head else state["cursor"],
+                )
+            except AlexapyConnectionError:
+                if head:
+                    continue
+                raise
             if page.status == "error":
+                # The fresh query has no cursor and cannot invalidate the saved one.
+                if head:
+                    continue
                 # Invalid cursors cannot be retried. Transient failures can
                 # retry the same cursor. Transport discards HTTP error details,
                 # so bound failures without cursor progress to recover expiry.
@@ -826,6 +838,7 @@ async def _async_get_last_called_history(
                 return None
             if not head:
                 state["failures"] = 0
+                state.pop("connection_retries", None)
             # Excluded routine/arbitration floods must not grow the retained
             # overlap buffer. Page timestamps still control traversal below.
             # Push event processing also needs head records below the live
@@ -876,10 +889,15 @@ async def _async_get_last_called_history(
             if page.status == "exhausted" or reached_floor:
                 scans.pop(kind, None)
                 if queue_snapshot:
-                    event_payload, _ = _select_last_called_payload_from_records(
-                        state["records"], active_queue, state["voice_account"], serials
+                    event_payload, event_keys = (
+                        _select_last_called_payload_from_records(
+                            state["records"],
+                            active_queue,
+                            state["voice_account"],
+                            serials,
+                        )
                     )
-                    account["last_called_history_result"] = event_payload
+                    account["last_called_history_result"] = event_payload, event_keys
                     account["last_called_history_voice_account"] = state[
                         "voice_account"
                     ]
@@ -2275,7 +2293,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 account_live["last_called_probe_event"].wait(),
                                 timeout=delay,
                             )
-                            account_live["last_called_probe_event"].clear()
+                            # The outer loop consumes this wakeup, then checks pace again.
                             preempted = True
                             break
                         except asyncio.TimeoutError:
@@ -2476,6 +2494,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 trigger_cmd,
                                 exc,
                             )
+                            scan = account_live.get(
+                                "last_called_history_scans", {}
+                            ).get("push")
+                            if queue_snapshot and scan and scan["cursor"] is not None:
+                                retries = scan.get("connection_retries", 0)
+                                if retries < LAST_CALLED_RETRY_LIMIT:
+                                    scan["connection_retries"] = retries + 1
+                                    skip_debounce = True
+                                    account_live["last_called_probe_event"].set()
                             break
 
                         existing_serials_local = set(
@@ -2491,17 +2518,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 existing_serials_local,
                             )
                         )
-                        completed_payload = account_live.pop(
-                            "last_called_history_result", None
+                        completed_result = account_live.pop(
+                            "last_called_history_result", (None, set())
                         )
                         if payload is None:
-                            payload = completed_payload
-                            if payload:
-                                resolved_keys = {
-                                    (q.get("serial"), q.get("customer_id"))
-                                    for q in queue_snapshot
-                                    if q.get("serial") == payload["serialNumber"]
-                                }
+                            payload, resolved_keys = completed_result
 
                         _debug(
                             "last_called queue match (%s): queued=%s matched=%s resolved=%s",
@@ -2525,7 +2546,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 if payload
                                 else None
                             ),
-                            sorted(resolved_keys),
+                            sorted(
+                                resolved_keys, key=lambda key: (key[0], key[1] or "")
+                            ),
                         )
 
                         if not payload:

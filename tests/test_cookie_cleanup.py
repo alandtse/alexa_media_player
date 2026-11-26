@@ -17,9 +17,11 @@ def removal_context(tmp_path):
     """Load the removal hook in isolation from unrelated HA startup imports."""
     source = Path(__file__).parents[1] / "custom_components/alexa_media/__init__.py"
     tree = ast.parse(source.read_text(encoding="utf-8"))
-    hook = next(
-        node for node in tree.body if getattr(node, "name", "") == "async_remove_entry"
-    )
+    hooks = {
+        node.name: node
+        for node in tree.body
+        if getattr(node, "name", "") in ("async_remove_entry", "_stop_display_recovery")
+    }
     namespace = {
         "AlexaLogin": Mock(return_value=SimpleNamespace(delete_cookiefile=AsyncMock())),
         "hide_email": hide_email,
@@ -34,7 +36,14 @@ def removal_context(tmp_path):
     }
     namespace["AlexaLogin"].delete_cookiefile = AsyncMock()
     exec(  # nosec B102: execute only the repository hook to isolate HA imports
-        compile(ast.Module(body=[hook], type_ignores=[]), str(source), "exec"),
+        compile(
+            ast.Module(
+                body=[hooks["_stop_display_recovery"], hooks["async_remove_entry"]],
+                type_ignores=[],
+            ),
+            str(source),
+            "exec",
+        ),
         namespace,
     )
     hass = SimpleNamespace(
@@ -122,3 +131,77 @@ async def test_alexapy_deletes_current_cookie_file(tmp_path):
         assert not cookie.exists()
     finally:
         await login.close()
+
+
+@pytest.mark.asyncio
+async def test_remove_leaves_other_entry_display_state(removal_context):
+    """Removing one entry must not stop another entry's display recovery."""
+    namespace, hass, entry, cookie = removal_context
+    namespace["DATA_ALEXAMEDIA"] = "alexa_media"
+    entry.entry_id = "entry"
+    other = SimpleNamespace(entry_id="other")
+    display_state = Mock()
+    unsub = Mock()
+    hass.data = {
+        "alexa_media": {
+            "accounts": {
+                "test@example.com": {
+                    "config_entry": other,
+                    "display_states": {"SERIAL": display_state},
+                    "display_reload_unsub": unsub,
+                }
+            },
+            "display_relogin_reported": {"test@example.com"},
+        }
+    }
+    delete = namespace["AlexaLogin"].return_value.delete_cookiefile
+    delete.side_effect = lambda: cookie.unlink()
+
+    assert await namespace["async_remove_entry"](hass, entry)
+
+    display_state.async_stop.assert_not_called()
+    unsub.assert_not_called()
+    assert "test@example.com" in hass.data["alexa_media"]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_remove_clears_display_recovery_state(removal_context):
+    """Removing an entry stops display polling and drops its recovery state."""
+    namespace, hass, entry, cookie = removal_context
+    namespace["DATA_ALEXAMEDIA"] = "alexa_media"
+    entry.entry_id = "entry"
+    display_state = Mock()
+    probe = Mock()
+    probe.done.return_value = False
+    setup_task = Mock()
+    setup_task.done.return_value = False
+    unsub = Mock()
+    hass.data = {
+        "alexa_media": {
+            "accounts": {
+                "test@example.com": {
+                    "config_entry": entry,
+                    "display_states": {"SERIAL": display_state},
+                    "display_probes": {"SERIAL": probe},
+                    "display_setup_tasks": {setup_task},
+                    "display_reload_unsub": unsub,
+                }
+            },
+            "display_entry_states": {"entry": {"pending": {"SERIAL"}}},
+            "display_reload_budget": {"entry": 1},
+            "display_relogin_reported": {"test@example.com"},
+        }
+    }
+    delete = namespace["AlexaLogin"].return_value.delete_cookiefile
+    delete.side_effect = lambda: cookie.unlink()
+
+    assert await namespace["async_remove_entry"](hass, entry)
+
+    display_state.async_stop.assert_called_once()
+    probe.cancel.assert_called_once()
+    setup_task.cancel.assert_called_once()
+    unsub.assert_called_once()
+    integration_data = hass.data["alexa_media"]
+    assert "entry" not in integration_data["display_entry_states"]
+    assert "entry" not in integration_data["display_reload_budget"]
+    assert "test@example.com" not in integration_data["display_relogin_reported"]

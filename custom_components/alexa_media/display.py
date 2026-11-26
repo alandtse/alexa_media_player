@@ -64,6 +64,22 @@ def can_probe_display(device: dict[str, Any]) -> bool:
     )
 
 
+def display_registration_is_current(
+    hass: HomeAssistant,
+    account: str,
+    account_dict: dict[str, Any],
+) -> bool:
+    """Return whether a background display registration still owns its account.
+
+    Platform setup returns before display discovery finishes, so unload or
+    removal can retire the account first. Unload stops every known
+    ``DisplayState`` and the registration loop skips stopped states; this check
+    covers a result that arrives after the account record is gone.
+    """
+    accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
+    return accounts.get(account) is account_dict
+
+
 def _normalize_setting_value(setting: str, value: Any) -> Any | None:
     """Return a validated setting value, or None when the payload is malformed."""
     if setting == SETTING_BRIGHTNESS:

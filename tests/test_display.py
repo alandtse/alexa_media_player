@@ -71,6 +71,13 @@ def _state() -> DisplayState:
     return state
 
 
+async def _drain_display_registration(account_dict) -> None:
+    """Wait for the tracked display registration tasks to finish."""
+    tasks = list(account_dict.get("display_setup_tasks", ()))
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 def test_can_probe_display_requires_identity():
     """Every media player with a string id and serial is a probe candidate."""
     assert can_probe_display(_device())
@@ -1139,6 +1146,7 @@ async def test_switch_setup_creates_display_entities():
         ),
     ) as probe:
         await async_setup_platform(hass, {"email": EMAIL}, add)
+        await _drain_display_registration(account_dict)
 
     probe.assert_awaited_once()
     switches = account_dict["entities"]["switch"][SERIAL]
@@ -1201,6 +1209,7 @@ async def test_switch_setup_skips_unsupported_display(device_type):
         ),
     ):
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await _drain_display_registration(account_dict)
 
     probe.assert_awaited_once()
     switches = account_dict["entities"]["switch"][SERIAL]
@@ -1259,6 +1268,7 @@ async def test_number_setup_creates_display_brightness():
         ),
     ):
         await async_setup_platform(hass, {"email": EMAIL}, callback)
+        await _drain_display_registration(account_dict)
 
     probe.assert_awaited_once()
     assert f"{SERIAL}_display_brightness" in account_dict["entities"]["number"]
@@ -1312,6 +1322,7 @@ async def test_number_setup_skips_unsupported_display():
         ),
     ):
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await _drain_display_registration(account_dict)
 
     probe.assert_awaited_once()
     assert f"{SERIAL}_display_brightness" not in account_dict["entities"]["number"]
@@ -1374,6 +1385,7 @@ async def test_number_setup_skips_missing_client_without_blocking_volumes():
         ),
     ):
         assert await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await _drain_display_registration(account_dict)
 
     assert any(isinstance(entity, AlexaNotificationVolume) for entity in submitted)
     assert any(isinstance(entity, AlexaDisplayBrightness) for entity in submitted)
@@ -1429,6 +1441,7 @@ async def test_number_setup_ignores_retired_display_state():
         ),
     ):
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await _drain_display_registration(account_dict)
 
     assert f"{SERIAL}_display_brightness" not in account_dict["entities"]["number"]
 

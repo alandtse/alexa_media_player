@@ -1,6 +1,7 @@
 """Tests for the alarm and notification volume number."""
 
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.exceptions import HomeAssistantError
@@ -10,6 +11,7 @@ from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.number import (
     AlexaDisplayBrightness,
     AlexaNotificationVolume,
+    async_setup_entry,
     async_setup_platform,
 )
 
@@ -133,15 +135,64 @@ async def test_setup_returns_before_display_probe(
             side_effect=slow_display,
         ),
     ):
-        assert await async_setup_platform(mock_hass, {"email": EMAIL}, add)
-        await asyncio.wait_for(started.wait(), timeout=1)
-        assert f"{SERIAL}_notification_volume" in {
-            entity.unique_id for entity in submitted
-        }
-        # Setup already returned while the probe is still blocked.
-        release.set()
+        setup_task = asyncio.create_task(
+            async_setup_platform(mock_hass, {"email": EMAIL}, add)
+        )
+        try:
+            await asyncio.wait_for(started.wait(), timeout=1)
+            assert f"{SERIAL}_notification_volume" in {
+                entity.unique_id for entity in submitted
+            }
+            # A regression that makes setup wait for the probe times out here
+            # instead of hanging until the suite timeout.
+            assert await asyncio.wait_for(setup_task, timeout=1)
+        finally:
+            release.set()
+            await _drain_display_registration(mock_account_dict)
+
+    assert any(isinstance(entity, AlexaDisplayBrightness) for entity in submitted)
+
+
+@pytest.mark.asyncio
+async def test_display_add_failure_recovers_within_number_setup(
+    mock_hass, mock_account_dict, mock_client
+):
+    """A rejected brightness batch is retried without another setup call."""
+    mock_account_dict["login_obj"] = mock_client._login
+    device = mock_account_dict["devices"]["media_player"][SERIAL]
+    state = MagicMock()
+    state.supports.return_value = True
+    attempts = 0
+    submitted = []
+    entry = SimpleNamespace(data={"email": EMAIL}, options={})
+
+    def add(entities, _):
+        nonlocal attempts
+        if any(isinstance(entity, AlexaDisplayBrightness) for entity in entities):
+            attempts += 1
+            if attempts == 1:
+                raise RuntimeError("brightness add failed")
+        submitted.extend(entities)
+
+    with (
+        patch(
+            "custom_components.alexa_media.number.can_probe_display",
+            side_effect=lambda candidate: candidate is device,
+        ),
+        patch(
+            "custom_components.alexa_media.number.async_get_display_state",
+            new_callable=AsyncMock,
+            return_value=state,
+        ),
+        patch(
+            "custom_components.alexa_media.number.DISPLAY_REGISTRATION_RETRY_DELAY", 0
+        ),
+    ):
+        assert await async_setup_entry(mock_hass, entry, add)
         await _drain_display_registration(mock_account_dict)
 
+    assert attempts == 2
+    assert f"{SERIAL}_display_brightness" in mock_account_dict["entities"]["number"]
     assert any(isinstance(entity, AlexaDisplayBrightness) for entity in submitted)
 
 

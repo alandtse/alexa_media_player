@@ -472,16 +472,17 @@ async def test_non_display_switches_submit_before_display_probe(
     task = asyncio.create_task(
         switch_platform.async_setup_entry(mock_hass, entry, schedule)
     )
-    await asyncio.wait_for(started.wait(), timeout=1)
-    assert "dnd" in submitted
-    assert "display" not in submitted
-    # The background registration stays tracked for unload/removal cleanup.
-    assert account["display_registration_switch"] in account["display_setup_tasks"]
-    # Platform setup does not wait for the display probe.
-    assert await asyncio.wait_for(task, timeout=1)
-
-    release.set()
-    await _drain_display_registration(account)
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        assert "dnd" in submitted
+        assert "display" not in submitted
+        # The background registration stays tracked for unload/removal cleanup.
+        assert account["display_registration_switch"] in account["display_setup_tasks"]
+        # Platform setup does not wait for the display probe.
+        assert await asyncio.wait_for(task, timeout=1)
+    finally:
+        release.set()
+        await _drain_display_registration(account)
     assert "display" in submitted
 
 
@@ -574,33 +575,51 @@ async def test_switch_setup_skips_retired_display_state(
     assert "adaptive_brightness" not in switches
 
 
-async def test_display_add_failure_keeps_setup_loaded(mock_hass, switch_setup):
-    """A failed display batch is retried later instead of failing setup."""
+async def test_display_add_failure_recovers_within_setup(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A rejected display batch is retried without another setup call."""
     entry, account, _ = switch_setup
-    queued = []
+    display_attempts = 0
 
-    def reject_display(entities, _):
+    def schedule(entities, _):
+        nonlocal display_attempts
         ids = [entity.unique_id for entity in entities]
         if "display" in ids:
-            raise RuntimeError("display add failed")
-        queued.extend(ids)
+            display_attempts += 1
+            if display_attempts == 1:
+                raise RuntimeError("display add failed")
 
-    assert await switch_platform.async_setup_entry(mock_hass, entry, reject_display)
+    monkeypatch.setattr(switch_platform, "DISPLAY_REGISTRATION_RETRY_DELAY", 0)
+    assert await switch_platform.async_setup_entry(mock_hass, entry, schedule)
     await _drain_display_registration(account)
+
+    assert display_attempts == 2
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" in switches
+    assert "adaptive_brightness" in switches
+
+
+async def test_display_add_failure_is_bounded(mock_hass, switch_setup, monkeypatch):
+    """A permanently rejected display batch stops at the bounded attempt count."""
+    entry, account, _ = switch_setup
+    display_attempts = 0
+
+    def schedule(entities, _):
+        nonlocal display_attempts
+        ids = [entity.unique_id for entity in entities]
+        if "display" in ids:
+            display_attempts += 1
+            raise RuntimeError("display add failed")
+
+    monkeypatch.setattr(switch_platform, "DISPLAY_REGISTRATION_RETRY_DELAY", 0)
+    assert await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    await _drain_display_registration(account)
+
+    assert display_attempts == switch_platform.DISPLAY_REGISTRATION_ATTEMPTS
     switches = account["entities"]["switch"].get("echo", {})
     assert "display_power" not in switches
     assert "adaptive_brightness" not in switches
-
-    await switch_platform.async_setup_entry(mock_hass, entry, reject_display)
-    await _drain_display_registration(account)
-    assert "display" not in queued
-
-    def accept(entities, _):
-        queued.extend(entity.unique_id for entity in entities)
-
-    await switch_platform.async_setup_entry(mock_hass, entry, accept)
-    await _drain_display_registration(account)
-    assert "display" in queued
 
 
 async def test_late_display_registration_dropped_after_removal(

@@ -5,6 +5,7 @@ was used but never defined, causing a NameError when users had Smart Plug
 devices with CONF_EXTENDED_ENTITY_DISCOVERY enabled.
 """
 
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -279,10 +280,14 @@ def switch_setup(monkeypatch, mock_hass, mock_account_dict):
     monkeypatch.setattr(switch_platform, "async_get_state", lambda *_: kids)
     monkeypatch.setattr(
         switch_platform,
-        "supports_display",
+        "can_probe_display",
         lambda d: d is devices["media_player"]["echo"],
     )
-    monkeypatch.setattr(switch_platform, "async_get_display_state", AsyncMock())
+    monkeypatch.setattr(
+        switch_platform,
+        "async_get_display_state",
+        AsyncMock(return_value=SimpleNamespace(supports=lambda _setting: True)),
+    )
 
     def mock_switch(unique_id):
         return lambda *_: SimpleNamespace(
@@ -423,3 +428,73 @@ async def test_reload_resubmits_after_scheduled_add_fails(mock_hass, switch_setu
         entity.unique_id for entity in old_entities
     ]
     assert all(new is not old for new, old in zip(queued, old_entities, strict=True))
+
+
+async def test_non_display_switches_submit_before_display_probe(
+    mock_hass, switch_setup, monkeypatch
+):
+    """Ordinary switches do not wait for display discovery."""
+    entry, _, _ = switch_setup
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_display(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        return SimpleNamespace(supports=lambda _setting: True)
+
+    monkeypatch.setattr(switch_platform, "async_get_display_state", slow_display)
+    submitted = []
+
+    def schedule(entities, _):
+        submitted.extend(entity.unique_id for entity in entities)
+
+    task = asyncio.create_task(
+        switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    )
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        assert "dnd" in submitted
+        assert "display" not in submitted
+    finally:
+        release.set()
+        assert await asyncio.wait_for(task, timeout=1)
+    assert "display" in submitted
+
+
+async def test_kids_device_added_during_display_probe_registers_later(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A new Kids device is registered after its client appears."""
+    entry, account, kids = switch_setup
+
+    def kids_switch(_state, _login, client, _device_type):
+        return SimpleNamespace(
+            unique_id=f"kids-{client.device_serial_number}",
+            name="kids",
+            is_on=False,
+        )
+
+    monkeypatch.setattr(switch_platform, "AmazonKidsSwitch", kids_switch)
+
+    async def add_during_probe(*_args, **_kwargs):
+        account["devices"]["media_player"]["new-kids"] = {
+            "deviceFamily": "ECHO",
+            "deviceType": "echo-type",
+        }
+        return SimpleNamespace(supports=lambda _setting: True)
+
+    monkeypatch.setattr(switch_platform, "async_get_display_state", add_during_probe)
+
+    await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
+    assert account["entities"]["amazon_kids_switch"] == []
+
+    account["entities"]["media_player"]["new-kids"] = SimpleNamespace(
+        device_serial_number="new-kids"
+    )
+    await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
+
+    callback = kids.async_add_when_dashboard.await_args_list[-1].args[0]
+    await callback()
+    added = {entity.unique_id for entity in account["entities"]["amazon_kids_switch"]}
+    assert "kids-new-kids" in added

@@ -283,14 +283,14 @@ tzdata = ">=2024.1"
 
 [[package]]
 name = "alexapy"
-version = "1.36.0"
+version = "1.38.0"
 description = "Python API to control Amazon Echo Devices Programmatically."
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "alexapy-1.36.0-py3-none-any.whl", hash = "sha256:41c2eac6f521cf10179115e4cbc82b8400c08f898d474c564267be82958e5531"},
-    {file = "alexapy-1.36.0.tar.gz", hash = "sha256:aa7f1cfa74f468638af29c8c8261ba58a351a962ce247e093b8eeebb6cbdd28f"},
+    {file = "alexapy-1.38.0-py3-none-any.whl", hash = "sha256:c2f3a57d196fdad88efb56ec20eb48739244f8675d4ed074b3038f810da19650"},
+    {file = "alexapy-1.38.0.tar.gz", hash = "sha256:47c2bb8c879f669bb3302462fe4c31f0a38aaed77215dd92bd28006bd0cb74c5"},
 ]
 
 [package.dependencies]
@@ -395,14 +395,14 @@ pytz = "*"
 
 [[package]]
 name = "astroid"
-version = "3.3.11"
+version = "4.0.4"
 description = "An abstract syntax tree for Python with inference support."
 optional = false
-python-versions = ">=3.9.0"
+python-versions = ">=3.10.0"
 groups = ["dev"]
 files = [
-    {file = "astroid-3.3.11-py3-none-any.whl", hash = "sha256:54c760ae8322ece1abd213057c4b5bba7c49818853fc901ef09719a60dbf9dec"},
-    {file = "astroid-3.3.11.tar.gz", hash = "sha256:1e5a5011af2920c7c67a53f65d536d65bfa7116feeaf2354d8b94f29573bb0ce"},
+    {file = "astroid-4.0.4-py3-none-any.whl", hash = "sha256:52f39653876c7dec3e3afd4c2696920e05c83832b9737afc21928f2d2eb7a753"},
+    {file = "astroid-4.0.4.tar.gz", hash = "sha256:986fed8bcf79fb82c78b18a53352a0b287a73817d6dbcfba3162da36667c49a0"},
 ]
 
 [[package]]
@@ -911,14 +911,14 @@ test = ["coverage", "pycodestyle"]
 
 [[package]]
 name = "certifi"
-version = "2025.8.3"
+version = "2026.10.18"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.7"
 groups = ["main", "dev"]
 files = [
-    {file = "certifi-2025.8.3-py3-none-any.whl", hash = "sha256:f6c12493cfb1b06ba2ff328595af9350c65d6644968e5d3a2ffd78699af217a5"},
-    {file = "certifi-2025.8.3.tar.gz", hash = "sha256:e564105f78ded564e3ae7c923924435e1daa7463faeab5bb932bc53ffae63407"},
+    {file = "certifi-2026.10.18-py3-none-any.whl", hash = "sha256:73191c47aaa79da394e8fee2dbc2ec827432cab56311122c9e47abf79e390f62"},
+    {file = "certifi-2026.10.18.tar.gz", hash = "sha256:b9995d97b64d0431a5af837d8ca8cd6238104d1f319f04bd93ea43124d6c861e"},
 ]
 
 [[package]]
@@ -3647,21 +3647,21 @@ tests = ["coverage[toml] (==5.0.4)", "pytest (>=6.0.0,<7.0.0)"]
 
 [[package]]
 name = "pylint"
-version = "3.3.8"
+version = "4.0.9"
 description = "python code static checker"
 optional = false
-python-versions = ">=3.9.0"
+python-versions = ">=3.10.0"
 groups = ["dev"]
 files = [
-    {file = "pylint-3.3.8-py3-none-any.whl", hash = "sha256:7ef94aa692a600e82fabdd17102b73fc226758218c97473c7ad67bd4cb905d83"},
-    {file = "pylint-3.3.8.tar.gz", hash = "sha256:26698de19941363037e2937d3db9ed94fb3303fdadf7d98847875345a8bb6b05"},
+    {file = "pylint-4.0.9-py3-none-any.whl", hash = "sha256:c4ba5bbaf1e70ecf05f08cd7d6091ea04824b79a2b2d9f5b10dc25fc34cb1124"},
+    {file = "pylint-4.0.9.tar.gz", hash = "sha256:6f1305780229ae720e89b8aff2b3ff857cbb268fbab98c8b586960267667ad34"},
 ]
 
 [package.dependencies]
-astroid = ">=3.3.8,<=3.4.0.dev0"
+astroid = ">=4.0.2,<=4.1.dev0"
 colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 dill = {version = ">=0.3.7", markers = "python_version >= \"3.12\""}
-isort = ">=4.2.5,!=5.13,<7"
+isort = ">=5,!=5.13,<10"
 mccabe = ">=0.6,<0.8"
 platformdirs = ">=2.2"
 tomlkit = ">=0.10.1"
@@ -3688,18 +3688,18 @@ pylint-plugin-utils = ">=0.2.1"
 
 [[package]]
 name = "pylint-django"
-version = "2.6.1"
+version = "2.8.0"
 description = "A Pylint plugin to help Pylint understand the Django web framework"
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["dev"]
 files = [
-    {file = "pylint-django-2.6.1.tar.gz", hash = "sha256:19e8c85a8573a04e3de7be2ba91e9a7c818ebf05e1b617be2bbae67a906b725f"},
-    {file = "pylint_django-2.6.1-py3-none-any.whl", hash = "sha256:359f68fe8c810ee6bc8e1ab4c83c19b15a43b234a24b08978f47a23462b5ce28"},
+    {file = "pylint_django-2.8.0-py3-none-any.whl", hash = "sha256:706eb2cc8d7692236be9fd033a341042afe3bbbf99df9234a659db931016ef5d"},
+    {file = "pylint_django-2.8.0.tar.gz", hash = "sha256:42accea9098e4a3298b4bfbae0e4da81f909f8bff0deda9485efbd6035a86d6a"},
 ]
 
 [package.dependencies]
-pylint = ">=3.0,<4"
+pylint = ">=3.0,<5"
 pylint-plugin-utils = ">=0.8"
 
 [package.extras]
@@ -4543,18 +4543,18 @@ fixture = ["fixtures"]
 
 [[package]]
 name = "requirements-detector"
-version = "1.4.0"
+version = "1.6.0"
 description = "Python tool to find and list requirements of a Python project"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = "<4.0,>=3.10"
 groups = ["dev"]
 files = [
-    {file = "requirements_detector-1.4.0-py3-none-any.whl", hash = "sha256:d76592a688e2f4553e6d1eb95ac3be0ec105549bc21348712aa12d714c1cd28f"},
-    {file = "requirements_detector-1.4.0.tar.gz", hash = "sha256:0326c39269d87504c0e1b75932b86a6fdaa8a9eb3ce82243e5a21b696c2ade76"},
+    {file = "requirements_detector-1.6.0-py3-none-any.whl", hash = "sha256:2f103d23f38a4c5d8f8858cb30c61c4ff1b0567e0315f8fe2b1595aa4e3ae0e8"},
+    {file = "requirements_detector-1.6.0.tar.gz", hash = "sha256:601a57092f7a25fbbcf0985fbc91f2af64b1f882e951336cd4920ecee8fb03b1"},
 ]
 
 [package.dependencies]
-astroid = ">=3.0,<4.0"
+astroid = ">=4.0,<5.0"
 packaging = ">=21.3"
 semver = ">=3.0.0,<4.0.0"
 
@@ -6024,4 +6024,4 @@ ifaddr = ">=0.1.7"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "fa2fff8cf9609ef3c3fbe65f726da919ec76218c6f5e8e065b2e432ace4ff2a3"
+content-hash = "827ee88dff4d8bbcb3bad35186bfde1da77c15d9ec8df7bc757a7b17a9ad3841"

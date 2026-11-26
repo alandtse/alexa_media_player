@@ -17,6 +17,8 @@ EMAIL = "test@example.com"
 PAIR = "PAIR_SERIAL"
 SPEAKER = "SPEAKER_SERIAL"
 SUB = "SUB_SERIAL"
+EVERYWHERE = "EVERYWHERE_SERIAL"
+OTHER = "OTHER_SERIAL"
 
 
 def _player_info(state):
@@ -216,6 +218,43 @@ async def test_member_does_not_list_group_disabled_after_setup(pair, speaker):
     pair.registry_entry = MagicMock(disabled=True)
 
     assert speaker.group_members is None
+
+
+def _make_multiroom(hass, pair):
+    """Return a multi-room group that contains the pair and another speaker."""
+    pair._parent_clusters = [EVERYWHERE]
+    _make_client(hass, OTHER, "media_player.office", parent_clusters=[EVERYWHERE])
+    return _make_client(
+        hass, EVERYWHERE, "media_player.everywhere", cluster_members=[PAIR, OTHER]
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("speaker", "sub")
+@pytest.mark.parametrize("state", ["PLAYING", "PAUSED"])
+async def test_pair_lists_the_multiroom_group_it_follows(hass, pair, state):
+    """A pair following a larger group reports that group's list."""
+    everywhere = _make_multiroom(hass, pair)
+
+    await _pair_reports(everywhere, pair, state)
+
+    assert pair.group_members == [
+        "media_player.everywhere",
+        "media_player.kitchen_pair",
+        "media_player.office",
+    ]
+
+
+@pytest.mark.usefixtures("speaker", "sub")
+def test_pair_in_multiroom_group_lists_itself_when_on_its_own(hass, pair):
+    """A pair playing by itself keeps its own list despite belonging to a group."""
+    _make_multiroom(hass, pair)
+
+    assert pair.group_members == [
+        "media_player.kitchen_pair",
+        "media_player.echo",
+        "media_player.echo_sub",
+    ]
 
 
 @pytest.mark.usefixtures("speaker")

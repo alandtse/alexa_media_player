@@ -95,6 +95,9 @@
       "air_quality_volatile_organic_compounds": {
         "name": "Compuestos orgánicos volátiles"
       },
+      "battery": {
+        "name": "Battery"
+      },
       "next_alarm": {
         "name": "Próxima alarma"
       },

@@ -1,12 +1,18 @@
 """Tests for Echo display controls."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
-from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from alexapy import AlexaAPI, AlexapyLoginError, hide_serial
+from homeassistant.exceptions import HomeAssistantError
 import pytest
 
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.display import (
+    DISPLAY_FAILURE_LIMIT,
+    DISPLAY_PROBE_CONCURRENCY,
+    DISPLAY_SETTINGS,
     SETTING_ADAPTIVE_BRIGHTNESS,
     SETTING_BRIGHTNESS,
     SETTING_DISPLAY_POWER,
@@ -14,17 +20,41 @@ from custom_components.alexa_media.display import (
     AlexaDisplayBrightness,
     AlexaDisplayPowerSwitch,
     DisplayState,
-    _decode_setting,
+    _await_with_throttle_watch,
+    _cancel_display_reload_if_idle,
+    _clear_display_reload_budget,
+    _display_pending,
+    _normalize_setting_value,
+    _report_display_relogin,
+    _schedule_display_reload,
     async_get_device_setting,
     async_get_display_state,
+    async_probe_display_settings,
     async_set_device_setting,
-    supports_display,
+    can_probe_display,
 )
 
 EMAIL = "test@example.com"  # noqa: S105
 SERIAL = "G090XXXXXXXXXXXX"
 SHOW_TYPE = "A1XWJRHALS1REP"  # Echo Show 5 (Gen2)
+SHOW_8_GEN2 = "A15996VY63BQ2D"  # Echo Show 8 (Gen2)
+SHOW_15_GEN1 = "A1EIANJ7PNB0Q7"  # Echo Show 15 (Gen1)
+SHOW_15_GEN2 = "AQ24620N8QD5Q"  # Echo Show 15 (Gen2)
+DOT_CLOCK_TYPE = "A2H4LV5GIZ1JFT"  # Echo Dot Clock (Gen4)
 DOT_TYPE = "A3S5BH2HU6VAYF"  # Echo Dot (Gen2)
+UNKNOWN_TYPE = "A0UNKNOWNMODEL"  # Any model not in MODEL_IDS
+
+
+class _TrackingLock(asyncio.Lock):
+    """Lock that signals when a waiter starts acquiring it."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.waiter_started = asyncio.Event()
+
+    async def acquire(self):
+        self.waiter_started.set()
+        return await super().acquire()
 
 
 def _device(device_type: str = SHOW_TYPE) -> dict:
@@ -41,55 +71,280 @@ def _state() -> DisplayState:
     return state
 
 
-def test_supports_display_models():
-    """Known display models are detected, plain speakers are not."""
-    assert supports_display(_device())
-    assert supports_display(_device("A2H4LV5GIZ1JFT"))  # Echo Dot Clock (Gen4)
-    assert not supports_display(_device(DOT_TYPE))
-
-
-def test_decode_setting():
-    """Device settings are stored as JSON strings."""
-    assert _decode_setting('"ON"') == "ON"
-    assert _decode_setting("100") == 100
-    assert _decode_setting("plain") == "plain"
+def test_can_probe_display_requires_identity():
+    """Every media player with a string id and serial is a probe candidate."""
+    assert can_probe_display(_device())
+    assert can_probe_display(_device(DOT_TYPE))
+    assert can_probe_display(_device(UNKNOWN_TYPE))
+    assert not can_probe_display({"deviceType": UNKNOWN_TYPE})
+    assert not can_probe_display({"serialNumber": SERIAL})
+    assert not can_probe_display({})
+    assert not can_probe_display({"serialNumber": SERIAL, "deviceAccountId": 123})
+    assert not can_probe_display({"serialNumber": 123, "deviceAccountId": "id"})
+    assert not can_probe_display({"serialNumber": "", "deviceAccountId": "id"})
 
 
 @pytest.mark.asyncio
-async def test_get_device_setting():
-    """Reading a setting decodes the API response."""
-    response = MagicMock()
-    response.json = AsyncMock(return_value={"value": '"ON"'})
+async def test_get_device_setting_without_account_id():
+    """A device without an account id is never queried."""
+    with patch.object(AlexaAPI, "get_device_setting", AsyncMock()) as get:
+        assert await async_get_device_setting(
+            MagicMock(), "", SETTING_DISPLAY_POWER
+        ) == (0, None)
+    get.assert_not_awaited()
 
-    with patch(
-        "custom_components.alexa_media.display.AlexaAPI._static_request",
-        new_callable=AsyncMock,
-        return_value=response,
-    ) as mock_request:
-        value = await async_get_device_setting(
-            MagicMock(), "account-id", SETTING_DISPLAY_POWER
+
+@pytest.mark.asyncio
+async def test_get_device_setting_delegates_to_alexapy():
+    """The display layer uses the status-aware alexapy API."""
+    login = MagicMock()
+    with patch.object(
+        AlexaAPI, "get_device_setting", AsyncMock(return_value=(200, "ON"))
+    ) as get:
+        assert await async_get_device_setting(
+            login, "account-id", SETTING_DISPLAY_POWER
+        ) == (200, "ON")
+    get.assert_awaited_once_with(login, "account-id", SETTING_DISPLAY_POWER)
+
+
+@pytest.mark.asyncio
+async def test_set_device_setting_without_account_id():
+    """A device without an account id is never written to."""
+    with patch.object(AlexaAPI, "set_device_setting", AsyncMock()) as set_setting:
+        assert not await async_set_device_setting(
+            MagicMock(), "", SETTING_BRIGHTNESS, 50
         )
-
-    assert value == "ON"
-    mock_request.assert_awaited_once()
-    assert mock_request.call_args.args[2] == (
-        "/api/v1/devices/account-id/settings/displayPower"
-    )
+    set_setting.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_set_device_setting_uses_json_value():
-    """Writing a setting wraps the value the way the Alexa app does."""
-    with patch(
-        "custom_components.alexa_media.display.AlexaAPI._static_request",
-        new_callable=AsyncMock,
-        return_value=MagicMock(),
-    ) as mock_request:
+async def test_set_device_setting_delegates_to_alexapy():
+    """The display layer writes through the alexapy API."""
+    login = MagicMock()
+    with patch.object(
+        AlexaAPI, "set_device_setting", AsyncMock(return_value=True)
+    ) as set_setting:
         assert await async_set_device_setting(
-            MagicMock(), "account-id", SETTING_BRIGHTNESS, 65
+            login, "account-id", SETTING_BRIGHTNESS, 65
+        )
+    set_setting.assert_awaited_once_with(login, "account-id", SETTING_BRIGHTNESS, 65)
+
+
+@pytest.mark.asyncio
+async def test_probe_display_settings_keeps_supported_values():
+    """Probing keeps every setting that returns a value."""
+
+    async def _get(_login, _account_id, setting):
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
         )
 
-    assert mock_request.call_args.kwargs["data"] == {"value": "65"}
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_get,
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), MagicMock(), _device()
+        )
+
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_BRIGHTNESS: 42,
+        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+    }
+    assert not failed
+
+
+@pytest.mark.asyncio
+async def test_probe_display_settings_skips_unsupported_and_errors():
+    """Unsupported settings are omitted and transport errors are flagged."""
+
+    async def _get(_login, _account_id, setting):
+        if setting == SETTING_DISPLAY_POWER:
+            return 200, "ON"
+        if setting == SETTING_BRIGHTNESS:
+            raise RuntimeError("network down")
+        return 400, None
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_get,
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), MagicMock(), _device()
+        )
+
+    assert supported == {SETTING_DISPLAY_POWER: "ON"}
+    assert failed
+
+
+@pytest.mark.asyncio
+async def test_probe_display_settings_flags_temporary_http_failure():
+    """A 5xx is not treated as an unsupported setting."""
+
+    async def _get(_login, _account_id, setting):
+        if setting == SETTING_BRIGHTNESS:
+            return 503, None
+        return 200, "ON"
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_get,
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), MagicMock(), _device()
+        )
+
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_ADAPTIVE_BRIGHTNESS: "ON",
+    }
+    assert failed
+
+
+@pytest.mark.asyncio
+async def test_probe_display_settings_retries_transport_errors():
+    """A failed probe attempt is retried before reporting a failure."""
+    attempts = dict.fromkeys(DISPLAY_SETTINGS, 0)
+
+    async def _get(_login, _account_id, setting):
+        attempts[setting] += 1
+        if setting == SETTING_DISPLAY_POWER and attempts[setting] == 1:
+            raise RuntimeError("network down")
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_RETRY_DELAY", 0),
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), MagicMock(), _device()
+        )
+
+    assert not failed
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_BRIGHTNESS: 42,
+        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+    }
+    assert attempts[SETTING_DISPLAY_POWER] == 2
+
+
+@pytest.mark.asyncio
+async def test_probe_display_settings_retries_429():
+    """A returned 429 is retried instead of being treated as final."""
+    attempts = dict.fromkeys(DISPLAY_SETTINGS, 0)
+
+    async def _get(_login, _account_id, setting):
+        attempts[setting] += 1
+        if setting == SETTING_DISPLAY_POWER and attempts[setting] == 1:
+            return 429, None
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_RETRY_DELAY", 0),
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), MagicMock(), _device()
+        )
+
+    assert not failed
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_BRIGHTNESS: 42,
+        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+    }
+    assert attempts[SETTING_DISPLAY_POWER] == 2
+
+
+@pytest.mark.asyncio
+async def test_probe_retries_ambiguous_throttled_400():
+    """An ambiguous throttled 400 is retried before dropping good settings."""
+    login = MagicMock()
+    login._rate_retry_inflight = False
+    attempts = dict.fromkeys(DISPLAY_SETTINGS, 0)
+
+    async def _get(_login, _account_id, setting):
+        attempts[setting] += 1
+        if setting == SETTING_ADAPTIVE_BRIGHTNESS and attempts[setting] == 1:
+            login._rate_retry_inflight = True
+            asyncio.get_running_loop().call_later(
+                0.01, setattr, login, "_rate_retry_inflight", False
+            )
+            return 400, None
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_RETRY_DELAY", 0),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+            0.001,
+        ),
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), login, _device()
+        )
+
+    assert not failed
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_BRIGHTNESS: 42,
+        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+    }
+    assert attempts[SETTING_ADAPTIVE_BRIGHTNESS] == 2
+
+
+@pytest.mark.asyncio
+async def test_probe_display_settings_without_account_id():
+    """A device without an account id is never probed."""
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+    ) as getter:
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), MagicMock(), {"serialNumber": SERIAL}
+        )
+
+    assert supported == {}
+    assert not failed
+    getter.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -100,11 +355,14 @@ async def test_display_state_refresh_and_notify():
     state.async_add_listener(listener)
 
     async def _get(_login, _account_id, setting):
-        return {
-            SETTING_DISPLAY_POWER: "ON",
-            SETTING_BRIGHTNESS: 42,
-            SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
-        }[setting]
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 42,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
 
     with patch(
         "custom_components.alexa_media.display.async_get_device_setting",
@@ -116,6 +374,578 @@ async def test_display_state_refresh_and_notify():
     assert state.value(SETTING_BRIGHTNESS) == 42
     assert state.value(SETTING_ADAPTIVE_BRIGHTNESS) == "OFF"
     listener.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_display_state_refresh_only_polls_supported_settings():
+    """A partially supported device only refreshes its supported settings."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 42},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+    calls = []
+
+    async def _get(_login, _account_id, setting):
+        calls.append(setting)
+        return 200, 50
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_get,
+    ):
+        await state.async_refresh()
+
+    assert calls == [SETTING_BRIGHTNESS]
+    assert state.value(SETTING_BRIGHTNESS) == 50
+    assert not state.supports(SETTING_DISPLAY_POWER)
+
+
+@pytest.mark.asyncio
+async def test_display_refresh_preserves_values_on_transient_failures():
+    """Transient failures keep cached values and entity availability (#3707)."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={
+            SETTING_DISPLAY_POWER: "ON",
+            SETTING_BRIGHTNESS: 40,
+            SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+        },
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+    power = AlexaDisplayPowerSwitch(state)
+    adaptive = AlexaAdaptiveBrightnessSwitch(state)
+    brightness = AlexaDisplayBrightness(state)
+
+    assert power.available
+    assert adaptive.available
+    assert brightness.available
+    assert brightness.native_value == 40
+
+    async def _transient(_login, _account_id, setting):
+        if setting == SETTING_DISPLAY_POWER:
+            return 503, None
+        if setting == SETTING_BRIGHTNESS:
+            raise RuntimeError("network down")
+        return 200, None
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_transient,
+    ):
+        await state.async_refresh()
+
+    assert state.value(SETTING_DISPLAY_POWER) == "ON"
+    assert state.value(SETTING_BRIGHTNESS) == 40
+    assert state.value(SETTING_ADAPTIVE_BRIGHTNESS) == "OFF"
+    assert power.available
+    assert adaptive.available
+    assert brightness.available
+    assert brightness.native_value == 40
+
+    async def _recovered(_login, _account_id, setting):
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "OFF",
+                SETTING_BRIGHTNESS: 75,
+                SETTING_ADAPTIVE_BRIGHTNESS: "ON",
+            }[setting],
+        )
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_recovered,
+    ):
+        await state.async_refresh()
+
+    assert state.value(SETTING_DISPLAY_POWER) == "OFF"
+    assert state.value(SETTING_BRIGHTNESS) == 75
+    assert state.value(SETTING_ADAPTIVE_BRIGHTNESS) == "ON"
+    assert not power.is_on
+    assert adaptive.is_on
+    assert brightness.native_value == 75
+    assert power.available
+    assert adaptive.available
+    assert brightness.available
+
+
+@pytest.mark.asyncio
+async def test_display_state_drops_setting_after_failures():
+    """A setting that keeps failing is marked unsupported and stops polling."""
+    state = _state()
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(400, None),
+    ):
+        for _ in range(DISPLAY_FAILURE_LIMIT):
+            await state.async_refresh()
+
+    assert not state.supports(SETTING_BRIGHTNESS)
+    assert not state.available(SETTING_BRIGHTNESS)
+
+
+@pytest.mark.asyncio
+async def test_display_state_400_streak_resets_on_temporary_failure():
+    """A 5xx between 400 responses breaks the consecutive-failure streak."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 10},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        side_effect=[(400, None), (503, None), (400, None), (503, None), (400, None)],
+    ):
+        for _ in range(5):
+            await state.async_refresh()
+
+    assert state.supports(SETTING_BRIGHTNESS)
+
+
+def test_schedule_display_reload_once():
+    """Only one reload is scheduled per account until it runs."""
+    account_dict = {
+        "config_entry": MagicMock(entry_id="entry"),
+        "display_probe_pending": {"serial"},
+    }
+    hass = MagicMock()
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        _schedule_display_reload(hass, account_dict)
+        _schedule_display_reload(hass, account_dict)
+
+    later.assert_called_once()
+    assert account_dict["display_reload_unsub"] is later.return_value
+
+
+def test_display_reload_callback_reloads_entry():
+    """The scheduled callback reloads the current entry."""
+    account_dict = {
+        "config_entry": MagicMock(entry_id="entry"),
+        "display_probe_pending": {"serial"},
+    }
+    hass = MagicMock()
+    reload_entry = MagicMock(disabled_by=None)
+    hass.config_entries.async_get_entry.return_value = reload_entry
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        _schedule_display_reload(hass, account_dict)
+        callback = later.call_args.args[2]
+        callback(None)
+
+    hass.config_entries.async_schedule_reload.assert_called_once_with("entry")
+    assert account_dict["display_reload_unsub"] is None
+
+
+def test_display_reload_callback_refunds_disabled_entry():
+    """A disabled entry does not spend its automatic display retry."""
+    account_dict = {
+        "config_entry": MagicMock(entry_id="entry"),
+        "display_probe_pending": {"serial"},
+    }
+    hass = MagicMock()
+    hass.config_entries.async_get_entry.return_value = MagicMock(disabled_by="user")
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        _schedule_display_reload(hass, account_dict)
+        assert account_dict["_display_reload_budget"]["entry"] == 1
+        callback = later.call_args.args[2]
+        callback(None)
+
+    hass.config_entries.async_schedule_reload.assert_not_called()
+    assert "entry" not in account_dict["_display_reload_budget"]
+
+
+def test_display_reload_callback_skips_removed_entry():
+    """A removed entry is not reloaded by a stale timer."""
+    account_dict = {
+        "config_entry": MagicMock(entry_id="entry"),
+        "display_probe_pending": {"serial"},
+    }
+    hass = MagicMock()
+    hass.config_entries.async_get_entry.return_value = None
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        _schedule_display_reload(hass, account_dict)
+        callback = later.call_args.args[2]
+        callback(None)
+
+    hass.config_entries.async_schedule_reload.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_transient_probe_failure_schedules_reload():
+    """A failed probe schedules the entry reload to retry later."""
+    account_dict = {
+        "display_states": {},
+        "config_entry": MagicMock(entry_id="entry"),
+    }
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_probe_display_settings",
+            new_callable=AsyncMock,
+            return_value=({}, True),
+        ),
+        patch(
+            "custom_components.alexa_media.display._schedule_display_reload"
+        ) as schedule,
+    ):
+        state = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+        )
+
+    assert state is None
+    schedule.assert_called_once()
+    assert account_dict["display_unsupported"] == set()
+
+
+@pytest.mark.asyncio
+async def test_display_state_set_ignores_unsupported_setting():
+    """Writing a setting the device never exposed is rejected locally."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_DISPLAY_POWER: "ON"},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_set_device_setting",
+        new_callable=AsyncMock,
+    ) as setter:
+        assert not await state.async_set(SETTING_BRIGHTNESS, 50)
+
+    setter.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_display_state_set_after_stop_returns_false():
+    """A retired display state rejects writes."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.async_stop()
+
+    assert not await state.async_set(SETTING_BRIGHTNESS, 50)
+
+
+@pytest.mark.asyncio
+async def test_display_state_set_waiting_for_lock_rejects_after_stop():
+    """A write queued behind a refresh is rejected when the state retires."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+    lock = _TrackingLock()
+    state._refresh_lock = lock
+    await lock.acquire()
+    lock.waiter_started.clear()
+
+    with patch(
+        "custom_components.alexa_media.display.async_set_device_setting",
+        new_callable=AsyncMock,
+    ) as setter:
+        task = asyncio.create_task(state.async_set(SETTING_BRIGHTNESS, 50))
+        await asyncio.wait_for(lock.waiter_started.wait(), timeout=1)
+        state.async_stop()
+        lock.release()
+
+        assert await task is False
+
+    setter.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_display_state_refresh_waiting_for_lock_stops_before_reads():
+    """A refresh queued behind a write does not start reads after stop."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    lock = _TrackingLock()
+    state._refresh_lock = lock
+    await lock.acquire()
+    lock.waiter_started.clear()
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+    ) as getter:
+        task = asyncio.create_task(state.async_refresh())
+        await asyncio.wait_for(lock.waiter_started.wait(), timeout=1)
+        state.async_stop()
+        lock.release()
+        await task
+
+    getter.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_display_state_stop_cancels_tracked_refresh():
+    """Stopping a state cancels the polling refresh that is in flight."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def _get(*_args, **_kwargs):
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_get,
+    ):
+        task = asyncio.create_task(state._tracked_refresh())
+        await asyncio.wait_for(started.wait(), timeout=1)
+        state.async_stop()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert cancelled.is_set()
+
+
+@pytest.mark.asyncio
+async def test_display_state_stop_cancels_all_tracked_refreshes():
+    """Overlapping refreshes are all cancelled when the state stops."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    started = [asyncio.Event(), asyncio.Event()]
+    cancelled = [asyncio.Event(), asyncio.Event()]
+    refresh_count = 0
+
+    async def _refresh():
+        nonlocal refresh_count
+        index = refresh_count
+        refresh_count += 1
+        started[index].set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled[index].set()
+            raise
+
+    state.async_refresh = _refresh
+    first = asyncio.create_task(state._tracked_refresh())
+    await asyncio.wait_for(started[0].wait(), timeout=1)
+    second = asyncio.create_task(state._tracked_refresh())
+    await asyncio.wait_for(started[1].wait(), timeout=1)
+
+    state.async_stop()
+    await asyncio.gather(first, second, return_exceptions=True)
+
+    assert all(event.is_set() for event in cancelled)
+
+
+@pytest.mark.asyncio
+async def test_display_state_set_stopped_during_put_keeps_cache():
+    """A successful PUT after unload does not update or notify retired state."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    listener = MagicMock()
+    state.async_add_listener(listener)
+
+    async def _set(*_args, **_kwargs):
+        state.async_stop()
+        return True
+
+    with patch(
+        "custom_components.alexa_media.display.async_set_device_setting",
+        side_effect=_set,
+    ):
+        assert await state.async_set(SETTING_BRIGHTNESS, 75)
+
+    assert state.value(SETTING_BRIGHTNESS) == 40
+    listener.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_display_state_start_after_stop_is_noop():
+    """A retired state cannot restart its polling interval."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.async_stop()
+
+    await state.async_start()
+
+    assert state._unsub is None
+
+
+def test_display_state_stop_without_running_loop():
+    """Stopping a state outside an event loop is harmless."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+
+    state.async_stop()
+
+    assert state._unsub is None
+
+
+@pytest.mark.asyncio
+async def test_display_state_refresh_logs_read_exception():
+    """A failed read is logged while the other settings still refresh."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_DISPLAY_POWER: "ON", SETTING_BRIGHTNESS: 10},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    async def _get(_login, _account_id, setting):
+        if setting == SETTING_DISPLAY_POWER:
+            raise RuntimeError("network down")
+        return 200, 55
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display._LOGGER.debug") as debug,
+    ):
+        await state.async_refresh()
+
+    assert state.value(SETTING_BRIGHTNESS) == 55
+    assert state.value(SETTING_DISPLAY_POWER) == "ON"
+    debug.assert_any_call(
+        "%s: Unable to read display setting %s: %s",
+        hide_serial(SERIAL),
+        SETTING_DISPLAY_POWER,
+        ANY,
+    )
+
+
+@pytest.mark.asyncio
+async def test_display_state_set_times_out_on_refresh():
+    """A stuck fallback refresh is started, bounded and cancelled."""
+    state = _state()
+    release = asyncio.Event()
+    entered = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def stuck_refresh():
+        entered.set()
+        try:
+            await release.wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    state.async_refresh = stuck_refresh
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_set_device_setting",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_REFRESH_TIMEOUT", 0.01),
+    ):
+        assert not await state.async_set(SETTING_DISPLAY_POWER, "OFF")
+
+    assert entered.is_set()
+    assert cancelled.is_set()
+
+
+@pytest.mark.asyncio
+async def test_display_state_start_is_idempotent():
+    """Starting twice keeps a single interval listener."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 10},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_track_time_interval"
+    ) as track:
+        await state.async_start()
+        await state.async_start()
+
+    track.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_display_state_refresh_without_supported_settings():
+    """A state with no supported settings never calls the API."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+    ) as getter:
+        await state.async_refresh()
+
+    getter.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -197,6 +1027,8 @@ async def test_display_power_entity_raises_on_failure():
 
     with pytest.raises(HomeAssistantError):
         await switch.async_turn_on()
+    with pytest.raises(HomeAssistantError):
+        await switch.async_turn_off()
 
 
 def test_adaptive_brightness_entity():
@@ -207,6 +1039,32 @@ def test_adaptive_brightness_entity():
 
     assert not switch.is_on
     assert switch.available
+
+
+@pytest.mark.asyncio
+async def test_adaptive_brightness_entity_raises_on_failure():
+    """A failed adaptive brightness write raises an error."""
+    state = _state()
+    state._values[SETTING_ADAPTIVE_BRIGHTNESS] = "OFF"
+    state.async_set = AsyncMock(return_value=False)
+    switch = AlexaAdaptiveBrightnessSwitch(state)
+
+    with pytest.raises(HomeAssistantError):
+        await switch.async_turn_on()
+    with pytest.raises(HomeAssistantError):
+        await switch.async_turn_off()
+
+
+@pytest.mark.asyncio
+async def test_display_brightness_entity_raises_on_failure():
+    """A failed brightness write raises an error."""
+    state = _state()
+    state._values[SETTING_BRIGHTNESS] = 55
+    state.async_set = AsyncMock(return_value=False)
+    number = AlexaDisplayBrightness(state)
+
+    with pytest.raises(HomeAssistantError):
+        await number.async_set_native_value(70)
 
 
 def test_display_brightness_entity():
@@ -229,6 +1087,7 @@ async def test_display_brightness_entity_set():
 
     await number.async_set_native_value(70.0)
     state.async_set.assert_awaited_once_with(SETTING_BRIGHTNESS, 70)
+    assert isinstance(state.async_set.await_args.args[1], int)
 
 
 @pytest.mark.asyncio
@@ -268,8 +1127,20 @@ async def test_switch_setup_creates_display_entities():
     hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
 
     add = MagicMock()
-    await async_setup_platform(hass, {"email": EMAIL}, add)
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+        return_value=(
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            },
+            False,
+        ),
+    ) as probe:
+        await async_setup_platform(hass, {"email": EMAIL}, add)
 
+    probe.assert_awaited_once()
     switches = account_dict["entities"]["switch"][SERIAL]
     assert {"display_power", "adaptive_brightness"} <= set(switches)
     # The display switches are added unfiltered, after the filtered batch.
@@ -278,6 +1149,65 @@ async def test_switch_setup_creates_display_entities():
         AlexaDisplayPowerSwitch,
         AlexaAdaptiveBrightnessSwitch,
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("device_type", [SHOW_8_GEN2, DOT_TYPE])
+async def test_switch_setup_skips_unsupported_display(device_type):
+    """Any media player that rejects every setting gets no display switches."""
+    from custom_components.alexa_media.switch import async_setup_platform
+
+    client = MagicMock()
+    client.unique_id = SERIAL
+    client._login = MagicMock(email=EMAIL)
+    account_dict = {
+        "devices": {
+            "media_player": {
+                SERIAL: {
+                    "serialNumber": SERIAL,
+                    "deviceType": device_type,
+                    "deviceFamily": "ECHO",
+                    "deviceAccountId": "account-id",
+                    "capabilities": [],
+                }
+            },
+            "number": {},
+            "smart_switch": [],
+        },
+        "entities": {
+            "media_player": {SERIAL: client},
+            "switch": {},
+            "smart_switch": [],
+            "amazon_kids_switch": [],
+        },
+        "options": {},
+        "coordinator": MagicMock(),
+        "login_obj": MagicMock(),
+    }
+    hass = MagicMock()
+    hass.config.as_dict.return_value = {"components": set()}
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_probe_display_settings",
+            new_callable=AsyncMock,
+            return_value=({}, False),
+        ) as probe,
+        patch(
+            "custom_components.alexa_media.switch.add_devices",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+    ):
+        await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+
+    probe.assert_awaited_once()
+    switches = account_dict["entities"]["switch"][SERIAL]
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
+    assert account_dict["display_unsupported"] == {SERIAL}
+    assert SERIAL not in account_dict["display_states"]
 
 
 @pytest.mark.asyncio
@@ -309,22 +1239,154 @@ async def test_number_setup_creates_display_brightness():
     }
     hass = MagicMock()
     hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
+    callback = MagicMock()
+    submitted = []
 
-    with patch(
-        "custom_components.alexa_media.number.add_devices",
-        new_callable=AsyncMock,
-        return_value=True,
+    async def _add(_account, entities, add_callback, *_args):
+        add_callback(list(entities), False)
+        submitted.extend(entities)
+        return True
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_probe_display_settings",
+            new_callable=AsyncMock,
+            return_value=({SETTING_BRIGHTNESS: 50}, False),
+        ) as probe,
+        patch(
+            "custom_components.alexa_media.number.add_devices",
+            side_effect=_add,
+        ),
     ):
-        await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await async_setup_platform(hass, {"email": EMAIL}, callback)
 
+    probe.assert_awaited_once()
     assert f"{SERIAL}_display_brightness" in account_dict["entities"]["number"]
+    assert any(
+        isinstance(entity, AlexaDisplayBrightness)
+        and entity.unique_id == f"{SERIAL}_display_brightness"
+        for entity in submitted
+    )
 
 
 @pytest.mark.asyncio
-async def test_number_setup_checks_display_before_storing_entities():
-    """A missing display media player must not leave half-stored numbers."""
+async def test_number_setup_skips_unsupported_display():
+    """A model that rejects brightness gets no number entity."""
     from custom_components.alexa_media.number import async_setup_platform
 
+    client = MagicMock()
+    client.unique_id = SERIAL
+    client._login = MagicMock(email=EMAIL)
+    account_dict = {
+        "devices": {
+            "media_player": {
+                SERIAL: {
+                    "serialNumber": SERIAL,
+                    "deviceType": SHOW_15_GEN1,
+                    "deviceFamily": "ECHO_SHOW",
+                    "deviceAccountId": "account-id",
+                    "capabilities": [],
+                }
+            },
+            "number": {},
+        },
+        "entities": {
+            "media_player": {SERIAL: client},
+            "number": {},
+        },
+        "login_obj": MagicMock(),
+    }
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_probe_display_settings",
+            new_callable=AsyncMock,
+            return_value=({SETTING_DISPLAY_POWER: "ON"}, False),
+        ) as probe,
+        patch(
+            "custom_components.alexa_media.number.add_devices",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+    ):
+        await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+
+    probe.assert_awaited_once()
+    assert f"{SERIAL}_display_brightness" not in account_dict["entities"]["number"]
+    assert account_dict["display_states"][SERIAL].supports(SETTING_DISPLAY_POWER)
+    assert SERIAL not in account_dict["display_unsupported"]
+
+
+@pytest.mark.asyncio
+async def test_number_setup_skips_missing_client_without_blocking_volumes():
+    """A missing display client must not block ready notification volumes."""
+    from custom_components.alexa_media.number import (
+        AlexaNotificationVolume,
+        async_setup_platform,
+    )
+
+    client = MagicMock()
+    client.unique_id = SERIAL
+    client._login = MagicMock(email=EMAIL)
+    account_dict = {
+        "devices": {
+            "media_player": {
+                SERIAL: {
+                    "serialNumber": SERIAL,
+                    "deviceType": SHOW_TYPE,
+                    "deviceFamily": "ECHO_SHOW",
+                    "deviceAccountId": "account-id",
+                    "capabilities": [],
+                },
+                "MISSING": {
+                    "serialNumber": "MISSING",
+                    "deviceType": SHOW_TYPE,
+                    "deviceFamily": "ECHO_SHOW",
+                    "deviceAccountId": "missing-id",
+                    "capabilities": [],
+                },
+            },
+            "number": {SERIAL: {"notification_volume": True}},
+        },
+        "entities": {"media_player": {SERIAL: client}, "number": {}},
+        "login_obj": MagicMock(),
+    }
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
+    submitted = []
+
+    async def _add(_account, entities, add_callback, *_args):
+        add_callback(list(entities), False)
+        submitted.extend(entities)
+        return True
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_probe_display_settings",
+            new_callable=AsyncMock,
+            return_value=({SETTING_BRIGHTNESS: 50}, False),
+        ),
+        patch(
+            "custom_components.alexa_media.number.add_devices",
+            side_effect=_add,
+        ),
+    ):
+        assert await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+
+    assert any(isinstance(entity, AlexaNotificationVolume) for entity in submitted)
+    assert any(isinstance(entity, AlexaDisplayBrightness) for entity in submitted)
+    assert "MISSING" not in account_dict["display_states"]
+
+
+@pytest.mark.asyncio
+async def test_number_setup_ignores_retired_display_state():
+    """A state retired by unload is not turned into a brightness entity."""
+    from custom_components.alexa_media.number import async_setup_platform
+
+    client = MagicMock()
+    client.unique_id = SERIAL
     account_dict = {
         "devices": {
             "media_player": {
@@ -336,18 +1398,39 @@ async def test_number_setup_checks_display_before_storing_entities():
                     "capabilities": [],
                 }
             },
-            "number": {SERIAL: {"notification_volume": True}},
+            "number": {},
         },
-        "entities": {"media_player": {}, "number": {}},
+        "entities": {"media_player": {SERIAL: client}, "number": {}},
         "login_obj": MagicMock(),
+        "display_states": {},
     }
     hass = MagicMock()
     hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 50},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+    state.async_stop()
 
-    with pytest.raises(ConfigEntryNotReady):
+    with (
+        patch(
+            "custom_components.alexa_media.number.async_get_display_state",
+            new_callable=AsyncMock,
+            return_value=state,
+        ),
+        patch(
+            "custom_components.alexa_media.number.add_devices",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
+    ):
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
 
-    assert account_dict["entities"]["number"] == {}
+    assert f"{SERIAL}_display_brightness" not in account_dict["entities"]["number"]
 
 
 @pytest.mark.asyncio
@@ -358,14 +1441,286 @@ async def test_display_state_is_shared_per_device():
     device = _device()
     client = MagicMock(unique_id=SERIAL)
 
-    first = await async_get_display_state(
-        MagicMock(), account_dict, login, device, client
-    )
-    second = await async_get_display_state(
-        MagicMock(), account_dict, login, device, client
-    )
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+        return_value=({SETTING_BRIGHTNESS: 50}, False),
+    ) as probe:
+        first = await async_get_display_state(
+            MagicMock(), account_dict, login, device, client
+        )
+        new_login = MagicMock()
+        new_client = MagicMock(unique_id=SERIAL)
+        second = await async_get_display_state(
+            MagicMock(), account_dict, new_login, device, new_client
+        )
 
     assert first is second
+    probe.assert_awaited_once()
+    assert account_dict["display_states"][SERIAL] is first
+    assert first.login is new_login
+    assert first.client is new_client
+
+
+@pytest.mark.asyncio
+async def test_display_state_caches_unsupported_device():
+    """A device without settings is probed once and then skipped."""
+    account_dict = {"display_states": {}}
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+        return_value=({}, False),
+    ) as probe:
+        first = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+        )
+        second = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+        )
+
+    assert first is None
+    assert second is None
+    probe.assert_awaited_once()
+    assert account_dict["display_unsupported"] == {SERIAL}
+    assert SERIAL not in account_dict["display_states"]
+
+
+@pytest.mark.asyncio
+async def test_transient_probe_failure_is_not_cached_as_unsupported():
+    """A partial probe is retried on the next setup instead of cached."""
+    account_dict = {"display_states": {}}
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+        return_value=({SETTING_BRIGHTNESS: 50}, True),
+    ):
+        state = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+        )
+
+    assert state is None
+    assert account_dict["display_unsupported"] == set()
+    assert account_dict["display_states"] == {}
+
+
+@pytest.mark.asyncio
+async def test_get_display_state_without_serial():
+    """A malformed device entry is skipped instead of raising."""
+    account_dict = {"display_states": {}}
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+    ) as probe:
+        state = await async_get_display_state(
+            MagicMock(),
+            account_dict,
+            MagicMock(),
+            {"deviceType": UNKNOWN_TYPE},
+            MagicMock(),
+        )
+
+    assert state is None
+    probe.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_platforms_share_one_display_probe():
+    """Number and switch setup await the same in-flight probe."""
+    account_dict = {"display_states": {}}
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _probe(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        return {SETTING_BRIGHTNESS: 50}, False
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        side_effect=_probe,
+    ) as probe:
+        first = asyncio.create_task(
+            async_get_display_state(
+                MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+            )
+        )
+        await asyncio.wait_for(started.wait(), timeout=1)
+        second = asyncio.create_task(
+            async_get_display_state(
+                MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+            )
+        )
+        await asyncio.sleep(0)
+        release.set()
+        first_state, second_state = await asyncio.gather(first, second)
+
+    probe.assert_awaited_once()
+    assert first_state is second_state
+    assert first_state.supports(SETTING_BRIGHTNESS)
+
+
+@pytest.mark.asyncio
+async def test_shared_probe_survives_one_caller_cancel():
+    """Cancelling one platform does not cancel the shared probe for the other."""
+    account_dict = {"display_states": {}}
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _probe(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        return {SETTING_BRIGHTNESS: 50}, False
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        side_effect=_probe,
+    ):
+        first = asyncio.create_task(
+            async_get_display_state(
+                MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+            )
+        )
+        await asyncio.wait_for(started.wait(), timeout=1)
+        second = asyncio.create_task(
+            async_get_display_state(
+                MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+            )
+        )
+        await asyncio.sleep(0)
+        first.cancel()
+        release.set()
+
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        state = await second
+
+    assert state.supports(SETTING_BRIGHTNESS)
+    assert state.value(SETTING_BRIGHTNESS) == 50
+
+
+@pytest.mark.asyncio
+async def test_display_probe_concurrency_is_bounded():
+    """Many devices are probed concurrently, but never above the bound."""
+    account_dict = {"display_states": {}}
+    current = 0
+    peak = 0
+
+    async def _probe(*_args, **_kwargs):
+        nonlocal current, peak
+        current += 1
+        peak = max(peak, current)
+        try:
+            await asyncio.sleep(0.01)
+        finally:
+            current -= 1
+        return {SETTING_BRIGHTNESS: 40}, False
+
+    serials = [f"SERIAL{i}" for i in range(6)]
+    devices = [
+        {"serialNumber": serial, "deviceAccountId": f"id-{serial}"}
+        for serial in serials
+    ]
+    clients = [MagicMock(unique_id=serial) for serial in serials]
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        side_effect=_probe,
+    ):
+        states = await asyncio.gather(
+            *(
+                async_get_display_state(
+                    MagicMock(), account_dict, MagicMock(), device, client
+                )
+                for device, client in zip(devices, clients, strict=True)
+            )
+        )
+
+    assert all(state is not None for state in states)
+    assert len(account_dict["display_states"]) == len(serials)
+    assert peak == DISPLAY_PROBE_CONCURRENCY
+
+
+@pytest.mark.asyncio
+async def test_failed_probe_is_not_retried_by_sibling_platform():
+    """A sibling platform cannot replace a failure with a success."""
+    account_dict = {
+        "display_states": {},
+        "config_entry": MagicMock(entry_id="entry"),
+    }
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+        return_value=({}, True),
+    ) as probe:
+        first = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+        )
+        second = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), _device(), MagicMock()
+        )
+
+    assert first is None
+    assert second is None
+    probe.assert_awaited_once()
+    assert account_dict["display_probe_failed"] == {SERIAL}
+    assert account_dict["display_states"] == {}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("device_type", [SHOW_8_GEN2, SHOW_15_GEN1, SHOW_15_GEN2])
+async def test_reported_show_models_reject_every_setting(device_type):
+    """Show models that return 400 for all settings get no display state."""
+    account_dict = {"display_states": {}}
+    device = _device(device_type)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(400, None),
+    ) as getter:
+        state = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), device, MagicMock()
+        )
+
+    assert state is None
+    assert getter.await_count == 3
+    assert account_dict["display_unsupported"] == {SERIAL}
+    assert account_dict["display_states"] == {}
+
+
+@pytest.mark.asyncio
+async def test_dot_with_clock_probe_creates_supported_state():
+    """A Dot with Clock exposes all three settings."""
+    account_dict = {"display_states": {}}
+    device = _device(DOT_CLOCK_TYPE)
+
+    async def _get(_login, _account_id, setting):
+        return (
+            200,
+            {
+                SETTING_DISPLAY_POWER: "ON",
+                SETTING_BRIGHTNESS: 30,
+                SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+            }[setting],
+        )
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        side_effect=_get,
+    ):
+        state = await async_get_display_state(
+            MagicMock(), account_dict, MagicMock(), device, MagicMock()
+        )
+
+    assert state is not None
+    assert state.supports(SETTING_DISPLAY_POWER)
+    assert state.supports(SETTING_BRIGHTNESS)
+    assert state.supports(SETTING_ADAPTIVE_BRIGHTNESS)
+    assert account_dict["display_states"][SERIAL] is state
 
 
 @pytest.mark.asyncio
@@ -396,7 +1751,7 @@ async def test_display_entities_receive_shared_state_updates(
     values = {setting: initial}
 
     async def _get(_login, _account_id, key):
-        return values.get(key)
+        return 200, values.get(key)
 
     with (
         patch(
@@ -428,3 +1783,863 @@ async def test_display_entities_receive_shared_state_updates(
         state._async_notify()
         assert entity.async_write_ha_state.call_count == 3
         state.async_stop()
+
+
+@pytest.mark.parametrize(
+    ("setting", "value", "expected"),
+    [
+        (SETTING_BRIGHTNESS, 0, 0),
+        (SETTING_BRIGHTNESS, "0", 0),
+        (SETTING_BRIGHTNESS, 50, 50),
+        (SETTING_BRIGHTNESS, "50", 50),
+        (SETTING_BRIGHTNESS, 50.5, 50.5),
+        (SETTING_BRIGHTNESS, "unknown", None),
+        (SETTING_BRIGHTNESS, -1, None),
+        (SETTING_BRIGHTNESS, 101, None),
+        (SETTING_BRIGHTNESS, True, None),
+        (SETTING_DISPLAY_POWER, "ON", "ON"),
+        (SETTING_DISPLAY_POWER, "OFF", "OFF"),
+        (SETTING_DISPLAY_POWER, "on", None),
+        (SETTING_ADAPTIVE_BRIGHTNESS, "ON", "ON"),
+        (SETTING_ADAPTIVE_BRIGHTNESS, "unknown", None),
+    ],
+)
+def test_normalize_setting_value(setting, value, expected):
+    """Setting values are validated before they reach entity state."""
+    assert _normalize_setting_value(setting, value) == expected
+
+
+@pytest.mark.asyncio
+async def test_probe_treats_throttled_400_as_temporary():
+    """An isolated self-throttled 400 is temporary, not unsupported."""
+    login = MagicMock()
+    login._rate_retry_inflight = False
+
+    async def _get_setting(_login, _account_id, setting):
+        if setting != SETTING_BRIGHTNESS:
+            return 200, "ON"
+        login._rate_retry_inflight = True
+        await asyncio.sleep(0.1)
+        login._rate_retry_inflight = False
+        return 400, None
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get_setting,
+        ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+            0.001,
+        ),
+    ):
+        values, failed = await async_probe_display_settings(
+            MagicMock(), login, _device()
+        )
+
+    assert values == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_ADAPTIVE_BRIGHTNESS: "ON",
+    }
+    assert failed is True
+
+
+@pytest.mark.asyncio
+async def test_probe_rejects_invalid_brightness():
+    """An unparsable 200 is malformed, not a supported value."""
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(200, "unknown"),
+    ):
+        values, failed = await async_probe_display_settings(
+            MagicMock(), MagicMock(), _device()
+        )
+
+    assert values == {}
+    assert failed is True
+
+
+def test_normalize_setting_value_rejects_float_overflow():
+    """An integer too large for float() is malformed, not a brightness."""
+    assert _normalize_setting_value(SETTING_BRIGHTNESS, 10**400) is None
+
+
+@pytest.mark.asyncio
+async def test_display_state_keeps_setting_on_throttled_400():
+    """A self-throttled 400 does not count toward the unsupported streak."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.login._rate_retry_inflight = False
+    state.client = MagicMock(unique_id=SERIAL)
+
+    async def _get_setting(_login, _account_id, _setting):
+        state.login._rate_retry_inflight = True
+        await asyncio.sleep(0.1)
+        state.login._rate_retry_inflight = False
+        return 400, None
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get_setting,
+        ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+            0.001,
+        ),
+    ):
+        for _ in range(DISPLAY_FAILURE_LIMIT):
+            await state.async_refresh()
+
+    assert state.supports(SETTING_BRIGHTNESS)
+    assert state.value(SETTING_BRIGHTNESS) == 40
+    assert state._failures[SETTING_BRIGHTNESS] == 0
+
+
+@pytest.mark.asyncio
+async def test_refresh_after_stop_does_not_report_relogin():
+    """A refresh in flight during unload cannot report authentication failure."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {}}
+    login = MagicMock(email=EMAIL)
+    state = DisplayState(
+        hass,
+        login,
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _get(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        raise AlexapyLoginError("login failed")
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch(
+            "custom_components.alexa_media.display.report_relogin_required"
+        ) as report,
+    ):
+        task = asyncio.create_task(state.async_refresh())
+        await asyncio.wait_for(started.wait(), timeout=1)
+        state.async_stop()
+        release.set()
+        await task
+
+    report.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_display_state_keeps_last_value_on_invalid_200():
+    """A malformed 200 keeps the last good value and the setting."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(200, "unknown"),
+    ):
+        await state.async_refresh()
+
+    assert state.supports(SETTING_BRIGHTNESS)
+    assert state.value(SETTING_BRIGHTNESS) == 40
+
+
+@pytest.mark.asyncio
+async def test_display_refresh_reports_relogin_on_login_error():
+    """A persistent 401 reports reauthentication once per refresh."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            new_callable=AsyncMock,
+            side_effect=AlexapyLoginError("login failed"),
+        ),
+        patch(
+            "custom_components.alexa_media.display.report_relogin_required"
+        ) as report,
+    ):
+        await state.async_refresh()
+
+    report.assert_called_once_with(
+        state.hass, state.login, state.login.email, require_status=False
+    )
+
+
+@pytest.mark.asyncio
+async def test_display_refresh_skips_relogin_if_auth_recovered():
+    """A stale 401 from a batch does not report after auth recovered."""
+    state = DisplayState(
+        MagicMock(),
+        MagicMock(),
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    async def _get(*_args, **_kwargs):
+        state.login.status = {"login_successful": True}
+        raise AlexapyLoginError("login failed")
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch(
+            "custom_components.alexa_media.display.report_relogin_required"
+        ) as report,
+    ):
+        await state.async_refresh()
+
+    report.assert_not_called()
+
+
+def test_display_reload_budget_survives_account_recreation():
+    """A recurring probe failure cannot reload the entry every cycle."""
+    hass = MagicMock()
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "display_entry_states": {"entry": {"pending": {"serial"}}},
+        }
+    }
+    first = {
+        "config_entry": MagicMock(entry_id="entry"),
+    }
+    second = {
+        "config_entry": MagicMock(entry_id="entry"),
+    }
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        _schedule_display_reload(hass, first)
+        _schedule_display_reload(hass, second)
+
+    later.assert_called_once()
+
+
+def test_schedule_display_reload_skips_without_pending_probe():
+    """No reload is scheduled when no device still needs recovery."""
+    hass = MagicMock()
+    account_dict = {"config_entry": MagicMock(entry_id="entry")}
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        _schedule_display_reload(hass, account_dict)
+
+    later.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unsupported_probe_cancels_pending_reload():
+    """A conclusive unsupported result cancels a no-longer-needed reload."""
+    hass = MagicMock()
+    unsub = MagicMock()
+    account_dict = {
+        "config_entry": MagicMock(entry_id="entry"),
+        "display_probe_pending": {SERIAL},
+        "display_reload_unsub": unsub,
+    }
+
+    with patch(
+        "custom_components.alexa_media.display.async_probe_display_settings",
+        new_callable=AsyncMock,
+        return_value=({}, False),
+    ):
+        state = await async_get_display_state(
+            hass, account_dict, MagicMock(), _device(), MagicMock()
+        )
+
+    assert state is None
+    unsub.assert_called_once()
+    assert account_dict["display_probe_pending"] == set()
+
+
+def test_normalize_setting_value_rejects_unknown_setting():
+    """Unknown settings never produce a cached value."""
+    assert _normalize_setting_value("unknown", "ON") is None
+
+
+def test_cancel_display_reload_keeps_timer_while_pending():
+    """A device that still needs recovery keeps the timer alive."""
+    unsub = MagicMock()
+    account_dict = {
+        "display_probe_pending": {"serial"},
+        "display_reload_unsub": unsub,
+    }
+
+    _cancel_display_reload_if_idle(MagicMock(), account_dict)
+
+    unsub.assert_not_called()
+    assert account_dict["display_reload_unsub"] is unsub
+
+
+def test_schedule_display_reload_requires_entry_id():
+    """An entry without an id cannot schedule a reload."""
+    hass = MagicMock()
+    account_dict = {
+        "config_entry": SimpleNamespace(),
+        "display_probe_pending": {"serial"},
+    }
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        _schedule_display_reload(hass, account_dict)
+
+    later.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_probe_captures_concurrent_throttle_per_request():
+    """A concurrent throttled 400 stays temporary, not unsupported."""
+    login = MagicMock()
+    login._rate_retry_inflight = False
+    power_started = asyncio.Event()
+    brightness_done = asyncio.Event()
+
+    async def fake_get_setting(_login, _account_id, setting):
+        if setting == SETTING_DISPLAY_POWER:
+            login._rate_retry_inflight = True
+            power_started.set()
+            await brightness_done.wait()
+            login._rate_retry_inflight = False
+            return 200, "ON"
+        if setting == SETTING_BRIGHTNESS:
+            await power_started.wait()
+            assert login._rate_retry_inflight is True
+            # Keep the throttle window open long enough for the watcher to
+            # sample it; a real retry holds this for 10-63 seconds.
+            await asyncio.sleep(0.1)
+            brightness_done.set()
+            return 400, None
+        return 200, "OFF"
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            new_callable=AsyncMock,
+            side_effect=fake_get_setting,
+        ),
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+            0.001,
+        ),
+    ):
+        supported, failed = await async_probe_display_settings(
+            MagicMock(), login, _device()
+        )
+
+    assert supported == {
+        SETTING_DISPLAY_POWER: "ON",
+        SETTING_ADAPTIVE_BRIGHTNESS: "OFF",
+    }
+    assert failed is True
+
+
+@pytest.mark.asyncio
+async def test_refresh_captures_concurrent_throttle_per_request():
+    """A throttled 400 across refreshes keeps the cached brightness."""
+    login = MagicMock()
+    login._rate_retry_inflight = False
+
+    state = DisplayState(
+        MagicMock(),
+        login,
+        _device(),
+        supported={
+            SETTING_DISPLAY_POWER: "ON",
+            SETTING_BRIGHTNESS: 40,
+        },
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    for _ in range(DISPLAY_FAILURE_LIMIT):
+        power_started = asyncio.Event()
+        brightness_done = asyncio.Event()
+
+        async def fake_get_setting(
+            _login,
+            _account_id,
+            setting,
+            power_started=power_started,
+            brightness_done=brightness_done,
+        ):
+            if setting == SETTING_DISPLAY_POWER:
+                login._rate_retry_inflight = True
+                power_started.set()
+                await brightness_done.wait()
+                login._rate_retry_inflight = False
+                return 200, "ON"
+            if setting == SETTING_BRIGHTNESS:
+                await power_started.wait()
+                assert login._rate_retry_inflight is True
+                # Keep the throttle window open long enough for the watcher.
+                await asyncio.sleep(0.1)
+                brightness_done.set()
+                return 400, None
+
+        with (
+            patch(
+                "custom_components.alexa_media.display.async_get_device_setting",
+                new_callable=AsyncMock,
+                side_effect=fake_get_setting,
+            ),
+            patch(
+                "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+                0.001,
+            ),
+        ):
+            await state.async_refresh()
+
+        assert state._failures[SETTING_BRIGHTNESS] == 0
+
+    assert state.supports(SETTING_BRIGHTNESS)
+    assert state.value(SETTING_BRIGHTNESS) == 40
+    assert state.value(SETTING_DISPLAY_POWER) == "ON"
+
+
+@pytest.mark.asyncio
+async def test_initial_probe_reports_relogin_once_and_resets_after_recovery():
+    """A probe auth failure reports once and allows a later report."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {}}
+    login = MagicMock(email=EMAIL)
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            new_callable=AsyncMock,
+            side_effect=AlexapyLoginError("login failed"),
+        ),
+        patch(
+            "custom_components.alexa_media.display.report_relogin_required",
+            return_value=True,
+        ) as report,
+    ):
+        values, failed = await async_probe_display_settings(hass, login, _device())
+        assert values == {}
+        assert failed is True
+        report.assert_called_once()
+
+        await async_probe_display_settings(hass, login, _device())
+        assert report.call_count == 1
+
+        login.status = {"login_successful": True}
+        with patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            new_callable=AsyncMock,
+            return_value=(200, "ON"),
+        ):
+            await async_probe_display_settings(hass, login, _device())
+
+        login.status = {"login_successful": False}
+        await async_probe_display_settings(hass, login, _device())
+        assert report.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_probe_skips_relogin_if_auth_recovered():
+    """A probe batch does not report a stale 401 after auth recovered."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {}}
+    login = MagicMock(email=EMAIL)
+
+    async def _get(*_args, **_kwargs):
+        login.status = {"login_successful": True}
+        raise AlexapyLoginError("login failed")
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch(
+            "custom_components.alexa_media.display.report_relogin_required"
+        ) as report,
+    ):
+        values, failed = await async_probe_display_settings(hass, login, _device())
+
+    assert values == {}
+    assert failed is True
+    report.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_refresh_does_not_duplicate_probe_relogin_report():
+    """The refresh path shares the probe's once-per-account report."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {}}
+    login = MagicMock(email=EMAIL)
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            new_callable=AsyncMock,
+            side_effect=AlexapyLoginError("login failed"),
+        ),
+        patch(
+            "custom_components.alexa_media.display.report_relogin_required",
+            return_value=True,
+        ) as report,
+    ):
+        await async_probe_display_settings(hass, login, _device())
+        assert report.call_count == 1
+
+        state = DisplayState(
+            hass,
+            login,
+            _device(),
+            supported={SETTING_BRIGHTNESS: 40},
+            probed=True,
+        )
+        state.client = MagicMock(unique_id=SERIAL)
+        await state.async_refresh()
+
+        assert report.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_transient_probe_failure_does_not_clear_relogin_marker():
+    """A 503 is not a successful read and must keep the relogin report marker."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {EMAIL}}}
+    login = MagicMock(email=EMAIL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(503, None),
+    ):
+        await async_probe_display_settings(hass, login, _device())
+
+    assert EMAIL in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_auth_recovery_clears_relogin_marker_on_probe():
+    """A recovered account clears the marker even if display reads are 503."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {EMAIL}}}
+    login = MagicMock(email=EMAIL)
+    login.status = {"login_successful": True}
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(503, None),
+    ):
+        await async_probe_display_settings(hass, login, _device())
+
+    assert EMAIL not in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_auth_recovery_clears_relogin_marker_on_refresh():
+    """The refresh path also clears the marker after account recovery."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {EMAIL}}}
+    login = MagicMock(email=EMAIL)
+    login.status = {"login_successful": True}
+    state = DisplayState(
+        hass,
+        login,
+        _device(),
+        supported={SETTING_BRIGHTNESS: 40},
+        probed=True,
+    )
+    state.client = MagicMock(unique_id=SERIAL)
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(503, None),
+    ):
+        await state.async_refresh()
+
+    assert EMAIL not in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_successful_probe_clears_relogin_marker():
+    """A confirmed device response allows a later failure to report again."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {EMAIL}}}
+    login = MagicMock(email=EMAIL)
+    login.status = {"login_successful": True}
+
+    with patch(
+        "custom_components.alexa_media.display.async_get_device_setting",
+        new_callable=AsyncMock,
+        return_value=(200, "ON"),
+    ):
+        await async_probe_display_settings(hass, login, _device())
+
+    assert EMAIL not in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+
+
+@pytest.mark.asyncio
+async def test_probe_reports_relogin_before_group_timeout():
+    """A confirmed login failure is reported even if a sibling probe hangs."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {}}
+    login = MagicMock(email=EMAIL)
+
+    async def _get(_login, _account_id, setting):
+        if setting == SETTING_DISPLAY_POWER:
+            raise AlexapyLoginError("login failed")
+        await asyncio.sleep(10)
+        return 200, "ON"
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_TIMEOUT", 0.05),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_RETRY_DELAY", 0),
+        patch(
+            "custom_components.alexa_media.display.report_relogin_required",
+            return_value=True,
+        ) as report,
+    ):
+        values, failed = await async_probe_display_settings(hass, login, _device())
+
+    assert values == {}
+    assert failed is True
+    report.assert_called_once()
+
+
+def test_reload_budget_stays_consumed_until_all_devices_recover():
+    """A successful device does not release the budget while another is pending."""
+    hass = MagicMock()
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "display_entry_states": {"entry": {"pending": set()}},
+            "display_reload_budget": {},
+        }
+    }
+    entry_state = hass.data[DATA_ALEXAMEDIA]["display_entry_states"]["entry"]
+    budget = hass.data[DATA_ALEXAMEDIA]["display_reload_budget"]
+    first = {"config_entry": MagicMock(entry_id="entry")}
+    second = {"config_entry": MagicMock(entry_id="entry")}
+
+    with patch("custom_components.alexa_media.display.async_call_later") as later:
+        entry_state["pending"].update({"A", "B"})
+        _schedule_display_reload(hass, first)
+        later.assert_called_once()
+        assert budget["entry"] == 1
+
+        entry_state["pending"].discard("B")
+        _clear_display_reload_budget(hass, second)
+        assert budget["entry"] == 1
+
+        entry_state["pending"].discard("A")
+        _clear_display_reload_budget(hass, second)
+        assert "entry" not in budget
+
+
+def test_report_display_relogin_ignores_missing_email():
+    """A login without an email cannot be reported."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {}}
+    login = MagicMock(email=None)
+
+    with patch(
+        "custom_components.alexa_media.display.report_relogin_required"
+    ) as report:
+        _report_display_relogin(hass, login)
+
+    report.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_throttle_watch_cancels_request_on_caller_cancel():
+    """Cancelling a probe cancels the request it owns."""
+    started = asyncio.Event()
+    finished = asyncio.Event()
+
+    async def _get():
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        finally:
+            finished.set()
+
+    task = asyncio.create_task(_await_with_throttle_watch(MagicMock(), _get()))
+    await asyncio.wait_for(started.wait(), timeout=1)
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert finished.is_set()
+
+
+@pytest.mark.asyncio
+async def test_throttle_capture_wins_before_watcher_resumes():
+    """A flag cleared before the watcher samples is still captured."""
+    login = MagicMock()
+    login._rate_retry_inflight = False
+    loop = asyncio.get_running_loop()
+
+    def _clear() -> None:
+        login._rate_retry_inflight = False
+
+    async def _get():
+        login._rate_retry_inflight = True
+        loop.call_soon(_clear)
+        return 400, None
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
+            60,
+        ),
+    ):
+        result, throttled = await _await_with_throttle_watch(login, _get())
+
+    assert result == (400, None)
+    assert throttled is True
+
+
+@pytest.mark.asyncio
+async def test_probe_timeout_discards_partial_results():
+    """The whole probe is bounded and a timeout keeps no partial capability."""
+
+    async def _get(_login, _account_id, setting):
+        if setting == SETTING_BRIGHTNESS:
+            await asyncio.sleep(10)
+        return 200, "ON"
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_get_device_setting",
+            side_effect=_get,
+        ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_TIMEOUT", 0.05),
+    ):
+        values, failed = await async_probe_display_settings(
+            MagicMock(), MagicMock(), _device()
+        )
+
+    assert values == {}
+    assert failed is True
+
+
+def test_stale_pending_serials_are_pruned():
+    """Removed devices cannot keep the reload budget consumed forever."""
+    hass = MagicMock()
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "display_entry_states": {"entry": {"pending": {"STALE"}}},
+            "display_reload_budget": {"entry": 1},
+        }
+    }
+    account_dict = {
+        "config_entry": MagicMock(entry_id="entry"),
+        "devices": {"media_player": {SERIAL: _device()}},
+    }
+
+    assert _display_pending(hass, account_dict) == set()
+    assert "entry" not in hass.data[DATA_ALEXAMEDIA]["display_reload_budget"]
+
+
+def test_stale_pending_pruning_keeps_live_devices():
+    """Only removed serials are pruned; live recovery keeps the budget."""
+    hass = MagicMock()
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "display_entry_states": {"entry": {"pending": {"STALE", SERIAL}}},
+            "display_reload_budget": {"entry": 1},
+        }
+    }
+    account_dict = {
+        "config_entry": MagicMock(entry_id="entry"),
+        "devices": {"media_player": {SERIAL: _device()}},
+    }
+
+    assert _display_pending(hass, account_dict) == {SERIAL}
+
+    _clear_display_reload_budget(hass, account_dict)
+    assert hass.data[DATA_ALEXAMEDIA]["display_reload_budget"]["entry"] == 1
+
+
+@pytest.mark.asyncio
+async def test_unload_stops_display_recovery():
+    """Unload stops polling and cancels display probes and timers."""
+    from custom_components.alexa_media import async_unload_entry
+
+    display_state = MagicMock()
+    probe = MagicMock()
+    probe.done.return_value = False
+    setup_task = MagicMock()
+    setup_task.done.return_value = False
+    unsub = MagicMock()
+    account_dict = {
+        "display_states": {SERIAL: display_state},
+        "display_probes": {SERIAL: probe},
+        "display_setup_tasks": {setup_task},
+        "display_reload_unsub": unsub,
+    }
+    hass = MagicMock()
+    hass.data = {
+        DATA_ALEXAMEDIA: {
+            "accounts": {EMAIL: account_dict},
+            "display_reload_budget": {"entry": 1},
+        }
+    }
+    entry = MagicMock(data={"email": EMAIL}, entry_id="entry")
+
+    with (
+        patch("custom_components.alexa_media.ALEXA_COMPONENTS", []),
+        patch("custom_components.alexa_media.DEPENDENT_ALEXA_COMPONENTS", []),
+        patch(
+            "custom_components.alexa_media.close_connections",
+            new_callable=AsyncMock,
+        ),
+    ):
+        assert await async_unload_entry(hass, entry)
+
+    display_state.async_stop.assert_called_once()
+    probe.cancel.assert_called_once()
+    setup_task.cancel.assert_called_once()
+    unsub.assert_called_once()
+    assert "entry" not in hass.data[DATA_ALEXAMEDIA]["display_reload_budget"]
+
+
+@pytest.mark.asyncio
+async def test_unload_missing_account_returns_true():
+    """Unload tolerates a setup that never created the account record."""
+    from custom_components.alexa_media import async_unload_entry
+
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": {}}}
+    entry = MagicMock(data={"email": EMAIL})
+
+    assert await async_unload_entry(hass, entry)

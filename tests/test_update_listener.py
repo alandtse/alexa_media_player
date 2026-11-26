@@ -594,6 +594,107 @@ async def test_setup_not_ready_when_relogin_keeps_login(hass, fake_login):
     account["login_in_progress"] = False
 
 
+async def test_setup_attempt_clears_display_probe_failure(hass):
+    """A new setup attempt may probe again after a failed attempt."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    account = {
+        "display_probe_failed": {"serial"},
+        "login_in_progress": True,
+    }
+    hass.data.setdefault(DATA_ALEXAMEDIA, {}).setdefault("accounts", {})[
+        entry.data[CONF_EMAIL]
+    ] = account
+
+    async def no_wait(_delay):
+        return None
+
+    with (
+        patch("custom_components.alexa_media.asyncio.sleep", no_wait),
+        pytest.raises(alexa_media.ConfigEntryNotReady),
+    ):
+        await alexa_media.async_setup_entry(hass, entry)
+
+    assert "display_probe_failed" not in account
+
+
+def test_clear_display_relogin_marker():
+    """A successful account login lets a later display failure report again."""
+    hass = MagicMock()
+    hass.data = {DATA_ALEXAMEDIA: {"display_relogin_reported": {"test@example.com"}}}
+
+    alexa_media._clear_display_relogin_marker(hass, "test@example.com")
+
+    assert (
+        "test@example.com" not in hass.data[DATA_ALEXAMEDIA]["display_relogin_reported"]
+    )
+
+
+async def test_remove_retires_failed_entry_runtime_account():
+    """Removing an entry that never unloaded must not leave its account behind."""
+    entry, other = MagicMock(), MagicMock()
+    login = MagicMock(close=AsyncMock())
+    hass = MagicMock(
+        data={
+            DATA_ALEXAMEDIA: {
+                "accounts": {
+                    "a@example.com": {"config_entry": entry, "login_obj": login},
+                    "b@example.com": {"config_entry": other, "login_obj": login},
+                }
+            }
+        }
+    )
+
+    accounts = hass.data[DATA_ALEXAMEDIA]["accounts"]
+    seen = {}
+
+    async def record_detached():
+        seen["detached"] = "a@example.com" not in accounts
+
+    login.close.side_effect = record_detached
+    await alexa_media._retire_runtime_account(hass, "a@example.com", entry)
+    assert seen["detached"] is True
+    assert "a@example.com" not in accounts
+    login.close.assert_awaited_once()
+
+    # A record owned by a different entry is preserved.
+    await alexa_media._retire_runtime_account(hass, "b@example.com", entry)
+    assert "b@example.com" in accounts
+    login.close.assert_awaited_once()
+
+
+async def test_relogin_skips_status_check_when_entry_unloads(hass, fake_login):
+    """An entry that unloads during reset must not trigger reauthentication."""
+    entry = _config_entry()
+    assert await async_setup_component(hass, DOMAIN, {})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    account = hass.data[DATA_ALEXAMEDIA]["accounts"][entry.data[CONF_EMAIL]]
+    login = account["login_obj"]
+    login.reset.reset_mock()
+
+    async def unload_during_reset():
+        entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
+
+    login.reset.side_effect = unload_during_reset
+    with (
+        patch("custom_components.alexa_media.test_login_status", AsyncMock()) as status,
+        patch("custom_components.alexa_media.setup_alexa", AsyncMock()) as setup,
+    ):
+        hass.bus.async_fire(
+            "alexa_media_relogin_required",
+            {"email": hide_email(entry.data[CONF_EMAIL])},
+        )
+        await hass.async_block_till_done()
+
+    login.reset.assert_awaited_once()
+    status.assert_not_awaited()
+    setup.assert_not_awaited()
+    assert account["login_in_progress"] is False
+
+
 def test_state_cleanup_registration_is_optional():
     """Home Assistant 2025.2 has no async_on_state_change; setup must not fail."""
 

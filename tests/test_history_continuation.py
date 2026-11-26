@@ -151,23 +151,29 @@ class HistoryContinuationTests(TestCase):
         )
         self.assertEqual(self.account["last_called"]["timestamp"], NOW + 1000)
         self.assertEqual(
-            self.account["last_called_history_result"]["serialNumber"], "A"
+            self.account["last_called_history_result"]["serialNumber"], "B"
         )
         baseline = self.account["last_called_history_voice_account"]
-        events = self.m._take_new_voice_records(baseline, records, NOW, NOW, {"A", "B"})
-        self.assertEqual([r["timestamp"] for r in events], [NOW - 200, NOW])
+        events = self.m._take_new_voice_records(
+            baseline, records, NOW + 1000, NOW, {"A", "B"}
+        )
+        self.assertEqual([r["timestamp"] for r in events], [NOW - 200, NOW, NOW + 1000])
         self.assertEqual(
             self.request.call_args_list[-1].kwargs["data"]["previousRequestToken"],
             "page-24",
         )
-        self.assertTrue(self.account["last_called_history_recheck"])
-        self.account["last_called_overlap_ts"] = NOW
+        self.assertFalse(self.account["last_called_history_recheck"])
+        self.account["last_called_overlap_ts"] = NOW + 1000
         self.account.update(
             {k: v for k, v in baseline.items() if k.startswith("last_called_voice_")}
         )
         self.request.side_effect = None
         self.request.return_value = {
-            "customerHistoryRecords": [record("B", NOW + 1000), record("A", NOW + 500)]
+            "customerHistoryRecords": [
+                record("B", NOW + 1500),
+                record("B", NOW + 1000),
+                record("A", NOW + 500),
+            ]
         }
         records = await self.m._async_get_last_called_history(
             self.login, self.account, {"A", "B"}, queue, on_payload=publish
@@ -175,11 +181,11 @@ class HistoryContinuationTests(TestCase):
         events = self.m._take_new_voice_records(
             self.account["last_called_history_voice_account"],
             records,
-            NOW + 1000,
+            NOW + 1500,
             NOW,
             {"A", "B"},
         )
-        self.assertEqual([r["timestamp"] for r in events], [NOW + 500, NOW + 1000])
+        self.assertEqual([r["timestamp"] for r in events], [NOW + 500, NOW + 1500])
 
     @immediate_async
     async def test_failure_after_publication_keeps_cursor_for_retry(self):
@@ -296,7 +302,7 @@ class HistoryContinuationTests(TestCase):
         self.assertEqual(result[0]["utteranceType"], "GENERAL")
         self.assertEqual(self.request.await_count, 27)
 
-    async def _exercise_worker(self):
+    async def _exercise_worker(self, trigger="PUSH_ACTIVITY"):
         """Execute the real worker body with mocked HA and scheduling transports."""
         from test_last_called_selection import SOURCE
 
@@ -339,7 +345,7 @@ class HistoryContinuationTests(TestCase):
             login_obj=self.login,
             last_called_probe_event=Event(),
             last_called_api_lock=Lock(),
-            last_called_probe_trigger_cmd="PUSH_ACTIVITY",
+            last_called_probe_trigger_cmd=trigger,
             last_called_activity_queue=[{"serial": "A", "activity_ts": NOW}],
             last_called_last_pushed_activity={},
         )
@@ -397,6 +403,9 @@ class HistoryContinuationTests(TestCase):
             hass.bus.async_fire.call_count, getattr(self, "expected_events", 1)
         )
         self.assertEqual(self.account["last_called_activity_queue"], [])
+        return [
+            call.kwargs["event_data"] for call in hass.bus.async_fire.call_args_list
+        ]
 
     @immediate_async
     async def test_actual_worker_publishes_and_emits_after_overlap(self):
@@ -404,8 +413,60 @@ class HistoryContinuationTests(TestCase):
         await self._exercise_worker()
 
     @immediate_async
-    async def test_actual_worker_budget_recheck_does_not_regress_or_lose_events(self):
-        """Complete two real worker scans while voice selection leads event progress."""
+    async def test_resumed_head_emits_late_voice_once_below_selection_watermark(self):
+        self.expected_events = 2
+        self.request.side_effect = [
+            {
+                "customerHistoryRecords": [
+                    record(kind="GENERAL" if i == 0 else "ROUTINES_3P")
+                ],
+                "encodedRequestToken": f"page-{i}",
+            }
+            for i in range(25)
+        ] + [
+            {
+                "customerHistoryRecords": [
+                    record(),
+                    record("B", NOW - 100),
+                    record("B", NOW - 100),
+                ]
+            },
+            {"customerHistoryRecords": [record()]},
+        ]
+        events = await self._exercise_worker()
+        self.assertEqual(
+            [(event["serial"], event["timestamp"]) for event in events],
+            [("B", NOW - 100), ("A", NOW)],
+        )
+        self.assertEqual(self.request.await_count, 27)
+        self.assertEqual(self.m.async_dispatcher_send.call_count, 1)
+
+    @immediate_async
+    async def test_push_during_fallback_preserves_worker_wakeup(self):
+        self.expected_ts = NOW + 1000
+
+        async def reply(*args, **kwargs):
+            if self.request.await_count == 4:
+                self.account.update(
+                    last_called_probe_generation=1,
+                    last_called_probe_trigger_cmd="PUSH_ACTIVITY",
+                    last_called_probe_trigger_ts=NOW + 1000,
+                    last_called_activity_queue=[
+                        {"serial": "A", "activity_ts": NOW + 1000}
+                    ],
+                )
+                self.account["last_called_probe_event"].set()
+            records = [record(ts=NOW + 1000)] if self.request.await_count == 5 else []
+            return {"customerHistoryRecords": records}
+
+        self.request.side_effect = reply
+        events = await self._exercise_worker(trigger="SERVICE_REFRESH")
+        self.assertEqual([event["timestamp"] for event in events], [NOW + 1000])
+        self.assertEqual(self.request.await_count, 5)
+
+    @immediate_async
+    async def test_actual_worker_emits_newer_head_and_saved_overlap(self):
+        """A newer head and the saved overlap both reach the event worker."""
         self.expected_ts = NOW + 1000
         self.expected_events = 4
         self.request.side_effect = [
@@ -418,19 +479,16 @@ class HistoryContinuationTests(TestCase):
             for i in range(25)
         ] + [
             {
-                "customerHistoryRecords": [record("A", NOW + 1000)],
-                "encodedRequestToken": "head",
-            },
-            {"customerHistoryRecords": [record("A", NOW - 200)]},
-            {
                 "customerHistoryRecords": [
                     record("A", NOW + 1000),
                     record("B", NOW + 500),
-                ]
+                ],
+                "encodedRequestToken": "head",
             },
+            {"customerHistoryRecords": [record("A", NOW - 200)]},
         ]
         await self._exercise_worker()
-        self.assertEqual(self.request.await_count, 28)
+        self.assertEqual(self.request.await_count, 27)
         self.assertEqual(self.m.async_dispatcher_send.call_count, 2)
 
     @immediate_async

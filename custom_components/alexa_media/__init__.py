@@ -828,7 +828,9 @@ async def _async_get_last_called_history(
                 state["failures"] = 0
             # Excluded routine/arbitration floods must not grow the retained
             # overlap buffer. Page timestamps still control traversal below.
-            if not head:
+            # Push event processing also needs head records below the live
+            # selection watermark. The event pipeline deduplicates them.
+            if not head or queue_snapshot:
                 state["records"].extend(
                     r
                     for r in page.records
@@ -2314,7 +2316,15 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                             await update_last_called(
                                                 login_live, last_called
                                             )
-                                        account_live["last_called_probe_trigger_ts"] = 0
+                                        if (
+                                            account_live.get(
+                                                "last_called_probe_generation", 0
+                                            )
+                                            == trigger_generation
+                                        ):
+                                            account_live[
+                                                "last_called_probe_trigger_ts"
+                                            ] = 0
                                     break
 
                                 earliest_ts = min(
@@ -2528,6 +2538,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 "SERVICE_REFRESH",
                                 "POLL_REFRESH",
                             ):
+                                if (
+                                    account_live.get("last_called_probe_generation", 0)
+                                    != trigger_generation
+                                ):
+                                    break
                                 _LOGGER.debug(
                                     "%s: queued activity unresolved after retries; falling back to direct refresh",
                                     hide_email(email),
@@ -2575,8 +2590,12 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                         trigger_cmd,
                                         exc,
                                     )
-                                account_live["last_called_probe_trigger_ts"] = 0
-                                account_live["last_called_probe_event"].clear()
+                                if (
+                                    account_live.get("last_called_probe_generation", 0)
+                                    == trigger_generation
+                                ):
+                                    account_live["last_called_probe_trigger_ts"] = 0
+                                    account_live["last_called_probe_event"].clear()
 
                             break
 

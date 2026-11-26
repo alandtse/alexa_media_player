@@ -668,8 +668,10 @@ async def get_entity_data(
                     cap_states = device_state.get("capabilityStates", [])
                     for cap_state in cap_states:
                         try:
-                            entities[entity_id].append(json.loads(cap_state))
-                        except Exception:
+                            parsed = json.loads(cap_state)
+                            if isinstance(parsed, dict):
+                                entities[entity_id].append(parsed)
+                        except (json.JSONDecodeError, TypeError):
                             pass
 
             for err in raw.get("errors", []):

@@ -330,6 +330,9 @@ class TestIsLocal:
             "driverIdentity": {"namespace": "SKILL"},
         }
         assert not is_local(appliance)
+        # Verify loopback exclusion takes precedence even when combined with an allowed brand
+        appliance["manufacturerName"] = "Home Assistant Tuya"
+        assert not is_local(appliance)
 
     def test_is_local_loopback_nodered(self):
         """Test is_local returns False for Node-RED bridge loopback."""
@@ -338,6 +341,8 @@ class TestIsLocal:
             "driverIdentity": {"namespace": "SKILL"},
         }
         assert not is_local(appliance)
+        appliance["manufacturerName"] = "Node-RED SmartLife"
+        assert not is_local(appliance)
 
     def test_is_local_loopback_matterbridge(self):
         """Test is_local returns False for Matterbridge loopback."""
@@ -345,6 +350,8 @@ class TestIsLocal:
             "manufacturerName": "Matterbridge",
             "driverIdentity": {"namespace": "SKILL"},
         }
+        assert not is_local(appliance)
+        appliance["manufacturerName"] = "Matterbridge SmartThings"
         assert not is_local(appliance)
 
 

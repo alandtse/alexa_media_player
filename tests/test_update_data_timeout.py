@@ -1,6 +1,7 @@
 """Tests that a get_devices timeout never prunes the device registry."""
 
 import asyncio
+from copy import deepcopy
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -339,6 +340,8 @@ async def test_graphql_snapshot_survives_failed_rediscovery(
         await hass.async_block_till_done()
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
         coordinator = account["coordinator"]
+        # Platform setup is mocked, so discovery must publish before registration.
+        assert not account["entities"]["sensor"]
         assert coordinator.data == {"aqm-entity": initial}
         if auth_interruption:
             account["login_obj"].status["login_successful"] = False
@@ -448,3 +451,110 @@ async def test_overlapping_graphql_polls_keep_newest_samples(
             "9": new_pm,
             "3": new_voc,
         }
+
+
+@pytest.mark.parametrize("first_to_finish", [0, 1])
+@pytest.mark.parametrize("membership_change", ["register", "remove", "disable"])
+async def test_overlapping_polls_publish_current_membership(
+    hass, amazon_api, aqm_endpoint, first_to_finish, membership_change
+):
+    """Publish active entities and discard samples for obsolete membership."""
+    devices, _ = amazon_api
+    entry, _ = _entry_with_registered_device(hass)
+    devices.return_value = [_sample_echo_device()]
+    other_endpoint = deepcopy(aqm_endpoint)
+    other_endpoint["id"] = "other-endpoint"
+    other_endpoint["legacyAppliance"].update(
+        entityId="other-entity", applianceId="other-appliance"
+    )
+
+    def sample(value, time):
+        return {
+            "namespace": "Alexa.RangeController",
+            "name": "rangeValue",
+            "instance": "9",
+            "value": value,
+            "timeOfSample": time,
+        }
+
+    first_id, other_id = "aqm-entity", "other-entity"
+    initial = {first_id: [sample(10, "2026-11-27T12:00:00Z")]}
+    if membership_change != "register":
+        initial[other_id] = [sample(20, "2026-11-27T12:00:00Z")]
+    fresh = {
+        first_id: [sample(30, "2026-11-27T12:01:00Z")],
+        other_id: [sample(40, "2026-11-27T12:02:00Z")],
+    }
+    requested = []
+    started = [asyncio.Event(), asyncio.Event()]
+    release = [asyncio.Event(), asyncio.Event()]
+
+    async def poll(login, entity_ids, *, endpoints):
+        requested.append(set(entity_ids))
+        match len(requested):
+            case 1:
+                return initial
+            case 2 | 3:
+                index = len(requested) - 2
+                started[index].set()
+                await release[index].wait()
+                entity_id = (first_id, other_id)[index]
+                if membership_change != "register" and index == 0:
+                    return fresh  # The old request includes the now-obsolete entity.
+                return {entity_id: fresh[entity_id]} if entity_id in entity_ids else {}
+            case _:
+                return {}
+
+    with (
+        patch.object(
+            AlexaAPI,
+            "get_devices_gql",
+            AsyncMock(return_value=[aqm_endpoint, other_endpoint]),
+        ),
+        patch.object(AlexaAPI, "get_entity_state_gql", poll, create=True),
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+            AsyncMock(return_value=None),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
+        coordinator = account["coordinator"]
+        sensors = account["entities"]["sensor"]
+        sensors["aqm"] = {
+            "Temperature": MagicMock(enabled=True, alexa_entity_id=first_id)
+        }
+        other = MagicMock(enabled=True, alexa_entity_id=other_id)
+        if membership_change != "register":
+            sensors["other"] = {"Temperature": other}
+
+        async with asyncio.timeout(5), asyncio.TaskGroup() as tasks:
+            refreshes = [tasks.create_task(coordinator._async_refresh())]
+            await started[0].wait()
+            if membership_change == "register":
+                sensors["other"] = {"Temperature": other}
+            elif membership_change == "remove":
+                del sensors["other"]
+            else:
+                other.enabled = False
+            refreshes.append(tasks.create_task(coordinator._async_refresh()))
+            await started[1].wait()
+            release[first_to_finish].set()
+            await refreshes[first_to_finish]
+            after_first = coordinator.data
+            release[1 - first_to_finish].set()
+
+        if membership_change == "register":
+            assert requested[1:3] == [{first_id}, {first_id, other_id}]
+            assert coordinator.data == fresh
+        else:
+            assert requested[1:3] == [{first_id, other_id}, {first_id}]
+            assert other_id not in after_first
+            assert coordinator.data == {first_id: fresh[first_id]}
+            # Re-enabling with an empty response must not revive the old sample.
+            other.enabled = True
+            sensors["other"] = {"Temperature": other}
+            await coordinator.async_refresh()
+            assert requested[-1] == {first_id, other_id}
+            assert coordinator.data == {first_id: fresh[first_id]}

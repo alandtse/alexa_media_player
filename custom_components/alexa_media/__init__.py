@@ -59,6 +59,7 @@ from .account_auth import publish_authentication
 from .alexa_entity import (
     AlexaEntityData,
     get_entity_data,
+    merge_entity_samples,
     parse_alexa_entities,
     sensor_polling_endpoints,
 )
@@ -1245,12 +1246,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     last_good_entity_state: AlexaEntityData = {}
 
     async def poll_entity_data(login, entity_ids):
-        """Poll with this account's last samples and current login's discovery."""
+        """Fetch current samples with this login's discovery snapshot."""
         return await get_entity_data(
             login,
             entity_ids,
             endpoints=polling_endpoints if login is discovery_login else None,
-            previous=last_good_entity_state,
         )
 
     async def async_update_data() -> Optional[AlexaEntityData]:
@@ -1275,7 +1275,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         media_player since this object is one per account.
         Each AlexaAPI call generally results in two webpage requests.
         """
-        nonlocal discovery_login, last_good_entity_state, polling_endpoints
+        nonlocal discovery_login, polling_endpoints
         email = config.get(CONF_EMAIL)
         accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
         account = accounts.get(email)
@@ -1444,6 +1444,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
             if smart_switch.enabled:
                 entities_to_monitor.add(smart_switch.alexa_entity_id)
 
+        state_entity_ids = entities_to_monitor.copy()
         if entities_to_monitor:
             tasks.append(poll_entity_data(login_obj, list(entities_to_monitor)))
 
@@ -1578,6 +1579,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                     len(list(_entities_to_monitor)),
                                 )
                                 # Use shorter timeout for entity data to avoid blocking
+                                state_entity_ids = _entities_to_monitor
                                 _t_ed = time.monotonic()
                                 try:
                                     entity_state = await asyncio.wait_for(
@@ -1923,8 +1925,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if connectivity_generation >= connectivity._invalidated_generation:
             connectivity.account_available = True
         connectivity.notify()
-        if entity_state:
-            last_good_entity_state = entity_state
+        # Merge only after the final await so another refresh's samples are visible.
+        entity_state = merge_entity_samples(
+            state_entity_ids, last_good_entity_state, entity_state
+        )
+        last_good_entity_state.update(entity_state)
         return entity_state
 
     @_catch_login_errors

@@ -269,15 +269,10 @@ async def test_successful_discovery_prunes_stale_devices(hass, amazon_api):
     assert registry.async_get(stale_device.id) is None
 
 
-@pytest.mark.parametrize("auth_interruption", [False, True])
-async def test_graphql_snapshot_survives_failed_rediscovery(
-    hass, amazon_api, auth_interruption
-):
-    """Use the same account snapshot for initial and subsequent sensor polling."""
-    devices, network_details = amazon_api
-    entry, _ = _entry_with_registered_device(hass)
-    devices.return_value = [_sample_echo_device()]
-    endpoint = {
+@pytest.fixture
+def aqm_endpoint():
+    """Return an AQM discovery row with an explicit GraphQL ID."""
+    return {
         "id": "aqm-endpoint",
         "legacyAppliance": {
             "entityId": "aqm-entity",
@@ -303,7 +298,17 @@ async def test_graphql_snapshot_survives_failed_rediscovery(
             ],
         },
     }
-    discovery = AsyncMock(side_effect=[[endpoint], None])
+
+
+@pytest.mark.parametrize("auth_interruption", [False, True])
+async def test_graphql_snapshot_survives_failed_rediscovery(
+    hass, amazon_api, auth_interruption, aqm_endpoint
+):
+    """Use the same account snapshot for initial and subsequent sensor polling."""
+    devices, network_details = amazon_api
+    entry, _ = _entry_with_registered_device(hass)
+    devices.return_value = [_sample_echo_device()]
+    discovery = AsyncMock(side_effect=[[aqm_endpoint], None])
     first_state = {
         "namespace": "Alexa.TemperatureSensor",
         "name": "temperature",
@@ -363,3 +368,83 @@ async def test_graphql_snapshot_survives_failed_rediscovery(
                     }
                 ]
             }
+
+
+@pytest.mark.parametrize("first_to_finish", [0, 1])
+@pytest.mark.parametrize("conflicting_sample", [False, True])
+async def test_overlapping_graphql_polls_keep_newest_samples(
+    hass, amazon_api, aqm_endpoint, first_to_finish, conflicting_sample
+):
+    """Overlapping partial replies publish the newest sample for each metric."""
+    devices, _ = amazon_api
+    entry, _ = _entry_with_registered_device(hass)
+    devices.return_value = [_sample_echo_device()]
+
+    def sample(instance, value, time):
+        return {
+            "namespace": "Alexa.RangeController",
+            "name": "rangeValue",
+            "instance": instance,
+            "value": value,
+            "timeOfSample": time,
+        }
+
+    entity_id = "aqm-entity"
+    old_pm = sample("9", 10, "2026-11-27T12:00:00Z")
+    old_voc = sample("3", 20, "2026-11-27T12:00:00Z")
+    new_pm = sample("9", 30, "2026-11-27T12:02:00Z")
+    new_voc = sample("3", 40, "2026-11-27T12:03:00Z")
+    replies = [[new_pm], [new_voc]]
+    if conflicting_sample:
+        # This arrives from a fresh request, but Amazon sampled it earlier.
+        replies[1].append(sample(9, 15, "2026-11-27T13:01:00+01:00"))
+
+    started = [asyncio.Event(), asyncio.Event()]
+    release = [asyncio.Event(), asyncio.Event()]
+    next_poll = 0
+
+    async def poll(*args, **kwargs):
+        nonlocal next_poll
+        if next_poll == 0:
+            next_poll += 1
+            return {entity_id: [old_pm, old_voc]}
+        index = next_poll - 1
+        next_poll += 1
+        started[index].set()
+        await release[index].wait()
+        return {entity_id: replies[index]}
+
+    with (
+        patch.object(
+            AlexaAPI, "get_devices_gql", AsyncMock(return_value=[aqm_endpoint])
+        ),
+        patch.object(AlexaAPI, "get_entity_state_gql", poll, create=True),
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+            AsyncMock(return_value=None),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
+        coordinator = account["coordinator"]
+        account["entities"]["sensor"]["AQMSERIAL0000001"] = {
+            "Temperature": MagicMock(enabled=True, alexa_entity_id=entity_id)
+        }
+
+        async with asyncio.timeout(5), asyncio.TaskGroup() as tasks:
+            # Older Home Assistant releases allow refreshes to overlap.
+            refreshes = [tasks.create_task(coordinator._async_refresh())]
+            await started[0].wait()
+            refreshes.append(tasks.create_task(coordinator._async_refresh()))
+            await started[1].wait()
+            release[first_to_finish].set()
+            await refreshes[first_to_finish]
+            release[1 - first_to_finish].set()
+
+        assert {
+            str(state["instance"]): state for state in coordinator.data[entity_id]
+        } == {
+            "9": new_pm,
+            "3": new_voc,
+        }

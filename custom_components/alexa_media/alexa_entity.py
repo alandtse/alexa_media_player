@@ -10,6 +10,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 import json
 import logging
@@ -622,7 +623,7 @@ async def get_entity_data(
     graphql_ids = [entity_id for entity_id in entity_ids if entity_id in mapped_ids]
     if not graphql_ids or not callable(state_gql):
         legacy = await _get_legacy_entity_data(login_obj, entity_ids)
-        return _merge_entity_samples(entity_ids, previous, legacy)
+        return merge_entity_samples(entity_ids, previous, legacy)
 
     legacy_ids = [entity_id for entity_id in entity_ids if entity_id not in mapped_ids]
 
@@ -643,17 +644,17 @@ async def get_entity_data(
 
     graphql, legacy = await asyncio.gather(poll_graphql(), poll_legacy())
     return {
-        **_merge_entity_samples(graphql_ids, previous, graphql),
-        **_merge_entity_samples(legacy_ids, previous, legacy),
+        **merge_entity_samples(graphql_ids, previous, graphql),
+        **merge_entity_samples(legacy_ids, previous, legacy),
     }
 
 
-def _merge_entity_samples(
-    entity_ids: list[str],
+def merge_entity_samples(
+    entity_ids: Iterable[str],
     previous: AlexaEntityData | None,
     current: AlexaEntityData | None,
 ) -> AlexaEntityData:
-    """Keep omitted samples and replace capabilities present in the new response."""
+    """Keep omitted samples and prefer the newest known sample per capability."""
     previous = previous or {}
     current = current or {}
     merged = {}
@@ -666,10 +667,27 @@ def _merge_entity_samples(
                 state.get("name"),
                 str(instance) if instance is not None else None,
             )
+            if key in samples:
+                previous_time = _sample_time(samples[key])
+                sample_time = _sample_time(state)
+                if previous_time and sample_time and sample_time < previous_time:
+                    continue
             samples[key] = state
         if samples:
             merged[entity_id] = list(samples.values())
     return merged
+
+
+def _sample_time(state: AlexaCapabilityState) -> datetime | None:
+    """Parse a comparable timestamp without changing the original sample."""
+    value = state.get("timeOfSample")
+    if not isinstance(value, str):
+        return None
+    try:
+        sample_time = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return sample_time if sample_time.tzinfo is not None else None
 
 
 async def _get_legacy_entity_data(

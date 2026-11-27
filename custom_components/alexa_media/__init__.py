@@ -1552,9 +1552,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 ].update(alexa_entities)
                                 if use_graphql:
                                     polling_endpoints = sensor_polling_endpoints(
-                                        endpoint_rows, alexa_entities
+                                        endpoint_rows,
+                                        alexa_entities,
+                                        include_controls=callable(
+                                            getattr(AlexaAPI, "set_light_state_gql", None)
+                                        ),
                                     )
                                     discovery_login = login_obj
+                                    account["control_endpoint_snapshot"] = (
+                                        login_obj,
+                                        polling_endpoints,
+                                    )
 
                                 _entities_to_monitor = set()
                                 for type_of_entity, entities in alexa_entities.items():

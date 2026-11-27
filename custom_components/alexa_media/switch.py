@@ -53,6 +53,7 @@ from .helpers import (
     config_entry_config,
     safe_get,
 )
+from .smart_home_control import async_control_gql
 
 try:
     from homeassistant.components.switch import SwitchEntity as SwitchDevice
@@ -595,6 +596,8 @@ class SmartSwitch(CoordinatorEntity, SwitchDevice):
         return not last_refresh_success
 
     async def _set_state(self, power_on: bool) -> None:
+        if await async_control_gql(self, power_on):
+            return
         response = await AlexaAPI.set_light_state(
             self._login,
             self.alexa_entity_id,
@@ -607,6 +610,9 @@ class SmartSwitch(CoordinatorEntity, SwitchDevice):
             return
 
         control_responses = response.get("controlResponses", [])
+        if not control_responses:
+            await self.coordinator.async_request_refresh()
+            return
         for ctrl_resp in control_responses:
             if ctrl_resp.get("code") != "SUCCESS":
                 # If something failed any state is possible, fallback to a full refresh

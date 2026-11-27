@@ -710,15 +710,19 @@ async def _get_legacy_entity_data(
 
 
 def sensor_polling_endpoints(
-    rows: list[dict[str, Any]], alexa_entities: dict
+    rows: list[dict[str, Any]],
+    alexa_entities: dict,
+    *,
+    include_controls: bool = False,
 ) -> list[dict[str, Any]]:
-    """Keep explicit mappings for temperature and air-quality-only entities."""
+    """Keep explicit mappings for entities supported by GraphQL polling."""
+    kinds = {"temperature", "air_quality", "aiaqm"}
+    if include_controls:
+        kinds.update(("light", "smart_switch"))
     sensor_ids = set()
     other_ids = set()
     for kind, entities in alexa_entities.items():
-        ids = (
-            sensor_ids if kind in {"temperature", "air_quality", "aiaqm"} else other_ids
-        )
+        ids = sensor_ids if kind in kinds else other_ids
         ids.update(entity.get("id") for entity in entities)
     sensor_ids.difference_update(other_ids)
     return [

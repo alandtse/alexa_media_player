@@ -45,6 +45,7 @@ from .alexa_entity import (
 )
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .helpers import add_devices, config_entry_config, safe_get
+from .smart_home_control import async_control_gql
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -254,6 +255,27 @@ class AlexaLight(CoordinatorEntity, LightEntity):
             adjusted_hs = None
             color_name = None
 
+        if callable(getattr(AlexaAPI, "set_light_state_gql", None)):
+            percent = ha_brightness_to_alexa(brightness)
+            color = None
+            if adjusted_hs is not None:
+                level = percent
+                if level is None:
+                    level = ha_brightness_to_alexa(self.brightness)
+                if level is None:
+                    level = 100
+                color = (adjusted_hs[0], adjusted_hs[1] / 100, level / 100)
+            if await async_control_gql(
+                self,
+                power_on,
+                brightness=round(percent) if percent is not None else None,
+                color=color,
+                color_temperature=(
+                    round(adjusted_kelvin) if adjusted_kelvin is not None else None
+                ),
+            ):
+                return
+
         response = await AlexaAPI.set_light_state(
             self._login,
             self.alexa_entity_id,
@@ -265,6 +287,8 @@ class AlexaLight(CoordinatorEntity, LightEntity):
         if not isinstance(response, dict):
             return await self.coordinator.async_request_refresh()
         control_responses = response.get("controlResponses", [])
+        if not control_responses:
+            return await self.coordinator.async_request_refresh()
         for response in control_responses:
             if not response.get("code") == "SUCCESS":
                 # If something failed any state is possible, fallback to a full refresh

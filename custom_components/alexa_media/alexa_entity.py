@@ -817,13 +817,16 @@ def parse_power_from_coordinator(
     coordinator: DataUpdateCoordinator, entity_id: str, since: datetime | None
 ) -> str | None:
     """Get the power state of the entity."""
-    return parse_value_from_coordinator(
+    power = parse_value_from_coordinator(
         coordinator,
         entity_id,
         "Alexa.PowerController",
         "powerState",
         since=since,
     )
+    if isinstance(power, bool):
+        return "ON" if power else "OFF"
+    return power
 
 
 def parse_guard_state_from_coordinator(

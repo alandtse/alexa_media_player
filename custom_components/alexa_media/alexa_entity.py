@@ -17,7 +17,7 @@ import logging
 import re
 from typing import Any, Optional, TypedDict
 
-from alexapy import AlexaAPI, AlexaLogin
+from alexapy import AlexaAPI, AlexaLogin, hide_email
 from alexapy.errors import AlexapyConnectionError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -610,6 +610,31 @@ def parse_alexa_entities(
     }
 
 
+def _log_backend_poll_failure(
+    login: AlexaLogin, backend: str, err: Exception
+) -> None:
+    """Log structured failure details without exception text or traceback."""
+    local, separator, domain = login.email.partition("@")
+    account = (
+        hide_email(login.email)
+        if separator and len(local) > 2 and len(domain) > 2
+        else "<redacted>"
+    )
+    if isinstance(err, TimeoutError):
+        detail = f"read exceeded the {_LEGACY_MIXED_POLL_TIMEOUT:g}s polling budget"
+    elif err.__cause__ is not None:
+        detail = f"connection failed ({type(err.__cause__).__name__})"
+    else:
+        detail = "connection failed"
+    _LOGGER.debug(
+        "%s state poll failed for %s: %s (%s)",
+        backend,
+        account,
+        type(err).__name__,
+        detail,
+    )
+
+
 async def get_entity_data(
     login_obj: AlexaLogin,
     entity_ids: list[str],
@@ -630,7 +655,8 @@ async def get_entity_data(
     async def poll_graphql() -> AlexaEntityData | None:
         try:
             return await state_gql(login_obj, graphql_ids, endpoints=endpoints)
-        except AlexapyConnectionError:
+        except AlexapyConnectionError as err:
+            _log_backend_poll_failure(login_obj, "GraphQL", err)
             return None
 
     async def poll_legacy() -> AlexaEntityData | None:
@@ -639,7 +665,8 @@ async def get_entity_data(
             # the first-refresh deadline or discard its GraphQL results.
             async with asyncio.timeout(_LEGACY_MIXED_POLL_TIMEOUT):
                 return await _get_legacy_entity_data(login_obj, legacy_ids)
-        except (TimeoutError, AlexapyConnectionError):
+        except (TimeoutError, AlexapyConnectionError) as err:
+            _log_backend_poll_failure(login_obj, "Phoenix", err)
             return None
 
     graphql, legacy = await asyncio.gather(poll_graphql(), poll_legacy())

@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import logging
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from alexapy import AlexaAPI
@@ -310,7 +312,7 @@ class TestIsLocal:
 @pytest.mark.asyncio
 async def test_graphql_sensor_poll_keeps_missing_instances_and_recovers(monkeypatch):
     """A failed GraphQL poll leaves the last samples intact without a Phoenix retry."""
-    login = object()
+    login = SimpleNamespace(email="test@example.com")
     snapshot = [
         {"id": "endpoint", "legacyAppliance": {"entityId": "aqm"}},
     ]
@@ -391,7 +393,7 @@ def test_sensor_polling_endpoints_requires_explicit_sensor_mapping():
 @pytest.mark.asyncio
 async def test_mixed_poll_returns_graphql_state_when_phoenix_times_out(monkeypatch):
     """A blocked legacy read cannot discard a successful GraphQL read."""
-    login = object()
+    login = SimpleNamespace(email="test@example.com")
     snapshot = [{"id": "endpoint", "legacyAppliance": {"entityId": "temperature"}}]
     reading = {
         "namespace": "Alexa.TemperatureSensor",
@@ -481,3 +483,72 @@ async def test_mixed_poll_retains_omitted_phoenix_samples(monkeypatch, response_
         "light": [fresh_power if response_kind == "partial" else power, brightness],
         "guard": [guard],
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("backend", "error_type", "detail"),
+    [
+        ("GraphQL", AlexapyConnectionError, "connection failed (OSError)"),
+        ("Phoenix", AlexapyConnectionError, "connection failed (OSError)"),
+        ("Phoenix", TimeoutError, "polling budget"),
+    ],
+)
+async def test_mixed_poll_diagnostics_preserve_samples(
+    monkeypatch, caplog, backend, error_type, detail
+):
+    """Identify backend outages without exposing request or account details."""
+    login = SimpleNamespace(email="sample@example.com")
+    snapshot = [{"id": "endpoint", "legacyAppliance": {"entityId": "temperature"}}]
+    temp = {
+        "namespace": "Alexa.TemperatureSensor",
+        "name": "temperature",
+        "value": 19,
+        "timeOfSample": "2026-11-27T12:34:00Z",
+    }
+    guard = {
+        "namespace": "Alexa.SecurityPanelController",
+        "name": "armState",
+        "value": "DISARMED",
+        "timeOfSample": "2026-11-27T12:34:00Z",
+    }
+    previous = {"temperature": [temp], "guard": [guard]}
+    error = error_type(f"token=SECRET_TOKEN, email={login.email}")
+    error.__cause__ = OSError("Cookie: SECRET_COOKIE")
+    graph = AsyncMock(
+        side_effect=error if backend == "GraphQL" else None,
+        return_value={"temperature": [temp]},
+    )
+    phoenix = AsyncMock(
+        side_effect=error if backend == "Phoenix" else None,
+        return_value={
+            "deviceStates": [
+                {
+                    "entity": {"entityId": "guard"},
+                    "capabilityStates": [json.dumps(guard)],
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(AlexaAPI, "get_entity_state_gql", graph, raising=False)
+    monkeypatch.setattr(AlexaAPI, "get_entity_state", phoenix)
+    logger = "custom_components.alexa_media.alexa_entity"
+    with caplog.at_level(logging.DEBUG, logger=logger):
+        assert await get_entity_data(
+            login,
+            ["temperature", "guard"],
+            endpoints=snapshot,
+            previous=previous,
+        ) == previous
+    messages = [record for record in caplog.records if record.name == logger]
+    assert len(messages) == 1
+    assert messages[0].levelno == logging.DEBUG
+    assert not messages[0].exc_info
+    assert f"{backend} state poll failed for s****e@e*********m" in caplog.text
+    assert error_type.__name__ in caplog.text
+    assert detail in caplog.text
+    assert login.email not in caplog.text
+    assert "SECRET_TOKEN" not in caplog.text
+    assert "SECRET_COOKIE" not in caplog.text
+    graph.assert_awaited_once_with(login, ["temperature"], endpoints=snapshot)
+    phoenix.assert_awaited_once_with(login, entity_ids=["guard"])

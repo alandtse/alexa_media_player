@@ -610,9 +610,7 @@ def parse_alexa_entities(
     }
 
 
-def _log_backend_poll_failure(
-    login: AlexaLogin, backend: str, err: Exception
-) -> None:
+def _log_backend_poll_failure(login: AlexaLogin, backend: str, err: Exception) -> None:
     """Log structured failure details without exception text or traceback."""
     local, separator, domain = login.email.partition("@")
     account = (

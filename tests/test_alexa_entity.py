@@ -534,12 +534,15 @@ async def test_mixed_poll_diagnostics_preserve_samples(
     monkeypatch.setattr(AlexaAPI, "get_entity_state", phoenix)
     logger = "custom_components.alexa_media.alexa_entity"
     with caplog.at_level(logging.DEBUG, logger=logger):
-        assert await get_entity_data(
-            login,
-            ["temperature", "guard"],
-            endpoints=snapshot,
-            previous=previous,
-        ) == previous
+        assert (
+            await get_entity_data(
+                login,
+                ["temperature", "guard"],
+                endpoints=snapshot,
+                previous=previous,
+            )
+            == previous
+        )
     messages = [record for record in caplog.records if record.name == logger]
     assert len(messages) == 1
     assert messages[0].levelno == logging.DEBUG

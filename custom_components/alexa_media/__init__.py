@@ -56,7 +56,12 @@ from homeassistant.util import dt, slugify
 import voluptuous as vol
 
 from .account_auth import publish_authentication
-from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
+from .alexa_entity import (
+    AlexaEntityData,
+    get_entity_data,
+    parse_alexa_entities,
+    sensor_polling_endpoints,
+)
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state
 from .const import (
@@ -1234,6 +1239,21 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     pending_dnd_updates: dict[str, bool] = {}
     scheduled_dnd_tasks: dict[str, asyncio.Task] = {}
 
+    discovery_login = None
+    polling_endpoints = []
+
+    async def poll_entity_data(login, entity_ids, account):
+        """Poll using the snapshot belonging to the current login."""
+        if login is discovery_login and polling_endpoints:
+            coordinator = account.get("coordinator")
+            return await get_entity_data(
+                login,
+                entity_ids,
+                endpoints=polling_endpoints,
+                previous=coordinator.data if coordinator else None,
+            )
+        return await get_entity_data(login, entity_ids)
+
     async def async_update_data() -> Optional[AlexaEntityData]:
         # noqa pylint: disable=too-many-branches
         """Fetch data from API endpoint.
@@ -1256,6 +1276,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         media_player since this object is one per account.
         Each AlexaAPI call generally results in two webpage requests.
         """
+        nonlocal discovery_login, polling_endpoints
         email = config.get(CONF_EMAIL)
         accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
         account = accounts.get(email)
@@ -1284,6 +1305,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "should_get_network"
         ]
+        use_graphql = callable(getattr(AlexaAPI, "get_entity_state_gql", None))
+        if use_graphql and discovery_login is not login_obj:
+            discovery_login = None
+            polling_endpoints = []
+            should_get_network = True
         first_run = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["first_run"]
         network_discovery_failed = False
         devices = {}
@@ -1420,10 +1446,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 entities_to_monitor.add(smart_switch.alexa_entity_id)
 
         if entities_to_monitor:
-            tasks.append(get_entity_data(login_obj, list(entities_to_monitor)))
+            tasks.append(
+                poll_entity_data(login_obj, list(entities_to_monitor), account)
+            )
 
         if should_get_network:
-            tasks.append(AlexaAPI.get_network_details(login_obj))
+            tasks.append(
+                AlexaAPI.get_devices_gql(login_obj)
+                if use_graphql
+                else AlexaAPI.get_network_details(login_obj)
+            )
 
         optional_task_results = []
         try:
@@ -1478,6 +1510,18 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 "%s: Network Discovery: Checking", hide_email(email)
                             )
                             api_devices = optional_task_results.pop()
+                            if use_graphql:
+                                endpoint_rows = api_devices
+                                api_devices = (
+                                    [
+                                        row["legacyAppliance"]
+                                        for row in endpoint_rows
+                                        if isinstance(row, dict)
+                                        and isinstance(row.get("legacyAppliance"), dict)
+                                    ]
+                                    if isinstance(endpoint_rows, list)
+                                    else []
+                                )
                             if not api_devices:
                                 network_discovery_failed = True
                                 _LOGGER.warning(
@@ -1508,6 +1552,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                                     "devices"
                                 ].update(alexa_entities)
+                                if use_graphql:
+                                    polling_endpoints = sensor_polling_endpoints(
+                                        endpoint_rows, alexa_entities
+                                    )
+                                    discovery_login = login_obj
 
                                 _entities_to_monitor = set()
                                 for type_of_entity, entities in alexa_entities.items():
@@ -1535,8 +1584,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 _t_ed = time.monotonic()
                                 try:
                                     entity_state = await asyncio.wait_for(
-                                        get_entity_data(
-                                            login_obj, list(_entities_to_monitor)
+                                        poll_entity_data(
+                                            login_obj,
+                                            list(_entities_to_monitor),
+                                            account,
                                         ),
                                         timeout=10.0,
                                     )

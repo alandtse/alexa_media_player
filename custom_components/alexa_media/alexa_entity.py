@@ -9,6 +9,7 @@ https://community.home-assistant.io/t/echo-devices-alexa-as-media-player-testers
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 import json
 import logging
@@ -16,11 +17,13 @@ import re
 from typing import Any, Optional, TypedDict
 
 from alexapy import AlexaAPI, AlexaLogin
+from alexapy.errors import AlexapyConnectionError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .helpers import safe_get
 
 _LOGGER = logging.getLogger(__name__)
+_LEGACY_MIXED_POLL_TIMEOUT = 8.0
 
 # How long we keep "requested state" protected from stale coordinator values
 # when capabilityStates do not include a usable timeOfSample.
@@ -607,10 +610,67 @@ def parse_alexa_entities(
 
 
 async def get_entity_data(
-    login_obj: AlexaLogin, entity_ids: list[str]
+    login_obj: AlexaLogin,
+    entity_ids: list[str],
+    *,
+    endpoints: list[dict[str, Any]] | None = None,
+    previous: AlexaEntityData | None = None,
 ) -> AlexaEntityData:
     """Get and process the entity data into a more usable format."""
+    state_gql = getattr(AlexaAPI, "get_entity_state_gql", None)
+    if not endpoints or not callable(state_gql):
+        return await _get_legacy_entity_data(login_obj, entity_ids)
+    mapped_ids = {row["legacyAppliance"]["entityId"] for row in endpoints}
+    graphql_ids = [entity_id for entity_id in entity_ids if entity_id in mapped_ids]
+    legacy_ids = [entity_id for entity_id in entity_ids if entity_id not in mapped_ids]
+    if not graphql_ids:
+        return await _get_legacy_entity_data(login_obj, legacy_ids)
 
+    async def poll_graphql() -> AlexaEntityData:
+        try:
+            current = await state_gql(login_obj, graphql_ids, endpoints=endpoints)
+        except AlexapyConnectionError:
+            current = None
+        result = {}
+        for entity_id in graphql_ids:
+            # Partial replies can omit individual AQM instances.
+            states = {
+                (
+                    state.get("namespace"),
+                    state.get("name"),
+                    state.get("instance"),
+                ): state
+                for state in (previous or {}).get(entity_id, [])
+            }
+            for state in (current or {}).get(entity_id, []):
+                states[
+                    state.get("namespace"), state.get("name"), state.get("instance")
+                ] = state
+            if states:
+                result[entity_id] = list(states.values())
+        return result
+
+    async def poll_legacy() -> AlexaEntityData:
+        try:
+            # Match the GraphQL budget so a blocked Phoenix read cannot hold up
+            # the first-refresh deadline or discard its GraphQL results.
+            async with asyncio.timeout(_LEGACY_MIXED_POLL_TIMEOUT):
+                return await _get_legacy_entity_data(login_obj, legacy_ids)
+        except (TimeoutError, AlexapyConnectionError):
+            return {
+                entity_id: (previous or {})[entity_id]
+                for entity_id in legacy_ids
+                if entity_id in (previous or {})
+            }
+
+    graphql, legacy = await asyncio.gather(poll_graphql(), poll_legacy())
+    return {**graphql, **legacy}
+
+
+async def _get_legacy_entity_data(
+    login_obj: AlexaLogin, entity_ids: list[str]
+) -> AlexaEntityData:
+    """Read the legacy string-encoded capability states."""
     entities = {}
     if entity_ids:
         raw = await AlexaAPI.get_entity_state(login_obj, entity_ids=entity_ids)
@@ -624,6 +684,30 @@ async def get_entity_data(
                     for cap_state in cap_states:
                         entities[entity_id].append(json.loads(cap_state))
     return entities
+
+
+def sensor_polling_endpoints(
+    rows: list[dict[str, Any]], alexa_entities: dict
+) -> list[dict[str, Any]]:
+    """Keep explicit mappings for temperature and air-quality-only entities."""
+    sensor_ids = set()
+    other_ids = set()
+    for kind, entities in alexa_entities.items():
+        ids = (
+            sensor_ids if kind in {"temperature", "air_quality", "aiaqm"} else other_ids
+        )
+        ids.update(entity.get("id") for entity in entities)
+    sensor_ids.difference_update(other_ids)
+    return [
+        {"id": row["id"], "legacyAppliance": {"entityId": legacy["entityId"]}}
+        for row in rows
+        if isinstance(row, dict)
+        and isinstance(row.get("id"), str)
+        and row["id"]
+        and isinstance(legacy := row.get("legacyAppliance"), dict)
+        and isinstance(legacy.get("entityId"), str)
+        and legacy["entityId"] in sensor_ids
+    ]
 
 
 def parse_temperature_from_coordinator(

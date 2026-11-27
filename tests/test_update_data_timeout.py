@@ -69,6 +69,7 @@ def amazon_api():
         patch.object(AlexaAPI, "get_dnd_state", AsyncMock(return_value={})),
         patch.object(AlexaAPI, "get_notification_states", AsyncMock(return_value=[])),
         patch.object(AlexaAPI, "get_authentication", AsyncMock(return_value={})),
+        patch.object(AlexaAPI, "get_entity_state_gql", None, create=True),
         patch.object(
             AlexaAPI, "get_network_details", AsyncMock(return_value={})
         ) as network_details,
@@ -266,3 +267,82 @@ async def test_successful_discovery_prunes_stale_devices(hass, amazon_api):
     registry = dr.async_get(hass)
     assert registry.async_get(echo_device.id) is not None
     assert registry.async_get(stale_device.id) is None
+
+
+async def test_graphql_snapshot_survives_failed_rediscovery(hass, amazon_api):
+    """Use the same account snapshot for initial and subsequent sensor polling."""
+    devices, network_details = amazon_api
+    entry, _ = _entry_with_registered_device(hass)
+    devices.return_value = [_sample_echo_device()]
+    endpoint = {
+        "id": "aqm-endpoint",
+        "legacyAppliance": {
+            "entityId": "aqm-entity",
+            "applianceId": "aqm-appliance",
+            "friendlyName": "Kitchen Air Quality Monitor",
+            "modelName": "AQM",
+            "manufacturerName": "Amazon",
+            "friendlyDescription": "Amazon Indoor Air Quality Monitor",
+            "applianceTypes": ["AIR_QUALITY_MONITOR"],
+            "alexaDeviceIdentifierList": [
+                {"dmsDeviceSerialNumber": "AQMSERIAL0000001"}
+            ],
+            "capabilities": [
+                {
+                    "interfaceName": "Alexa.RangeController",
+                    "instance": "9",
+                    "properties": {
+                        "supported": [{"name": "rangeValue"}],
+                        "retrievable": True,
+                        "proactivelyReported": True,
+                    },
+                }
+            ],
+        },
+    }
+    discovery = AsyncMock(side_effect=[[endpoint], None])
+    first_state = {
+        "namespace": "Alexa.TemperatureSensor",
+        "name": "temperature",
+        "value": {"value": 21, "scale": "CELSIUS"},
+    }
+    updated_state = {**first_state, "value": {"value": 22, "scale": "CELSIUS"}}
+    poll = AsyncMock(
+        side_effect=[{"aqm-entity": [first_state]}, {"aqm-entity": [updated_state]}]
+    )
+    with (
+        patch.object(AlexaAPI, "get_devices_gql", discovery),
+        patch.object(AlexaAPI, "get_entity_state_gql", poll, create=True),
+        patch.object(AlexaAPI, "get_entity_state", AsyncMock()) as phoenix,
+        patch(
+            "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+            AsyncMock(return_value=None),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        account = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
+        coordinator = account["coordinator"]
+        assert coordinator.data == {"aqm-entity": [first_state]}
+        account["entities"]["sensor"]["AQMSERIAL0000001"] = {
+            "Temperature": MagicMock(enabled=True, alexa_entity_id="aqm-entity")
+        }
+        account["should_get_network"] = True
+        await coordinator.async_refresh()
+        await hass.async_block_till_done()
+        assert coordinator.data == {"aqm-entity": [updated_state]}
+        assert account["should_get_network"] is True
+        assert discovery.await_count == 2
+        network_details.assert_not_awaited()
+        phoenix.assert_not_awaited()
+        assert poll.await_count == 2
+        for call in poll.await_args_list:
+            assert call.args == (account["login_obj"], ["aqm-entity"])
+            assert call.kwargs == {
+                "endpoints": [
+                    {
+                        "id": "aqm-endpoint",
+                        "legacyAppliance": {"entityId": "aqm-entity"},
+                    }
+                ]
+            }

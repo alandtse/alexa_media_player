@@ -1,13 +1,20 @@
 """Test the alexa_entity module utility functions."""
 
+import asyncio
+from unittest.mock import AsyncMock
+
+from alexapy import AlexaAPI
+from alexapy.errors import AlexapyConnectionError
 import pytest
 
 from custom_components.alexa_media.alexa_entity import (
+    get_entity_data,
     has_capability,
     is_hue_v1,
     is_known_ha_bridge,
     is_local,
     is_skill,
+    sensor_polling_endpoints,
 )
 
 
@@ -297,3 +304,114 @@ class TestIsLocal:
         appliance = {"applianceId": "invalid_pattern"}
         result = is_local(appliance)
         assert result is False
+
+
+@pytest.mark.asyncio
+async def test_graphql_sensor_poll_keeps_missing_instances_and_recovers(monkeypatch):
+    """A failed GraphQL poll leaves the last samples intact without a Phoenix retry."""
+    login = object()
+    snapshot = [
+        {"id": "endpoint", "legacyAppliance": {"entityId": "aqm"}},
+    ]
+    pm = {
+        "namespace": "Alexa.RangeController",
+        "name": "rangeValue",
+        "instance": "9",
+        "value": 11,
+        "timeOfSample": "2026-11-27T12:34:00Z",
+    }
+    voc = {**pm, "instance": "3", "value": 82}
+    recovered_pm = {**pm, "value": 17, "timeOfSample": "2026-11-27T12:35:00Z"}
+    recovered_voc = {**voc, "value": 85, "timeOfSample": "2026-11-27T12:36:00Z"}
+    gql = AsyncMock(
+        side_effect=[
+            None,
+            AlexapyConnectionError(),
+            {"aqm": [recovered_pm]},
+            {"aqm": [recovered_voc]},
+        ]
+    )
+    legacy = AsyncMock(
+        return_value={
+            "deviceStates": [
+                {
+                    "entity": {"entityId": "guard"},
+                    "capabilityStates": ['{"name": "armState", "value": "DISARMED"}'],
+                }
+            ]
+        }
+    )
+    monkeypatch.setattr(AlexaAPI, "get_entity_state_gql", gql, raising=False)
+    monkeypatch.setattr(AlexaAPI, "get_entity_state", legacy)
+
+    previous = {"aqm": [pm, voc], "unmonitored": [pm]}
+    for expected in (
+        [pm, voc],
+        [pm, voc],
+        [recovered_pm, voc],
+        [recovered_pm, recovered_voc],
+    ):
+        previous = await get_entity_data(
+            login, ["aqm", "guard"], endpoints=snapshot, previous=previous
+        )
+        assert previous == {
+            "aqm": expected,
+            "guard": [{"name": "armState", "value": "DISARMED"}],
+        }
+        gql.assert_awaited_with(login, ["aqm"], endpoints=snapshot)
+        legacy.assert_awaited_with(login, entity_ids=["guard"])
+
+
+def test_sensor_polling_endpoints_requires_explicit_sensor_mapping():
+    """Legacy-only discovery and entities with other capabilities stay on Phoenix."""
+    rows = [
+        {"id": "one", "legacyAppliance": {"entityId": "aqm"}},
+        {"legacyAppliance": {"entityId": "unmapped"}},
+        {"id": "two", "legacyAppliance": {"entityId": "shared"}},
+        {"id": "three", "legacyAppliance": {"entityId": "guard"}},
+        {"id": "four", "legacyAppliance": None},
+    ]
+    assert sensor_polling_endpoints(
+        rows,
+        {
+            "temperature": [{"id": "aqm"}, {"id": "unmapped"}, {"id": "shared"}],
+            "air_quality": [{"id": "aqm"}],
+            "binary_sensor": [{"id": "shared"}],
+            "guard": [{"id": "guard"}],
+        },
+    ) == [rows[0]]
+
+
+@pytest.mark.asyncio
+async def test_mixed_poll_returns_graphql_state_when_phoenix_times_out(monkeypatch):
+    """A blocked legacy read cannot discard a successful GraphQL read."""
+    login = object()
+    snapshot = [{"id": "endpoint", "legacyAppliance": {"entityId": "temperature"}}]
+    reading = {
+        "namespace": "Alexa.TemperatureSensor",
+        "name": "temperature",
+        "value": 19,
+    }
+    guard = {"namespace": "Alexa.SecurityPanelController", "name": "armState"}
+
+    async def blocked_legacy(*args, **kwargs):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(
+        "custom_components.alexa_media.alexa_entity._LEGACY_MIXED_POLL_TIMEOUT", 0.01
+    )
+    monkeypatch.setattr(
+        AlexaAPI,
+        "get_entity_state_gql",
+        AsyncMock(return_value={"temperature": [reading]}),
+        raising=False,
+    )
+    monkeypatch.setattr(AlexaAPI, "get_entity_state", blocked_legacy)
+    async with asyncio.timeout(1):
+        state = await get_entity_data(
+            login,
+            ["temperature", "guard"],
+            endpoints=snapshot,
+            previous={"guard": [guard]},
+        )
+    assert state == {"temperature": [reading], "guard": [guard]}

@@ -1,5 +1,6 @@
 """Tests for the smart-home group and device services."""
 
+import asyncio
 from unittest.mock import MagicMock, patch
 
 from alexapy import AlexapyLoginError
@@ -258,6 +259,42 @@ async def test_create_smart_home_group_unconfirmed(call, amazon, group):
 
     with pytest.raises(HomeAssistantError, match="check get_smart_home_groups"):
         await call("create_smart_home_group", {"name": "Office"})
+
+
+@pytest.mark.parametrize("error", [AlexapyConnectionError, AlexapyTooManyRequestsError])
+async def test_create_smart_home_group_error_warns_against_retry(call, amazon, error):
+    """A transport error during creation may hide a created group."""
+    amazon.create_appliance_group.side_effect = error
+
+    with pytest.raises(HomeAssistantError, match="check get_smart_home_groups"):
+        await call("create_smart_home_group", {"name": "Office"})
+
+
+async def test_changes_to_one_group_do_not_overlap(call, amazon):
+    """A rename and a member change of the same group run one after the other."""
+    running = 0
+    overlaps = []
+
+    async def _change(*_args):
+        nonlocal running
+        running += 1
+        overlaps.append(running)
+        await asyncio.sleep(0.01)
+        running -= 1
+        return True
+
+    amazon.rename_appliance_group.side_effect = _change
+    amazon.set_appliance_group_members.side_effect = _change
+
+    await asyncio.gather(
+        call("rename_smart_home_group", {"group_id": GROUP_ID, "name": "Office"}),
+        call(
+            "set_smart_home_group_members",
+            {"group_id": GROUP_ID, "appliance_ids": [APPLIANCE_ID]},
+        ),
+    )
+
+    assert overlaps == [1, 1]
 
 
 @pytest.mark.parametrize(("service", "data", "method", "args"), CHANGES)

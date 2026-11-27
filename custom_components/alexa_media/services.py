@@ -470,6 +470,9 @@ class AlexaMediaServices:
     ):
         self.hass = hass
         self._functions = functions if functions is not None else {}
+        # AlexaPy reads a group and writes the whole document back, so two
+        # changes to one group must not overlap or the later one undoes the other.
+        self._smart_home_group_locks: dict[str, asyncio.Lock] = {}
 
     async def register(self) -> None:
         """Register Alexa Media custom services."""
@@ -1334,6 +1337,10 @@ class AlexaMediaServices:
             raise HomeAssistantError(f"Alexa did not {action}{hint}")
         _LOGGER.debug("Alexa accepted the request to %s", action)
 
+    def _smart_home_group_lock(self, group_id: str) -> asyncio.Lock:
+        """Return the lock that serializes changes to one smart-home group."""
+        return self._smart_home_group_locks.setdefault(group_id, asyncio.Lock())
+
     async def get_smart_home_groups(self, call: ServiceCall) -> dict[str, Any]:
         """Return the smart-home groups and devices of an Alexa account."""
         email, login_obj = await self._smart_home_account(call)
@@ -1376,14 +1383,26 @@ class AlexaMediaServices:
         """Create a smart-home group and return it."""
         email, login_obj = await self._smart_home_account(call)
         name = call.data[ATTR_NAME]
-        group = await self._smart_home_request(
-            email,
-            login_obj,
-            f"create the smart-home group {name}",
-            AlexaAPI.create_appliance_group,
-            name,
-            call.data[ATTR_APPLIANCE_IDS],
-        )
+        try:
+            group = await self._smart_home_request(
+                email,
+                login_obj,
+                f"create the smart-home group {name}",
+                AlexaAPI.create_appliance_group,
+                name,
+                call.data[ATTR_APPLIANCE_IDS],
+            )
+        except HomeAssistantError as err:
+            # The confirmation read runs after the request, so the group may
+            # exist even though the call failed.
+            if not isinstance(
+                err.__cause__, (AlexapyConnectionError, AlexapyTooManyRequestsError)
+            ):
+                raise
+            raise HomeAssistantError(
+                f"{err}; the group may have been created, "
+                "check get_smart_home_groups before trying again"
+            ) from err.__cause__
         if not isinstance(group, dict) or not group.get("groupId"):
             # The request may have succeeded even though the new group was not
             # found afterwards, so a blind retry could create a duplicate.
@@ -1397,24 +1416,26 @@ class AlexaMediaServices:
     async def rename_smart_home_group(self, call: ServiceCall) -> None:
         """Rename a smart-home group and keep its members."""
         group_id = call.data[ATTR_GROUP_ID]
-        await self._change_smart_home(
-            call,
-            f"rename the smart-home group {group_id}",
-            AlexaAPI.rename_appliance_group,
-            group_id,
-            call.data[ATTR_NAME],
-        )
+        async with self._smart_home_group_lock(group_id):
+            await self._change_smart_home(
+                call,
+                f"rename the smart-home group {group_id}",
+                AlexaAPI.rename_appliance_group,
+                group_id,
+                call.data[ATTR_NAME],
+            )
 
     async def set_smart_home_group_members(self, call: ServiceCall) -> None:
         """Replace the members of a smart-home group."""
         group_id = call.data[ATTR_GROUP_ID]
-        await self._change_smart_home(
-            call,
-            f"change the members of the smart-home group {group_id}",
-            AlexaAPI.set_appliance_group_members,
-            group_id,
-            call.data[ATTR_APPLIANCE_IDS],
-        )
+        async with self._smart_home_group_lock(group_id):
+            await self._change_smart_home(
+                call,
+                f"change the members of the smart-home group {group_id}",
+                AlexaAPI.set_appliance_group_members,
+                group_id,
+                call.data[ATTR_APPLIANCE_IDS],
+            )
 
     async def delete_smart_home_group(self, call: ServiceCall) -> None:
         """Delete a smart-home group but not its devices."""

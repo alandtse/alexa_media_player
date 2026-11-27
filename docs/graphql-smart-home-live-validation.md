@@ -2,13 +2,13 @@
 
 Use a disposable Linux Home Assistant Container with its own configuration directory and a test Amazon account with safe test loads. Keep both Phase 2 reviews in Draft while collecting results. These instructions use a fresh Home Assistant 2026.11.3 configuration. See the [Home Assistant Container documentation](https://www.home-assistant.io/installation/linux#install-home-assistant-container).
 
-| Component | Revision |
-| --- | --- |
-| AMP Phase 2 code | `158613e131a84309f56394194ceaec9837e5bef1` |
-| AMP Phase 1 parent | `7fa786edd7d63e86aed803fd348de047e0429fe6` |
-| AlexaPy Phase 2 | `2b5dd7d202c39a765bdc0479f7eaf854022e2884` |
-| AlexaPy Phase 1 parent | `2127bb31b1c5722afad8dc2961bce15985d4c03f` |
-| AMP published dependency | `alexapy==1.38.0` |
+| Component                | Revision                                   |
+| ------------------------ | ------------------------------------------ |
+| AMP Phase 2 code         | `158613e131a84309f56394194ceaec9837e5bef1` |
+| AMP Phase 1 parent       | `7fa786edd7d63e86aed803fd348de047e0429fe6` |
+| AlexaPy Phase 2          | `2b5dd7d202c39a765bdc0479f7eaf854022e2884` |
+| AlexaPy Phase 1 parent   | `2127bb31b1c5722afad8dc2961bce15985d4c03f` |
+| AMP published dependency | `alexapy==1.38.0`                          |
 
 ## Install
 
@@ -44,20 +44,20 @@ docker exec ha-alexa-phase2 python -c 'import alexapy; print(alexapy.__file__); 
 
 Record pass, fail or unsupported for each row. Record marketplace, device model, exact AMP and AlexaPy revisions, UTC timestamps, the Alexa app's displayed values and Home Assistant's observed values. Use a colour-capable bulb for the colour rows.
 
-| Case | How to exercise it | Observe |
-| --- | --- | --- |
-| Echo temperature | Compare with the Alexa app across several polls and one reload. | Value, units, freshness and availability |
-| Seven AQM metrics | Compare temperature, humidity, CO, PM2.5, PM10, VOC and AQI individually. Repeat after reload. | Each value and unit, with a separate result for all seven |
-| AQM LED | Turn it off and on from HA and repeat from the Alexa app if available. | Physical indicator and switch feedback |
-| Smart plug | Toggle off and on in HA with a safe test load. | Physical response and switch feedback |
-| Bulb power | Toggle off and on in HA. | Physical response and light feedback |
-| Brightness | Test zero, intermediate and maximum. Record whether the HA UI converts zero to off. | Values sent and read back, including any device-specific clamping |
-| Colour | Set two distinct hues and a lower saturation. | Colour feedback and brightness retained or explicitly updated |
-| Colour temperature | Set warm and cool values supported by the device. | Reported kelvin or device rounding |
-| External changes | Change plug, light and supported attributes in the Alexa app while HA is idle. | HA feedback on the next poll |
-| Post-mutation convergence | Make successive changes, including after integration reload. | Time to confirmed state and any old sample shown after a newer one |
-| Rejection and offline | Disconnect a test endpoint and issue a command. Capture any naturally rejected or unsupported command. | HA error, no optimistic state change and no Phoenix retry for the rejected GraphQL command |
-| Accounts and recovery | If a second test account is available, use different devices and reauthenticate one account. Disable and re-enable a test entity during a poll. | Each account and entity retains only its own eligible samples |
+| Case                      | How to exercise it                                                                                                                              | Observe                                                                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Echo temperature          | Compare with the Alexa app across several polls and one reload.                                                                                 | Value, units, freshness and availability                                                   |
+| Seven AQM metrics         | Compare temperature, humidity, CO, PM2.5, PM10, VOC and AQI individually. Repeat after reload.                                                  | Each value and unit, with a separate result for all seven                                  |
+| AQM LED                   | Turn it off and on from HA and repeat from the Alexa app if available.                                                                          | Physical indicator and switch feedback                                                     |
+| Smart plug                | Toggle off and on in HA with a safe test load.                                                                                                  | Physical response and switch feedback                                                      |
+| Bulb power                | Toggle off and on in HA.                                                                                                                        | Physical response and light feedback                                                       |
+| Brightness                | Test zero, intermediate and maximum. Record whether the HA UI converts zero to off.                                                             | Values sent and read back, including any device-specific clamping                          |
+| Colour                    | Set two distinct hues and a lower saturation.                                                                                                   | Colour feedback and brightness retained or explicitly updated                              |
+| Colour temperature        | Set warm and cool values supported by the device.                                                                                               | Reported kelvin or device rounding                                                         |
+| External changes          | Change plug, light and supported attributes in the Alexa app while HA is idle.                                                                  | HA feedback on the next poll                                                               |
+| Post-mutation convergence | Make successive changes, including after integration reload.                                                                                    | Time to confirmed state and any old sample shown after a newer one                         |
+| Rejection and offline     | Disconnect a test endpoint and issue a command. Capture any naturally rejected or unsupported command.                                          | HA error, no optimistic state change and no Phoenix retry for the rejected GraphQL command |
+| Accounts and recovery     | If a second test account is available, use different devices and reauthenticate one account. Disable and re-enable a test entity during a poll. | Each account and entity retains only its own eligible samples                              |
 
 For zero brightness, distinguish an HA service call that becomes a power-off command from an actual GraphQL brightness payload of zero. The latter is covered by the AlexaPy mock even if the HA frontend converts zero to off.
 

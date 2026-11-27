@@ -82,6 +82,12 @@ than one account is set up.
 these IDs for `create_smart_home_group` and `set_smart_home_group_members`. The
 device services take the `endpoint_id`.
 
+`set_smart_home_group_members` replaces all members of a group. Echo devices
+assigned to the room are members too and appear in its `appliance_ids` (some as
+`{"dsn": …, "deviceType": …}`): leave them in the list, or the Echo loses its
+room and no longer acts on "lights on" for it. Read the group with
+`get_smart_home_groups` first and change only what should change.
+
 ```yaml
 action: alexa_media.create_smart_home_group
 data:

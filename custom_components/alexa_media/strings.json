@@ -315,7 +315,7 @@
     },
     "set_smart_home_group_members": {
       "name": "Set smart-home group members",
-      "description": "Replaces the devices of a smart-home group.",
+      "description": "Replaces all members of a smart-home group, including the Echo devices assigned to it. Read the current appliance_ids with get_smart_home_groups and keep the ones that should stay.",
       "fields": {
         "email": {
           "name": "Account email",
@@ -327,7 +327,7 @@
         },
         "appliance_ids": {
           "name": "Appliance IDs",
-          "description": "Appliance IDs of all devices the group should contain. An empty list removes all devices."
+          "description": "Appliance IDs of all devices the group should contain, including the Echo devices assigned to the room. An empty list removes all devices."
         }
       }
     },

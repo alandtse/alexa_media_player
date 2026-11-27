@@ -1555,7 +1555,9 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                         endpoint_rows,
                                         alexa_entities,
                                         include_controls=callable(
-                                            getattr(AlexaAPI, "set_light_state_gql", None)
+                                            getattr(
+                                                AlexaAPI, "set_light_state_gql", None
+                                            )
                                         ),
                                     )
                                     discovery_login = login_obj

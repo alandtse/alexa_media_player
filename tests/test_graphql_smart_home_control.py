@@ -8,8 +8,8 @@ from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.alexa_media.alexa_entity import sensor_polling_endpoints
 from custom_components.alexa_media.smart_home_control import (
-    AlexaAPI,
     DATA_ALEXAMEDIA,
+    AlexaAPI,
     async_control_gql,
 )
 
@@ -50,7 +50,9 @@ def test_graphql_control_and_reconciliation():
     setter = AsyncMock(side_effect=[True, False])
     with patch.object(AlexaAPI, "set_light_state_gql", setter, create=True):
         assert asyncio.run(async_control_gql(entity, False, brightness=0))
-        setter.assert_called_once_with(login, "bulb", False, endpoints=rows, brightness=0)
+        setter.assert_called_once_with(
+            login, "bulb", False, endpoints=rows, brightness=0
+        )
 
         try:
             asyncio.run(async_control_gql(entity, True))

@@ -269,7 +269,10 @@ async def test_successful_discovery_prunes_stale_devices(hass, amazon_api):
     assert registry.async_get(stale_device.id) is None
 
 
-async def test_graphql_snapshot_survives_failed_rediscovery(hass, amazon_api):
+@pytest.mark.parametrize("auth_interruption", [False, True])
+async def test_graphql_snapshot_survives_failed_rediscovery(
+    hass, amazon_api, auth_interruption
+):
     """Use the same account snapshot for initial and subsequent sensor polling."""
     devices, network_details = amazon_api
     entry, _ = _entry_with_registered_device(hass)
@@ -307,8 +310,16 @@ async def test_graphql_snapshot_survives_failed_rediscovery(hass, amazon_api):
         "value": {"value": 21, "scale": "CELSIUS"},
     }
     updated_state = {**first_state, "value": {"value": 22, "scale": "CELSIUS"}}
+    omitted_metric = {
+        "namespace": "Alexa.RangeController",
+        "name": "rangeValue",
+        "instance": "9",
+        "value": 35,
+        "timeOfSample": "2026-11-27T12:34:00Z",
+    }
+    initial = [first_state, omitted_metric]
     poll = AsyncMock(
-        side_effect=[{"aqm-entity": [first_state]}, {"aqm-entity": [updated_state]}]
+        side_effect=[{"aqm-entity": initial}, {"aqm-entity": [updated_state]}]
     )
     with (
         patch.object(AlexaAPI, "get_devices_gql", discovery),
@@ -323,14 +334,20 @@ async def test_graphql_snapshot_survives_failed_rediscovery(hass, amazon_api):
         await hass.async_block_till_done()
         account = hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
         coordinator = account["coordinator"]
-        assert coordinator.data == {"aqm-entity": [first_state]}
+        assert coordinator.data == {"aqm-entity": initial}
+        if auth_interruption:
+            account["login_obj"].status["login_successful"] = False
+            await coordinator.async_refresh()
+            assert coordinator.data is None
+            assert poll.await_count == 1
+            account["login_obj"].status["login_successful"] = True
         account["entities"]["sensor"]["AQMSERIAL0000001"] = {
             "Temperature": MagicMock(enabled=True, alexa_entity_id="aqm-entity")
         }
         account["should_get_network"] = True
         await coordinator.async_refresh()
         await hass.async_block_till_done()
-        assert coordinator.data == {"aqm-entity": [updated_state]}
+        assert coordinator.data == {"aqm-entity": [updated_state, omitted_metric]}
         assert account["should_get_network"] is True
         assert discovery.await_count == 2
         network_details.assert_not_awaited()

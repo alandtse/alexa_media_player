@@ -1,6 +1,7 @@
 """Test the alexa_entity module utility functions."""
 
 import asyncio
+import json
 from unittest.mock import AsyncMock
 
 from alexapy import AlexaAPI
@@ -321,7 +322,12 @@ async def test_graphql_sensor_poll_keeps_missing_instances_and_recovers(monkeypa
         "timeOfSample": "2026-11-27T12:34:00Z",
     }
     voc = {**pm, "instance": "3", "value": 82}
-    recovered_pm = {**pm, "value": 17, "timeOfSample": "2026-11-27T12:35:00Z"}
+    recovered_pm = {
+        **pm,
+        "instance": 9,
+        "value": 17,
+        "timeOfSample": "2026-11-27T12:35:00Z",
+    }
     recovered_voc = {**voc, "value": 85, "timeOfSample": "2026-11-27T12:36:00Z"}
     gql = AsyncMock(
         side_effect=[
@@ -415,3 +421,63 @@ async def test_mixed_poll_returns_graphql_state_when_phoenix_times_out(monkeypat
             previous={"guard": [guard]},
         )
     assert state == {"temperature": [reading], "guard": [guard]}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response_kind", ["none", "empty", "partial", "empty_states"])
+async def test_mixed_poll_retains_omitted_phoenix_samples(monkeypatch, response_kind):
+    """Keep old Phoenix samples and publish fresh GraphQL and Phoenix data."""
+    login = object()
+    snapshot = [{"id": "endpoint", "legacyAppliance": {"entityId": "temperature"}}]
+    reading = {
+        "namespace": "Alexa.TemperatureSensor",
+        "name": "temperature",
+        "value": 21,
+    }
+    power = {"namespace": "Alexa.PowerController", "name": "powerState", "value": "OFF"}
+    brightness = {
+        "namespace": "Alexa.BrightnessController",
+        "name": "brightness",
+        "value": 40,
+        "timeOfSample": "2026-11-27T12:34:00Z",
+    }
+    guard = {"namespace": "Alexa.SecurityPanelController", "name": "armState"}
+    fresh_power = {**power, "value": "ON"}
+    responses = {
+        "none": None,
+        "empty": {"deviceStates": []},
+        "partial": {
+            "deviceStates": [
+                {
+                    "entity": {"entityId": "light"},
+                    "capabilityStates": [json.dumps(fresh_power)],
+                }
+            ]
+        },
+        "empty_states": {
+            "deviceStates": [{"entity": {"entityId": "light"}, "capabilityStates": []}]
+        },
+    }
+    monkeypatch.setattr(
+        AlexaAPI,
+        "get_entity_state_gql",
+        AsyncMock(return_value={"temperature": [reading]}),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        AlexaAPI, "get_entity_state", AsyncMock(return_value=responses[response_kind])
+    )
+    assert await get_entity_data(
+        login,
+        ["temperature", "light", "guard"],
+        endpoints=snapshot,
+        previous={
+            "light": [power, brightness],
+            "guard": [guard],
+            "unmonitored": [guard],
+        },
+    ) == {
+        "temperature": [reading],
+        "light": [fresh_power if response_kind == "partial" else power, brightness],
+        "guard": [guard],
+    }

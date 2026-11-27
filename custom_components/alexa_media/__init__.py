@@ -1241,18 +1241,17 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
 
     discovery_login = None
     polling_endpoints = []
+    # The coordinator clears its published data when authentication is unavailable.
+    last_good_entity_state: AlexaEntityData = {}
 
-    async def poll_entity_data(login, entity_ids, account):
-        """Poll using the snapshot belonging to the current login."""
-        if login is discovery_login and polling_endpoints:
-            coordinator = account.get("coordinator")
-            return await get_entity_data(
-                login,
-                entity_ids,
-                endpoints=polling_endpoints,
-                previous=coordinator.data if coordinator else None,
-            )
-        return await get_entity_data(login, entity_ids)
+    async def poll_entity_data(login, entity_ids):
+        """Poll with this account's last samples and current login's discovery."""
+        return await get_entity_data(
+            login,
+            entity_ids,
+            endpoints=polling_endpoints if login is discovery_login else None,
+            previous=last_good_entity_state,
+        )
 
     async def async_update_data() -> Optional[AlexaEntityData]:
         # noqa pylint: disable=too-many-branches
@@ -1276,7 +1275,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         media_player since this object is one per account.
         Each AlexaAPI call generally results in two webpage requests.
         """
-        nonlocal discovery_login, polling_endpoints
+        nonlocal discovery_login, last_good_entity_state, polling_endpoints
         email = config.get(CONF_EMAIL)
         accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
         account = accounts.get(email)
@@ -1446,9 +1445,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                 entities_to_monitor.add(smart_switch.alexa_entity_id)
 
         if entities_to_monitor:
-            tasks.append(
-                poll_entity_data(login_obj, list(entities_to_monitor), account)
-            )
+            tasks.append(poll_entity_data(login_obj, list(entities_to_monitor)))
 
         if should_get_network:
             tasks.append(
@@ -1587,7 +1584,6 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                         poll_entity_data(
                                             login_obj,
                                             list(_entities_to_monitor),
-                                            account,
                                         ),
                                         timeout=10.0,
                                     )
@@ -1927,6 +1923,8 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if connectivity_generation >= connectivity._invalidated_generation:
             connectivity.account_available = True
         connectivity.notify()
+        if entity_state:
+            last_good_entity_state = entity_state
         return entity_state
 
     @_catch_login_errors

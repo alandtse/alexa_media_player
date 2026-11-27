@@ -618,53 +618,58 @@ async def get_entity_data(
 ) -> AlexaEntityData:
     """Get and process the entity data into a more usable format."""
     state_gql = getattr(AlexaAPI, "get_entity_state_gql", None)
-    if not endpoints or not callable(state_gql):
-        return await _get_legacy_entity_data(login_obj, entity_ids)
-    mapped_ids = {row["legacyAppliance"]["entityId"] for row in endpoints}
+    mapped_ids = {row["legacyAppliance"]["entityId"] for row in (endpoints or [])}
     graphql_ids = [entity_id for entity_id in entity_ids if entity_id in mapped_ids]
+    if not graphql_ids or not callable(state_gql):
+        legacy = await _get_legacy_entity_data(login_obj, entity_ids)
+        return _merge_entity_samples(entity_ids, previous, legacy)
+
     legacy_ids = [entity_id for entity_id in entity_ids if entity_id not in mapped_ids]
-    if not graphql_ids:
-        return await _get_legacy_entity_data(login_obj, legacy_ids)
 
-    async def poll_graphql() -> AlexaEntityData:
+    async def poll_graphql() -> AlexaEntityData | None:
         try:
-            current = await state_gql(login_obj, graphql_ids, endpoints=endpoints)
+            return await state_gql(login_obj, graphql_ids, endpoints=endpoints)
         except AlexapyConnectionError:
-            current = None
-        result = {}
-        for entity_id in graphql_ids:
-            # Partial replies can omit individual AQM instances.
-            states = {
-                (
-                    state.get("namespace"),
-                    state.get("name"),
-                    state.get("instance"),
-                ): state
-                for state in (previous or {}).get(entity_id, [])
-            }
-            for state in (current or {}).get(entity_id, []):
-                states[
-                    state.get("namespace"), state.get("name"), state.get("instance")
-                ] = state
-            if states:
-                result[entity_id] = list(states.values())
-        return result
+            return None
 
-    async def poll_legacy() -> AlexaEntityData:
+    async def poll_legacy() -> AlexaEntityData | None:
         try:
             # Match the GraphQL budget so a blocked Phoenix read cannot hold up
             # the first-refresh deadline or discard its GraphQL results.
             async with asyncio.timeout(_LEGACY_MIXED_POLL_TIMEOUT):
                 return await _get_legacy_entity_data(login_obj, legacy_ids)
         except (TimeoutError, AlexapyConnectionError):
-            return {
-                entity_id: (previous or {})[entity_id]
-                for entity_id in legacy_ids
-                if entity_id in (previous or {})
-            }
+            return None
 
     graphql, legacy = await asyncio.gather(poll_graphql(), poll_legacy())
-    return {**graphql, **legacy}
+    return {
+        **_merge_entity_samples(graphql_ids, previous, graphql),
+        **_merge_entity_samples(legacy_ids, previous, legacy),
+    }
+
+
+def _merge_entity_samples(
+    entity_ids: list[str],
+    previous: AlexaEntityData | None,
+    current: AlexaEntityData | None,
+) -> AlexaEntityData:
+    """Keep omitted samples and replace capabilities present in the new response."""
+    previous = previous or {}
+    current = current or {}
+    merged = {}
+    for entity_id in entity_ids:
+        samples = {}
+        for state in (*previous.get(entity_id, []), *current.get(entity_id, [])):
+            instance = state.get("instance")
+            key = (
+                state.get("namespace"),
+                state.get("name"),
+                str(instance) if instance is not None else None,
+            )
+            samples[key] = state
+        if samples:
+            merged[entity_id] = list(samples.values())
+    return merged
 
 
 async def _get_legacy_entity_data(

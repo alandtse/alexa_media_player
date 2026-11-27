@@ -7,12 +7,16 @@ login object changes. Failed rediscovery keeps the current login's snapshot.
 Partial state responses preserve the original sample timestamps for metrics
 missing from the reply.
 
-The integration detects the new API at runtime. AlexaPy 1.38.0 and discovery
-responses without endpoint IDs continue to use Phoenix. Guard, lights, switches,
-and standalone contact and battery sensors also continue to use Phoenix.
-For a release that enables this path by default, update the AlexaPy dependency
-after a published version includes the API from
-[AlexaPy !525](https://gitlab.com/keatontaylor/alexapy/-/merge_requests/525).
+AlexaPy 1.38.0 retains legacy Phoenix polling. With the GraphQL state API,
+mapped Echo temperatures and AQM entities use GraphQL. Lights and smart switches
+join that path when both the GraphQL state and control APIs are available and
+discovery returns a usable endpoint mapping. Without a usable mapping or the
+required APIs, lights and smart switches continue to poll through Phoenix.
+Guard and standalone contact and battery sensors remain on Phoenix.
+
+This describes polling. With the GraphQL control API available, a light or
+smart switch command requires a current account mapping. Rejected GraphQL
+commands do not retry through Phoenix.
 
 ## Validation
 

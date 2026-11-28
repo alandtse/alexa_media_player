@@ -56,7 +56,13 @@ from homeassistant.util import dt, slugify
 import voluptuous as vol
 
 from .account_auth import publish_authentication
-from .alexa_entity import AlexaEntityData, get_entity_data, parse_alexa_entities
+from .alexa_entity import (
+    AlexaEntityData,
+    get_entity_data,
+    merge_entity_samples,
+    parse_alexa_entities,
+    sensor_polling_endpoints,
+)
 from .config_flow import in_progress_instances
 from .connectivity import connectivity_state
 from .const import (
@@ -338,6 +344,45 @@ def _register_account_device(hass, config_entry) -> None:
         manufacturer="Amazon",
         model="Alexa Account",
     )
+
+
+def _state_entity_ids(entities: dict) -> tuple[set[str], set[str]]:
+    """Return the registered and enabled IDs for coordinator-polled capabilities."""
+    registered = set()
+    enabled = set()
+
+    def add(entity, entity_id):
+        if entity_id:
+            registered.add(entity_id)
+            if entity.enabled:
+                enabled.add(entity_id)
+
+    for per_serial in entities["sensor"].values():
+        if not isinstance(per_serial, dict):
+            continue
+
+        for kind in ("Temperature", "Battery"):
+            if sensor := per_serial.get(kind):
+                add(sensor, sensor.alexa_entity_id)
+
+        air_quality = per_serial.get("Air_Quality")
+        # Older setups may store a single air-quality entity instead of a mapping.
+        sensors = (
+            air_quality.values() if isinstance(air_quality, dict) else (air_quality,)
+        )
+        for sensor in sensors:
+            if sensor:
+                add(sensor, getattr(sensor, "alexa_entity_id", None))
+
+    for kind in ("light", "binary_sensor", "smart_switch"):
+        for entity in entities.get(kind, []):
+            # Amazon Kids binary sensors poll separately and have no Alexa entity ID.
+            add(entity, getattr(entity, "alexa_entity_id", None))
+
+    for guard in entities.get("alarm_control_panel", {}).values():
+        add(guard, guard.unique_id)
+
+    return registered, enabled
 
 
 def _entity_backed_device_identifiers(account_dict: dict) -> set[str]:
@@ -1234,6 +1279,20 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     pending_dnd_updates: dict[str, bool] = {}
     scheduled_dnd_tasks: dict[str, asyncio.Task] = {}
 
+    discovery_login = None
+    polling_endpoints = []
+    bootstrap_pending = True
+    # The coordinator clears its published data when authentication is unavailable.
+    last_good_entity_state: AlexaEntityData = {}
+
+    async def poll_entity_data(login, entity_ids):
+        """Fetch current samples with this login's discovery snapshot."""
+        return await get_entity_data(
+            login,
+            entity_ids,
+            endpoints=polling_endpoints if login is discovery_login else None,
+        )
+
     async def async_update_data() -> Optional[AlexaEntityData]:
         # noqa pylint: disable=too-many-branches
         """Fetch data from API endpoint.
@@ -1256,6 +1315,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         media_player since this object is one per account.
         Each AlexaAPI call generally results in two webpage requests.
         """
+        nonlocal bootstrap_pending, discovery_login, last_good_entity_state, polling_endpoints
         email = config.get(CONF_EMAIL)
         accounts = hass.data.get(DATA_ALEXAMEDIA, {}).get("accounts", {})
         account = accounts.get(email)
@@ -1284,6 +1344,11 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         should_get_network = hass.data[DATA_ALEXAMEDIA]["accounts"][email][
             "should_get_network"
         ]
+        use_graphql = callable(getattr(AlexaAPI, "get_entity_state_gql", None))
+        if use_graphql and discovery_login is not login_obj:
+            discovery_login = None
+            polling_endpoints = []
+            should_get_network = True
         first_run = hass.data[DATA_ALEXAMEDIA]["accounts"][email]["first_run"]
         network_discovery_failed = False
         devices = {}
@@ -1361,69 +1426,19 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if new_devices:
             tasks.append(AlexaAPI.get_authentication(login_obj))
 
-        entities_to_monitor = set()
-
-        # Temperature sensors (stored as entities["sensor"][serial]["Temperature"] = sensor)
-        for per_serial in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"][
-            "sensor"
-        ].values():
-            if not isinstance(per_serial, dict):
-                continue
-
-            temp = per_serial.get("Temperature")
-            if temp and temp.enabled:
-                entities_to_monitor.add(temp.alexa_entity_id)
-
-            # Air Quality sensors:
-            # entities["sensor"][serial]["Air_Quality"][unique_id] = sensor
-            airq = per_serial.get("Air_Quality")
-            if isinstance(airq, dict):
-                for aq_sensor in airq.values():
-                    if aq_sensor and aq_sensor.enabled:
-                        entities_to_monitor.add(aq_sensor.alexa_entity_id)
-            elif airq and getattr(airq, "enabled", False):
-                # Backwards compat if some installs still have a single sensor stored
-                entities_to_monitor.add(airq.alexa_entity_id)
-
-            battery = per_serial.get("Battery")
-            if battery and battery.enabled:
-                entities_to_monitor.add(battery.alexa_entity_id)
-
-        for light in hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"].get(
-            "light", []
-        ):
-            if light.enabled:
-                entities_to_monitor.add(light.alexa_entity_id)
-
-        for binary_sensor in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "entities"
-        ].get("binary_sensor", []):
-            # AmazonKidsSensor is stored alongside the coordinator-backed
-            # AlexaContact sensors but is not derived from an Alexa entity: it
-            # polls the Echo on its own interval and has no alexa_entity_id.
-            alexa_entity_id = getattr(binary_sensor, "alexa_entity_id", None)
-            if alexa_entity_id and binary_sensor.enabled:
-                entities_to_monitor.add(alexa_entity_id)
-
-        for guard in (
-            hass.data[DATA_ALEXAMEDIA]["accounts"][email]["entities"]
-            .get("alarm_control_panel", {})
-            .values()
-        ):
-            if guard.enabled:
-                entities_to_monitor.add(guard.unique_id)
-
-        for smart_switch in hass.data[DATA_ALEXAMEDIA]["accounts"][email][
-            "entities"
-        ].get("smart_switch", []):
-            if smart_switch.enabled:
-                entities_to_monitor.add(smart_switch.alexa_entity_id)
-
+        registered_at_start, entities_to_monitor = _state_entity_ids(
+            account["entities"]
+        )
+        bootstrap_ids: set[str] | None = None
         if entities_to_monitor:
-            tasks.append(get_entity_data(login_obj, list(entities_to_monitor)))
+            tasks.append(poll_entity_data(login_obj, list(entities_to_monitor)))
 
         if should_get_network:
-            tasks.append(AlexaAPI.get_network_details(login_obj))
+            tasks.append(
+                AlexaAPI.get_devices_gql(login_obj)
+                if use_graphql
+                else AlexaAPI.get_network_details(login_obj)
+            )
 
         optional_task_results = []
         try:
@@ -1471,13 +1486,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                         if not optional_task_results:
                             network_discovery_failed = True
                         else:
-                            # First run is a special case. Get the state of all entities(including disabled)
-                            # This ensures all entities have state during startup without needing to request coordinator refresh
-
                             _LOGGER.info(
                                 "%s: Network Discovery: Checking", hide_email(email)
                             )
                             api_devices = optional_task_results.pop()
+                            if use_graphql:
+                                endpoint_rows = api_devices
+                                api_devices = (
+                                    [
+                                        row["legacyAppliance"]
+                                        for row in endpoint_rows
+                                        if isinstance(row, dict)
+                                        and isinstance(row.get("legacyAppliance"), dict)
+                                    ]
+                                    if isinstance(endpoint_rows, list)
+                                    else []
+                                )
                             if not api_devices:
                                 network_discovery_failed = True
                                 _LOGGER.warning(
@@ -1508,6 +1532,21 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                 hass.data[DATA_ALEXAMEDIA]["accounts"][email][
                                     "devices"
                                 ].update(alexa_entities)
+                                if use_graphql:
+                                    polling_endpoints = sensor_polling_endpoints(
+                                        endpoint_rows,
+                                        alexa_entities,
+                                        include_controls=callable(
+                                            getattr(
+                                                AlexaAPI, "set_light_state_gql", None
+                                            )
+                                        ),
+                                    )
+                                    discovery_login = login_obj
+                                    account["control_endpoint_snapshot"] = (
+                                        login_obj,
+                                        polling_endpoints,
+                                    )
 
                                 _entities_to_monitor = set()
                                 for type_of_entity, entities in alexa_entities.items():
@@ -1531,12 +1570,22 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                                     hide_email(email),
                                     len(list(_entities_to_monitor)),
                                 )
+                                if bootstrap_pending:
+                                    registered, _ = _state_entity_ids(
+                                        account["entities"]
+                                    )
+                                    bootstrap_ids = (
+                                        _entities_to_monitor
+                                        - registered_at_start
+                                        - registered
+                                    )
                                 # Use shorter timeout for entity data to avoid blocking
                                 _t_ed = time.monotonic()
                                 try:
                                     entity_state = await asyncio.wait_for(
-                                        get_entity_data(
-                                            login_obj, list(_entities_to_monitor)
+                                        poll_entity_data(
+                                            login_obj,
+                                            list(_entities_to_monitor),
                                         ),
                                         timeout=10.0,
                                     )
@@ -1876,7 +1925,16 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         if connectivity_generation >= connectivity._invalidated_generation:
             connectivity.account_available = True
         connectivity.notify()
-        return entity_state
+        # Merge only after the final await so another refresh's samples are visible.
+        registered, monitored = _state_entity_ids(account["entities"])
+        if bootstrap_pending and bootstrap_ids is not None:
+            # The first successful discovery can seed entities before registration.
+            monitored.update(bootstrap_ids - registered)
+            bootstrap_pending = False
+        last_good_entity_state = merge_entity_samples(
+            monitored, last_good_entity_state, entity_state
+        )
+        return last_good_entity_state
 
     @_catch_login_errors
     async def process_notifications(login_obj, raw_notifications=None) -> bool:

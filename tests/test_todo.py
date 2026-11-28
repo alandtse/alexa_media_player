@@ -710,6 +710,10 @@ async def test_open_items_on_later_pages_are_read(hass, api, entry):
             {"itemInfoList": _records("ACTIVE", 1, "x"), "nextToken": 5},
             id="bad-token",
         ),
+        pytest.param(
+            {"itemInfoList": _records("COMPLETE", 1, "x"), "nextToken": 5},
+            id="bad-token-on-a-completed-page",
+        ),
     ],
 )
 async def test_a_malformed_item_page_keeps_the_cached_items(
@@ -729,16 +733,30 @@ async def test_a_malformed_item_page_keeps_the_cached_items(
     assert hass.states.get(custom).state == "0"
 
 
-async def test_a_repeated_token_keeps_the_cached_items(hass, api, entry, account):
+@pytest.mark.parametrize(
+    "second_page_status",
+    [pytest.param("ACTIVE", id="open"), pytest.param("COMPLETE", id="completed")],
+)
+async def test_a_repeated_token_keeps_the_cached_items(
+    hass, api, entry, account, second_page_status
+):
     """A continuation token that comes back again ends the read as a failure."""
     await _load(hass, entry)
     shop = _entity_id(hass, entry, "shop-1")
-    api.get_list_items_page.side_effect = lambda login, list_id, **kwargs: {
-        "itemInfoList": _records("ACTIVE", 1, list_id),
-        "nextToken": "same",
-    }
+
+    async def _page(login, list_id, *, limit=100, next_token=None):
+        status = "ACTIVE" if next_token is None else second_page_status
+        return {"itemInfoList": _records(status, 1, list_id), "nextToken": "same"}
+
+    api.get_list_items_page.side_effect = _page
+    api.get_list_items_page.reset_mock()
 
     await account[ACCOUNT_KEY].async_refresh()
 
     assert hass.states.get(shop).state == "1"
-    assert api.get_list_items_page.await_count < 20
+    tokens = [
+        call.kwargs["next_token"]
+        for call in api.get_list_items_page.await_args_list
+        if call.args[1] == "shop-1"
+    ]
+    assert tokens == [None, "same"]

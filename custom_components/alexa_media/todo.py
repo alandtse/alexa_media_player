@@ -246,12 +246,14 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
             token = page.get("nextToken")
             if token is None or (isinstance(token, str) and not token):
                 return items
+            # A malformed or repeated token makes the whole response malformed,
+            # even on the last page this read uses.
+            if not isinstance(token, str) or token in seen:
+                return None
             if records and all(
                 record.get("itemStatus") == ITEM_COMPLETE for record in records
             ):
                 return items
-            if not isinstance(token, str) or token in seen:
-                return None
             seen.add(token)
 
     def report_login_error(self, login) -> None:

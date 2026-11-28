@@ -159,22 +159,30 @@ async def test_bootstrap_requires_cookie_adoption(hass, login_factory, adopts_co
     session = MagicMock(closed=False)
     session.get.return_value.__aenter__.return_value = response
 
-    async def adopt(**_kwargs):
-        if adopts_cookies:
-            assert not jar.filter_cookies(api_url)
-            jar.update_cookies(saved, response_url=api_url)
-            headers["csrf"] = saved["csrf"]
-        return adopts_cookies
-
-    async def normal_login(**_kwargs):
-        assert jar.filter_cookies(api_url)["session-id"].value == "previous-session"
-        assert headers["csrf"] == "previous-csrf"
-
     def create_login(*args, **kwargs):
         client = FakeAlexaLogin(*args, **kwargs)
+        # The jar and the headers live on the client, so the assertions below
+        # observe the state the login paths actually changed.
         client._session = session
+        session.cookie_jar = jar
+        client._headers = headers
         client._ssl = True
         client.load_cookie.return_value = saved
+
+        async def adopt(**_kwargs):
+            if adopts_cookies:
+                assert not session.cookie_jar.filter_cookies(api_url)
+                session.cookie_jar.update_cookies(saved, response_url=api_url)
+                client._headers["csrf"] = saved["csrf"]
+            return adopts_cookies
+
+        async def normal_login(**_kwargs):
+            assert (
+                session.cookie_jar.filter_cookies(api_url)["session-id"].value
+                == "previous-session"
+            )
+            assert client._headers["csrf"] == "previous-csrf"
+
         client.test_loggedin = AsyncMock(side_effect=adopt)
         client.login = AsyncMock(side_effect=normal_login)
         client.check_domain = AsyncMock()
@@ -194,7 +202,10 @@ async def test_bootstrap_requires_cookie_adoption(hass, login_factory, adopts_co
     client.finalize_login.assert_not_awaited()
     if adopts_cookies:
         client.login.assert_not_awaited()
-        assert jar.filter_cookies(api_url)["session-id"].value == saved["session-id"]
-        assert headers["csrf"] == saved["csrf"]
+        assert (
+            session.cookie_jar.filter_cookies(api_url)["session-id"].value
+            == saved["session-id"]
+        )
+        assert client._headers["csrf"] == saved["csrf"]
     else:
         client.login.assert_awaited_once_with(cookies=saved)

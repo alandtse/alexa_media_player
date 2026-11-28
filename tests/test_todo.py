@@ -4,7 +4,11 @@ from copy import deepcopy
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from alexapy.errors import AlexapyConnectionError, AlexapyTooManyRequestsError
+from alexapy.errors import (
+    AlexapyConnectionError,
+    AlexapyLoginError,
+    AlexapyTooManyRequestsError,
+)
 from homeassistant.components.todo import DOMAIN as TODO_DOMAIN
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_EMAIL, STATE_UNAVAILABLE
@@ -89,7 +93,11 @@ def api():
 @pytest.fixture
 def account():
     """Return the account record that the integration keeps for one login."""
-    return {"login_obj": MagicMock(email=EMAIL, status={"login_successful": True})}
+    return {
+        "login_obj": MagicMock(
+            email=EMAIL, url="amazon.com", status={"login_successful": True}
+        )
+    }
 
 
 @pytest.fixture
@@ -415,15 +423,29 @@ async def test_disabled_lists_are_not_read(hass, api, entry, account):
 
 
 async def test_unsupported_marketplace_creates_nothing(hass, api, entry, account):
-    """A marketplace without the list API gets no entities and no polling."""
-    api.get_lists.side_effect = ValueError("Unsupported Amazon marketplace")
+    """A marketplace without the list API gets no entities and no requests."""
+    account["login_obj"].url = "amazon.nl"
     await _load(hass, entry)
     assert _entity_id(hass, entry, "shop-1") is None
     assert account[ACCOUNT_KEY].unsupported is True
 
     async_fire_time_changed(hass, dt_util.utcnow() + LISTS_SCAN_INTERVAL * 2)
     await hass.async_block_till_done()
-    api.get_lists.assert_awaited_once()
+    api.get_lists.assert_not_awaited()
+
+
+async def test_rejected_retail_endpoints_keep_the_cached_lists(
+    hass, api, entry, account
+):
+    """A ValueError on a supported marketplace is a failed read, not unsupported."""
+    await _load(hass, entry)
+    shop = _entity_id(hass, entry, "shop-1")
+    api.get_lists.side_effect = ValueError("Invalid Amazon retail URL")
+
+    await account[ACCOUNT_KEY].async_refresh()
+
+    assert account[ACCOUNT_KEY].unsupported is False
+    assert hass.states.get(shop).state == "1"
 
 
 async def test_polling_and_push_refresh(hass, api, entry, account):
@@ -466,7 +488,7 @@ async def test_unload_stops_the_lists(hass, api, entry, account):
 async def test_relogin_uses_the_new_login(hass, api, entry, account):
     """The coordinator reads the login of the account at each request."""
     await _load(hass, entry)
-    new_login = MagicMock(email=EMAIL)
+    new_login = MagicMock(email=EMAIL, url="amazon.com")
     account["login_obj"] = new_login
 
     await account[ACCOUNT_KEY].async_refresh()
@@ -544,3 +566,64 @@ async def test_a_write_on_an_item_that_is_gone_raises(hass, api, entry):
     with pytest.raises(HomeAssistantError, match="not on the Alexa list"):
         await entity.async_update_todo_item(TodoItem(uid="gone", summary="gone"))
     api.update_list_item.assert_not_awaited()
+
+
+async def test_login_errors_report_relogin_once_per_episode(hass, api, entry, account):
+    """Reads and writes report a list API login failure once per episode."""
+    await _load(hass, entry)
+    coordinator = account[ACCOUNT_KEY]
+    shop = _entity_id(hass, entry, "shop-1")
+    login = account["login_obj"]
+
+    with patch(
+        "custom_components.alexa_media.todo.report_relogin_required",
+        return_value=True,
+    ) as report:
+        api.get_lists.side_effect = AlexapyLoginError("401")
+        await coordinator.async_refresh()
+        await coordinator.async_refresh()
+        report.assert_called_once_with(hass, login, EMAIL, require_status=False)
+        # Cached lists stay available during the episode.
+        assert hass.states.get(shop).state == "1"
+
+        api.add_list_item.side_effect = AlexapyLoginError("401")
+        with pytest.raises(HomeAssistantError, match="Unable to add the item"):
+            await hass.services.async_call(
+                TODO_DOMAIN,
+                "add_item",
+                {"item": "bread"},
+                target={"entity_id": shop},
+                blocking=True,
+            )
+        report.assert_called_once()
+
+        # A good read ends the episode; the next failure reports again.
+        api.get_lists.side_effect = lambda login, **kwargs: deepcopy(LISTS)
+        await coordinator.async_refresh()
+        api.get_list_items.side_effect = AlexapyLoginError("401")
+        await coordinator.async_refresh()
+        assert report.call_count == 2
+        assert hass.states.get(shop).state == "1"
+
+
+async def test_a_readback_keeps_a_pending_push_refresh(hass, api, entry, account):
+    """A write to one list does not cancel a refresh that a push requested."""
+    await _load(hass, entry)
+    coordinator = account[ACCOUNT_KEY]
+    shop = _entity_id(hass, entry, "shop-1")
+    api.get_lists.reset_mock()
+
+    await coordinator.async_request_refresh()
+    await hass.services.async_call(
+        TODO_DOMAIN,
+        "add_item",
+        {"item": "bread"},
+        target={"entity_id": shop},
+        blocking=True,
+    )
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=LISTS_REFRESH_COOLDOWN + 1)
+    )
+    await hass.async_block_till_done()
+
+    api.get_lists.assert_awaited_once()

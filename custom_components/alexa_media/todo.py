@@ -21,7 +21,8 @@ from typing import Any
 
 from aiohttp import ClientError
 from alexapy import AlexaAPI, hide_email
-from alexapy.errors import AlexapyError
+from alexapy.const import LIST_MARKETPLACE_IDS
+from alexapy.errors import AlexapyError, AlexapyLoginError
 from homeassistant.components.todo import (
     TodoItem,
     TodoItemStatus,
@@ -41,7 +42,7 @@ from homeassistant.helpers.update_coordinator import (
 
 from . import account_device_identifier
 from .const import DATA_ALEXAMEDIA, DOMAIN
-from .helpers import is_http2_enabled
+from .helpers import is_http2_enabled, report_relogin_required
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +80,12 @@ def _unique_id(config_entry, list_id: str) -> str:
     return f"{config_entry.entry_id}_list_{list_id}"
 
 
+def _has_list_api(url: str) -> bool:
+    """Return whether AlexaPy has the list API for the marketplace of a login."""
+    # AlexaPy accepts the legacy Mexico domain as an alias.
+    return ("amazon.com.mx" if url == "amazon.mx" else url) in LIST_MARKETPLACE_IDS
+
+
 def _is_active(record: dict[str, Any]) -> bool:
     """Skip lists that were archived in the Alexa app."""
     return record.get("listStatus") != "ARCHIVED"
@@ -103,6 +110,8 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
         # True once the account turned out to have no list API (marketplace).
         self.unsupported = False
         self._fetch_lock = asyncio.Lock()
+        # Set while an authentication failure of the list API is reported.
+        self._relogin_reported = False
 
     @property
     def login(self):
@@ -130,20 +139,28 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
         """Read all lists, keeping the last good items of a list on failure."""
         async with self._fetch_lock:
             try:
-                records = await AlexaAPI.get_lists(self.login)
-            except ValueError as err:
-                # AlexaPy raises ValueError for a marketplace without lists.
+                login = self.login
+            except HomeAssistantError as err:
+                return self._keep_or_fail(str(err))
+            if not _has_list_api(login.url):
                 _LOGGER.debug(
-                    "%s: Alexa lists are not supported: %s",
+                    "%s: Alexa lists are not supported on %s",
                     hide_email(self.email),
-                    err,
+                    login.url,
                 )
                 self.unsupported = True
                 return {}
-            except (AlexapyError, ClientError, HomeAssistantError) as err:
+            try:
+                records = await AlexaAPI.get_lists(login)
+            except AlexapyLoginError as err:
+                self.report_login_error(login)
+                return self._keep_or_fail(f"Unable to read the Alexa lists: {err}")
+            except (AlexapyError, ClientError, ValueError) as err:
+                # ValueError: AlexaPy rejected the account's retail endpoints.
                 return self._keep_or_fail(f"Unable to read the Alexa lists: {err}")
             if not isinstance(records, list):
                 return self._keep_or_fail("Alexa returned no list data")
+            self._relogin_reported = False
 
             previous = self.data or {}
             lists: dict[str, AlexaList] = {}
@@ -177,8 +194,18 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
         self, list_id: str, cached: dict[str, dict[str, Any]] | None
     ) -> dict[str, dict[str, Any]] | None:
         """Read the items of one list, or return the cached items on failure."""
+        login = None
         try:
-            records = await AlexaAPI.get_list_items(self.login, list_id)
+            login = self.login
+            records = await AlexaAPI.get_list_items(login, list_id)
+        except AlexapyLoginError as err:
+            self.report_login_error(login)
+            _LOGGER.debug(
+                "%s: Unable to read the items of an Alexa list: %s",
+                hide_email(self.email),
+                err,
+            )
+            return cached
         except (AlexapyError, ClientError, HomeAssistantError, ValueError) as err:
             _LOGGER.debug(
                 "%s: Unable to read the items of an Alexa list: %s",
@@ -189,6 +216,16 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
         if not isinstance(records, list):
             return cached
         return {record["itemId"]: record for record in records}
+
+    def report_login_error(self, login) -> None:
+        """Report an authentication failure of the list API once per episode.
+
+        The episode ends with the next successful read of the lists.
+        """
+        if self._relogin_reported:
+            return
+        if report_relogin_required(self.hass, login, self.email, require_status=False):
+            self._relogin_reported = True
 
     def _set_interval(self) -> None:
         """Poll less often while the HTTP2 push connection is up."""
@@ -212,7 +249,10 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
                 name=current.name,
                 items=items,
             )
-        self.async_set_updated_data(data)
+            # async_set_updated_data would cancel a refresh that a push for
+            # another list requested, so publish without touching the timers.
+            self.data = data
+        self.async_update_listeners()
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities) -> bool:
@@ -326,8 +366,12 @@ class AlexaTodoList(CoordinatorEntity[AlexaListsCoordinator], TodoListEntity):
 
     async def _call(self, action: str, request: Callable) -> Any:
         """Run one list request and turn its failures into Home Assistant errors."""
+        login = self.coordinator.login
         try:
-            result = await request(self.coordinator.login)
+            result = await request(login)
+        except AlexapyLoginError as err:
+            self.coordinator.report_login_error(login)
+            raise HomeAssistantError(f"Unable to {action}: {err}") from err
         except (AlexapyError, ClientError, ValueError) as err:
             raise HomeAssistantError(f"Unable to {action}: {err}") from err
         if result is None or result is False:

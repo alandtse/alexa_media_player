@@ -3561,6 +3561,26 @@ async def async_unload_entry(hass, entry) -> bool:
     if not account:
         # A failed setup may have left no runtime record for this entry.
         return True
+    # Unload the Alexa lists first: if that fails, the account stays loaded,
+    # because the list entities still use it.
+    if account.get("todo_forwarded"):
+        try:
+            todo_unloaded = await hass.config_entries.async_forward_entry_unload(
+                entry, "todo"
+            )
+        except Exception:
+            _LOGGER.exception(
+                "%s: Error unloading the Alexa lists; keeping the account loaded",
+                hide_email(email),
+            )
+            return False
+        if not todo_unloaded:
+            _LOGGER.error(
+                "%s: Unable to unload the Alexa lists; keeping the account loaded",
+                hide_email(email),
+            )
+            return False
+        account.pop("todo_forwarded", None)
     _pop_relogin_listeners(hass, email)
     # Cancel the display retry before the first await so it cannot queue a
     # second reload while this unload is waiting on other tasks.
@@ -3639,11 +3659,6 @@ async def async_unload_entry(hass, entry) -> bool:
                 await hass.config_entries.async_forward_entry_unload(entry, component)
         except Exception:
             _LOGGER.error("Error unloading: %s", component)
-    if account.pop("todo_forwarded", False):
-        try:
-            await hass.config_entries.async_forward_entry_unload(entry, "todo")
-        except Exception:
-            _LOGGER.error("Error unloading: %s", "todo")
     await close_connections(hass, email)
     hass.data[DATA_ALEXAMEDIA]["accounts"].pop(email)
     # Clean up config flows in progress

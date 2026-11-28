@@ -1,7 +1,11 @@
 """Alexa shopping, to-do and custom lists as to-do list entities."""
 
+import asyncio
 from copy import deepcopy
 from datetime import timedelta
+import json
+import logging
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from alexapy.errors import (
@@ -29,6 +33,7 @@ from custom_components.alexa_media import (
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA, DOMAIN
 from custom_components.alexa_media.todo import (
     ACCOUNT_KEY,
+    LISTS_DISCOVERY_RETRY_DELAYS,
     LISTS_REFRESH_COOLDOWN,
     LISTS_SCAN_INTERVAL,
     LISTS_SCAN_INTERVAL_WITHOUT_PUSH,
@@ -168,14 +173,28 @@ async def test_lists_become_entities_on_the_account_device(hass, api, entry):
     todo = _entity_id(hass, entry, "todo-1")
     custom = _entity_id(hass, entry, "custom-1")
     assert _entity_id(hass, entry, "old-1") is None
+    # Until Lokalise adds the names to the translation files, the entities
+    # use the English names of strings.json.
     assert shop.endswith("_shopping_list")
     assert todo.endswith("_to_do_list")
     assert custom.endswith("_hardware_store")
 
+    strings = json.loads(
+        (Path(alexa_media.__file__).parent / "strings.json").read_text()
+    )["entity"]["todo"]
     assert registry.async_get(shop).translation_key == "shopping_list"
     assert registry.async_get(todo).translation_key == "to_do_list"
     assert registry.async_get(custom).translation_key is None
-    assert hass.states.get(shop).attributes["friendly_name"].endswith("Shopping list")
+    assert (
+        hass.states.get(shop)
+        .attributes["friendly_name"]
+        .endswith(strings["shopping_list"]["name"])
+    )
+    assert (
+        hass.states.get(todo)
+        .attributes["friendly_name"]
+        .endswith(strings["to_do_list"]["name"])
+    )
     assert (
         hass.states.get(custom).attributes["friendly_name"].endswith("Hardware store")
     )
@@ -371,18 +390,87 @@ async def test_transient_failures_keep_the_cached_lists(hass, api, entry, accoun
     assert hass.states.get(shop).state == "0"
 
 
-async def test_lists_appear_after_a_failed_first_read(hass, api, entry, account):
-    """A failed first read creates nothing; a later read adds the lists."""
+async def _advance(hass, seconds):
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=seconds))
+    await hass.async_block_till_done()
+
+
+async def test_a_failed_first_read_is_retried_a_few_times(hass, api, entry):
+    """A failed first read is retried after the retry delays, then by polling."""
     api.get_lists.side_effect = AlexapyConnectionError("down")
     await _load(hass, entry)
+    assert entry.state is ConfigEntryState.LOADED
     assert _entity_id(hass, entry, "shop-1") is None
 
+    for delay in LISTS_DISCOVERY_RETRY_DELAYS:
+        await _advance(hass, delay + 1)
+    assert api.get_lists.await_count == 1 + len(LISTS_DISCOVERY_RETRY_DELAYS)
+    # The retries are bounded; the next read is the regular poll.
+    await _advance(hass, LISTS_DISCOVERY_RETRY_DELAYS[-1] * 2)
+    assert api.get_lists.await_count == 1 + len(LISTS_DISCOVERY_RETRY_DELAYS)
+
     api.get_lists.side_effect = lambda login, **kwargs: deepcopy(LISTS)
-    await account[ACCOUNT_KEY].async_refresh()
-    await hass.async_block_till_done()
+    await _advance(hass, LISTS_SCAN_INTERVAL.total_seconds() + 1)
     shop = _entity_id(hass, entry, "shop-1")
     assert shop is not None
     assert hass.states.get(shop).state == "1"
+
+
+async def test_lists_appear_when_a_retry_succeeds(hass, api, entry):
+    """The first retry that reads the lists adds them and ends the retries."""
+    api.get_lists.side_effect = [AlexapyConnectionError("down"), deepcopy(LISTS)]
+    await _load(hass, entry)
+    assert _entity_id(hass, entry, "shop-1") is None
+
+    await _advance(hass, LISTS_DISCOVERY_RETRY_DELAYS[0] + 1)
+    assert hass.states.get(_entity_id(hass, entry, "shop-1")).state == "1"
+    await _advance(hass, sum(LISTS_DISCOVERY_RETRY_DELAYS))
+    assert api.get_lists.await_count == 2
+
+
+async def test_a_slow_first_read_does_not_delay_the_setup(hass, api, entry):
+    """The account setup finishes while the first read of the lists waits."""
+    release = asyncio.Event()
+
+    async def _slow(login, **kwargs):
+        await release.wait()
+        return deepcopy(LISTS)
+
+    api.get_lists.side_effect = _slow
+    await _load(hass, entry)
+    assert entry.state is ConfigEntryState.LOADED
+    assert _entity_id(hass, entry, "shop-1") is None
+
+    release.set()
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get(_entity_id(hass, entry, "shop-1")).state == "1"
+
+
+@pytest.mark.parametrize("first_read", ["waiting", "failed"])
+async def test_unload_cancels_the_first_read_and_its_retries(
+    hass, api, entry, first_read
+):
+    """Unloading cancels a first read that still waits, and pending retries."""
+    cancelled = asyncio.Event()
+
+    async def _hang(login, **kwargs):
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    api.get_lists.side_effect = (
+        _hang if first_read == "waiting" else AlexapyConnectionError("down")
+    )
+    await _load(hass, entry)
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert cancelled.is_set() == (first_read == "waiting")
+
+    await _advance(hass, sum(LISTS_DISCOVERY_RETRY_DELAYS) * 2)
+    assert api.get_lists.await_count == 1
 
 
 async def test_a_list_without_items_yet_is_unavailable(hass, api, entry):
@@ -534,6 +622,33 @@ async def test_entry_unload_unloads_the_lists_only_when_loaded(forwarded):
     assert "todo_forwarded" not in account
 
 
+@pytest.mark.parametrize(
+    "unload",
+    [
+        pytest.param(AsyncMock(return_value=False), id="not-unloaded"),
+        pytest.param(AsyncMock(side_effect=RuntimeError("boom")), id="raised"),
+    ],
+)
+async def test_a_failed_list_unload_keeps_the_account(unload):
+    """If the to-do platform does not unload, the account stays loaded."""
+    hass = MagicMock()
+    hass.config_entries.async_forward_entry_unload = unload
+    account = {"login_obj": MagicMock(), "todo_forwarded": True}
+    hass.data = {
+        DATA_ALEXAMEDIA: {"services": MagicMock(), "accounts": {EMAIL: account}}
+    }
+    config_entry = MagicMock(data={"email": EMAIL})
+    with patch(
+        "custom_components.alexa_media.close_connections", new_callable=AsyncMock
+    ) as close_connections:
+        assert await alexa_media.async_unload_entry(hass, config_entry) is False
+
+    unload.assert_awaited_once_with(config_entry, "todo")
+    assert hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL] is account
+    assert account["todo_forwarded"] is True
+    close_connections.assert_not_awaited()
+
+
 async def test_item_read_errors_keep_the_cached_items(hass, api, entry, account):
     """An exception while reading items, or a missing login, keeps the cache."""
     await _load(hass, entry)
@@ -561,6 +676,50 @@ async def test_item_read_errors_keep_the_cached_items(hass, api, entry, account)
             blocking=True,
         )
     api.add_list_item.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "version",
+    [
+        pytest.param({}, id="missing"),
+        pytest.param({"version": None}, id="none"),
+        pytest.param({"version": " "}, id="blank"),
+        pytest.param({"version": True}, id="bool"),
+    ],
+)
+async def test_an_item_without_a_version_is_not_written(
+    hass, api, entry, account, version
+):
+    """A write needs the item version; a missing one fails only that item."""
+    api.items["shop-1"].insert(
+        0, {"itemId": "bare", "itemName": "bare", "itemStatus": "ACTIVE", **version}
+    )
+    await _load(hass, entry)
+    shop = _entity_id(hass, entry, "shop-1")
+    api.read_items.reset_mock()
+
+    with pytest.raises(HomeAssistantError, match="without a version"):
+        await hass.services.async_call(
+            TODO_DOMAIN,
+            "update_item",
+            {"item": "bare", "rename": "bread"},
+            target={"entity_id": shop},
+            blocking=True,
+        )
+    api.update_list_item.assert_not_awaited()
+    api.read_items.assert_awaited_once()
+
+    with pytest.raises(HomeAssistantError, match="Unable to delete 1 of 2 items"):
+        await hass.services.async_call(
+            TODO_DOMAIN,
+            "remove_item",
+            {"item": ["bare", "milk"]},
+            target={"entity_id": shop},
+            blocking=True,
+        )
+    api.delete_list_item.assert_awaited_once_with(
+        account["login_obj"], "shop-1", "milk", 7
+    )
 
 
 async def test_a_write_on_an_item_that_is_gone_raises(hass, api, entry):
@@ -697,6 +856,71 @@ async def test_open_items_on_later_pages_are_read(hass, api, entry):
     # Page 2 holds the last 5 open items, page 3 only completed ones.
     assert len(shop_reads) == 3
     assert hass.states.get(_entity_id(hass, entry, "shop-1")).state == "105"
+
+
+async def test_clearing_completed_items_past_the_cutoff(hass, api, entry, caplog):
+    """Clearing deletes the completed items the list shows and says what is left."""
+    records = _records("ACTIVE", 30, "open") + _records("COMPLETE", 300, "done")
+    api.get_list_items_page.side_effect = _paged(records)
+
+    async def _delete(login, list_id, item_id, version):
+        records[:] = [record for record in records if record["itemId"] != item_id]
+        return True
+
+    api.delete_list_item.side_effect = _delete
+    await _load(hass, entry)
+    shop = _entity_id(hass, entry, "shop-1")
+    shown = {item["uid"] for item in await _items(hass, shop)}
+    assert len(shown) == 200
+
+    def _warnings():
+        return [
+            record
+            for record in caplog.records
+            if record.levelno == logging.WARNING
+            and "older completed items" in record.getMessage()
+        ]
+
+    # Deleting some completed items is no attempt to clear them; the readback
+    # shows the next older one.
+    await hass.services.async_call(
+        TODO_DOMAIN,
+        "remove_item",
+        {"item": ["done0"]},
+        target={"entity_id": shop},
+        blocking=True,
+    )
+    assert not _warnings()
+
+    api.delete_list_item.reset_mock()
+    await hass.services.async_call(
+        TODO_DOMAIN,
+        "remove_completed_items",
+        {},
+        target={"entity_id": shop},
+        blocking=True,
+    )
+    # Only the shown items are deleted, as the frontend's confirmation counts them.
+    deleted = {call.args[2] for call in api.delete_list_item.await_args_list}
+    assert deleted == {f"done{index}" for index in range(1, 171)}
+    assert len(_warnings()) == 1
+    assert "Removed the 170 completed items" in _warnings()[0].getMessage()
+    # The readback shows the older completed items, now to the end of the list.
+    items = await _items(hass, shop)
+    assert len([item for item in items if item["status"] == "completed"]) == 129
+
+    await hass.services.async_call(
+        TODO_DOMAIN,
+        "remove_completed_items",
+        {},
+        target={"entity_id": shop},
+        blocking=True,
+    )
+    assert len(_warnings()) == 1
+    assert hass.states.get(shop).state == "30"
+    assert [
+        item for item in await _items(hass, shop) if item["status"] == "completed"
+    ] == []
 
 
 @pytest.mark.parametrize(

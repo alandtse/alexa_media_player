@@ -127,14 +127,6 @@
       "shuffle": {
         "name": "Shuffle"
       }
-    },
-    "todo": {
-      "shopping_list": {
-        "name": "Shopping list"
-      },
-      "to_do_list": {
-        "name": "To-do list"
-      }
     }
   },
   "issues": {

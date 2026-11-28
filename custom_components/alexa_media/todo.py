@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 import logging
 from typing import Any
@@ -34,6 +34,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.debounce import Debouncer
+from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -57,11 +58,24 @@ LISTS_REFRESH_COOLDOWN = 3.0
 
 # The account dict key of the coordinator; the HTTP2 push handler refreshes it.
 ACCOUNT_KEY = "alexa_lists"
-LIST_TRANSLATION_KEYS = {"SHOP": "shopping_list", "TODO": "to_do_list"}
+# The shopping list and the to-do list have translated names. The English
+# names of strings.json are the fallback while the translation files, which
+# Lokalise builds, do not hold them yet; the entity IDs come from them.
+LIST_DESCRIPTIONS = {
+    "SHOP": EntityDescription(
+        key="shopping_list", translation_key="shopping_list", name="Shopping list"
+    ),
+    "TODO": EntityDescription(
+        key="to_do_list", translation_key="to_do_list", name="To-do list"
+    ),
+}
 
 ITEM_COMPLETE = "COMPLETE"
 # The largest page the list API returns.
 ITEMS_PAGE_SIZE = 100
+# The account setup does not wait for the first read of the lists. A failed
+# first read is retried after these delays (seconds); then polling takes over.
+LISTS_DISCOVERY_RETRY_DELAYS = (30, 60, 120)
 
 
 @dataclass(frozen=True)
@@ -69,12 +83,15 @@ class AlexaList:
     """One Alexa list and its items, keyed by item ID.
 
     ``items`` is None while the items of the list could not be read yet.
+    ``older_completed`` is True when the last read stopped before older
+    completed items, which the entity does not show.
     """
 
     list_id: str
     list_type: str
     name: str | None
     items: dict[str, dict[str, Any]] | None
+    older_completed: bool = False
 
 
 def _unique_id(config_entry, list_id: str) -> str:
@@ -91,6 +108,20 @@ def _has_list_api(url: str) -> bool:
 def _is_active(record: dict[str, Any]) -> bool:
     """Skip lists that were archived in the Alexa app."""
     return record.get("listStatus") != "ARCHIVED"
+
+
+def _version(record: dict[str, Any], action: str) -> str | int:
+    """Return the item version of the last read, which every write needs."""
+    version = record.get("version")
+    if (
+        isinstance(version, bool)
+        or not isinstance(version, (str, int))
+        or (isinstance(version, str) and not version.strip())
+    ):
+        raise HomeAssistantError(
+            f"Unable to {action}: Alexa returned the item without a version"
+        )
+    return version
 
 
 class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
@@ -171,14 +202,17 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
                     continue
                 list_id = record["listId"]
                 old = previous.get(list_id)
-                items = old.items if old else None
+                items, older_completed = (
+                    (old.items, old.older_completed) if old else (None, False)
+                )
                 if self._wanted(list_id):
-                    items = await self._read_items(list_id, items)
+                    items, older_completed = await self._read_items(list_id, old)
                 lists[list_id] = AlexaList(
                     list_id=list_id,
                     list_type=str(record.get("listType") or ""),
                     name=record.get("listName") or None,
                     items=items,
+                    older_completed=older_completed,
                 )
         self._set_interval()
         return lists
@@ -193,13 +227,17 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
         return self.data
 
     async def _read_items(
-        self, list_id: str, cached: dict[str, dict[str, Any]] | None
-    ) -> dict[str, dict[str, Any]] | None:
-        """Read the items of one list, or return the cached items on failure."""
+        self, list_id: str, cached: AlexaList | None
+    ) -> tuple[dict[str, dict[str, Any]] | None, bool]:
+        """Read the items of one list, or return the cached items on failure.
+
+        Returns the items and whether older completed items were left unread.
+        """
+        kept = (cached.items, cached.older_completed) if cached else (None, False)
         login = None
         try:
             login = self.login
-            items = await self._read_item_pages(login, list_id)
+            result = await self._read_item_pages(login, list_id)
         except AlexapyLoginError as err:
             self.report_login_error(login)
             _LOGGER.debug(
@@ -207,24 +245,25 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
                 hide_email(self.email),
                 err,
             )
-            return cached
+            return kept
         except (AlexapyError, ClientError, HomeAssistantError, ValueError) as err:
             _LOGGER.debug(
                 "%s: Unable to read the items of an Alexa list: %s",
                 hide_email(self.email),
                 err,
             )
-            return cached
-        return cached if items is None else items
+            return kept
+        return kept if result is None else result
 
     async def _read_item_pages(
         self, login, list_id: str
-    ) -> dict[str, dict[str, Any]] | None:
+    ) -> tuple[dict[str, dict[str, Any]], bool] | None:
         """Read the open items of a list and the completed items next to them.
 
         Alexa returns the open items first and keeps every completed item, so a
         long-used shopping list can hold thousands of them. Paging stops after
-        the first page that holds only completed items. Returns None for a
+        the first page that holds only completed items. Returns the items and
+        whether older completed items were left unread, or None for a
         malformed page, which keeps the cached items.
         """
         items: dict[str, dict[str, Any]] = {}
@@ -245,7 +284,7 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
             items.update((record["itemId"], record) for record in records)
             token = page.get("nextToken")
             if token is None or (isinstance(token, str) and not token):
-                return items
+                return items, False
             # A malformed or repeated token makes the whole response malformed,
             # even on the last page this read uses.
             if not isinstance(token, str) or token in seen:
@@ -253,7 +292,7 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
             if records and all(
                 record.get("itemStatus") == ITEM_COMPLETE for record in records
             ):
-                return items
+                return items, True
             seen.add(token)
 
     def report_login_error(self, login) -> None:
@@ -280,22 +319,38 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
             current = (self.data or {}).get(list_id)
             if current is None:
                 return
-            items = await self._read_items(list_id, current.items)
+            items, older_completed = await self._read_items(list_id, current)
             data = dict(self.data or {})
-            data[list_id] = AlexaList(
-                list_id=current.list_id,
-                list_type=current.list_type,
-                name=current.name,
-                items=items,
+            data[list_id] = replace(
+                current, items=items, older_completed=older_completed
             )
             # async_set_updated_data would cancel a refresh that a push for
             # another list requested, so publish without touching the timers.
             self.data = data
         self.async_update_listeners()
 
+    async def async_discover(self) -> None:
+        """Read the lists for the first time, retrying a failed read a few times.
+
+        After the last retry, polling keeps trying.
+        """
+        await self.async_refresh()
+        for delay in LISTS_DISCOVERY_RETRY_DELAYS:
+            if self.data is not None:
+                return
+            await asyncio.sleep(delay)
+            # A push or a poll may have read the lists in the meantime.
+            if self.data is None:
+                await self.async_refresh()
+
 
 async def async_setup_entry(hass, config_entry, async_add_entities) -> bool:
-    """Set up one to-do list entity per Alexa list of the account."""
+    """Set up one to-do list entity per Alexa list of the account.
+
+    The lists are read in a background task, so a slow or failing list API
+    does not delay the setup of the account. The entities appear once the
+    lists are read. Home Assistant cancels the task when the entry unloads.
+    """
     account = hass.data[DATA_ALEXAMEDIA]["accounts"][config_entry.data[CONF_EMAIL]]
     coordinator = AlexaListsCoordinator(hass, config_entry)
     account[ACCOUNT_KEY] = coordinator
@@ -306,14 +361,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> bool:
         await coordinator.async_shutdown()
 
     config_entry.async_on_unload(_async_stop)
-
-    await coordinator.async_refresh()
-    if coordinator.unsupported:
-        _LOGGER.debug(
-            "%s: Alexa lists are not available for this account",
-            hide_email(coordinator.email),
-        )
-        return True
 
     known: set[str] = set()
 
@@ -331,8 +378,21 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> bool:
             AlexaTodoList(coordinator, config_entry, alexa_list) for alexa_list in new
         )
 
-    _async_add_new_lists()
     config_entry.async_on_unload(coordinator.async_add_listener(_async_add_new_lists))
+
+    async def _async_discover() -> None:
+        await coordinator.async_discover()
+        if coordinator.unsupported:
+            _LOGGER.debug(
+                "%s: Alexa lists are not available for this account",
+                hide_email(coordinator.email),
+            )
+            # No list API, so nothing to poll.
+            await coordinator.async_shutdown()
+
+    config_entry.async_create_background_task(
+        hass, _async_discover(), name=f"{DOMAIN} lists discovery"
+    )
     return True
 
 
@@ -356,9 +416,9 @@ class AlexaTodoList(CoordinatorEntity[AlexaListsCoordinator], TodoListEntity):
         self._attr_device_info = dr.DeviceInfo(
             identifiers={account_device_identifier(config_entry)},
         )
-        translation_key = LIST_TRANSLATION_KEYS.get(alexa_list.list_type)
-        if translation_key:
-            self._attr_translation_key = translation_key
+        description = LIST_DESCRIPTIONS.get(alexa_list.list_type)
+        if description:
+            self.entity_description = description
         else:
             self._attr_name = alexa_list.name or "List"
 
@@ -447,13 +507,14 @@ class AlexaTodoList(CoordinatorEntity[AlexaListsCoordinator], TodoListEntity):
         if name is None and completed is None:
             return
         try:
+            version = _version(record, "update the item")
             await self._call(
                 "update the item",
                 lambda login: AlexaAPI.update_list_item(
                     login,
                     self._list_id,
                     item.uid,
-                    record["version"],
+                    version,
                     name=name,
                     completed=completed,
                 ),
@@ -462,15 +523,34 @@ class AlexaTodoList(CoordinatorEntity[AlexaListsCoordinator], TodoListEntity):
             await self.coordinator.async_refresh_list(self._list_id)
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
-        """Delete items; a failed item does not stop the others."""
+        """Delete items; a failed item does not stop the others.
+
+        Only the given items are deleted. Clearing the completed items of a
+        list whose read stopped before its older completed items leaves those
+        in Alexa; the readback shows the next of them, and a warning says so.
+        """
         records = {uid: self._item(uid) for uid in uids}
+        alexa_list = self._list
+        shown = alexa_list.items if alexa_list and alexa_list.items else {}
+        completed = {
+            uid
+            for uid, record in shown.items()
+            if record.get("itemStatus") == ITEM_COMPLETE
+        }
+        older_completed_left = bool(
+            alexa_list
+            and alexa_list.older_completed
+            and completed
+            and completed.issubset(records)
+        )
         failed: list[str] = []
         try:
             for uid, record in records.items():
                 try:
+                    version = _version(record, "delete the item")
                     await self._call(
                         "delete the item",
-                        lambda login, uid=uid, version=record["version"]: (
+                        lambda login, uid=uid, version=version: (
                             AlexaAPI.delete_list_item(
                                 login, self._list_id, uid, version
                             )
@@ -484,4 +564,13 @@ class AlexaTodoList(CoordinatorEntity[AlexaListsCoordinator], TodoListEntity):
         if failed:
             raise HomeAssistantError(
                 f"Unable to delete {len(failed)} of {len(uids)} items from the Alexa list"
+            )
+        if older_completed_left:
+            _LOGGER.warning(
+                "%s: Removed the %d completed items that the list showed. Alexa "
+                "keeps older completed items, which Home Assistant does not "
+                "read; the next of them show up now. Remove them the same way, "
+                "or in the Alexa app",
+                self.entity_id,
+                len(completed),
             )

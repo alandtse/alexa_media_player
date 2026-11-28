@@ -60,6 +60,8 @@ ACCOUNT_KEY = "alexa_lists"
 LIST_TRANSLATION_KEYS = {"SHOP": "shopping_list", "TODO": "to_do_list"}
 
 ITEM_COMPLETE = "COMPLETE"
+# The largest page the list API returns.
+ITEMS_PAGE_SIZE = 100
 
 
 @dataclass(frozen=True)
@@ -197,7 +199,7 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
         login = None
         try:
             login = self.login
-            records = await AlexaAPI.get_list_items(login, list_id)
+            items = await self._read_item_pages(login, list_id)
         except AlexapyLoginError as err:
             self.report_login_error(login)
             _LOGGER.debug(
@@ -213,9 +215,44 @@ class AlexaListsCoordinator(DataUpdateCoordinator[dict[str, AlexaList]]):
                 err,
             )
             return cached
-        if not isinstance(records, list):
-            return cached
-        return {record["itemId"]: record for record in records}
+        return cached if items is None else items
+
+    async def _read_item_pages(
+        self, login, list_id: str
+    ) -> dict[str, dict[str, Any]] | None:
+        """Read the open items of a list and the completed items next to them.
+
+        Alexa returns the open items first and keeps every completed item, so a
+        long-used shopping list can hold thousands of them. Paging stops after
+        the first page that holds only completed items. Returns None for a
+        malformed page, which keeps the cached items.
+        """
+        items: dict[str, dict[str, Any]] = {}
+        token: str | None = None
+        seen: set[str] = set()
+        while True:
+            page = await AlexaAPI.get_list_items_page(
+                login, list_id, limit=ITEMS_PAGE_SIZE, next_token=token
+            )
+            records = page.get("itemInfoList") if isinstance(page, dict) else None
+            if not isinstance(records, list) or not all(
+                isinstance(record, dict)
+                and isinstance(record.get("itemId"), str)
+                and record["itemId"]
+                for record in records
+            ):
+                return None
+            items.update((record["itemId"], record) for record in records)
+            token = page.get("nextToken")
+            if token is None or (isinstance(token, str) and not token):
+                return items
+            if records and all(
+                record.get("itemStatus") == ITEM_COMPLETE for record in records
+            ):
+                return items
+            if not isinstance(token, str) or token in seen:
+                return None
+            seen.add(token)
 
     def report_login_error(self, login) -> None:
         """Report an authentication failure of the list API once per episode.

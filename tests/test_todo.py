@@ -78,9 +78,16 @@ def api():
     mock = MagicMock()
     mock.items = items
     mock.get_lists = AsyncMock(side_effect=lambda login, **kwargs: deepcopy(LISTS))
-    mock.get_list_items = AsyncMock(
+    # The test's source of items; get_list_items_page serves them as one page.
+    mock.read_items = AsyncMock(
         side_effect=lambda login, list_id, **kwargs: deepcopy(items[list_id])
     )
+
+    async def _page(login, list_id, *, limit=100, next_token=None):
+        records = await mock.read_items(login, list_id)
+        return None if records is None else {"itemInfoList": records}
+
+    mock.get_list_items_page = AsyncMock(side_effect=_page)
     mock.add_list_item = AsyncMock(
         return_value={"itemInfoList": [{"itemId": "new"}], "failures": []}
     )
@@ -205,7 +212,7 @@ async def test_add_rename_check_off_and_delete(hass, api, entry, account):
     )
     api.add_list_item.assert_awaited_once_with(login, "shop-1", "bread")
 
-    api.get_list_items.reset_mock()
+    api.get_list_items_page.reset_mock()
     await hass.services.async_call(
         TODO_DOMAIN,
         "update_item",
@@ -217,7 +224,9 @@ async def test_add_rename_check_off_and_delete(hass, api, entry, account):
     api.update_list_item.assert_awaited_once_with(
         login, "shop-1", "milk", 7, name="oat milk", completed=True
     )
-    api.get_list_items.assert_awaited_once_with(login, "shop-1")
+    api.get_list_items_page.assert_awaited_once_with(
+        login, "shop-1", limit=100, next_token=None
+    )
 
     await hass.services.async_call(
         TODO_DOMAIN,
@@ -274,7 +283,7 @@ async def test_failed_add_raises_and_reads_the_list(hass, api, entry, add_result
         api.add_list_item.side_effect = add_result
     else:
         api.add_list_item.return_value = add_result
-    api.get_list_items.reset_mock()
+    api.read_items.reset_mock()
 
     with pytest.raises(HomeAssistantError, match="Unable to add the item"):
         await hass.services.async_call(
@@ -284,7 +293,7 @@ async def test_failed_add_raises_and_reads_the_list(hass, api, entry, add_result
             target={"entity_id": shop},
             blocking=True,
         )
-    api.get_list_items.assert_awaited_once()
+    api.read_items.assert_awaited_once()
     assert hass.states.get(shop).state == "1"
 
 
@@ -346,7 +355,7 @@ async def test_transient_failures_keep_the_cached_lists(hass, api, entry, accoun
     api.items["custom-1"].append(
         {"itemId": "nails", "itemName": "nails", "itemStatus": "ACTIVE", "version": 1}
     )
-    api.get_list_items.side_effect = lambda login, list_id, **kwargs: (
+    api.read_items.side_effect = lambda login, list_id, **kwargs: (
         None if list_id == "shop-1" else deepcopy(api.items[list_id])
     )
     await coordinator.async_refresh()
@@ -355,7 +364,7 @@ async def test_transient_failures_keep_the_cached_lists(hass, api, entry, accoun
 
     # Recovery: the next good read updates the list.
     api.items["shop-1"].pop(0)
-    api.get_list_items.side_effect = lambda login, list_id, **kwargs: deepcopy(
+    api.read_items.side_effect = lambda login, list_id, **kwargs: deepcopy(
         api.items[list_id]
     )
     await coordinator.async_refresh()
@@ -378,7 +387,7 @@ async def test_lists_appear_after_a_failed_first_read(hass, api, entry, account)
 
 async def test_a_list_without_items_yet_is_unavailable(hass, api, entry):
     """A list whose items could never be read is unavailable, not empty."""
-    api.get_list_items.side_effect = lambda login, list_id, **kwargs: (
+    api.read_items.side_effect = lambda login, list_id, **kwargs: (
         None if list_id == "todo-1" else deepcopy(ITEMS[list_id])
     )
     await _load(hass, entry)
@@ -414,11 +423,11 @@ async def test_disabled_lists_are_not_read(hass, api, entry, account):
         _entity_id(hass, entry, "custom-1"),
         disabled_by=er.RegistryEntryDisabler.USER,
     )
-    api.get_list_items.reset_mock()
+    api.read_items.reset_mock()
 
     await account[ACCOUNT_KEY].async_refresh()
 
-    read = {call.args[1] for call in api.get_list_items.await_args_list}
+    read = {call.args[1] for call in api.read_items.await_args_list}
     assert read == {"shop-1", "todo-1"}
 
 
@@ -532,11 +541,11 @@ async def test_item_read_errors_keep_the_cached_items(hass, api, entry, account)
     shop = _entity_id(hass, entry, "shop-1")
 
     api.items["shop-1"].clear()
-    api.get_list_items.side_effect = AlexapyConnectionError("down")
+    api.read_items.side_effect = AlexapyConnectionError("down")
     await coordinator.async_refresh()
     assert hass.states.get(shop).state == "1"
 
-    api.get_list_items.side_effect = lambda login, list_id, **kwargs: deepcopy(
+    api.read_items.side_effect = lambda login, list_id, **kwargs: deepcopy(
         api.items[list_id]
     )
     account["login_obj"] = None
@@ -600,7 +609,7 @@ async def test_login_errors_report_relogin_once_per_episode(hass, api, entry, ac
         # A good read ends the episode; the next failure reports again.
         api.get_lists.side_effect = lambda login, **kwargs: deepcopy(LISTS)
         await coordinator.async_refresh()
-        api.get_list_items.side_effect = AlexapyLoginError("401")
+        api.read_items.side_effect = AlexapyLoginError("401")
         await coordinator.async_refresh()
         assert report.call_count == 2
         assert hass.states.get(shop).state == "1"
@@ -627,3 +636,109 @@ async def test_a_readback_keeps_a_pending_push_refresh(hass, api, entry, account
     await hass.async_block_till_done()
 
     api.get_lists.assert_awaited_once()
+
+
+def _paged(records, size=100):
+    """Serve records like the list API: pages of `size` with a continuation token."""
+
+    async def _page(login, list_id, *, limit=100, next_token=None):
+        start = int(next_token or 0)
+        end = start + size
+        return {
+            "itemInfoList": deepcopy(records[start:end]),
+            "nextToken": str(end) if end < len(records) else None,
+        }
+
+    return _page
+
+
+def _records(status, count, prefix):
+    return [
+        {
+            "itemId": f"{prefix}{index}",
+            "itemName": f"{prefix} {index}",
+            "itemStatus": status,
+            "version": 1,
+        }
+        for index in range(count)
+    ]
+
+
+async def test_a_long_history_of_completed_items_is_not_read(hass, api, entry):
+    """Paging stops after the first page of only completed items."""
+    # Open items come first, as the list API returns them.
+    records = _records("ACTIVE", 30, "open") + _records("COMPLETE", 3588, "done")
+    api.get_list_items_page.side_effect = _paged(records)
+    await _load(hass, entry)
+    shop = _entity_id(hass, entry, "shop-1")
+
+    shop_reads = [
+        call
+        for call in api.get_list_items_page.await_args_list
+        if call.args[1] == "shop-1"
+    ]
+    assert len(shop_reads) == 2
+    assert hass.states.get(shop).state == "30"
+    items = await _items(hass, shop)
+    assert len([item for item in items if item["status"] == "completed"]) == 170
+
+
+async def test_open_items_on_later_pages_are_read(hass, api, entry):
+    """Pages that still hold open items are read to the end of the open items."""
+    records = _records("ACTIVE", 105, "open") + _records("COMPLETE", 500, "done")
+    api.get_list_items_page.side_effect = _paged(records)
+    await _load(hass, entry)
+
+    shop_reads = [
+        call
+        for call in api.get_list_items_page.await_args_list
+        if call.args[1] == "shop-1"
+    ]
+    # Page 2 holds the last 5 open items, page 3 only completed ones.
+    assert len(shop_reads) == 3
+    assert hass.states.get(_entity_id(hass, entry, "shop-1")).state == "105"
+
+
+@pytest.mark.parametrize(
+    "page",
+    [
+        pytest.param(None, id="no-page"),
+        pytest.param({"itemInfoList": "milk"}, id="not-a-list"),
+        pytest.param({"itemInfoList": [{"itemName": "milk"}]}, id="no-item-id"),
+        pytest.param({"itemInfoList": ["milk"]}, id="not-a-record"),
+        pytest.param(
+            {"itemInfoList": _records("ACTIVE", 1, "x"), "nextToken": 5},
+            id="bad-token",
+        ),
+    ],
+)
+async def test_a_malformed_item_page_keeps_the_cached_items(
+    hass, api, entry, account, page
+):
+    """A malformed page is a failed read of that list, not a shorter list."""
+    await _load(hass, entry)
+    shop = _entity_id(hass, entry, "shop-1")
+    custom = _entity_id(hass, entry, "custom-1")
+    api.get_list_items_page.side_effect = lambda login, list_id, **kwargs: (
+        deepcopy(page) if list_id == "shop-1" else {"itemInfoList": []}
+    )
+
+    await account[ACCOUNT_KEY].async_refresh()
+
+    assert hass.states.get(shop).state == "1"
+    assert hass.states.get(custom).state == "0"
+
+
+async def test_a_repeated_token_keeps_the_cached_items(hass, api, entry, account):
+    """A continuation token that comes back again ends the read as a failure."""
+    await _load(hass, entry)
+    shop = _entity_id(hass, entry, "shop-1")
+    api.get_list_items_page.side_effect = lambda login, list_id, **kwargs: {
+        "itemInfoList": _records("ACTIVE", 1, list_id),
+        "nextToken": "same",
+    }
+
+    await account[ACCOUNT_KEY].async_refresh()
+
+    assert hass.states.get(shop).state == "1"
+    assert api.get_list_items_page.await_count < 20

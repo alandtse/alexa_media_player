@@ -71,6 +71,23 @@ def _state() -> DisplayState:
     return state
 
 
+async def _drain_display_registration(account_dict) -> None:
+    """Wait for the tracked display registration tasks to finish.
+
+    Exceptions propagate intentionally: a failed registration task must fail the
+    test instead of letting a negative assertion pass for the wrong reason. The
+    current registration task is included even after it leaves
+    ``display_setup_tasks``, so a finished task cannot hide its exception.
+    """
+    tasks = set(account_dict.get("display_setup_tasks", ()))
+    for key in ("display_registration_number", "display_registration_switch"):
+        task = account_dict.get(key)
+        if isinstance(task, asyncio.Task):
+            tasks.add(task)
+    if tasks:
+        await asyncio.gather(*tasks)
+
+
 def test_can_probe_display_requires_identity():
     """Every media player with a string id and serial is a probe candidate."""
     assert can_probe_display(_device())
@@ -1139,6 +1156,7 @@ async def test_switch_setup_creates_display_entities():
         ),
     ) as probe:
         await async_setup_platform(hass, {"email": EMAIL}, add)
+        await _drain_display_registration(account_dict)
 
     probe.assert_awaited_once()
     switches = account_dict["entities"]["switch"][SERIAL]
@@ -1201,6 +1219,7 @@ async def test_switch_setup_skips_unsupported_display(device_type):
         ),
     ):
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await _drain_display_registration(account_dict)
 
     probe.assert_awaited_once()
     switches = account_dict["entities"]["switch"][SERIAL]
@@ -1259,6 +1278,7 @@ async def test_number_setup_creates_display_brightness():
         ),
     ):
         await async_setup_platform(hass, {"email": EMAIL}, callback)
+        await _drain_display_registration(account_dict)
 
     probe.assert_awaited_once()
     assert f"{SERIAL}_display_brightness" in account_dict["entities"]["number"]
@@ -1312,6 +1332,7 @@ async def test_number_setup_skips_unsupported_display():
         ),
     ):
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await _drain_display_registration(account_dict)
 
     probe.assert_awaited_once()
     assert f"{SERIAL}_display_brightness" not in account_dict["entities"]["number"]
@@ -1374,6 +1395,7 @@ async def test_number_setup_skips_missing_client_without_blocking_volumes():
         ),
     ):
         assert await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await _drain_display_registration(account_dict)
 
     assert any(isinstance(entity, AlexaNotificationVolume) for entity in submitted)
     assert any(isinstance(entity, AlexaDisplayBrightness) for entity in submitted)
@@ -1429,8 +1451,82 @@ async def test_number_setup_ignores_retired_display_state():
         ),
     ):
         await async_setup_platform(hass, {"email": EMAIL}, MagicMock())
+        await _drain_display_registration(account_dict)
 
     assert f"{SERIAL}_display_brightness" not in account_dict["entities"]["number"]
+
+
+@pytest.mark.asyncio
+async def test_display_retry_stops_when_entry_is_unloaded(monkeypatch):
+    """Unload cancels a display retry while it waits in the backoff."""
+    from custom_components.alexa_media import _stop_display_recovery
+    from custom_components.alexa_media.switch import async_setup_entry
+
+    client = MagicMock()
+    client.unique_id = SERIAL
+    client._login = MagicMock(email=EMAIL)
+    account_dict = {
+        "devices": {
+            "media_player": {
+                SERIAL: {
+                    "serialNumber": SERIAL,
+                    "deviceType": SHOW_TYPE,
+                    "deviceFamily": "ECHO_SHOW",
+                    "deviceAccountId": "account-id",
+                    "capabilities": [],
+                }
+            },
+            "number": {},
+            "smart_switch": [],
+        },
+        "entities": {
+            "media_player": {SERIAL: client},
+            "switch": {},
+            "smart_switch": [],
+            "amazon_kids_switch": [],
+        },
+        "options": {},
+        "coordinator": MagicMock(),
+        "login_obj": MagicMock(),
+    }
+    entry = SimpleNamespace(data={"email": EMAIL}, options={})
+    account_dict["config_entry"] = entry
+    hass = MagicMock()
+    hass.config.as_dict.return_value = {"components": set()}
+    hass.data = {DATA_ALEXAMEDIA: {"accounts": {EMAIL: account_dict}}}
+
+    rejected = asyncio.Event()
+    attempts = 0
+
+    def add(entities, _):
+        nonlocal attempts
+        if any(entity.unique_id == f"{SERIAL}_display_power" for entity in entities):
+            attempts += 1
+            rejected.set()
+            raise RuntimeError("display add failed")
+
+    with (
+        patch(
+            "custom_components.alexa_media.display.async_probe_display_settings",
+            new_callable=AsyncMock,
+            return_value=({SETTING_DISPLAY_POWER: "ON"}, False),
+        ),
+        patch(
+            "custom_components.alexa_media.switch.DISPLAY_REGISTRATION_RETRY_DELAY", 60
+        ),
+    ):
+        assert await async_setup_entry(hass, entry, add)
+        task = account_dict["display_registration_switch"]
+        await asyncio.wait_for(rejected.wait(), timeout=1)
+        assert not task.done()
+
+        _stop_display_recovery(hass, EMAIL, entry)
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert attempts == 1
+    assert "display_power" not in account_dict["entities"]["switch"].get(SERIAL, {})
 
 
 @pytest.mark.asyncio

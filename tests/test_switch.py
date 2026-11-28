@@ -35,6 +35,23 @@ def mock_hass_with_emulated_hue():
     return hass
 
 
+async def _drain_display_registration(account):
+    """Wait for the tracked display registration tasks to finish.
+
+    Exceptions propagate intentionally: a failed registration task must fail the
+    test instead of letting a negative assertion pass for the wrong reason. The
+    current registration task is included even after it leaves
+    ``display_setup_tasks``, so a finished task cannot hide its exception.
+    """
+    tasks = set(account.get("display_setup_tasks", ()))
+    for key in ("display_registration_number", "display_registration_switch"):
+        task = account.get(key)
+        if isinstance(task, asyncio.Task):
+            tasks.add(task)
+    if tasks:
+        await asyncio.gather(*tasks)
+
+
 @pytest.fixture
 def mock_account_dict():
     """Create a mock account dictionary with smart switch entities."""
@@ -308,7 +325,7 @@ def switch_setup(monkeypatch, mock_hass, mock_account_dict):
     return entry, account, kids
 
 
-@pytest.mark.parametrize("failure", ["dnd", "aqm_led_indicator", "display"])
+@pytest.mark.parametrize("failure", ["dnd", "aqm_led_indicator"])
 async def test_retry_submits_only_missing_switches(mock_hass, switch_setup, failure):
     """A synchronous rejection must not poison caches or repeat accepted batches."""
     entry, account, _ = switch_setup
@@ -333,8 +350,10 @@ async def test_retry_submits_only_missing_switches(mock_hass, switch_setup, fail
         queued.extend(entity.unique_id for entity in entities)
 
     await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    await _drain_display_registration(account)
     # These are still pending in Home Assistant. No entity_id or state exists.
     await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    await _drain_display_registration(account)
     assert queued == [
         "dnd",
         "shuffle",
@@ -362,6 +381,7 @@ async def test_setup_waits_for_later_media_player(mock_hass, switch_setup):
 
     account["entities"]["media_player"]["late"] = object()
     await switch_platform.async_setup_entry(mock_hass, entry, callback)
+    await _drain_display_registration(account)
     assert callback.call_args_list[0].args[0][0].unique_id == "dnd"
 
 
@@ -433,8 +453,8 @@ async def test_reload_resubmits_after_scheduled_add_fails(mock_hass, switch_setu
 async def test_non_display_switches_submit_before_display_probe(
     mock_hass, switch_setup, monkeypatch
 ):
-    """Ordinary switches do not wait for display discovery."""
-    entry, _, _ = switch_setup
+    """Setup returns while display discovery is still running."""
+    entry, account, _ = switch_setup
     started = asyncio.Event()
     release = asyncio.Event()
 
@@ -456,13 +476,180 @@ async def test_non_display_switches_submit_before_display_probe(
         await asyncio.wait_for(started.wait(), timeout=1)
         assert "dnd" in submitted
         assert "display" not in submitted
+        # The background registration stays tracked for unload/removal cleanup.
+        assert account["display_registration_switch"] in account["display_setup_tasks"]
+        # Platform setup does not wait for the display probe.
+        assert await asyncio.wait_for(task, timeout=1)
     finally:
         release.set()
-        assert await asyncio.wait_for(task, timeout=1)
+        await _drain_display_registration(account)
     assert "display" in submitted
 
 
-async def test_kids_device_added_during_display_probe_registers_later(
+async def test_display_probe_exception_keeps_setup_loaded(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A failing probe stays a background failure, not a platform failure."""
+    entry, account, _ = switch_setup
+
+    async def failing_display(*_args, **_kwargs):
+        raise RuntimeError("probe failed")
+
+    monkeypatch.setattr(switch_platform, "async_get_display_state", failing_display)
+    add = MagicMock()
+
+    assert await switch_platform.async_setup_entry(mock_hass, entry, add)
+    await _drain_display_registration(account)
+    # The filtered switches and the LED batch were submitted; no display batch.
+    assert add.call_count == 2
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
+
+
+async def test_setup_retry_cancels_previous_registration(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A setup retry cancels the previous background registration."""
+    entry, account, _ = switch_setup
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_display(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        return SimpleNamespace(supports=lambda _setting: True)
+
+    monkeypatch.setattr(switch_platform, "async_get_display_state", slow_display)
+    add = MagicMock()
+
+    await switch_platform.async_setup_entry(mock_hass, entry, add)
+    await asyncio.wait_for(started.wait(), timeout=1)
+    previous = account["display_registration_switch"]
+
+    await switch_platform.async_setup_entry(mock_hass, entry, add)
+    await asyncio.wait_for(asyncio.gather(previous, return_exceptions=True), timeout=1)
+    assert previous.cancelled()
+    replacement = account["display_registration_switch"]
+    assert replacement is not previous
+
+    release.set()
+    await asyncio.wait_for(asyncio.gather(replacement), timeout=1)
+    await _drain_display_registration(account)
+
+
+async def test_switch_setup_skips_replaced_display_state(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A state replaced after the probe gets no display switches."""
+    entry, account, _ = switch_setup
+    account["display_states"] = {"echo": object()}
+    replacement = SimpleNamespace(supports=lambda _setting: True)
+    monkeypatch.setattr(
+        switch_platform, "async_get_display_state", AsyncMock(return_value=replacement)
+    )
+    add = MagicMock()
+
+    await switch_platform.async_setup_entry(mock_hass, entry, add)
+    await _drain_display_registration(account)
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
+
+
+async def test_switch_setup_skips_retired_display_state(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A state retired during the probe gets no display switches."""
+    entry, account, _ = switch_setup
+    retired = SimpleNamespace(_stopped=True, supports=lambda _setting: True)
+    monkeypatch.setattr(
+        switch_platform, "async_get_display_state", AsyncMock(return_value=retired)
+    )
+    add = MagicMock()
+
+    await switch_platform.async_setup_entry(mock_hass, entry, add)
+    await _drain_display_registration(account)
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
+
+
+async def test_display_add_failure_recovers_within_setup(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A rejected display batch is retried without another setup call."""
+    entry, account, _ = switch_setup
+    display_attempts = 0
+
+    def schedule(entities, _):
+        nonlocal display_attempts
+        ids = [entity.unique_id for entity in entities]
+        if "display" in ids:
+            display_attempts += 1
+            if display_attempts == 1:
+                raise RuntimeError("display add failed")
+
+    monkeypatch.setattr(switch_platform, "DISPLAY_REGISTRATION_RETRY_DELAY", 0)
+    assert await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    await _drain_display_registration(account)
+
+    assert display_attempts == 2
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" in switches
+    assert "adaptive_brightness" in switches
+
+
+async def test_display_add_failure_is_bounded(mock_hass, switch_setup, monkeypatch):
+    """A permanently rejected display batch stops at the bounded attempt count."""
+    entry, account, _ = switch_setup
+    display_attempts = 0
+
+    def schedule(entities, _):
+        nonlocal display_attempts
+        ids = [entity.unique_id for entity in entities]
+        if "display" in ids:
+            display_attempts += 1
+            raise RuntimeError("display add failed")
+
+    monkeypatch.setattr(switch_platform, "DISPLAY_REGISTRATION_RETRY_DELAY", 0)
+    assert await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    await _drain_display_registration(account)
+
+    assert display_attempts == switch_platform.DISPLAY_REGISTRATION_ATTEMPTS
+    switches = account["entities"]["switch"].get("echo", {})
+    assert "display_power" not in switches
+    assert "adaptive_brightness" not in switches
+
+
+async def test_late_display_registration_dropped_after_removal(
+    mock_hass, switch_setup, monkeypatch
+):
+    """A probe result that arrives after removal adds no entities."""
+    entry, account, _ = switch_setup
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def slow_display(*_args, **_kwargs):
+        started.set()
+        await release.wait()
+        return SimpleNamespace(supports=lambda _setting: True)
+
+    monkeypatch.setattr(switch_platform, "async_get_display_state", slow_display)
+    add = MagicMock()
+
+    await switch_platform.async_setup_entry(mock_hass, entry, add)
+    await asyncio.wait_for(started.wait(), timeout=1)
+    # Removal retires the runtime account record.
+    mock_hass.data[DATA_ALEXAMEDIA]["accounts"].pop("test@example.com")
+    add.reset_mock()
+
+    release.set()
+    await _drain_display_registration(account)
+    add.assert_not_called()
+
+
+async def test_kids_device_added_between_setups_registers_later(
     mock_hass, switch_setup, monkeypatch
 ):
     """A new Kids device is registered after its client appears."""
@@ -477,22 +664,22 @@ async def test_kids_device_added_during_display_probe_registers_later(
 
     monkeypatch.setattr(switch_platform, "AmazonKidsSwitch", kids_switch)
 
-    async def add_during_probe(*_args, **_kwargs):
+    def schedule(entities, _):
+        # Discovery adds the device while the first setup submits its batch.
         account["devices"]["media_player"]["new-kids"] = {
             "deviceFamily": "ECHO",
             "deviceType": "echo-type",
         }
-        return SimpleNamespace(supports=lambda _setting: True)
 
-    monkeypatch.setattr(switch_platform, "async_get_display_state", add_during_probe)
-
-    await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
+    await switch_platform.async_setup_entry(mock_hass, entry, schedule)
+    await _drain_display_registration(account)
     assert account["entities"]["amazon_kids_switch"] == []
 
     account["entities"]["media_player"]["new-kids"] = SimpleNamespace(
         device_serial_number="new-kids"
     )
     await switch_platform.async_setup_entry(mock_hass, entry, MagicMock())
+    await _drain_display_registration(account)
 
     callback = kids.async_add_when_dashboard.await_args_list[-1].args[0]
     await callback()

@@ -112,6 +112,15 @@ SERVICE_ENABLE_ALARM = "enable_alarm"
 SERVICE_DISABLE_ALARM = "disable_alarm"
 SERVICE_DELETE_ALARM = "delete_alarm"
 SERVICE_SKIP_NEXT_ALARM = "skip_next_alarm"
+SERVICE_GET_SMART_HOME_GROUPS = "get_smart_home_groups"
+SERVICE_CREATE_SMART_HOME_GROUP = "create_smart_home_group"
+SERVICE_RENAME_SMART_HOME_GROUP = "rename_smart_home_group"
+SERVICE_SET_SMART_HOME_GROUP_MEMBERS = "set_smart_home_group_members"
+SERVICE_DELETE_SMART_HOME_GROUP = "delete_smart_home_group"
+SERVICE_RENAME_SMART_HOME_DEVICE = "rename_smart_home_device"
+SERVICE_SET_SMART_HOME_DEVICE_ENABLED = "set_smart_home_device_enabled"
+SERVICE_FORGET_SMART_HOME_DEVICE = "forget_smart_home_device"
+SERVICE_DISCOVER_SMART_HOME_DEVICES = "discover_smart_home_devices"
 
 # Backoff durations for the last-called probe worker
 LAST_CALLED_429_BACKOFF_INITIAL_S = 30.0
@@ -188,6 +197,11 @@ ATTR_CHILD = "child"
 ATTR_ALARM_ID = "alarm_id"
 ATTR_TIME = "time"
 ATTR_DAYS = "days"
+ATTR_NAME = "name"
+ATTR_GROUP_ID = "group_id"
+ATTR_APPLIANCE_IDS = "appliance_ids"
+ATTR_ENDPOINT_ID = "endpoint_id"
+ATTR_ENABLED = "enabled"
 COMMON_BUCKET_COUNTS = (
     "accounts",
     "devices",

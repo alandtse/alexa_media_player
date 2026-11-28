@@ -333,6 +333,14 @@
       "next_reminder": {
         "name": "Next reminder"
       }
+    },
+    "todo": {
+      "shopping_list": {
+        "name": "Shopping list"
+      },
+      "to_do_list": {
+        "name": "To-do list"
+      }
     }
   },
   "issues": {

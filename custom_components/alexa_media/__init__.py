@@ -3247,9 +3247,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
                     "PUSH_LIST_CHANGE",  # Clear a shopping list https://github.com/alandtse/alexa_media_player/issues/1190
                     "PUSH_LIST_ITEM_CHANGE",  # Update shopping list
                 ]:
-                    # To-do
-                    _LOGGER.debug("%s currently not supported", command)
-                    pass
+                    # The event names the list, not its contents: read it again.
+                    alexa_lists = account.get("alexa_lists")
+                    if alexa_lists is not None:
+                        await alexa_lists.async_request_refresh()
 
                 elif command in [
                     "PUSH_CONTENT_FOCUS_CHANGE",  # Likely prime related refocus
@@ -3508,6 +3509,10 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
     account_data = hass.data[DATA_ALEXAMEDIA]["accounts"][email]
     if not account_data.get("account_sensor_forwarded"):
         await hass.config_entries.async_forward_entry_setups(config_entry, ["sensor"])
+    # The Alexa lists belong to the account as well, not to an Echo.
+    if not account_data.get("todo_forwarded"):
+        await hass.config_entries.async_forward_entry_setups(config_entry, ["todo"])
+        account_data["todo_forwarded"] = True
 
     # Services are registered once in async_setup; attach the setup-local callback.
     hass.data[DATA_ALEXAMEDIA]["accounts"][email][
@@ -3556,6 +3561,26 @@ async def async_unload_entry(hass, entry) -> bool:
     if not account:
         # A failed setup may have left no runtime record for this entry.
         return True
+    # Unload the Alexa lists first: if that fails, the account stays loaded,
+    # because the list entities still use it.
+    if account.get("todo_forwarded"):
+        try:
+            todo_unloaded = await hass.config_entries.async_forward_entry_unload(
+                entry, "todo"
+            )
+        except Exception:
+            _LOGGER.exception(
+                "%s: Error unloading the Alexa lists; keeping the account loaded",
+                hide_email(email),
+            )
+            return False
+        if not todo_unloaded:
+            _LOGGER.error(
+                "%s: Unable to unload the Alexa lists; keeping the account loaded",
+                hide_email(email),
+            )
+            return False
+        account.pop("todo_forwarded", None)
     _pop_relogin_listeners(hass, email)
     # Cancel the display retry before the first await so it cannot queue a
     # second reload while this unload is waiting on other tasks.

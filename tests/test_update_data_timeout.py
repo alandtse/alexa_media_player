@@ -266,3 +266,22 @@ async def test_successful_discovery_prunes_stale_devices(hass, amazon_api):
     registry = dr.async_get(hass)
     assert registry.async_get(echo_device.id) is not None
     assert registry.async_get(stale_device.id) is None
+
+
+async def test_setup_forwards_the_lists_once(hass, amazon_api):
+    """The account's to-do platform is forwarded with the account sensor."""
+    devices, network_details = amazon_api
+    entry, _ = _entry_with_registered_device(hass)
+    devices.return_value = [_sample_echo_device()]
+    network_details.return_value = []
+
+    with patch(
+        "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+        AsyncMock(return_value=None),
+    ) as forward:
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert [call.args[1] for call in forward.await_args_list].count(["todo"]) == 1
+    assert hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]["todo_forwarded"] is True

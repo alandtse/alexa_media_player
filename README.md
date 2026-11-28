@@ -41,6 +41,12 @@ Allows for control of Amazon Echo products as home assistant media devices with 
 - Echo Show / Echo Dot with clock display power, brightness and adaptive
   brightness controls.
 - Restart button for Echo devices that support remote reboot.
+- Alexa shopping, to-do and custom lists as to-do lists on the Alexa Account
+  device: add, rename, check off and delete items. Changes made by voice or in
+  the Alexa app arrive through push; disable a list entity to stop reading
+  that list. Alexa keeps every completed item, and a list shows its open items
+  and the newest completed ones: clearing the completed items removes those,
+  and the next older ones show up afterwards.
 
 # Services
 

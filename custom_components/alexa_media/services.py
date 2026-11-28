@@ -473,6 +473,10 @@ class AlexaMediaServices:
         # AlexaPy reads a group and writes the whole document back, so two
         # changes to one group must not overlap or the later one undoes the other.
         self._smart_home_group_locks: dict[str, asyncio.Lock] = {}
+        # AlexaPy finds a new group by its name among the groups that were not
+        # there before the request, so two creations on one account must not
+        # overlap or one of them can return the other's group.
+        self._smart_home_create_locks: dict[str, asyncio.Lock] = {}
 
     async def register(self) -> None:
         """Register Alexa Media custom services."""
@@ -1300,7 +1304,13 @@ class AlexaMediaServices:
         await self._require_admin(call)
         accounts = self._get_accounts()
         email = call.data.get(ATTR_EMAIL)
-        if email:
+        if email is not None:
+            # An empty email is a mistake, not a request to pick the account.
+            if not email.strip():
+                raise ServiceValidationError(
+                    "email is empty; set the email of the Alexa account or leave "
+                    "it out when only one account is loaded"
+                )
             self._validate_requested_emails([email], accounts)
         elif len(accounts) == 1:
             email = next(iter(accounts))
@@ -1340,6 +1350,10 @@ class AlexaMediaServices:
     def _smart_home_group_lock(self, group_id: str) -> asyncio.Lock:
         """Return the lock that serializes changes to one smart-home group."""
         return self._smart_home_group_locks.setdefault(group_id, asyncio.Lock())
+
+    def _smart_home_create_lock(self, email: str) -> asyncio.Lock:
+        """Return the lock that serializes group creation on one account."""
+        return self._smart_home_create_locks.setdefault(email, asyncio.Lock())
 
     async def get_smart_home_groups(self, call: ServiceCall) -> dict[str, Any]:
         """Return the smart-home groups and devices of an Alexa account."""
@@ -1384,14 +1398,15 @@ class AlexaMediaServices:
         email, login_obj = await self._smart_home_account(call)
         name = call.data[ATTR_NAME]
         try:
-            group = await self._smart_home_request(
-                email,
-                login_obj,
-                f"create the smart-home group {name}",
-                AlexaAPI.create_appliance_group,
-                name,
-                call.data[ATTR_APPLIANCE_IDS],
-            )
+            async with self._smart_home_create_lock(email):
+                group = await self._smart_home_request(
+                    email,
+                    login_obj,
+                    f"create the smart-home group {name}",
+                    AlexaAPI.create_appliance_group,
+                    name,
+                    call.data[ATTR_APPLIANCE_IDS],
+                )
         except HomeAssistantError as err:
             # The confirmation read runs after the request, so the group may
             # exist even though the call failed.

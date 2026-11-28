@@ -297,6 +297,59 @@ async def test_changes_to_one_group_do_not_overlap(call, amazon):
     assert overlaps == [1, 1]
 
 
+async def test_creations_on_one_account_do_not_overlap(call, amazon):
+    """Two creations run one after the other, so each finds its own new group."""
+    running = 0
+    overlaps = []
+
+    async def _create(_login, name, _appliance_ids):
+        nonlocal running
+        running += 1
+        overlaps.append(running)
+        await asyncio.sleep(0.01)
+        running -= 1
+        return {"groupId": f"{GROUP_ID}.{name}", "name": name}
+
+    amazon.create_appliance_group.side_effect = _create
+
+    first, second = await asyncio.gather(
+        call("create_smart_home_group", {"name": "Office"}),
+        call("create_smart_home_group", {"name": "Office"}),
+    )
+
+    assert overlaps == [1, 1]
+    assert first["id"] == second["id"] == f"{GROUP_ID}.Office"
+    assert amazon.create_appliance_group.await_count == 2
+
+
+async def test_creation_lock_is_per_account(call, amazon, accounts):
+    """A creation on one account does not wait for another account."""
+    accounts[OTHER_EMAIL] = _account(email=OTHER_EMAIL)
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _create(login, name, _appliance_ids):
+        if login is accounts[EMAIL]["login_obj"]:
+            started.set()
+            await release.wait()
+        return {"groupId": f"{GROUP_ID}.{name}", "name": name}
+
+    amazon.create_appliance_group.side_effect = _create
+
+    blocked = asyncio.ensure_future(
+        call("create_smart_home_group", {"name": "Office", "email": EMAIL})
+    )
+    await started.wait()
+    other = await asyncio.wait_for(
+        call("create_smart_home_group", {"name": "Hall", "email": OTHER_EMAIL}),
+        timeout=1,
+    )
+    assert other["name"] == "Hall"
+    assert not blocked.done()
+    release.set()
+    assert (await blocked)["name"] == "Office"
+
+
 @pytest.mark.parametrize(("service", "data", "method", "args"), CHANGES)
 async def test_change_calls_alexa(call, amazon, accounts, service, data, method, args):
     """Each change passes the login and the IDs to AlexaAPI."""
@@ -356,6 +409,15 @@ async def test_several_accounts_need_email(call, amazon, accounts, service):
 
     with pytest.raises(ServiceValidationError, match="set email"):
         await call(service, data)
+    assert amazon.mock_calls == []
+
+
+@pytest.mark.parametrize("email", ["", "  "], ids=["empty", "blank"])
+@pytest.mark.parametrize("service", SERVICES)
+async def test_empty_email_is_rejected(call, amazon, accounts, service, email):
+    """An empty email never falls back to the only loaded account."""
+    with pytest.raises(ServiceValidationError, match="email is empty"):
+        await call(service, {**DATA[service], "email": email})
     assert amazon.mock_calls == []
 
 

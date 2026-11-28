@@ -32,7 +32,11 @@ from . import (
     hide_email,
     hide_serial,
 )
-from .alexa_entity import parse_power_from_coordinator, parse_value_from_coordinator
+from .alexa_entity import (
+    parse_availability_from_coordinator,
+    parse_power_from_coordinator,
+    parse_value_from_coordinator,
+)
 from .alexa_media import AlexaMedia
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .aqm_led import resolve_endpoint_id, set_led_state
@@ -597,6 +601,13 @@ class SmartSwitch(CoordinatorEntity, SwitchDevice):
     def unique_id(self):
         """Return unique id."""
         return self.alexa_entity_id
+
+    @property
+    def available(self) -> bool:
+        """Return whether switch is available."""
+        return super().available and parse_availability_from_coordinator(
+            self.coordinator, self.alexa_entity_id
+        )
 
     @property
     def is_on(self):

@@ -27,7 +27,10 @@ from . import (
     _network_allowed,
     hide_email,
 )
-from .alexa_entity import parse_detection_state_from_coordinator
+from .alexa_entity import (
+    parse_availability_from_coordinator,
+    parse_detection_state_from_coordinator,
+)
 from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .connectivity import connectivity_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
@@ -185,6 +188,13 @@ class AlexaContact(CoordinatorEntity, BinarySensorEntity):
     def unique_id(self):
         """Return unique id."""
         return self.alexa_entity_id
+
+    @property
+    def available(self) -> bool:
+        """Return whether contact sensor is available."""
+        return super().available and parse_availability_from_coordinator(
+            self.coordinator, self.alexa_entity_id
+        )
 
     @property
     def device_info(self):

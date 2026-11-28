@@ -115,6 +115,42 @@ def is_local(appliance: dict[str, Any]) -> bool:
     if appliance.get("manufacturerName") in manufacturerNames:
         return not is_skill(appliance)
 
+    # Allow common third-party smart home devices (SmartLife, SmartThings, Tuya, Koogeek, Tapo, etc.)
+    # while explicitly excluding loopback bridges from Home Assistant, Node-RED, or Matterbridge.
+    third_party_manufacturers = (
+        "smartlife",
+        "smartthings",
+        "tuya",
+        "koogeek",
+        "tapo",
+        "tp-link",
+        "nanoleaf",
+        "meross",
+        "gosund",
+        "broadlink",
+        "govee",
+        "lifx",
+        "yeelight",
+        "switchbot",
+    )
+    manufacturer = str(appliance.get("manufacturerName", "")).lower()
+    if manufacturer:
+        if any(
+            loopback in manufacturer
+            for loopback in (
+                "node-red",
+                "home assistant",
+                "homeassistant",
+                "matterbridge",
+                "t0bst4r",
+                "testvendor",
+            )
+        ):
+            return False
+
+        if any(brand in manufacturer for brand in third_party_manufacturers):
+            return True
+
     # Zigbee devices are guaranteed to be local and have a particular pattern of id
     zigbee_pattern = re.compile(
         "AAA_SonarCloudService_([0-9A-F][0-9A-F]:){7}[0-9A-F][0-9A-F]", flags=re.I
@@ -614,16 +650,91 @@ async def get_entity_data(
     entities = {}
     if entity_ids:
         raw = await AlexaAPI.get_entity_state(login_obj, entity_ids=entity_ids)
-        device_states = raw.get("deviceStates", []) if isinstance(raw, dict) else None
-        if device_states:
+        if isinstance(raw, dict):
+            device_states = raw.get("deviceStates", [])
             for device_state in device_states:
                 entity_id = safe_get(device_state, ["entity", "entityId"])
                 if entity_id:
                     entities[entity_id] = []
+                    if device_state.get("error"):
+                        entities[entity_id].append(
+                            {
+                                "namespace": "Alexa.EndpointHealth",
+                                "name": "connectivity",
+                                "value": {"value": "UNREACHABLE"},
+                                "error": device_state.get("error"),
+                            }
+                        )
                     cap_states = device_state.get("capabilityStates", [])
                     for cap_state in cap_states:
-                        entities[entity_id].append(json.loads(cap_state))
+                        try:
+                            parsed = json.loads(cap_state)
+                            if isinstance(parsed, dict):
+                                entities[entity_id].append(parsed)
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+
+            for err in raw.get("errors", []):
+                entity_id = safe_get(err, ["entity", "entityId"])
+                if entity_id and entity_id not in entities:
+                    code = err.get("code") or "ENDPOINT_UNREACHABLE"
+                    if code in (
+                        "ENDPOINT_UNREACHABLE",
+                        "TransientAccessTokenRetrievalException",
+                        "NO_SUCH_ENDPOINT",
+                        "DEVICE_DELETED",
+                        "INVALID_ACCESS_TOKEN_EXCEPTION",
+                        "DEVICE_OFFLINE",
+                        "UNREACHABLE",
+                    ):
+                        entities[entity_id] = [
+                            {
+                                "namespace": "Alexa.EndpointHealth",
+                                "name": "connectivity",
+                                "value": {"value": "UNREACHABLE"},
+                                "error": code,
+                            }
+                        ]
     return entities
+
+
+def parse_availability_from_coordinator(
+    coordinator: DataUpdateCoordinator, entity_id: str
+) -> bool:
+    """Get the availability of an entity from the coordinator data."""
+    if not coordinator.last_update_success:
+        return False
+    if not coordinator.data:
+        return False
+    if entity_id not in coordinator.data:
+        return True
+
+    cap_states = coordinator.data[entity_id]
+    if not cap_states:
+        return False
+
+    for cap_state in cap_states:
+        if (
+            cap_state.get("namespace") == "Alexa.EndpointHealth"
+            and cap_state.get("name") == "connectivity"
+        ):
+            val = cap_state.get("value")
+            if isinstance(val, dict):
+                val = val.get("value")
+            if str(val).upper() in ("UNREACHABLE", "OFFLINE", "DOWN"):
+                return False
+        if cap_state.get("error") in (
+            "ENDPOINT_UNREACHABLE",
+            "TransientAccessTokenRetrievalException",
+            "NO_SUCH_ENDPOINT",
+            "DEVICE_DELETED",
+            "INVALID_ACCESS_TOKEN_EXCEPTION",
+            "DEVICE_OFFLINE",
+            "UNREACHABLE",
+        ):
+            return False
+
+    return True
 
 
 def parse_temperature_from_coordinator(

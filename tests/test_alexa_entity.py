@@ -8,6 +8,7 @@ from custom_components.alexa_media.alexa_entity import (
     is_known_ha_bridge,
     is_local,
     is_skill,
+    parse_availability_from_coordinator,
 )
 
 
@@ -297,3 +298,149 @@ class TestIsLocal:
         appliance = {"applianceId": "invalid_pattern"}
         result = is_local(appliance)
         assert result is False
+
+    def test_is_local_third_party_smartlife_skill(self):
+        """Test is_local returns True for SmartLife skill-connected device."""
+        appliance = {
+            "manufacturerName": "SmartLife",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert is_local(appliance)
+
+    def test_is_local_third_party_smartthings_skill(self):
+        """Test is_local returns True for SmartThings skill-connected device."""
+        appliance = {
+            "manufacturerName": "SmartThings",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert is_local(appliance)
+
+    def test_is_local_third_party_tuya_skill(self):
+        """Test is_local returns True for Tuya skill-connected device."""
+        appliance = {
+            "manufacturerName": "Tuya",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert is_local(appliance)
+
+    def test_is_local_loopback_home_assistant(self):
+        """Test is_local returns False for Home Assistant bridge loopback."""
+        appliance = {
+            "manufacturerName": "Home Assistant",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert not is_local(appliance)
+        # Verify loopback exclusion takes precedence even when combined with an allowed brand
+        appliance["manufacturerName"] = "Home Assistant Tuya"
+        assert not is_local(appliance)
+
+    def test_is_local_loopback_nodered(self):
+        """Test is_local returns False for Node-RED bridge loopback."""
+        appliance = {
+            "manufacturerName": "Node-RED",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert not is_local(appliance)
+        appliance["manufacturerName"] = "Node-RED SmartLife"
+        assert not is_local(appliance)
+
+    def test_is_local_loopback_matterbridge(self):
+        """Test is_local returns False for Matterbridge loopback."""
+        appliance = {
+            "manufacturerName": "Matterbridge",
+            "driverIdentity": {"namespace": "SKILL"},
+        }
+        assert not is_local(appliance)
+        appliance["manufacturerName"] = "Matterbridge SmartThings"
+        assert not is_local(appliance)
+
+
+class TestParseAvailabilityFromCoordinator:
+    """Test the parse_availability_from_coordinator function."""
+
+    class MockCoordinator:
+        """Mock DataUpdateCoordinator for availability tests."""
+
+        def __init__(self, data=None, last_update_success=True):
+            self.data = data
+            self.last_update_success = last_update_success
+
+    def test_coordinator_failed_update(self):
+        """Test returns False when coordinator last_update_success is False."""
+        coord = self.MockCoordinator(data={"dev1": []}, last_update_success=False)
+        assert parse_availability_from_coordinator(coord, "dev1") is False
+
+    def test_coordinator_missing_entity_assumed_available(self):
+        """Test returns True (assumed available) when entity is not in coordinator data."""
+        coord = self.MockCoordinator(data={"dev1": []})
+        assert parse_availability_from_coordinator(coord, "dev2") is True
+
+    def test_coordinator_empty_data(self):
+        """Test returns False when coordinator data is None."""
+        coord = self.MockCoordinator(data=None)
+        assert parse_availability_from_coordinator(coord, "dev1") is False
+
+    def test_entity_with_empty_states(self):
+        """Test returns False when entity states list is empty."""
+        coord = self.MockCoordinator(data={"dev1": []})
+        assert parse_availability_from_coordinator(coord, "dev1") is False
+
+    def test_entity_online_ok(self):
+        """Test returns True when EndpointHealth connectivity is OK."""
+        coord = self.MockCoordinator(
+            data={
+                "dev1": [
+                    {
+                        "namespace": "Alexa.EndpointHealth",
+                        "name": "connectivity",
+                        "value": {"value": "OK"},
+                    },
+                    {
+                        "namespace": "Alexa.PowerController",
+                        "name": "powerState",
+                        "value": "ON",
+                    },
+                ]
+            }
+        )
+        assert parse_availability_from_coordinator(coord, "dev1") is True
+
+    def test_entity_unreachable_endpoint_health(self):
+        """Test returns False when EndpointHealth connectivity is UNREACHABLE."""
+        coord = self.MockCoordinator(
+            data={
+                "dev1": [
+                    {
+                        "namespace": "Alexa.EndpointHealth",
+                        "name": "connectivity",
+                        "value": {"value": "UNREACHABLE"},
+                    }
+                ]
+            }
+        )
+        assert parse_availability_from_coordinator(coord, "dev1") is False
+
+    def test_entity_with_hard_error_codes(self):
+        """Test returns False when hard unrecoverable error code is present."""
+        for error_code in (
+            "ENDPOINT_UNREACHABLE",
+            "TransientAccessTokenRetrievalException",
+            "NO_SUCH_ENDPOINT",
+            "DEVICE_DELETED",
+            "INVALID_ACCESS_TOKEN_EXCEPTION",
+            "DEVICE_OFFLINE",
+            "UNREACHABLE",
+        ):
+            coord = self.MockCoordinator(
+                data={
+                    "dev1": [
+                        {
+                            "namespace": "Alexa.EndpointHealth",
+                            "name": "connectivity",
+                            "value": {"value": "UNREACHABLE"},
+                            "error": error_code,
+                        }
+                    ]
+                }
+            )
+            assert parse_availability_from_coordinator(coord, "dev1") is False

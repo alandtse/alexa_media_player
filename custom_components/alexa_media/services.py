@@ -468,8 +468,14 @@ class AlexaMediaServices:
         accounts = self._get_accounts()
         self._validate_requested_emails(requested_emails, accounts)
 
+        tasks = []
         for email, account_dict in accounts.items():
             if requested_emails and email not in requested_emails:
+                continue
+
+            existing_task = account_dict.get("service_update_last_called_task")
+            if existing_task and not existing_task.done():
+                tasks.append(existing_task)
                 continue
 
             login_obj = account_dict["login_obj"]
@@ -505,17 +511,22 @@ class AlexaMediaServices:
                     ):
                         account.pop("service_update_last_called_task", None)
 
-            # Cancel any existing task for this account before creating a new one
-            existing_task = account_dict.get("service_update_last_called_task")
-            if existing_task and not existing_task.done():
-                existing_task.cancel()
-
             # Store task handle for proper cleanup on unload
             task = self.hass.async_create_task(
                 _run_update_last_called(email, login_obj),
                 name=f"alexa_media.update_last_called.{hide_email(email)}",
             )
-            account_dict["service_update_last_called_task"] = task
+            if not task.done():
+                account_dict["service_update_last_called_task"] = task
+            tasks.append(task)
+
+        if tasks:
+            # Waiting does not transfer cancellation to these account-owned tasks.
+            # Unloading one account can cancel its task while the others finish.
+            await asyncio.wait(tasks)
+            for task in tasks:
+                if not task.cancelled():
+                    task.result()
 
     async def _check_entity_permissions(
         self, call: ServiceCall, entity_ids: Sequence[str], permission: str

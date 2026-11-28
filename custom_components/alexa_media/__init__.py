@@ -592,7 +592,9 @@ async def async_setup(hass, config):
 
         async def _service_update_last_called(login_obj):
             """Update last_called for the account behind a login object."""
-            await _async_update_last_called_global(hass, login_obj, login_obj.email)
+            await _async_update_last_called_global(
+                hass, login_obj, login_obj.email, force=True
+            )
 
         def _service_schedule_notifications_refresh(
             hass, email, device_serial=None, reason=""
@@ -744,6 +746,14 @@ async def _async_update_last_called_global(
                 last_called = await AlexaAPI.get_last_device_serial(login_obj)
             else:
                 async with api_lock:
+                    # Explicit refreshes bypass probe scheduling, but honor its 429 backoff.
+                    if (
+                        force
+                        and account.get("last_called_probe_backoff_s", 0.0) > 0
+                        and time.monotonic()
+                        < account.get("last_called_probe_next_allowed", 0.0)
+                    ):
+                        return
                     last_called = await AlexaAPI.get_last_device_serial(login_obj)
         except asyncio.CancelledError:
             # Task cancelled during unload/shutdown; propagate cancellation.

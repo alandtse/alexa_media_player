@@ -61,6 +61,10 @@ Allows for control of Amazon Echo products as home assistant media devices with 
 | `alexa_media.delete_alarm`             | Delete an Echo alarm.                                 |
 | `alexa_media.skip_next_alarm`          | Skip the next scheduled alarm.                        |
 
+`alexa_media.update_last_called` waits for the refresh attempt for every selected
+account. Amazon history can still be stale or unavailable. Home Assistant may
+deliver downstream events and update entity state after the action returns.
+
 # Events
 
 - `alexa_media_voice_command`: fired for new voice-history records that pass the

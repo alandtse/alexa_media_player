@@ -1,10 +1,21 @@
 """Tests for the alexa_media_voice_command record helpers."""
 
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from custom_components.alexa_media import (
+    _async_update_last_called_global,
     _collect_new_voice_records,
+    _select_last_called_payload_from_records,
+    _store_and_dispatch_last_called,
     _take_new_voice_records,
 )
-from custom_components.alexa_media.const import LAST_CALLED_STALE_FUDGE_MS as FUDGE
+from custom_components.alexa_media.const import (
+    DATA_ALEXAMEDIA,
+    LAST_CALLED_STALE_FUDGE_MS as FUDGE,
+)
 
 SERIALS = {"ECHO_A", "ECHO_B"}
 
@@ -220,3 +231,95 @@ def test_take_without_watermark_bounds_by_queue_or_payload():
         "eggs",
     ]
     assert _take({}, records, 100_000) == ["milk", "eggs"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("force_first", "forced_offset"),
+    [(True, 0), (False, 0), (True, 2 * FUDGE)],
+    ids=["refresh-first", "probe-first", "refresh-has-newer-record"],
+)
+async def test_forced_refresh_preserves_pending_probe_voice_records(
+    force_first, forced_offset
+):
+    """The actual refresh and probe helpers keep independent history progress."""
+    email = "test@example.com"
+    startup_ts = 1700000000000
+    pending_ts = startup_ts + 2 * FUDGE
+    forced_ts = pending_ts + forced_offset
+    account = {"last_called_api_lock": asyncio.Lock()}
+    other_account = {}
+    hass = MagicMock(
+        data={DATA_ALEXAMEDIA: {"accounts": {email: account, "other": other_account}}}
+    )
+    login = MagicMock(close_requested=False, status={"login_successful": True})
+    login.session.closed = False
+    startup = _record("ECHO_A", startup_ts, "startup")
+    pending = _record("ECHO_A", pending_ts, "pending")
+    forced_summary = "newer" if forced_offset else "pending"
+    refresh_started = asyncio.Event()
+    release_refresh = asyncio.Event()
+
+    async def read_history(login_obj):
+        refresh_started.set()
+        await release_refresh.wait()
+        return {
+            "serialNumber": "ECHO_A",
+            "timestamp": forced_ts,
+            "summary": forced_summary,
+        }
+
+    async def refresh():
+        await _async_update_last_called_global(hass, login, email, force=True)
+
+    def probe(records, serial, ts):
+        queued = [{"serial": serial, "activity_ts": ts}]
+        payload, resolved = _select_last_called_payload_from_records(
+            records, queued, account, SERIALS
+        )
+        assert resolved == {(serial, None)}
+        assert payload["timestamp"] == ts
+        summaries = _take(account, records, ts, earliest_ts=ts)
+        _store_and_dispatch_last_called(hass, email, payload)
+        return summaries
+
+    with (
+        patch("custom_components.alexa_media.async_dispatcher_send"),
+        patch(
+            "custom_components.alexa_media.AlexaAPI.get_last_device_serial",
+            new=AsyncMock(side_effect=read_history),
+        ) as read,
+    ):
+        _store_and_dispatch_last_called(
+            hass,
+            email,
+            {"serialNumber": "ECHO_A", "timestamp": startup_ts, "summary": "startup"},
+        )
+        forced_refresh = asyncio.create_task(refresh())
+        try:
+            await refresh_started.wait()
+            if force_first:
+                release_refresh.set()
+                await forced_refresh
+                assert account["last_called_customer_history_ts"] == startup_ts
+
+            assert probe([startup, pending], "ECHO_A", pending_ts) == ["pending"]
+            assert account["last_called"]["timestamp"] == (
+                forced_ts if force_first else pending_ts
+            )
+            assert account["last_called_customer_history_ts"] == pending_ts
+        finally:
+            release_refresh.set()
+            await forced_refresh
+
+        for _ in range(2):
+            await refresh()
+        late = _record("ECHO_A", pending_ts - 1, "late")
+        next_ts = forced_ts + 1
+        next_record = _record("ECHO_B", next_ts, "next")
+        assert probe([startup, pending, late, next_record], "ECHO_B", next_ts) == [
+            "late",
+            "next",
+        ]
+        assert read.await_count == 3
+        assert other_account == {}

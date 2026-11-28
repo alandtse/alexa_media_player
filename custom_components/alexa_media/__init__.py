@@ -556,8 +556,8 @@ def _take_new_voice_records(
 
     # History can list a record after a newer one, so keep an overlap below
     # the watermark and dedupe against what was already emitted. Only while
-    # this function emitted up to the watermark: refresh paths advance it
-    # without emitting, and the overlap would replay their records late.
+    # this function emitted up to the watermark: automatic refresh paths can
+    # advance it without emitting, and the overlap would replay their records.
     lower_ts = max(floor, watermark)
     if watermark <= int(account.get("last_called_voice_upper_ts") or 0):
         lower_ts = max(floor, watermark - LAST_CALLED_STALE_FUDGE_MS)
@@ -681,11 +681,16 @@ def _store_and_dispatch_last_called(
     prev = stored_data.get("last_called")
     changed = prev != payload
 
-    if ts > 0:
-        stored_data["last_called_customer_history_ts"] = max(
-            int(stored_data.get("last_called_customer_history_ts") or 0),
-            ts,
-        )
+    # Forced refreshes publish last_called without advancing the probe's cutoff
+    # for matching queued activity and emitting voice-command events.
+    if ts > 0 and not force:
+        watermark = int(stored_data.get("last_called_customer_history_ts") or 0)
+        stored_data["last_called_customer_history_ts"] = max(watermark, ts)
+        prev_ts = (prev or {}).get("timestamp")
+        # The probe can process an older command after a forced refresh
+        # has already published a newer last_called result.
+        if isinstance(prev_ts, int) and prev_ts > max(watermark, ts):
+            return
 
     stored_data["last_called"] = payload
 
@@ -1986,7 +1991,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         account.setdefault("last_called_api_lock", asyncio.Lock())
         account.setdefault(
             "last_called_customer_history_ts", 0
-        )  # ms epoch last applied
+        )  # ms epoch cutoff for automatic history processing
         account.setdefault("last_called_probe_backoff_s", 0.0)
         account.setdefault("last_called_probe_event", asyncio.Event())
         account.setdefault("last_called_probe_next_allowed", 0.0)  # monotonic seconds

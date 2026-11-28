@@ -11,6 +11,7 @@ import pytest
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
 from custom_components.alexa_media.display import (
     DISPLAY_FAILURE_LIMIT,
+    DISPLAY_PROBE_ATTEMPTS,
     DISPLAY_PROBE_CONCURRENCY,
     DISPLAY_SETTINGS,
     SETTING_ADAPTIVE_BRIGHTNESS,
@@ -2213,13 +2214,15 @@ def test_schedule_display_reload_requires_entry_id():
 
 @pytest.mark.asyncio
 async def test_probe_captures_concurrent_throttle_per_request():
-    """A concurrent throttled 400 stays temporary, not unsupported."""
+    """A 400 that overlapped a retry is reported as temporary, not unsupported."""
     login = MagicMock()
     login._rate_retry_inflight = False
     power_started = asyncio.Event()
     brightness_done = asyncio.Event()
+    brightness_attempts = 0
 
     async def fake_get_setting(_login, _account_id, setting):
+        nonlocal brightness_attempts
         if setting == SETTING_DISPLAY_POWER:
             login._rate_retry_inflight = True
             power_started.set()
@@ -2227,12 +2230,19 @@ async def test_probe_captures_concurrent_throttle_per_request():
             login._rate_retry_inflight = False
             return 200, "ON"
         if setting == SETTING_BRIGHTNESS:
+            brightness_attempts += 1
             await power_started.wait()
-            assert login._rate_retry_inflight is True
-            # Keep the throttle window open long enough for the watcher to
-            # sample it; a real retry holds this for 10-63 seconds.
-            await asyncio.sleep(0.1)
-            brightness_done.set()
+            if brightness_attempts == 1:
+                # The first attempt overlaps the power request's retry, so the
+                # probe sees a throttled 400 and asks again once it clears.
+                await asyncio.sleep(0.05)
+                brightness_done.set()
+                return 400, None
+            # The last attempt is throttled on its own: the probe must report a
+            # temporary failure instead of caching the setting as unsupported.
+            login._rate_retry_inflight = True
+            await asyncio.sleep(0.05)
+            login._rate_retry_inflight = False
             return 400, None
         return 200, "OFF"
 
@@ -2242,6 +2252,7 @@ async def test_probe_captures_concurrent_throttle_per_request():
             new_callable=AsyncMock,
             side_effect=fake_get_setting,
         ),
+        patch("custom_components.alexa_media.display.DISPLAY_PROBE_RETRY_DELAY", 0),
         patch(
             "custom_components.alexa_media.display.DISPLAY_THROTTLE_WATCH_INTERVAL",
             0.001,
@@ -2251,6 +2262,8 @@ async def test_probe_captures_concurrent_throttle_per_request():
             MagicMock(), login, _device()
         )
 
+    assert brightness_attempts == DISPLAY_PROBE_ATTEMPTS
+    assert SETTING_BRIGHTNESS not in supported
     assert supported == {
         SETTING_DISPLAY_POWER: "ON",
         SETTING_ADAPTIVE_BRIGHTNESS: "OFF",

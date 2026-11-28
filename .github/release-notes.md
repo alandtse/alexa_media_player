@@ -24,7 +24,9 @@ output. Attribution lookup failures cannot abort a release.
 The preparation copies the installed **10.2.0** conventional Markdown templates
 into the ignored `.github/.release-templates` directory. Only the shared
 `commit_msg_links` macro changes: it appends the snapshot's author link immediately
-beside the existing PR link. Snapshot entries are keyed by unreleased commit SHA.
+beside the existing PR link. Snapshot entries are keyed by both the unreleased commit
+SHA and the PR reference (e.g. `abcdef0#123`), so a single squash commit that PSR parses
+into multiple records with different PR references credits each PR's author correctly.
 The changelog and release-note renders both import that same snapshot. Historical
 changelog text remains in PSR's update-mode footer; old GitHub releases are not
 edited. Template components and metadata are hidden files/directories, so PSR's

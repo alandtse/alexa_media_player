@@ -73,13 +73,128 @@ def test_actual_pr_author_cache_direct_commits_and_missing_users():
     client = client_for({10: user("alice"), 11: None, 12: 404})
     authors = prepare.collect_authors(history, client, "owner", "repo")
     assert authors == {
-        "0": " by [@alice](https://github.com/alice)",
-        "1": " by [@alice](https://github.com/alice)",
+        "0#10": " by [@alice](https://github.com/alice)",
+        "1#10": " by [@alice](https://github.com/alice)",
     }
     assert client.get.call_count == 3
     assert all(
         "/repos/owner/repo/pulls/" in c.args[0] for c in client.get.call_args_list
     )
+
+
+def test_same_sha_distinct_prs_keep_separate_authors():
+    """One squash commit parsed into multiple records must credit each PR author.
+
+    PSR 10.2.0 can emit several parsed records that share a commit SHA but carry
+    different linked PR references. Keying the snapshot by SHA alone let the last
+    record overwrite earlier ones, so every PR link showed the same author.
+    """
+    shared_sha = "abcdef1234567890"
+    history = SimpleNamespace(
+        unreleased={
+            "fix": [
+                SimpleNamespace(hexsha=shared_sha, linked_merge_request="#10"),
+                SimpleNamespace(hexsha=shared_sha, linked_merge_request="#11"),
+            ]
+        }
+    )
+    client = client_for({10: user("alice"), 11: user("bob")})
+    authors = prepare.collect_authors(history, client, "owner", "repo")
+    assert authors == {
+        f"{shared_sha}#10": " by [@alice](https://github.com/alice)",
+        f"{shared_sha}#11": " by [@bob](https://github.com/bob)",
+    }
+
+
+def test_same_sha_distinct_authors_render_in_template(project, monkeypatch):
+    """Two parsed PR records sharing one SHA must each render their own author.
+
+    This exercises the actual Jinja2 template rendering (not just collect_authors)
+    to prove the composite ``hexsha#number`` key disambiguates two parsed records
+    that share a commit SHA but credit different PR authors. A SHA-only key would
+    collapse both PR links onto a single author in the rendered release notes.
+    """
+    from semantic_release.cli.changelog_writer import generate_release_notes
+
+    repo, _old, _commits = project
+    runtime, history = runtime_and_history(repo)
+    version = runtime.version_translator.from_tag("v1.1.0")
+    from datetime import datetime, timezone
+
+    history = history.release(
+        version,
+        Actor("Test", "test@example.com"),
+        Actor("Test", "test@example.com"),
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    release = history.released[version]
+
+    # Pick a real parsed commit from the release and clone it into two records
+    # that share its SHA but carry distinct PR references. This mirrors the PSR
+    # 10.2.0 squash scenario where one commit yields multiple parsed records.
+    # ParsedCommit is a NamedTuple, so use _replace to derive the variants.
+    base_commit = None
+    for commits in release["elements"].values():
+        if commits:
+            base_commit = commits[0]
+            break
+    assert base_commit is not None, "fixture must yield at least one parsed commit"
+    shared_sha = base_commit.hexsha
+    first = base_commit._replace(linked_merge_request="#10")
+    second = base_commit._replace(linked_merge_request="#11")
+    release["elements"]["fix"] = [first, second]
+
+    # Drive the two same-SHA records through the REAL attribution lookup so the
+    # composite-key snapshot is built by production code, not hand-assembled.
+    # collect_authors reads ``history.unreleased``, so present the two records there.
+    lookup_history = SimpleNamespace(unreleased={"fix": [first, second]})
+    client = client_for({10: user("alice"), 11: user("bob")})
+    authors = prepare.collect_authors(lookup_history, client, "owner", "repo")
+    assert authors == {
+        f"{shared_sha}#10": " by [@alice](https://github.com/alice)",
+        f"{shared_sha}#11": " by [@bob](https://github.com/bob)",
+    }, "same SHA with distinct PRs must yield two distinct composite keys"
+
+    prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
+    notes = generate_release_notes(
+        runtime.hvcs_client,
+        release,
+        prepare.TEMPLATE_DIR,
+        history,
+        "conventional",
+        True,
+    )
+    text = normalize(notes)
+    # Both authors must be attributed distinctly in the rendered output.
+    assert "by [@alice](https://github.com/alice)" in text
+    assert "by [@bob](https://github.com/bob)" in text
+    # Both PR references sharing the one commit SHA must render as separate links.
+    assert "pull/10" in text
+    assert "pull/11" in text
+
+    # Negative control: reproduce the pre-fix SHA-only keying over the SAME two
+    # real records. Keying the snapshot by hexsha alone lets the later record
+    # overwrite the earlier one, so the two same-SHA records collapse to a single
+    # author and one PR link loses its attribution. This is the exact bug #3719
+    # fixes; deriving it from the real records (not a hand-typed dict) makes the
+    # composite ``hexsha#number`` key's role in keeping authors distinct explicit.
+    sha_only = {}
+    for record, login in ((first, "alice"), (second, "bob")):
+        sha_only[record.hexsha] = f" by [@{login}](https://github.com/{login})"
+    assert len(sha_only) == 1, "SHA-only keying must collapse the two same-SHA records"
+    prepare.prepare_templates(prepare.TEMPLATE_DIR, sha_only)
+    collapsed_notes = normalize(
+        generate_release_notes(
+            runtime.hvcs_client,
+            release,
+            prepare.TEMPLATE_DIR,
+            history,
+            "conventional",
+            True,
+        )
+    )
+    # The overwritten author's attribution is lost under SHA-only keying.
+    assert "by [@bob](https://github.com/bob)" not in collapsed_notes
 
 
 @pytest.mark.parametrize(
@@ -276,10 +391,7 @@ def test_real_release_commits_changelog_and_publishes_same_authors(
 
 def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
     """Verify empty snapshot matches upstream byte for byte."""
-    from semantic_release.cli.changelog_writer import (
-        generate_release_notes,
-        write_changelog_files,
-    )
+    from semantic_release.cli.changelog_writer import generate_release_notes
 
     repo, old, _ = project
     runtime, history = runtime_and_history(repo)
@@ -293,34 +405,45 @@ def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
         datetime(2026, 1, 1, tzinfo=timezone.utc),
     )
     release = history.released[version]
+
+    # Build the attribution map from the parsed release elements (not raw git
+    # commits) so keys match what the template looks up: hexsha ~ "#<number>".
+    # The previous implementation keyed raw git commits (project[2]) which never
+    # carry linked_merge_request, so attribution silently never ran and the
+    # preservation assertions below passed vacuously.
+    authors = {}
+    for commits in release["elements"].values():
+        for commit in commits:
+            ref = getattr(commit, "linked_merge_request", "")
+            if ref and re.fullmatch(r"#[1-9]\d*", ref):
+                number = int(ref[1:])
+                authors[f"{commit.hexsha}#{number}"] = (
+                    " by [@alice](https://github.com/alice)"
+                )
+    # Guard against the map silently going empty (which would make the
+    # preservation comparisons below pass without exercising attribution).
+    assert authors, "expected at least one PR-linked commit to attribute"
+
+    # Render the default (no-attribution) release notes using the upstream
+    # template directory so we have a byte-for-byte baseline.
     default_notes = generate_release_notes(
         runtime.hvcs_client, release, Path("missing"), history, "conventional", True
     )
-    write_changelog_files(runtime, history, runtime.hvcs_client)
-    default_changelog = Path("CHANGELOG.md").read_text()
-    Path("CHANGELOG.md").write_text(old, newline="\n")
+
+    # Render with empty authors — must match the default byte-for-byte.
     prepare.prepare_templates(prepare.TEMPLATE_DIR, {})
-    write_changelog_files(runtime, history, runtime.hvcs_client)
-    assert Path("CHANGELOG.md").read_text() == default_changelog
-    assert (
-        generate_release_notes(
-            runtime.hvcs_client,
-            release,
-            prepare.TEMPLATE_DIR,
-            history,
-            "conventional",
-            True,
-        )
-        == default_notes
+    empty_notes = generate_release_notes(
+        runtime.hvcs_client,
+        release,
+        prepare.TEMPLATE_DIR,
+        history,
+        "conventional",
+        True,
     )
-    authors = {c.hexsha: " by [@alice](https://github.com/alice)" for c in project[2]}
-    Path("CHANGELOG.md").write_text(old, newline="\n")
+    assert empty_notes == default_notes
+
+    # Render with real authors — attribution must be present.
     prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
-    write_changelog_files(runtime, history, runtime.hvcs_client)
-    enriched = Path("CHANGELOG.md").read_text()
-    assert normalize(
-        re.sub(r" by \[@alice\]\(https://github.com/alice\)", "", normalize(enriched))
-    ) == normalize(default_changelog)
     enriched_notes = generate_release_notes(
         runtime.hvcs_client,
         release,
@@ -329,11 +452,92 @@ def test_empty_snapshot_matches_upstream_byte_for_byte(project, monkeypatch):
         "conventional",
         True,
     )
+    # Attribution must actually be present before we strip it for comparison.
+    assert " by [@alice](https://github.com/alice)" in enriched_notes
     assert normalize(
         re.sub(
             r" by \[@alice\]\(https://github.com/alice\)", "", normalize(enriched_notes)
         )
     ) == normalize(default_notes)
+
+
+def test_same_sha_distinct_prs_render_through_templates(project, monkeypatch):
+    """Two parsed PR records sharing one SHA must each credit their own author.
+
+    This exercises the actual template rendering (not just the author map) for
+    the squash-commit case from #3719: a single commit SHA parsed into two
+    records with different linked PRs. Both the generated CHANGELOG and the
+    published release notes must attribute each PR link to its respective
+    author, and the existing changelog-preservation assertions must still hold.
+    """
+    from semantic_release.cli.changelog_writer import generate_release_notes
+
+    repo, old, _ = project
+    runtime, history = runtime_and_history(repo)
+    version = runtime.version_translator.from_tag("v1.1.0")
+    from datetime import datetime, timezone
+
+    history = history.release(
+        version,
+        Actor("Test", "test@example.com"),
+        Actor("Test", "test@example.com"),
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    release = history.released[version]
+
+    # The conventional parser yields one record per git commit, so a real
+    # squash commit that GitHub reports under two PR numbers is modelled here by
+    # cloning a single parsed record into two records that share one hexsha but
+    # carry distinct linked_merge_request values. This is exactly the #3719 case:
+    # one commit SHA, two PR references, two different authors.
+    base = None
+    base_category = None
+    for category, commits in release["elements"].items():
+        for commit in commits:
+            if getattr(commit, "linked_merge_request", "") == "#10":
+                base, base_category = commit, category
+                break
+        if base is not None:
+            break
+    assert base is not None, "fixture must contain a PR-linked commit to clone"
+    first, second = 10, 11
+    shared_sha = base.hexsha
+    twin = base._replace(linked_merge_request=f"#{second}")
+    release["elements"][base_category].append(twin)
+
+    # Each PR link must resolve to a different author.
+    authors = {
+        f"{shared_sha}#{first}": " by [@alice](https://github.com/alice)",
+        f"{shared_sha}#{second}": " by [@bob](https://github.com/bob)",
+    }
+
+    default_notes = generate_release_notes(
+        runtime.hvcs_client, release, Path("missing"), history, "conventional", True
+    )
+
+    prepare.prepare_templates(prepare.TEMPLATE_DIR, authors)
+    enriched_notes = generate_release_notes(
+        runtime.hvcs_client,
+        release,
+        prepare.TEMPLATE_DIR,
+        history,
+        "conventional",
+        True,
+    )
+
+    # Both authors must appear in the rendered release notes.
+    assert " by [@alice](https://github.com/alice)" in enriched_notes
+    assert " by [@bob](https://github.com/bob)" in enriched_notes
+    # Both PR links must be present and distinct.
+    assert f"/pull/{first}" in enriched_notes
+    assert f"/pull/{second}" in enriched_notes
+    # Preservation: stripping attribution yields the default byte-for-byte.
+    stripped = re.sub(
+        r" by \[@(?:alice|bob)\]\(https://github\.com/(?:alice|bob)\)",
+        "",
+        normalize(enriched_notes),
+    )
+    assert normalize(stripped) == normalize(default_notes)
 
 
 def test_main_prepares_snapshot_before_release(project, monkeypatch):

@@ -443,6 +443,44 @@ async def test_forced_last_called_dispatches_unchanged_payload():
 
 
 @pytest.mark.asyncio
+async def test_forced_last_called_redispatches_newer_cached_payload():
+    """A stale direct read cannot replace a newer result already published."""
+    payload = {
+        "serialNumber": "newer-echo",
+        "timestamp": 1700000001000,
+        "summary": "Newer command",
+    }
+    cutoff = 1700000000000
+    account = {
+        "last_called": payload,
+        "last_called_api_lock": asyncio.Lock(),
+        "last_called_customer_history_ts": cutoff,
+    }
+    hass = MagicMock(data={DATA_ALEXAMEDIA: {"accounts": {EMAIL: account}}})
+    login = MagicMock(close_requested=False, status={"login_successful": True})
+    login.session.closed = False
+    stale = {
+        "serialNumber": "older-echo",
+        "timestamp": "1700000000",
+        "summary": "Older command",
+    }
+    with (
+        patch(
+            "custom_components.alexa_media.AlexaAPI.get_last_device_serial",
+            new=AsyncMock(return_value=stale),
+        ) as read,
+        patch("custom_components.alexa_media.async_dispatcher_send") as dispatch,
+    ):
+        await _async_update_last_called_global(hass, login, EMAIL, force=True)
+
+    read.assert_awaited_once_with(login)
+    assert account["last_called"] == payload
+    assert account["last_called_customer_history_ts"] == cutoff
+    dispatch.assert_called_once()
+    assert dispatch.call_args.args[2] == {"last_called_change": payload}
+
+
+@pytest.mark.asyncio
 async def test_services_survive_unloading_last_account():
     """Unloading accounts cancels work but keeps the one-time domain services."""
     hass = MagicMock()

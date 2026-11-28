@@ -679,6 +679,7 @@ def _store_and_dispatch_last_called(
         payload["timestamp"] = ts
 
     prev = stored_data.get("last_called")
+    prev_ts = (prev or {}).get("timestamp")
     changed = prev != payload
 
     # Forced refreshes publish last_called without advancing the probe's cutoff
@@ -686,11 +687,13 @@ def _store_and_dispatch_last_called(
     if ts > 0 and not force:
         watermark = int(stored_data.get("last_called_customer_history_ts") or 0)
         stored_data["last_called_customer_history_ts"] = max(watermark, ts)
-        prev_ts = (prev or {}).get("timestamp")
         # The probe can process an older command after a forced refresh
         # has already published a newer last_called result.
         if isinstance(prev_ts, int) and prev_ts > max(watermark, ts):
             return
+    elif force and 0 < ts and isinstance(prev_ts, int) and prev_ts > ts:
+        # A direct read can lag behind the latest published activity.
+        payload = prev
 
     stored_data["last_called"] = payload
 

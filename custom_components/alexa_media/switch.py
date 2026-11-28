@@ -38,12 +38,15 @@ from .amazon_kids import KIDS_CAPABLE_FAMILIES, async_get_state
 from .aqm_led import resolve_endpoint_id, set_led_state
 from .const import CONF_EXTENDED_ENTITY_DISCOVERY
 from .display import (
+    DISPLAY_REGISTRATION_ATTEMPTS,
+    DISPLAY_REGISTRATION_RETRY_DELAY,
     SETTING_ADAPTIVE_BRIGHTNESS,
     SETTING_DISPLAY_POWER,
     AlexaAdaptiveBrightnessSwitch,
     AlexaDisplayPowerSwitch,
     async_get_display_state,
     can_probe_display,
+    display_registration_is_current,
 )
 from .helpers import (
     _catch_login_errors,
@@ -193,55 +196,64 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
         leds[id(entity)] = (entity, partial(smart_switches.append, entity))
         known_ids.add(unique_id)
 
-    display_task = asyncio.create_task(_probe_displays())
-    setup_tasks = account_dict.setdefault("display_setup_tasks", set())
-    setup_tasks.add(display_task)
-    display_task.add_done_callback(setup_tasks.discard)
+    registration_key = "display_registration_switch"
+
+    async def _register_displays():
+        """Probe display settings and add entities after setup returned."""
+        display_states = await _probe_displays()
+        if not display_states:
+            return
+        for attempt in range(1, DISPLAY_REGISTRATION_ATTEMPTS + 1):
+            if not display_registration_is_current(hass, account, account_dict):
+                return
+            display = {}
+            for key, display_state in display_states.items():
+                if getattr(display_state, "_stopped", False) is True:
+                    continue
+                current = account_dict.get("display_states")
+                if current and current.get(key) is not display_state:
+                    continue
+                switches = switches_by_echo.setdefault(key, {})
+                for kind, setting, switch_class in (
+                    (
+                        "display_power",
+                        SETTING_DISPLAY_POWER,
+                        AlexaDisplayPowerSwitch,
+                    ),
+                    (
+                        "adaptive_brightness",
+                        SETTING_ADAPTIVE_BRIGHTNESS,
+                        AlexaAdaptiveBrightnessSwitch,
+                    ),
+                ):
+                    if kind in switches or not display_state.supports(setting):
+                        continue
+                    entity = switch_class(display_state)
+                    display[id(entity)] = (
+                        entity,
+                        partial(switches.__setitem__, kind, entity),
+                    )
+            if not display:
+                return
+            if await async_submit(display):
+                return
+            if attempt < DISPLAY_REGISTRATION_ATTEMPTS:
+                _LOGGER.debug(
+                    "%s: Display switches rejected (attempt %s/%s); retrying",
+                    hide_email(account),
+                    attempt,
+                    DISPLAY_REGISTRATION_ATTEMPTS,
+                )
+                await asyncio.sleep(DISPLAY_REGISTRATION_RETRY_DELAY)
+        _LOGGER.warning(
+            "%s: Unable to add display switches after %s attempts",
+            hide_email(account),
+            DISPLAY_REGISTRATION_ATTEMPTS,
+        )
 
     if not await async_submit(filtered, include_filter, exclude_filter):
-        display_task.cancel()
-        await asyncio.gather(display_task, return_exceptions=True)
         return False
     if leds and not await async_submit(leds):
-        display_task.cancel()
-        await asyncio.gather(display_task, return_exceptions=True)
-        return False
-
-    try:
-        display_states = await display_task
-    except Exception:  # noqa: BLE001
-        _LOGGER.exception("%s: Unable to probe display switches", hide_email(account))
-        display_states = {}
-
-    display = {}
-    for key, display_state in display_states.items():
-        if getattr(display_state, "_stopped", False) is True:
-            continue
-        current = account_dict.get("display_states")
-        if current and current.get(key) is not display_state:
-            continue
-        switches = switches_by_echo.setdefault(key, {})
-        for kind, setting, switch_class in (
-            (
-                "display_power",
-                SETTING_DISPLAY_POWER,
-                AlexaDisplayPowerSwitch,
-            ),
-            (
-                "adaptive_brightness",
-                SETTING_ADAPTIVE_BRIGHTNESS,
-                AlexaAdaptiveBrightnessSwitch,
-            ),
-        ):
-            if kind in switches or not display_state.supports(setting):
-                continue
-            entity = switch_class(display_state)
-            display[id(entity)] = (
-                entity,
-                partial(switches.__setitem__, kind, entity),
-            )
-
-    if display and not await async_submit(display):
         return False
 
     # Dashboard discovery has its own retry loop. Check submitted IDs when a
@@ -256,8 +268,8 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
             continue
         client = clients.get(key)
         if client is None:
-            # Discovery can add the device while the display probe is pending;
-            # register its Kids switch once a media-player client exists.
+            # Discovery can add the device after this attempt; the next setup
+            # registers its Kids switch once a media-player client exists.
             continue
         kids_state.track(client.device_serial_number, device_type)
         kids_devices.append(
@@ -281,6 +293,16 @@ async def async_setup_platform(hass, config, add_devices_callback, discovery_inf
 
         await kids_state.async_add_when_dashboard(async_add_kids_switches)
         await kids_state.async_start()
+
+    if any(can_probe_display(device) for device in media_devices.values()):
+        previous = account_dict.get(registration_key)
+        if isinstance(previous, asyncio.Task) and not previous.done():
+            previous.cancel()
+        display_task = asyncio.create_task(_register_displays())
+        account_dict[registration_key] = display_task
+        setup_tasks = account_dict.setdefault("display_setup_tasks", set())
+        setup_tasks.add(display_task)
+        display_task.add_done_callback(setup_tasks.discard)
     return True
 
 

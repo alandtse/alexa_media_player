@@ -556,8 +556,8 @@ def _take_new_voice_records(
 
     # History can list a record after a newer one, so keep an overlap below
     # the watermark and dedupe against what was already emitted. Only while
-    # this function emitted up to the watermark: refresh paths advance it
-    # without emitting, and the overlap would replay their records late.
+    # this function emitted up to the watermark: automatic refresh paths can
+    # advance it without emitting, and the overlap would replay their records.
     lower_ts = max(floor, watermark)
     if watermark <= int(account.get("last_called_voice_upper_ts") or 0):
         lower_ts = max(floor, watermark - LAST_CALLED_STALE_FUDGE_MS)
@@ -592,7 +592,9 @@ async def async_setup(hass, config):
 
         async def _service_update_last_called(login_obj):
             """Update last_called for the account behind a login object."""
-            await _async_update_last_called_global(hass, login_obj, login_obj.email)
+            await _async_update_last_called_global(
+                hass, login_obj, login_obj.email, force=True
+            )
 
         def _service_schedule_notifications_refresh(
             hass, email, device_serial=None, reason=""
@@ -677,13 +679,21 @@ def _store_and_dispatch_last_called(
         payload["timestamp"] = ts
 
     prev = stored_data.get("last_called")
+    prev_ts = (prev or {}).get("timestamp")
     changed = prev != payload
 
-    if ts > 0:
-        stored_data["last_called_customer_history_ts"] = max(
-            int(stored_data.get("last_called_customer_history_ts") or 0),
-            ts,
-        )
+    # Forced refreshes publish last_called without advancing the probe's cutoff
+    # for matching queued activity and emitting voice-command events.
+    if ts > 0 and not force:
+        watermark = int(stored_data.get("last_called_customer_history_ts") or 0)
+        stored_data["last_called_customer_history_ts"] = max(watermark, ts)
+        # The probe can process an older command after a forced refresh
+        # has already published a newer last_called result.
+        if isinstance(prev_ts, int) and prev_ts > max(watermark, ts):
+            return
+    elif force and 0 < ts and isinstance(prev_ts, int) and prev_ts > ts:
+        # A direct read can lag behind the latest published activity.
+        payload = prev
 
     stored_data["last_called"] = payload
 
@@ -744,6 +754,14 @@ async def _async_update_last_called_global(
                 last_called = await AlexaAPI.get_last_device_serial(login_obj)
             else:
                 async with api_lock:
+                    # Explicit refreshes bypass probe scheduling, but honor its 429 backoff.
+                    if (
+                        force
+                        and account.get("last_called_probe_backoff_s", 0.0) > 0
+                        and time.monotonic()
+                        < account.get("last_called_probe_next_allowed", 0.0)
+                    ):
+                        return
                     last_called = await AlexaAPI.get_last_device_serial(login_obj)
         except asyncio.CancelledError:
             # Task cancelled during unload/shutdown; propagate cancellation.
@@ -1976,7 +1994,7 @@ async def setup_alexa(hass, config_entry, login_obj: AlexaLogin):
         account.setdefault("last_called_api_lock", asyncio.Lock())
         account.setdefault(
             "last_called_customer_history_ts", 0
-        )  # ms epoch last applied
+        )  # ms epoch cutoff for automatic history processing
         account.setdefault("last_called_probe_backoff_s", 0.0)
         account.setdefault("last_called_probe_event", asyncio.Event())
         account.setdefault("last_called_probe_next_allowed", 0.0)  # monotonic seconds

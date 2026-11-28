@@ -1,14 +1,20 @@
 """Regression tests for integration quality-scale baseline fixes."""
 
 import asyncio
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from alexapy.errors import AlexapyTooManyRequestsError
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import Context
 from homeassistant.exceptions import ServiceValidationError
 import pytest
 
-from custom_components.alexa_media import async_setup, async_unload_entry
+from custom_components.alexa_media import (
+    _async_update_last_called_global,
+    async_setup,
+    async_unload_entry,
+)
 from custom_components.alexa_media.config_flow import OptionsFlowHandler
 from custom_components.alexa_media.const import (
     CONF_DEBUG,
@@ -141,7 +147,13 @@ async def test_async_setup_registers_services_once():
     metrics_cls.assert_called_with(hass)
     services_cls.assert_called_once()
     callbacks = services_cls.call_args.kwargs["functions"]
-    assert callable(callbacks["update_last_called"])
+    login = MagicMock(email=EMAIL)
+    with patch(
+        "custom_components.alexa_media._async_update_last_called_global",
+        new_callable=AsyncMock,
+    ) as refresh:
+        await callbacks["update_last_called"](login)
+    refresh.assert_awaited_once_with(hass, login, EMAIL, force=True)
     schedule = MagicMock()
     other_schedule = MagicMock()
     hass.data[DATA_ALEXAMEDIA]["accounts"] = {
@@ -246,27 +258,24 @@ async def test_update_last_called_service_uses_registered_callback():
             }
         }
     }
-    tasks = []
-
-    def _create_task(coro, name=None):
-        task = asyncio.create_task(coro)
-        tasks.append(task)
-        return task
-
-    hass.async_create_task.side_effect = _create_task
+    hass.async_create_task.side_effect = lambda coro, **kwargs: asyncio.create_task(
+        coro
+    )
     services = AlexaMediaServices(hass, functions={"update_last_called": callback})
     call = MagicMock()
     call.data = {"email": [EMAIL]}
 
     await services.last_call_handler(call)
-    await asyncio.gather(*tasks)
 
     callback.assert_awaited_once_with(login)
+    assert (
+        "service_update_last_called_task"
+        not in hass.data[DATA_ALEXAMEDIA]["accounts"][EMAIL]
+    )
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("reload_account", [False, True])
-async def test_cancelled_last_called_task_preserves_replacement(reload_account):
+async def test_cancelled_last_called_task_preserves_replacement():
     """A cancelled request cannot hide the task that unload still needs to cancel."""
     started = asyncio.Event()
     release = asyncio.Event()
@@ -289,21 +298,186 @@ async def test_cancelled_last_called_task_preserves_replacement(reload_account):
     )
     services = AlexaMediaServices(hass, functions={"update_last_called": callback})
     call = MagicMock(data={"email": [EMAIL]})
-    await services.last_call_handler(call)
-    old = accounts[EMAIL]["service_update_last_called_task"]
+    old_call = asyncio.create_task(services.last_call_handler(call))
     await started.wait()
-    if reload_account:
-        old.cancel()
-        accounts[EMAIL] = account()
-    await services.last_call_handler(call)
-    new = accounts[EMAIL]["service_update_last_called_task"]
+    old = accounts[EMAIL]["service_update_last_called_task"]
+    # Queue the new caller before cancellation lets the old worker clean up.
+    new_call = asyncio.create_task(services.last_call_handler(call))
+    accounts[EMAIL] = account()
+    old.cancel()
     try:
-        await asyncio.gather(old, return_exceptions=True)
-        assert accounts[EMAIL].get("service_update_last_called_task") is new
+        await old_call
+        assert accounts[EMAIL]["service_update_last_called_task"] is not old
     finally:
         release.set()
-        await asyncio.gather(old, new, return_exceptions=True)
+        await new_call
     assert "service_update_last_called_task" not in accounts[EMAIL]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unload_account", [False, True])
+async def test_last_called_waits_for_all_accounts_and_shares_running_refresh(
+    unload_account,
+):
+    """Overlapping calls join one refresh per account, even if a caller cancels."""
+    other_email = "other@example.com"
+    started = {email: asyncio.Event() for email in (EMAIL, other_email)}
+    release = {email: asyncio.Event() for email in started}
+    accounts = {
+        email: {
+            "login_obj": MagicMock(email=email),
+            "config_entry": MagicMock(state=ConfigEntryState.LOADED),
+        }
+        for email in started
+    }
+
+    async def refresh(login):
+        started[login.email].set()
+        await release[login.email].wait()
+
+    hass = MagicMock(data={DATA_ALEXAMEDIA: {"accounts": accounts}})
+    hass.async_create_task.side_effect = lambda coro, **kwargs: asyncio.create_task(
+        coro
+    )
+    callback = AsyncMock(side_effect=refresh)
+    services = AlexaMediaServices(hass, functions={"update_last_called": callback})
+    first = asyncio.create_task(
+        services.last_call_handler(MagicMock(data={"email": [EMAIL]}))
+    )
+    await started[EMAIL].wait()
+    shared = accounts[EMAIL]["service_update_last_called_task"]
+    all_accounts = asyncio.create_task(services.last_call_handler(MagicMock(data={})))
+    try:
+        await started[other_email].wait()
+        assert accounts[EMAIL]["service_update_last_called_task"] is shared
+        assert not first.done()
+        assert not all_accounts.done()
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        assert not shared.done()
+
+        if unload_account:
+            with (
+                patch("custom_components.alexa_media.ALEXA_COMPONENTS", []),
+                patch("custom_components.alexa_media.DEPENDENT_ALEXA_COMPONENTS", []),
+                patch(
+                    "custom_components.alexa_media.close_connections",
+                    new_callable=AsyncMock,
+                ),
+            ):
+                assert await async_unload_entry(hass, MagicMock(data={"email": EMAIL}))
+            assert shared.cancelled()
+            assert EMAIL not in accounts
+        else:
+            release[EMAIL].set()
+            await shared
+        assert not all_accounts.done()
+        assert callback.await_count == 2
+    finally:
+        for event in release.values():
+            event.set()
+        await asyncio.gather(first, all_accounts, return_exceptions=True)
+    await all_accounts
+    assert all(
+        "service_update_last_called_task" not in acct for acct in accounts.values()
+    )
+
+
+@pytest.mark.asyncio
+async def test_forced_last_called_dispatches_unchanged_payload():
+    """Only the explicit refresh bypasses the probe and redispatches cached history."""
+    payload = {
+        "serialNumber": "echo",
+        "timestamp": 1700000000000,
+        "summary": "Echo test",
+    }
+    trigger = MagicMock()
+    lock = asyncio.Lock()
+    account = {
+        "last_called": payload,
+        "last_called_probe_trigger": trigger,
+        "last_called_api_lock": lock,
+    }
+    hass = MagicMock(data={DATA_ALEXAMEDIA: {"accounts": {EMAIL: account}}})
+    login = MagicMock(close_requested=False, status={"login_successful": True})
+    login.session.closed = False
+
+    async def read_history(login_obj):
+        assert lock.locked()
+        return payload
+
+    with (
+        patch(
+            "custom_components.alexa_media.AlexaAPI.get_last_device_serial",
+            new=AsyncMock(side_effect=read_history),
+        ) as read,
+        patch("custom_components.alexa_media.async_dispatcher_send") as dispatch,
+    ):
+        await _async_update_last_called_global(hass, login, EMAIL)
+        trigger.assert_called_once_with("GLOBAL_REFRESH", None)
+        read.assert_not_awaited()
+        dispatch.assert_not_called()
+
+        await _async_update_last_called_global(hass, login, EMAIL, force=True)
+        trigger.assert_called_once()
+        read.assert_awaited_once_with(login)
+        dispatch.assert_called_once()
+        assert dispatch.call_args.args[2] == {"last_called_change": payload}
+
+        read.reset_mock(side_effect=True)
+        dispatch.reset_mock()
+        account.update(
+            last_called_probe_backoff_s=30.0,
+            last_called_probe_next_allowed=time.monotonic() + 30.0,
+        )
+        await _async_update_last_called_global(hass, login, EMAIL, force=True)
+        read.assert_not_awaited()
+
+        account["last_called_probe_next_allowed"] = 0.0
+        read.side_effect = AlexapyTooManyRequestsError
+        await _async_update_last_called_global(hass, login, EMAIL, force=True)
+        read.assert_awaited_once_with(login)
+        dispatch.assert_not_called()
+        assert account["last_called"] == payload
+
+
+@pytest.mark.asyncio
+async def test_forced_last_called_redispatches_newer_cached_payload():
+    """A stale direct read cannot replace a newer result already published."""
+    payload = {
+        "serialNumber": "newer-echo",
+        "timestamp": 1700000001000,
+        "summary": "Newer command",
+    }
+    cutoff = 1700000000000
+    account = {
+        "last_called": payload,
+        "last_called_api_lock": asyncio.Lock(),
+        "last_called_customer_history_ts": cutoff,
+    }
+    hass = MagicMock(data={DATA_ALEXAMEDIA: {"accounts": {EMAIL: account}}})
+    login = MagicMock(close_requested=False, status={"login_successful": True})
+    login.session.closed = False
+    stale = {
+        "serialNumber": "older-echo",
+        "timestamp": "1700000000",
+        "summary": "Older command",
+    }
+    with (
+        patch(
+            "custom_components.alexa_media.AlexaAPI.get_last_device_serial",
+            new=AsyncMock(return_value=stale),
+        ) as read,
+        patch("custom_components.alexa_media.async_dispatcher_send") as dispatch,
+    ):
+        await _async_update_last_called_global(hass, login, EMAIL, force=True)
+
+    read.assert_awaited_once_with(login)
+    assert account["last_called"] == payload
+    assert account["last_called_customer_history_ts"] == cutoff
+    dispatch.assert_called_once()
+    assert dispatch.call_args.args[2] == {"last_called_change": payload}
 
 
 @pytest.mark.asyncio

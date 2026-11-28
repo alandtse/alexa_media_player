@@ -4,12 +4,17 @@ from copy import deepcopy
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from aiohttp import ClientConnectionError, ClientPayloadError
+from alexapy import AlexaAPI
 from homeassistant.exceptions import HomeAssistantError
 import pytest
 
 from custom_components.alexa_media.alexa_entity import (
+    get_entity_data,
     get_led_indicator_instance,
+    parse_air_quality_from_coordinator,
     parse_alexa_entities,
+    parse_temperature_from_coordinator,
+    sensor_polling_endpoints,
 )
 from custom_components.alexa_media.aqm_led import resolve_endpoint_id, set_led_state
 from custom_components.alexa_media.const import DATA_ALEXAMEDIA
@@ -166,6 +171,95 @@ def test_state_scoped_to_instance(switch, value, expected):
     assert switch.available is (expected is not None)
     switch.coordinator.last_update_success = False
     assert not switch.available
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("toggle", "expected"), [(True, "ON"), (False, "OFF")])
+async def test_graphql_poll_supplies_led_temperature_and_air_quality(
+    switch, appliance, monkeypatch, toggle, expected
+):
+    """A shared AQM endpoint feeds the LED and both sensor parsers."""
+    entity_id = appliance["entityId"]
+    endpoint_id = "aqm-endpoint"
+    snapshot = sensor_polling_endpoints(
+        [{"id": endpoint_id, "legacyAppliance": appliance}],
+        parse_alexa_entities([appliance]),
+    )
+    assert snapshot
+    temperature = {"value": 21.5, "scale": "CELSIUS"}
+    if callable(getattr(AlexaAPI, "get_entity_state_gql", None)):
+        # Run the draft library's real query parser when it is installed.
+        features = [
+            {
+                "instance": 11,
+                "properties": [
+                    {"__typename": "ToggleState", "toggleStateValue": toggle}
+                ],
+            },
+            {"properties": [{"__typename": "TemperatureSensor", "value": temperature}]},
+            {
+                "instance": "9",
+                "properties": [
+                    {"__typename": "RangeValue", "rangeValue": {"value": 34}}
+                ],
+            },
+        ]
+        response = MagicMock(
+            status=200,
+            json=AsyncMock(
+                return_value={
+                    "data": {
+                        "listEndpoints": {
+                            "endpoints": [
+                                {"endpointId": endpoint_id, "features": features}
+                            ]
+                        }
+                    }
+                }
+            ),
+        )
+        monkeypatch.setattr(
+            AlexaAPI, "_static_request", AsyncMock(return_value=response)
+        )
+    else:
+        # Published 1.38.0 has no state API. Exercise its future response contract.
+        normalized = [
+            {
+                "namespace": "Alexa.ToggleController",
+                "name": "toggleState",
+                "instance": 11,
+                "value": expected,
+            },
+            {
+                "namespace": "Alexa.TemperatureSensor",
+                "name": "temperature",
+                "value": temperature,
+            },
+            {
+                "namespace": "Alexa.RangeController",
+                "name": "rangeValue",
+                "instance": "9",
+                "value": 34,
+            },
+        ]
+        monkeypatch.setattr(
+            AlexaAPI,
+            "get_entity_state_gql",
+            AsyncMock(return_value={entity_id: normalized}),
+            raising=False,
+        )
+    legacy = AsyncMock()
+    monkeypatch.setattr(AlexaAPI, "get_entity_state", legacy)
+    coordinator = switch.coordinator
+    coordinator.data = await get_entity_data(
+        MagicMock(), [entity_id], endpoints=snapshot
+    )
+
+    assert switch.available
+    assert switch.is_on is toggle
+    assert parse_temperature_from_coordinator(coordinator, entity_id) == temperature
+    assert parse_air_quality_from_coordinator(coordinator, entity_id, "9") == 34
+    legacy.assert_not_awaited()
 
 
 def test_unknown_and_identity(switch):
